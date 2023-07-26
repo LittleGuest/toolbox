@@ -11,14 +11,14 @@
   },
   "dependencies": {
     "@tauri-apps/api": "^1.4.0",
-    "unplugin-auto-import": "^0.16.6",
-    "unplugin-vue-components": "^0.25.1",
+    "element-plus": "^2.3.8",
     "vue": "^3.2.45"
   },
   "devDependencies": {
-    "@arco-design/web-vue": "^2.49.1",
     "@tauri-apps/cli": "^1.4.0",
     "@vitejs/plugin-vue": "^4.0.0",
+    "unplugin-auto-import": "^0.16.6",
+    "unplugin-vue-components": "^0.25.1",
     "vite": "^4.2.1"
   }
 }

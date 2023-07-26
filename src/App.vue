@@ -1,115 +1,99 @@
 <script setup>
 import { ref } from "vue";
-import { Message } from "@arco-design/web-vue";
-import { IconHome, IconCalendar } from "@arco-design/web-vue/es/icon";
 
-import Hash from "./components/Hash.vue";
+import Hash from "./components/generator/Hash.vue";
+import UUID from "./components/generator/UUID.vue";
 
-const collapsed = ref(false);
-const onCollapse = (val, type) => {
-  const content = type === "responsive" ? "触发响应式收缩" : "点击触发收缩";
-  Message.info({
-    content,
-    duration: 2000,
-  });
-  collapsed.value = val;
+import Html from "./components/encodedecode/Html.vue";
+import Base64Text from "./components/encodedecode/Base64Text.vue";
+import JWT from "./components/encodedecode/JWT.vue";
+import URL from "./components/encodedecode/URL.vue";
+
+import Number from "./components/converter/Number.vue";
+
+import SQL from "./components/formatter/SQL.vue";
+
+import EscapeUnescape from "./components/text/EscapeUnescape.vue";
+import RegexTester from "./components/text/RegexTester.vue";
+
+const isCollapse = ref(true);
+const handleOpen = (key, keyPath) => {
+  console.log(key, keyPath);
 };
-
-const onClickMenuItem = (key) => {
-  Message.info({ content: `You select ${key}`, showIcon: true });
+const handleClose = (key, keyPath) => {
+  console.log(key, keyPath);
 };
 </script>
 
 <template>
-  <a-layout>
-    <a-layout-sider
-      theme="dark"
-      breakpoint="lg"
-      collapsible
-      :collapsed="collapsed"
-      @collapse="onCollapse"
-    >
-      <a-menu
-        :defaultOpenKeys="['1']"
-        :defaultSelectedKeys="['all']"
-        @menuItemClick="onClickMenuItem"
+  <el-container>
+    <el-aside
+      ><el-radio-group v-model="isCollapse" style="margin-bottom: 20px">
+        <el-radio-button :label="false">expand</el-radio-button>
+        <el-radio-button :label="true">collapse</el-radio-button>
+      </el-radio-group>
+      <el-menu
+        default-active="2"
+        class="el-menu-vertical-demo"
+        :collapse="isCollapse"
+        @open="handleOpen"
+        @close="handleClose"
       >
-        <a-menu-item key="all">
-          <IconHome />
-          All tools
-        </a-menu-item>
-
-        <a-divider direction="horizontal" />
-
-        <a-sub-menu key="convert">
+        <el-sub-menu index="1">
           <template #title>
-            <span><IconCalendar />转换器</span>
+            <span>All tools</span>
           </template>
-          <a-menu-item key="">JSON {{ "<>" }} YAML</a-menu-item>
-          <a-menu-item key="">时间戳</a-menu-item>
-          <a-menu-item key="">Number Base</a-menu-item>
-          <a-menu-item key="">Cron parser</a-menu-item>
-        </a-sub-menu>
+        </el-sub-menu>
 
-        <a-sub-menu key="encoder_decoder">
-          <template #title>
-            <span><IconCalendar />编码/解码</span>
-          </template>
-          <a-menu-item key="">HTML</a-menu-item>
-          <a-menu-item key="">URL</a-menu-item>
-          <a-menu-item key="">Base 64</a-menu-item>
-          <a-menu-item key="">JWT Decoder</a-menu-item>
-        </a-sub-menu>
+        <el-sub-menu index="convert">
+          <template #title><span>转换器</span></template>
+          <el-menu-item index="1-4-1">JSON {{ "<>" }} YAML</el-menu-item>
+          <el-menu-item index="1-4-1">时间戳</el-menu-item>
+          <el-menu-item index="1-4-1">Number Base</el-menu-item>
+          <el-menu-item index="1-4-1">Cron parser</el-menu-item>
+        </el-sub-menu>
 
-        <a-sub-menu key="formatter">
-          <template #title>
-            <span><IconCalendar />格式化</span>
-          </template>
-          <a-menu-item key="">JSON</a-menu-item>
-          <a-menu-item key="">SQL</a-menu-item>
-          <a-menu-item key="">XML</a-menu-item>
-          <!-- <a-menu-item key="">YAML</a-menu-item> -->
-          <!-- <a-menu-item key="">TOML</a-menu-item> -->
-        </a-sub-menu>
+        <el-sub-menu index="encoder_decoder">
+          <template #title><span>编码/解码</span></template>
+          <el-menu-item index="1-4-1">HTML</el-menu-item>
+          <el-menu-item index="1-4-1">URL</el-menu-item>
+          <el-menu-item index="1-4-1">Base 64</el-menu-item>
+          <el-menu-item index="1-4-1">JWT Decoder</el-menu-item>
+        </el-sub-menu>
 
-        <a-sub-menu key="generator">
-          <template #title>
-            <span><IconCalendar />生成器</span>
-          </template>
-          <a-menu-item key="">Hash</a-menu-item>
-          <a-menu-item key="">UUID</a-menu-item>
-          <a-menu-item key="">Lorem Ipsum</a-menu-item>
-          <a-menu-item key="">Checksum</a-menu-item>
-        </a-sub-menu>
+        <el-sub-menu index="formatter">
+          <template #title><span>格式化</span></template>
+          <el-menu-item index="1-4-1">JSON</el-menu-item>
+          <el-menu-item index="1-4-1">SQL</el-menu-item>
+          <el-menu-item index="1-4-1">XML</el-menu-item>
+          <!-- <el-menu-item index="1-4-1">YAML</el-menu-item> -->
+          <!-- <el-menu-item index="1-4-1">TOML</el-menu-item> -->
+        </el-sub-menu>
 
-        <a-sub-menu key="generator">
-          <template #title>
-            <span><IconCalendar />文本</span>
-          </template>
-          <a-menu-item key="">Inspector & Case Converter</a-menu-item>
-          <a-menu-item key="">Regex Tester</a-menu-item>
-          <a-menu-item key="">文本比较</a-menu-item>
-          <a-menu-item key="">Markdown预览</a-menu-item>
-        </a-sub-menu>
+        <el-sub-menu index="generator">
+          <template #title><span>文本</span></template>
+          <el-menu-item index="1-4-1">Inspector & Case Converter</el-menu-item>
+          <el-menu-item index="1-4-1">Regex Tester</el-menu-item>
+          <el-menu-item index="1-4-1">文本比较</el-menu-item>
+          <el-menu-item index="1-4-1">Markdown预览</el-menu-item>
+        </el-sub-menu>
 
-        <a-sub-menu key="graphic">
-          <template #title>
-            <span><IconCalendar />图像</span>
-          </template>
-          <a-menu-item key="">PNG /JPEG comperssor</a-menu-item>
-        </a-sub-menu>
-      </a-menu>
-    </a-layout-sider>
-    <a-layout>
-      <a-breadcrumb>
-        <a-breadcrumb-item>Home</a-breadcrumb-item>
-      </a-breadcrumb>
-
-      <a-layout-content style="background-color: rgb(185, 175, 175)">
-        <Hash
-      /></a-layout-content>
-    </a-layout>
-  </a-layout>
+        <el-sub-menu index="graphic">
+          <template #title><span>图像</span></template>
+          <el-menu-item index="1-4-1">PNG /JPEG comperssor</el-menu-item>
+        </el-sub-menu>
+      </el-menu></el-aside
+    >
+    <el-container>
+      <el-header>Header</el-header>
+      <el-main><SQL /></el-main>
+    </el-container>
+  </el-container>
 </template>
 
-<style scoped></style>
+<style scoped>
+.el-menu-vertical-demo:not(.el-menu--collapse) {
+  width: 200px;
+  min-height: 600px;
+}
+</style>
