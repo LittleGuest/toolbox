@@ -1,6 +1,6 @@
 //! URL编码解码
 
-use crate::{ToolError, ToolResult};
+use super::{ToolError, ToolResult};
 
 /// 编码URL
 pub fn encode(data: &str) -> String {

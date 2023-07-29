@@ -2,7 +2,7 @@
 
 use base64::Engine as _;
 
-use crate::{ToolError, ToolResult};
+use super::{ToolError, ToolResult};
 
 /// Base64编码
 pub fn encode_text(data: &str) -> String {

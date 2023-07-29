@@ -2,7 +2,7 @@
 
 use uuid::Uuid;
 
-use crate::{ToolError, ToolResult};
+use super::{ToolError, ToolResult};
 
 pub fn uuid1() -> String {
     Uuid::now_v1(&[8, 8, 8, 8, 8, 8]).to_string()

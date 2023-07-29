@@ -6,7 +6,7 @@ use std::{
     str::FromStr,
 };
 
-use crate::{ToolError, ToolResult};
+use super::{ToolError, ToolResult};
 
 /// Ipv4地址转数字
 pub fn ipv4_to_num(ip: &str) -> ToolResult<u32> {

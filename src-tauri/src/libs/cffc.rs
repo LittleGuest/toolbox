@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::{ToolError, ToolResult};
+use super::{ToolError, ToolResult};
 
 /// 支持的文件格式
 #[derive(Debug, Default, Clone, Copy, PartialEq, Serialize, Deserialize)]

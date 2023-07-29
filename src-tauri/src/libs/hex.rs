@@ -1,6 +1,6 @@
 //! 16进制
 
-use crate::{ToolError, ToolResult};
+use super::{ToolError, ToolResult};
 
 /// 16进制编码
 pub fn encode(data: &str) -> String {
