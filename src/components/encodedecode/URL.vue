@@ -18,7 +18,7 @@ const copy = (value) => {
 </script>
 
 <template>
-  <el-form label-position="right" label-width="100px" style="max-width: 460px">
+  <el-form label-position="right" label-width="100px">
     <el-form-item label="Conversion">
       <strong>select which conversion mode you want to use</strong>
       <el-select v-model="conversion" class="m-2" size="large">
@@ -29,23 +29,15 @@ const copy = (value) => {
 
     <el-form-item label="Input">
       <el-button-group class="ml-4">
-        <el-button type="primary" :icon="Document" v-on:click="paste(input)" />
-        <el-button
-          type="primary"
-          :icon="CopyDocument"
-          v-on:click="copy(input)"
-        />
+        <el-button type="primary" :icon="Document" @click="paste(input)" />
+        <el-button type="primary" :icon="CopyDocument" @click="copy(input)" />
       </el-button-group>
       <el-input v-model="input" :rows="10" type="textarea" />
     </el-form-item>
 
     <el-form-item label="Output">
       <el-button-group class="ml-4">
-        <el-button
-          type="primary"
-          :icon="CopyDocument"
-          v-on:click="copy(output)"
-        />
+        <el-button type="primary" :icon="CopyDocument" @click="copy(output)" />
       </el-button-group>
       <el-input v-model="output" :rows="10" type="textarea" />
     </el-form-item>

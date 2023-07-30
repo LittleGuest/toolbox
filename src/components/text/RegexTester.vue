@@ -17,7 +17,7 @@ const copy = (value) => {
 </script>
 
 <template>
-  <el-form label-position="right" label-width="100px" style="max-width: 460px">
+  <el-form label-position="right" label-width="100px">
     <el-form-item label="Configuration">
       <el-select v-model="conversion" class="m-2" size="large">
         <el-option key="Encode" label="Encode" value="Encode" />
@@ -26,21 +26,13 @@ const copy = (value) => {
     </el-form-item>
 
     <el-form-item label="Regular expression">
-      <el-button
-        type="primary"
-        :icon="Document"
-        v-on:click="paste(expression)"
-      />
+      <el-button type="primary" :icon="Document" @click="paste(expression)" />
       <el-input v-model="expression" clearable />
     </el-form-item>
 
     <el-form-item label="Text">
       <el-button-group class="ml-4">
-        <el-button
-          type="primary"
-          :icon="CopyDocument"
-          v-on:click="copy(text)"
-        />
+        <el-button type="primary" :icon="CopyDocument" @click="copy(text)" />
       </el-button-group>
       <el-input v-model="text" :rows="10" type="textarea" />
     </el-form-item>
