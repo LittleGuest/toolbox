@@ -7,21 +7,20 @@ import { Document, CopyDocument, ArrowUpBold, ArrowDownBold } from "@element-plu
 const input = ref("");
 const output = ref("");
 
-async function encodeBase64Textapi() {
+async function encodeBase64TextApi() {
   input.value = await invoke("encode_base64_text", { input: input.value });
 }
 
-async function decodeBase64Textapi() {
+async function decodeBase64TextApi() {
   output.value = await invoke("decode_base64_text", { input: output.value });
 }
 
 const encode = () => {
-  output.value = encodeBase64Textapi();
+  output.value = encodeBase64TextApi();
 };
 
-
 const decode = () => {
-  input.value = decodeBase64Textapi();
+  input.value = decodeBase64TextApi();
 };
 
 const paste = async () => {

@@ -16,6 +16,18 @@ pub enum Ft {
     Xml,
 }
 
+impl From<&str> for Ft {
+    fn from(value: &str) -> Self {
+        match value.to_lowercase().as_ref() {
+            "json" => Self::Json,
+            "yaml" => Self::Yaml,
+            "toml" => Self::Toml,
+            "xml" => Self::Xml,
+            _ => Self::default(),
+        }
+    }
+}
+
 impl std::fmt::Display for Ft {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -33,17 +45,17 @@ pub struct Data {
     pub from: Ft,
     /// 目标格式
     pub to: Ft,
-    pub indentation: u8,
+    pub ident: u8,
     /// 文本数据
     pub input: String,
 }
 
 impl Data {
-    pub fn new(from: Ft, to: Ft, input: &str) -> Self {
+    pub fn new(from: Ft, to: Ft, input: &str, ident: u8) -> Self {
         Self {
             from,
             to,
-            indentation: 2,
+            ident,
             input: input.into(),
         }
     }
@@ -249,7 +261,7 @@ mod test {
 
     #[test]
     fn test_convert() {
-        let c = Data::new(Ft::Yaml, Ft::Toml, YAML);
+        let c = Data::new(Ft::Yaml, Ft::Toml, YAML, 4);
 
         let _ = c.convert().unwrap();
     }

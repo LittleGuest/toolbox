@@ -36,7 +36,7 @@ const goo = (path) => {
 
         <el-sub-menu index="convert">
           <template #title><span>转换器</span></template>
-          <el-menu-item index="json">JSON {{ "<>" }} YAML</el-menu-item>
+          <el-menu-item index="cffc" @click="goo('cffc')">文件格式转换</el-menu-item>
           <el-menu-item index="timestamp" v-on:click="goo('timestamp')">时间戳</el-menu-item>
           <el-menu-item index="number" v-on:lick="goo('number')">Number Base</el-menu-item>
           <el-menu-item index="cron" v-on:click="goo('cron')">Cron parser</el-menu-item>

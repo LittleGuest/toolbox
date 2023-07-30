@@ -3,6 +3,8 @@
 
 use std::collections::HashMap;
 
+use libs::cffc;
+
 pub mod libs;
 
 fn main() {
@@ -11,7 +13,8 @@ fn main() {
             hash,
             uuid,
             encode_base64_text,
-            decode_base64_text
+            decode_base64_text,
+            cffc
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -88,6 +91,17 @@ fn encode_base64_text(input: Option<&str>) -> String {
 fn decode_base64_text(input: Option<&str>) -> String {
     if let Some(data) = input {
         libs::base64::decode_text(data).unwrap()
+    } else {
+        "".to_string()
+    }
+}
+
+#[tauri::command]
+fn cffc(ident: u8, ft: &str, tt: &str, input: Option<&str>) -> String {
+    if let Some(input) = input {
+        libs::cffc::Data::new(cffc::Ft::from(ft), cffc::Ft::from(tt), input, ident)
+            .convert()
+            .unwrap()
     } else {
         "".to_string()
     }

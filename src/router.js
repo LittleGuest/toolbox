@@ -1,5 +1,7 @@
 import { createRouter, createWebHashHistory } from "vue-router";
 
+import Cffc from "./components/converter/Cffc.vue";
+
 import Hash from "./components/generator/Hash.vue";
 import UUID from "./components/generator/UUID.vue";
 
@@ -32,6 +34,7 @@ const routes = [
   { path: "/sql", component: SQL },
   { path: "/escapeunescape", component: EscapeUnescape},
   { path: "/regexTester", component: RegexTester },
+  { path: "/cffc", component: Cffc },
 ];
 
 const router = createRouter({
