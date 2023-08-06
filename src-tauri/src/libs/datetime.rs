@@ -5,8 +5,8 @@ use time::OffsetDateTime;
 use super::{ToolError, ToolResult};
 
 /// 当前时间
-pub fn now() -> i64 {
-    time::OffsetDateTime::now_utc().unix_timestamp()
+pub fn now() -> OffsetDateTime {
+    time::OffsetDateTime::now_utc()
 }
 
 /// 时间戳转datetime

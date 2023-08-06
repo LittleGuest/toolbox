@@ -3,6 +3,7 @@ import { createRouter, createWebHashHistory } from "vue-router";
 import Cffc from "./components/converter/Cffc.vue";
 import Cron from "./components/converter/Cron.vue";
 import Number from "./components/converter/Number.vue";
+import Timestamp from "./components/converter/Timestamp.vue";
 
 import Checksum from "./components/generator/Checksum.vue";
 import Hash from "./components/generator/Hash.vue";
@@ -30,6 +31,7 @@ const routes = [
   { path: "/cffc", component: Cffc,name:"格式转换" },
   { path: "/number", component: Number ,name:"数值转换"},
   { path: "/cron", component: Cron,name:"Cron表达式" },
+  { path: "/timestamp", component: Timestamp,name:"时间戳" },
   { path: "/html", component: Html },
   { path: "/url", component: URL },
   { path: "/base64Text", component: Base64Text },

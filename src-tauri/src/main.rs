@@ -14,7 +14,10 @@ fn main() {
             uuid,
             encode_base64_text,
             decode_base64_text,
-            cffc
+            encode_url,
+            decode_url,
+            cffc,
+            timestamp,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -97,6 +100,24 @@ fn decode_base64_text(input: Option<&str>) -> String {
 }
 
 #[tauri::command]
+fn encode_url(input: Option<&str>) -> String {
+    if let Some(data) = input {
+        libs::url::encode(data)
+    } else {
+        "".to_string()
+    }
+}
+
+#[tauri::command]
+fn decode_url(input: Option<&str>) -> String {
+    if let Some(data) = input {
+        libs::url::decode(data).unwrap()
+    } else {
+        "".to_string()
+    }
+}
+
+#[tauri::command]
 fn cffc(ident: u8, ft: &str, tt: &str, input: Option<&str>) -> String {
     if let Some(input) = input {
         libs::cffc::Data::new(cffc::Ft::from(ft), cffc::Ft::from(tt), input, ident)
@@ -105,4 +126,34 @@ fn cffc(ident: u8, ft: &str, tt: &str, input: Option<&str>) -> String {
     } else {
         "".to_string()
     }
+}
+
+#[tauri::command]
+fn timestamp(time: Option<&str>) -> HashMap<String, String> {
+    let mut map = HashMap::with_capacity(5);
+
+    if let Some(time) = time {
+        match time.parse::<i64>() {
+            Ok(_time) => {
+                todo!()
+            }
+            Err(_) => {}
+        }
+    } else {
+        let now = libs::datetime::now();
+
+        map.insert("current".to_string(), now.unix_timestamp().to_string());
+        map.insert("timestamp".to_string(), now.unix_timestamp().to_string());
+        map.insert(
+            "timestamp_mill".to_string(),
+            now.unix_timestamp().to_string(),
+        );
+        map.insert("utc".to_string(), "".to_string());
+        map.insert(
+            "datetime_utc8".to_string(),
+            libs::datetime::unix_to_datetime(now.unix_timestamp()).unwrap_or("".to_string()),
+        );
+    }
+
+    map
 }
