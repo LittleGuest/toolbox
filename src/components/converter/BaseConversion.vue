@@ -46,7 +46,7 @@ const copy = (value) => {
     </el-form-item>
     -->
 
-    <el-form-item label="Input Type">
+    <el-form-item label="输入类型">
       <el-select v-model="inputType" class="m-2" size="large">
         <el-option key="Binary" label="二进制" value="Binary" />
         <el-option key="Octal" label="8进制" value="Octal" />
@@ -55,30 +55,30 @@ const copy = (value) => {
       </el-select>
     </el-form-item>
 
-    <el-form-item label="Input">
+    <el-form-item label="输入">
       <el-button-group class="ml-4">
         <el-button type="primary" :icon="Document" @click="paste" />
         <el-button type="primary" :icon="CopyDocument" @click="copy(input)" />
       </el-button-group>
-      <el-input v-model="input" @input="change" />
+      <el-input v-model="input" @input="change" maxlength=19 />
     </el-form-item>
 
-    <el-form-item label="Binary">
+    <el-form-item label="二进制">
       <el-text class="mx-1">{{ binary }}</el-text>
       <el-button type="primary" :icon="CopyDocument" @click="copy(binary)" />
     </el-form-item>
 
-    <el-form-item label="Octal">
+    <el-form-item label="八进制">
       <el-text class="mx-1">{{ octal }}</el-text>
       <el-button type="primary" :icon="CopyDocument" @click="copy(octal)" />
     </el-form-item>
 
-    <el-form-item label="Decimal">
+    <el-form-item label="十进制">
       <el-text class="mx-1">{{ decimal }}</el-text>
       <el-button type="primary" :icon="CopyDocument" @click="copy(decimal)" />
     </el-form-item>
 
-    <el-form-item label="Hexadecimal">
+    <el-form-item label="十六进制">
       <el-text class="mx-1">{{ hex }}</el-text>
       <el-button type="primary" :icon="CopyDocument" @click="copy(hex)" />
     </el-form-item>

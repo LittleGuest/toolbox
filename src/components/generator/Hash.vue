@@ -29,7 +29,7 @@ const copy = (value) => {
 
 <template>
   <el-form label-position="right" label-width="100px">
-    <el-form-item label="Uppercase">
+    <el-form-item label="是否开启大写">
       <el-switch v-model="uppercase" @change="change" class="ml-2" inline-prompt
         style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949" active-text="Y" inactive-text="N" />
     </el-form-item>
@@ -48,7 +48,7 @@ const copy = (value) => {
     </el-form-item>
     -->
 
-    <el-form-item label="Input">
+    <el-form-item label="输入">
       <el-button-group class="ml-4">
         <el-button type="primary" :icon="Document" @click="paste" />
         <el-button type="primary" :icon="CopyDocument" @click="copy(input)" />

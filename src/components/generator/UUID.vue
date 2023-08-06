@@ -31,12 +31,12 @@ const copy = (value) => {
     </el-form-item>
     -->
 
-    <el-form-item label="Uppercase">
+    <el-form-item label="是否开启大写">
       <el-switch v-model="uppercase" class="ml-2" inline-prompt
         style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949" active-text="Y" inactive-text="N" />
     </el-form-item>
 
-    <el-form-item label="UUID version">
+    <el-form-item label="UUID 版本">
       <el-select v-model="uuidVersion" class="m-2" size="large">
         <el-option key="1" label="1" value="1" />
         <el-option key="3" label="3" value="3" />
@@ -45,7 +45,7 @@ const copy = (value) => {
       </el-select>
     </el-form-item>
 
-    <el-form-item label="Generate">
+    <el-form-item label="生成数量">
       <el-text class="mx-1" type="primary">Generate UUID(s) x </el-text>
       <el-input-number v-model="number" :min="1" :max="999999" controls-position="right" />
       <el-button @click="api">生成</el-button>
