@@ -4,6 +4,7 @@
 use std::collections::HashMap;
 
 use libs::cffc;
+use serde::{Deserialize, Serialize};
 
 pub mod libs;
 
@@ -18,6 +19,7 @@ fn main() {
             decode_url,
             cffc,
             timestamp,
+            number_base,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -156,4 +158,126 @@ fn timestamp(time: Option<&str>) -> HashMap<String, String> {
     }
 
     map
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum Base {
+    Binary,
+    Octal,
+    Decimal,
+    Hex,
+}
+
+#[tauri::command]
+fn number_base(input_type: Option<Base>, input: String) -> HashMap<String, String> {
+    let mut map = HashMap::with_capacity(4);
+    if input.is_empty() {
+        return map;
+    }
+    if let Some(input_type) = input_type {
+        match input_type {
+            Base::Binary => {
+                let octal = base_converter::base_to_base(
+                    &input,
+                    base_converter::BASE2,
+                    base_converter::BASE8,
+                )
+                .unwrap();
+                let decimal = base_converter::base_to_base(
+                    &input,
+                    base_converter::BASE2,
+                    base_converter::BASE10,
+                )
+                .unwrap();
+                let hex = base_converter::base_to_base(
+                    &input,
+                    base_converter::BASE2,
+                    base_converter::BASE16,
+                )
+                .unwrap();
+                map.insert("binary".to_string(), input);
+                map.insert("octal".to_string(), octal);
+                map.insert("decimal".to_string(), decimal);
+                map.insert("hex".to_string(), hex);
+                map
+            }
+            Base::Octal => {
+                let binary = base_converter::base_to_base(
+                    &input,
+                    base_converter::BASE8,
+                    base_converter::BASE2,
+                )
+                .unwrap();
+                let decimal = base_converter::base_to_base(
+                    &input,
+                    base_converter::BASE8,
+                    base_converter::BASE10,
+                )
+                .unwrap();
+                let hex = base_converter::base_to_base(
+                    &input,
+                    base_converter::BASE8,
+                    base_converter::BASE16,
+                )
+                .unwrap();
+                map.insert("binary".to_string(), binary);
+                map.insert("octal".to_string(), input);
+                map.insert("decimal".to_string(), decimal);
+                map.insert("hex".to_string(), hex);
+                map
+            }
+            Base::Decimal => {
+                let binary = base_converter::base_to_base(
+                    &input,
+                    base_converter::BASE10,
+                    base_converter::BASE2,
+                )
+                .unwrap();
+                let octal = base_converter::base_to_base(
+                    &input,
+                    base_converter::BASE10,
+                    base_converter::BASE8,
+                )
+                .unwrap();
+                let hex = base_converter::base_to_base(
+                    &input,
+                    base_converter::BASE10,
+                    base_converter::BASE16,
+                )
+                .unwrap();
+                map.insert("binary".to_string(), binary);
+                map.insert("octal".to_string(), octal);
+                map.insert("decimal".to_string(), input);
+                map.insert("hex".to_string(), hex);
+                map
+            }
+            Base::Hex => {
+                let binary = base_converter::base_to_base(
+                    &input,
+                    base_converter::BASE16,
+                    base_converter::BASE2,
+                )
+                .unwrap();
+                let octal = base_converter::base_to_base(
+                    &input,
+                    base_converter::BASE16,
+                    base_converter::BASE8,
+                )
+                .unwrap();
+                let decimal = base_converter::base_to_base(
+                    &input,
+                    base_converter::BASE16,
+                    base_converter::BASE10,
+                )
+                .unwrap();
+                map.insert("binary".to_string(), binary);
+                map.insert("octal".to_string(), octal);
+                map.insert("decimal".to_string(), decimal);
+                map.insert("hex".to_string(), input);
+                map
+            }
+        }
+    } else {
+        map
+    }
 }

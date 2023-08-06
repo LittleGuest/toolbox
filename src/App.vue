@@ -55,8 +55,8 @@ const change = () => {
           </template>
           <el-menu-item index="cffc" route="cffc" @click="change">文件格式转换</el-menu-item>
           <el-menu-item index="timestamp" route="timestamp" @click="change">时间戳</el-menu-item>
-          <el-menu-item index="number" route="number" @click="change">Number Base</el-menu-item>
-          <el-menu-item index="cron" route="cron" @click="change">Cron parser</el-menu-item>
+          <el-menu-item index="baseconversion" route="baseconversion" @click="change">进制转换</el-menu-item>
+          <el-menu-item index="cron" route="cron" @click="change">Cron</el-menu-item>
         </el-sub-menu>
 
         <el-sub-menu index="encoder_decoder">
