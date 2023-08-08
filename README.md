@@ -43,7 +43,7 @@ offline toolbox
 - 文本工具
   - 正则可视化工具
   - 正则测试工具
-  - Markdown 预览
+  - Markdown 预览(md-editor-v3)
   - 文本内容比较工具???
   - 文本替换工具
   - 通用文本处理工具

@@ -1,6 +1,5 @@
 <script setup>
-import { ref, reactive } from "vue";
-import { invoke } from "@tauri-apps/api/tauri";
+import { ref } from "vue";
 import { writeText, readText } from '@tauri-apps/api/clipboard';
 import { Document, CopyDocument } from "@element-plus/icons-vue";
 import VueJsonPretty from 'vue-json-pretty';

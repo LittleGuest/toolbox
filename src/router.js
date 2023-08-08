@@ -22,6 +22,7 @@ import SQL from "./components/formatter/SQL.vue";
 import QRCode from "./components/graphic/QRCode.vue";
 
 import EscapeUnescape from "./components/text/EscapeUnescape.vue";
+import Markdown from "./components/text/Markdown.vue";
 import RegexTester from "./components/text/RegexTester.vue";
 
 import All from "./components/All.vue";
@@ -47,6 +48,7 @@ const routes = [
   { path: "/uuid", component: UUID },
   { path: "/checksum", component: Checksum },
   { path: "/escapeunescape", component: EscapeUnescape},
+  { path: "/markdown", component: Markdown,name:"Markdown预览"},
   { path: "/regexTester", component: RegexTester },
   { path: "/setting", component: Setting },
   { path: "/qrcode", component: QRCode },

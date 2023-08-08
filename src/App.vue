@@ -119,7 +119,7 @@ const change = () => {
           <!-- <el-menu-item index="inspector" route="inspector">Inspector & Case Converter</el-menu-item> -->
           <!-- <el-menu-item index="regex" route="regex">Regex Tester</el-menu-item> -->
           <!-- <el-menu-item index="text" route="text">文本比较</el-menu-item> -->
-          <!-- <el-menu-item index="markdown" route="markdown">Markdown预览</el-menu-item> -->
+          <el-menu-item index="markdown" route="markdown">Markdown预览</el-menu-item>
         </el-sub-menu>
 
         <el-sub-menu index="graphic">
