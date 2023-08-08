@@ -32,7 +32,7 @@ offline toolbox
     - json 转义，去转义
     - json 格式化，压缩，转义压缩
     - 搜索功能
-  - SQL格式化？？？
+  - SQL格式化(sql-formatter)
   - XML格式化？？？
   - TOML格式化？？？
 - 生成器工具

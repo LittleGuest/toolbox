@@ -13,6 +13,7 @@
     "@tauri-apps/api": "^1.4.0",
     "element-plus": "^2.3.8",
     "md-editor-v3": "^4.2.2",
+    "sql-formatter": "^12.2.4",
     "vditor": "^3.9.4",
     "vue": "^3.2.45",
     "vue-json-pretty": "^2.2.4",
