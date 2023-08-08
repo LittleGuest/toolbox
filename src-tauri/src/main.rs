@@ -20,6 +20,7 @@ fn main() {
             cffc,
             timestamp,
             number_base,
+            qrcode,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -279,5 +280,14 @@ fn number_base(input_type: Option<Base>, input: String) -> HashMap<String, Strin
         }
     } else {
         map
+    }
+}
+
+#[tauri::command]
+fn qrcode(input: Option<String>) -> String {
+    if let Some(input) = input {
+        libs::qrcode::qrcode(&input)
+    } else {
+        "".to_string()
     }
 }

@@ -56,7 +56,7 @@ const change = () => {
           <el-menu-item index="cffc" route="cffc" @click="change">文件格式转换</el-menu-item>
           <el-menu-item index="timestamp" route="timestamp" @click="change">时间戳</el-menu-item>
           <el-menu-item index="baseconversion" route="baseconversion" @click="change">进制转换</el-menu-item>
-          <el-menu-item index="cron" route="cron" @click="change">Cron</el-menu-item>
+          <!-- <el-menu-item index="cron" route="cron" @click="change">Cron</el-menu-item> -->
         </el-sub-menu>
 
         <el-sub-menu index="encoder_decoder">
@@ -68,11 +68,11 @@ const change = () => {
               编码/解码
             </span>
           </template>
-          <el-menu-item index="html" route="html">HTML</el-menu-item>
+          <!-- <el-menu-item index="html" route="html">HTML</el-menu-item> -->
           <el-menu-item index="url" route="url">URL</el-menu-item>
           <el-menu-item index="base64Text" route="base64Text">Base 64</el-menu-item>
-          <el-menu-item index="jwt" route="jwt">JWT Decoder</el-menu-item>
-          <el-menu-item index="gzip" route="gzip">GZip</el-menu-item>
+          <!-- <el-menu-item index="jwt" route="jwt">JWT Decoder</el-menu-item> -->
+          <!-- <el-menu-item index="gzip" route="gzip">GZip</el-menu-item> -->
         </el-sub-menu>
 
         <el-sub-menu index="formatter">
@@ -84,7 +84,8 @@ const change = () => {
               格式化
             </span>
           </template>
-          <el-menu-item index="json" rout="json">JSON</el-menu-item>
+          <el-menu-item index="jsonviewer" rout="jsonviewer">JSON Viewer</el-menu-item>
+          <el-menu-item index="jsoneditor" rout="jsoneditor">JSON Editor</el-menu-item>
           <el-menu-item index="sql" route="sql">SQL</el-menu-item>
           <el-menu-item index="xml" route="xml">XML</el-menu-item>
           <!-- <el-menu-item index="yaml" route="yaml">YAML</el-menu-item> -->
@@ -102,8 +103,8 @@ const change = () => {
           </template>
           <el-menu-item index="hash" route="hash">Hash</el-menu-item>
           <el-menu-item index="uuid" route="uuid">UUID</el-menu-item>
-          <el-menu-item index="lorem" route="lorem">Lorem Ipsum</el-menu-item>
-          <el-menu-item index="checksum" route="checksum">Checksum</el-menu-item>
+          <!-- <el-menu-item index="lorem" route="lorem">Lorem Ipsum</el-menu-item> -->
+          <!-- <el-menu-item index="checksum" route="checksum">Checksum</el-menu-item> -->
         </el-sub-menu>
 
         <el-sub-menu index="text">
@@ -115,10 +116,10 @@ const change = () => {
               文本
             </span>
           </template>
-          <el-menu-item index="inspector" route="inspector">Inspector & Case Converter</el-menu-item>
-          <el-menu-item index="regex" route="regex">Regex Tester</el-menu-item>
-          <el-menu-item index="text" route="text">文本比较</el-menu-item>
-          <el-menu-item index="markdown" route="markdown">Markdown预览</el-menu-item>
+          <!-- <el-menu-item index="inspector" route="inspector">Inspector & Case Converter</el-menu-item> -->
+          <!-- <el-menu-item index="regex" route="regex">Regex Tester</el-menu-item> -->
+          <!-- <el-menu-item index="text" route="text">文本比较</el-menu-item> -->
+          <!-- <el-menu-item index="markdown" route="markdown">Markdown预览</el-menu-item> -->
         </el-sub-menu>
 
         <el-sub-menu index="graphic">
@@ -130,8 +131,24 @@ const change = () => {
               图像
             </span>
           </template>
-          <el-menu-item index="comperssor" route="comperssor">PNG /JPEG comperssor</el-menu-item>
+          <!-- <el-menu-item index="comperssor" route="comperssor">PNG /JPEG comperssor</el-menu-item> -->
+          <!-- <el-menu-item index="qrcode" route="qrcode">QRCode</el-menu-item> -->
         </el-sub-menu>
+
+        <!--
+        <el-sub-menu index="network">
+          <template #title>
+            <span>
+              <el-icon>
+                <Picture />
+              </el-icon>
+              网络
+            </span>
+          </template>
+          <el-menu-item index="ipv4" route="ipv4">IPV4</el-menu-item>
+          <el-menu-item index="ipv6" route="ipv6">IPV6</el-menu-item>
+        </el-sub-menu>
+        -->
 
         <el-menu-item index="setting" route="setting">
           <el-icon>

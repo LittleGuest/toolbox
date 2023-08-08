@@ -15,8 +15,11 @@ import JWT from "./components/encodedecode/JWT.vue";
 import URL from "./components/encodedecode/URL.vue";
 import GZip from "./components/encodedecode/GZip.vue";
 
-
+import JsonViewer from "./components/formatter/JsonViewer.vue";
+import JsonEditor from "./components/formatter/JsonEditor.vue";
 import SQL from "./components/formatter/SQL.vue";
+
+import QRCode from "./components/graphic/QRCode.vue";
 
 import EscapeUnescape from "./components/text/EscapeUnescape.vue";
 import RegexTester from "./components/text/RegexTester.vue";
@@ -38,12 +41,15 @@ const routes = [
   { path: "/jwt", component: JWT },
   { path: "/gzip", component: GZip },
   { path: "/sql", component: SQL },
+  { path: "/jsonviewer", component: JsonViewer,name:"JSON Viewer" },
+  { path: "/jsoneditor", component: JsonEditor,name:"JSON Editor" },
   { path: "/hash", component: Hash },
   { path: "/uuid", component: UUID },
   { path: "/checksum", component: Checksum },
   { path: "/escapeunescape", component: EscapeUnescape},
   { path: "/regexTester", component: RegexTester },
   { path: "/setting", component: Setting },
+  { path: "/qrcode", component: QRCode },
 ];
 
 const router = createRouter({
