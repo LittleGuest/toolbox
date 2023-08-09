@@ -5,13 +5,15 @@ import { writeText, readText } from '@tauri-apps/api/clipboard';
 import { Document, CopyDocument } from "@element-plus/icons-vue";
 import { format } from 'sql-formatter';
 
+import CodeMirror from 'vue-codemirror6';
+
 const language = ref("mysql");
 const indent = ref(2);
 const upper = ref('upper');
 const sql = ref("");
 
 const formatSql = () => {
-  sql.value = format(sql.value, { language: language.value, tabWidth: indent.value, keywordCase: "upper" });
+  sql.value = format(sql.value, { language: language.value, tabWidth: indent.value, keywordCase: upper.value });
 }
 
 const paste = async () => {
@@ -40,7 +42,11 @@ const copy = (value) => {
         <el-option key="4" label="4" value="4" />
       </el-select>
     </el-form-item>
-
+    <el-form-item label="大写">
+      <el-switch v-model="upper" class="ml-2" inline-prompt
+        style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949" active-text="Y" inactive-text="N"
+        active-value="upper" inactive-value="lower" />
+    </el-form-item>
     <el-row>
       <el-col>
         <el-form-item label="SQL">
@@ -49,7 +55,7 @@ const copy = (value) => {
             <el-button type="primary" :icon="CopyDocument" @click="copy(sql)" />
             <el-button @click="formatSql">格式化</el-button>
           </el-button-group>
-          <el-input v-model="sql" :rows="10" type="textarea" />
+          <code-mirror v-model="sql" />
         </el-form-item>
       </el-col>
     </el-row>

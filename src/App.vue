@@ -87,7 +87,7 @@ const change = () => {
           <el-menu-item index="jsonviewer" rout="jsonviewer">JSON Viewer</el-menu-item>
           <el-menu-item index="jsoneditor" rout="jsoneditor">JSON Editor</el-menu-item>
           <el-menu-item index="sql" route="sql">SQL</el-menu-item>
-          <el-menu-item index="xml" route="xml">XML</el-menu-item>
+          <el-menu-item index="xmlformatter" route="xmlformatter">XML格式化</el-menu-item>
           <!-- <el-menu-item index="yaml" route="yaml">YAML</el-menu-item> -->
           <!-- <el-menu-item index="toml" route="toml">TOML</el-menu-item> -->
         </el-sub-menu>

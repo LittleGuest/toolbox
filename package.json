@@ -16,9 +16,11 @@
     "sql-formatter": "^12.2.4",
     "vditor": "^3.9.4",
     "vue": "^3.2.45",
+    "vue-codemirror6": "^1.1.24",
     "vue-json-pretty": "^2.2.4",
     "vue-router": "4",
-    "vue3-json-editor": "^1.1.5"
+    "vue3-json-editor": "^1.1.5",
+    "xml-formatter": "^3.5.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^1.4.0",

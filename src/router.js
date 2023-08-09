@@ -18,6 +18,7 @@ import GZip from "./components/encodedecode/GZip.vue";
 import JsonViewer from "./components/formatter/JsonViewer.vue";
 import JsonEditor from "./components/formatter/JsonEditor.vue";
 import SQL from "./components/formatter/SQL.vue";
+import XmlFormatter from "./components/formatter/XmlFormatter.vue";
 
 import QRCode from "./components/graphic/QRCode.vue";
 
@@ -44,6 +45,7 @@ const routes = [
   { path: "/sql", component: SQL },
   { path: "/jsonviewer", component: JsonViewer,name:"JSON Viewer" },
   { path: "/jsoneditor", component: JsonEditor,name:"JSON Editor" },
+  { path: "/xmlformatter", component: XmlFormatter,name:"Xml格式化" },
   { path: "/hash", component: Hash },
   { path: "/uuid", component: UUID },
   { path: "/checksum", component: Checksum },
