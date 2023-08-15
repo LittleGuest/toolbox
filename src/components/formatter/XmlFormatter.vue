@@ -8,7 +8,6 @@ import xmlFormat from 'xml-formatter';
 import CodeMirror from 'vue-codemirror6';
 
 const indent = ref('    ');
-const upper = ref('upper');
 const xml = ref("");
 
 const formatSql = () => {

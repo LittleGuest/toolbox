@@ -11,7 +11,7 @@ const number = ref(5);
 const uuids = ref("");
 
 
-async function api() {
+const api = async () => {
   const value = await invoke("uuid", { hyphens: hyphens.value, uppercase: uppercase.value, version: uuidVersion.value, number: number.value, });
   uuids.value = value.join().replaceAll(",", "\n");
 }

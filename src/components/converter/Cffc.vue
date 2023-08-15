@@ -10,16 +10,16 @@ const tt = ref("json");
 const input = ref();
 const output = ref();
 
-async function cffcApi(ft, tt, value) {
+const api = async (ft, tt, value) => {
   return await invoke("cffc", { ident: ident.value, ft: ft, tt: tt, input: value });
 }
 
 const itt = async () => {
-  output.value = await cffcApi(ft.value, tt.value, input.value);
+  output.value = await api(ft.value, tt.value, input.value);
 };
 
 const tti = async () => {
-  input.value = await cffcApi(tt.value, ft.value, output.value);
+  input.value = await api(tt.value, ft.value, output.value);
 };
 
 const pasteInput = async () => {

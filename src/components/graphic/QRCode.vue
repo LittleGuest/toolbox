@@ -8,7 +8,7 @@ const input = ref("");
 const output = ref("");
 
 
-async function api() {
+const api = async () => {
   const res = await invoke("qrcode", { input: input.value });
   output.value = res.replace('<?xml version="1.0" encoding="UTF-8"?>', "");
 }

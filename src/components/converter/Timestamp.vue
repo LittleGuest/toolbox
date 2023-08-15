@@ -13,8 +13,8 @@ const datetime_utc8 = ref("");
 const timestamp = ref();
 const timestamp_mill = ref();
 
-async function api() {
-  const res = await invoke("timestamp", {});
+const api = async () => {
+  const res = await invoke("timestamp");
 
   input.value = res.timestamp;
   datetime_utc8.value = res.datetime_utc8;

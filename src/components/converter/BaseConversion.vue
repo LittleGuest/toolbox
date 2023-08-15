@@ -11,10 +11,7 @@ const octal = ref("");
 const decimal = ref("");
 const hex = ref("");
 
-
-
-
-async function api() {
+const api = async () => {
   const res = await invoke("number_base", { inputType: inputType.value, input: input.value });
   console.log(res);
   binary.value = res.binary;
@@ -49,9 +46,9 @@ const copy = (value) => {
     <el-form-item label="输入类型">
       <el-select v-model="inputType" class="m-2" size="large">
         <el-option key="Binary" label="二进制" value="Binary" />
-        <el-option key="Octal" label="8进制" value="Octal" />
+        <el-option key="Octal" label="八进制" value="Octal" />
         <el-option key="Decimal" label="十进制" value="Decimal" />
-        <el-option key="Hex" label="16进制" value="Hex" />
+        <el-option key="Hex" label="十六进制" value="Hex" />
       </el-select>
     </el-form-item>
 

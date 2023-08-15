@@ -114,7 +114,7 @@ const all = ref([
   },
 ]);
 
-async function api() {
+const api = async () => {
   //const value = await invoke("uuid", { hyphens: hyphens.value, uppercase: uppercase.value, version: uuidVersion.value, number: number.value, });
 }
 

@@ -10,7 +10,7 @@ const hmacMode = ref(false);
 const input = ref("");
 const hash = ref({});
 
-async function api() {
+const api = async () => {
   hash.value = await invoke("hash", { uppercase: uppercase.value, outputType: outputType.value, hmacMode: hmacMode.value, input: input.value });
 }
 

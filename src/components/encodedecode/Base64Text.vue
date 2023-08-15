@@ -7,11 +7,11 @@ import { Document, CopyDocument, ArrowUpBold, ArrowDownBold, Close } from "@elem
 const input = ref("");
 const output = ref("");
 
-async function encodeBase64TextApi() {
+const encodeBase64TextApi = async () => {
   return await invoke("encode_base64_text", { input: input.value });
 }
 
-async function decodeBase64TextApi() {
+const decodeBase64TextApi = async () => {
   return await invoke("decode_base64_text", { input: output.value });
 }
 

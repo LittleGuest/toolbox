@@ -1,7 +1,11 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    net::{Ipv4Addr, Ipv6Addr},
+    str::FromStr,
+};
 
 use libs::cffc;
 use serde::{Deserialize, Serialize};
@@ -21,6 +25,8 @@ fn main() {
             timestamp,
             number_base,
             qrcode,
+            check_ip,
+            ip_to_number,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -283,6 +289,7 @@ fn number_base(input_type: Option<Base>, input: String) -> HashMap<String, Strin
     }
 }
 
+/// 二维码
 #[tauri::command]
 fn qrcode(input: Option<String>) -> String {
     if let Some(input) = input {
@@ -290,4 +297,69 @@ fn qrcode(input: Option<String>) -> String {
     } else {
         "".to_string()
     }
+}
+
+/// 检查IP地址
+#[tauri::command]
+fn check_ip(t: &str, ip: Option<String>) -> bool {
+    if let Some(ip) = ip {
+        match t {
+            "v4" => Ipv4Addr::from_str(&ip).is_ok(),
+            "v6" => Ipv6Addr::from_str(&ip).is_ok(),
+            _ => false,
+        }
+    } else {
+        false
+    }
+}
+
+#[tauri::command]
+fn ip_to_number(t: &str, ip: Option<String>) -> HashMap<String, String> {
+    let mut map = HashMap::with_capacity(4);
+    if let Some(ip) = ip {
+        match t {
+            "v4" => {
+                if Ipv4Addr::from_str(&ip).is_ok() {
+                    let decimal = libs::ip::ipv4_to_num(&ip).unwrap_or(0).to_string();
+                    let bn = number_base(Some(Base::Decimal), decimal.to_string());
+                    map.insert(
+                        "binary".to_string(),
+                        bn.get("binary").unwrap_or(&"".to_string()).to_owned(),
+                    );
+                    map.insert(
+                        "octal".to_string(),
+                        bn.get("octal").unwrap_or(&"".to_string()).to_owned(),
+                    );
+                    map.insert("decimal".to_string(), decimal);
+                    map.insert(
+                        "hex".to_string(),
+                        bn.get("hex").unwrap_or(&"".to_string()).to_owned(),
+                    );
+                }
+            }
+            "v6" => {
+                if Ipv6Addr::from_str(&ip).is_ok() {
+                    map.insert(
+                        "binary".to_string(),
+                        libs::ip::ipv6_to_num(&ip).unwrap_or(0).to_string(),
+                    );
+                    map.insert(
+                        "octal".to_string(),
+                        libs::ip::ipv6_to_num(&ip).unwrap_or(0).to_string(),
+                    );
+                    map.insert(
+                        "decimal".to_string(),
+                        libs::ip::ipv6_to_num(&ip).unwrap_or(0).to_string(),
+                    );
+                    map.insert(
+                        "hex".to_string(),
+                        libs::ip::ipv6_to_num(&ip).unwrap_or(0).to_string(),
+                    );
+                }
+            }
+            _ => {}
+        }
+    }
+
+    map
 }

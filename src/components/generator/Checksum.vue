@@ -13,7 +13,7 @@ const input = ref("");
 const output = ref("");
 const outputComparer = ref("");
 
-async function api() {
+const api = async () => {
   //hash.value = await invoke("hash", { uppercase: uppercase.value, outputType: outputType.value, hmacMode: hmacMode.value, input: input.value });
 }
 

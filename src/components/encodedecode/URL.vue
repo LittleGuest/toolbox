@@ -7,11 +7,11 @@ import { Document, CopyDocument, ArrowUpBold, ArrowDownBold, Close } from "@elem
 const input = ref("");
 const output = ref("");
 
-async function encodeApi() {
+const encodeApi = async () => {
   return await invoke("encode_url", { input: input.value });
 }
 
-async function decodeApi() {
+const decodeApi = async () => {
   return await invoke("decode_url", { input: output.value });
 }
 
