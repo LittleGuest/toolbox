@@ -10,10 +10,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tauri-build = { version = "1.4", features = [] }
+tauri-build = { version = "2.0.0-beta", features = [] }
 
 [dependencies]
-tauri = { version = "1.4", features = [ "notification-all", "clipboard-all", "shell-open"] }
+tauri = { version = "2.0.0-beta", features = [] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
@@ -62,3 +62,6 @@ codegen-units = 1 # Compile crates one after another so the compiler can optimiz
 lto = true        # Enables link to optimizations
 opt-level = "s"   # Optimize for binary size
 strip = true      # Remove debug symbols
+
+[lib]
+crate-type = ["staticlib", "cdylib", "rlib"]

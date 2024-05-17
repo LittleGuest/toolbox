@@ -45,8 +45,8 @@ const copy = (value) => {
             <el-button type="primary" :icon="CopyDocument" @click="copy(xml)" />
             <el-button @click="formatSql">格式化</el-button>
           </el-button-group>
-          <code-mirror v-model="xml" />
         </el-form-item>
+        <code-mirror v-model="xml" />
       </el-col>
     </el-row>
   </el-form>
