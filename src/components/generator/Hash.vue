@@ -1,8 +1,8 @@
 <script setup>
 import { ref } from "vue";
-import { invoke } from "@tauri-apps/api/tauri";
-import { writeText, readText } from '@tauri-apps/api/clipboard';
-import { Document, CopyDocument } from "@element-plus/icons-vue";
+import { invoke } from "@tauri-apps/api/core";
+import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
+import { Copy, Paste, Close } from "@vicons/carbon";
 
 const uppercase = ref(false);
 const outputType = ref();
@@ -11,8 +11,13 @@ const input = ref("");
 const hash = ref({});
 
 const api = async () => {
-  hash.value = await invoke("hash", { uppercase: uppercase.value, outputType: outputType.value, hmacMode: hmacMode.value, input: input.value });
-}
+  hash.value = await invoke("hash", {
+    uppercase: uppercase.value,
+    outputType: outputType.value,
+    hmacMode: hmacMode.value,
+    input: input.value,
+  });
+};
 
 const change = (value) => {
   api();
@@ -33,20 +38,6 @@ const copy = (value) => {
       <el-switch v-model="uppercase" @change="change" class="ml-2" inline-prompt
         style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949" active-text="Y" inactive-text="N" />
     </el-form-item>
-
-    <!--
-    <el-form-item label="Output Type">
-      <el-select v-model="outputType" class="m-2" size="large">
-        <el-option key="Hex" label="Hex" value="Hex" />
-        <el-option key="Hex" label="Hex" value="Hex" />
-      </el-select>
-    </el-form-item>
-
-    <el-form-item label="HMAC Mode">
-      <el-switch v-model="hmacMode" class="ml-2" inline-prompt
-        style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949" active-text="Y" inactive-text="N" />
-    </el-form-item>
-    -->
 
     <el-form-item label="输入">
       <el-button-group class="ml-4">

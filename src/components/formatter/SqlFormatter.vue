@@ -1,20 +1,24 @@
 <script setup>
 import { ref } from "vue";
-import { invoke } from "@tauri-apps/api/tauri";
-import { writeText, readText } from '@tauri-apps/api/clipboard';
-import { Document, CopyDocument } from "@element-plus/icons-vue";
-import { format } from 'sql-formatter';
+import { invoke } from "@tauri-apps/api/core";
+import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
+import { Copy, Paste } from "@vicons/carbon";
+import { format } from "sql-formatter";
 
-import CodeMirror from 'vue-codemirror6';
+import CodeMirror from "vue-codemirror6";
 
 const language = ref("mysql");
 const indent = ref(2);
-const upper = ref('upper');
+const upper = ref("upper");
 const sql = ref("");
 
 const formatSql = () => {
-  sql.value = format(sql.value, { language: language.value, tabWidth: indent.value, keywordCase: upper.value });
-}
+  sql.value = format(sql.value, {
+    language: language.value,
+    tabWidth: indent.value,
+    keywordCase: upper.value,
+  });
+};
 
 const paste = async () => {
   const clip = await readText();

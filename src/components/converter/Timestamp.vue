@@ -1,8 +1,8 @@
 <script setup>
 import { onMounted, ref } from "vue";
-import { invoke } from "@tauri-apps/api/tauri";
-import { writeText, readText } from '@tauri-apps/api/clipboard';
-import { Document, CopyDocument } from "@element-plus/icons-vue";
+import { invoke } from "@tauri-apps/api/core";
+import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
+import { Copy, Paste, Close } from "@vicons/carbon";
 
 onMounted(() => {
   api();
@@ -20,10 +20,9 @@ const api = async () => {
   datetime_utc8.value = res.datetime_utc8;
   timestamp.value = res.timestamp;
   timestamp_mill.value = res.timestamp + res.timestamp_mill;
-}
-
-const change = (value) => {
 };
+
+const change = (value) => { };
 
 const clear = () => {
   input.value = "";
@@ -42,25 +41,49 @@ const copy = (value) => {
 </script>
 
 <template>
-  <el-form label-position="right" label-width="110px">
-    <el-form-item label="时间">
-      <el-button type="primary" :icon="Document" @click="paste" />
-      <el-input v-model="input" @change="change" @clear="clear" clearable />
-    </el-form-item>
+  <n-form label-placement="left">
+    <n-form-item label="时间">
+      <n-button @click="paste">
+        <template #icon>
+          <n-icon>
+            <Paste />
+          </n-icon>
+        </template>
+      </n-button>
+      <n-input placeholder="" v-model:value="input" @change="change" @clear="clear" clearable />
+    </n-form-item>
 
-    <el-form-item label="UTC+8">
-      <el-text class="mx-1">{{ datetime_utc8 }}</el-text>
-      <el-button type="primary" :icon="CopyDocument" @click="copy(datetime_utc8)" />
-    </el-form-item>
+    <n-form-item label="UTC+8">
+      <n-input placeholder="" disabled v-model:value="datetime_utc8" />
+      <n-button @click="copy(datetime_utc8)">
+        <template #icon>
+          <n-icon>
+            <Copy />
+          </n-icon>
+        </template>
+      </n-button>
+    </n-form-item>
 
-    <el-form-item label="时间戳（秒）">
-      <el-text class="mx-1">{{ timestamp }}</el-text>
-      <el-button type="primary" :icon="CopyDocument" @click="copy(timestamp)" />
-    </el-form-item>
+    <n-form-item label="时间戳（秒）">
+      <n-input placeholder="" disabled v-model:value="timestamp" />
+      <n-button @click="copy(timestamp)">
+        <template #icon>
+          <n-icon>
+            <Copy />
+          </n-icon>
+        </template>
+      </n-button>
+    </n-form-item>
 
-    <el-form-item label="时间戳（毫秒）">
-      <el-text class="mx-1">{{ timestamp_mill }}</el-text>
-      <el-button type="primary" :icon="CopyDocument" @click="copy(timestamp_mill)" />
-    </el-form-item>
-  </el-form>
+    <n-form-item label="时间戳（毫秒）">
+      <n-input placeholder="" disabled v-model:value="timestamp_mill" />
+      <n-button @click="copy(timestamp_mill)">
+        <template #icon>
+          <n-icon>
+            <Copy />
+          </n-icon>
+        </template>
+      </n-button>
+    </n-form-item>
+  </n-form>
 </template>

@@ -13,7 +13,7 @@ pub enum Ft {
     Json,
     Yaml,
     Toml,
-    Xml,
+    // Xml,
 }
 
 impl From<&str> for Ft {
@@ -22,7 +22,7 @@ impl From<&str> for Ft {
             "json" => Self::Json,
             "yaml" => Self::Yaml,
             "toml" => Self::Toml,
-            "xml" => Self::Xml,
+            // "xml" => Self::Xml,
             _ => Self::default(),
         }
     }
@@ -34,7 +34,7 @@ impl std::fmt::Display for Ft {
             Ft::Json => write!(f, "Json"),
             Ft::Yaml => write!(f, "Yaml"),
             Ft::Toml => write!(f, "Toml"),
-            Ft::Xml => write!(f, "Xml"),
+            // Ft::Xml => write!(f, "Xml"),
         }
     }
 }
@@ -86,26 +86,26 @@ impl Data {
                 Ft::Json => Ok(self.input.clone()),
                 Ft::Yaml => Self::cto_yaml(Self::from_json::<serde_yaml::Value>(&self.input)?),
                 Ft::Toml => Self::cto_toml(Self::from_json::<toml::Value>(&self.input)?),
-                Ft::Xml => Self::cto_xml(Self::from_json(&self.input)?),
+                // Ft::Xml => Self::cto_xml(Self::from_json(&self.input)?),
             },
             Ft::Yaml => match self.to {
                 Ft::Json => Self::cto_json(Self::from_yaml::<serde_json::Value>(&self.input)?),
                 Ft::Yaml => Ok(self.input.clone()),
                 Ft::Toml => Self::cto_toml(Self::from_yaml::<toml::Value>(&self.input)?),
-                Ft::Xml => Self::cto_xml(Self::from_json(&self.input)?),
+                // Ft::Xml => Self::cto_xml(Self::from_json(&self.input)?),
             },
             Ft::Toml => match self.to {
                 Ft::Json => Self::cto_json(Self::from_toml::<serde_json::Value>(&self.input)?),
                 Ft::Yaml => Self::cto_yaml(Self::from_toml::<serde_yaml::Value>(&self.input)?),
                 Ft::Toml => Ok(self.input.clone()),
-                Ft::Xml => Self::cto_xml(Self::from_json(&self.input)?),
+                // Ft::Xml => Self::cto_xml(Self::from_json(&self.input)?),
             },
-            Ft::Xml => match self.to {
-                Ft::Json => Self::cto_json(Self::from_toml::<serde_json::Value>(&self.input)?),
-                Ft::Yaml => Self::cto_yaml(Self::from_toml::<serde_yaml::Value>(&self.input)?),
-                Ft::Toml => Self::cto_toml(Self::from_yaml::<toml::Value>(&self.input)?),
-                Ft::Xml => Ok(self.input.clone()),
-            },
+            // Ft::Xml => match self.to {
+            //     Ft::Json => Self::cto_json(Self::from_toml::<serde_json::Value>(&self.input)?),
+            //     Ft::Yaml => Self::cto_yaml(Self::from_toml::<serde_yaml::Value>(&self.input)?),
+            //     Ft::Toml => Self::cto_toml(Self::from_yaml::<toml::Value>(&self.input)?),
+            //     Ft::Xml => Ok(self.input.clone()),
+            // },
         }
     }
 }

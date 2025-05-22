@@ -1,14 +1,14 @@
 <script setup>
 import { ref } from "vue";
-import { writeText, readText } from '@tauri-apps/api/clipboard';
-import { Document, CopyDocument } from "@element-plus/icons-vue";
-import { Vue3JsonEditor } from 'vue3-json-editor'
+import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
+import { Copy, Paste } from "@vicons/carbon";
+import { Vue3JsonEditor } from "vue3-json-editor";
 
 const input = ref();
 
 const change = (value) => {
   input.value = value;
-}
+};
 
 const paste = async () => {
   const clip = await readText();
@@ -21,11 +21,22 @@ const copy = (value) => {
 </script>
 
 <template>
-  <el-button-group class="ml-4">
-    <el-button type="primary" :icon="Document" @click="paste(input)" />
-    <el-button type="primary" :icon="CopyDocument" @click="copy(input)" />
-  </el-button-group>
+  <n-button-group>
+    <n-button @click="paste(input)">
+      <template #icon>
+        <n-icon>
+          <Paste />
+        </n-icon>
+      </template>
+    </n-button>
+    <n-button @click="copy(input)">
+      <template #icon>
+        <n-icon>
+          <Copy />
+        </n-icon>
+      </template>
+    </n-button>
+  </n-button-group>
 
   <Vue3JsonEditor v-model="input" :show-btns="false" :expandedOnStart="true" @json-change="change" />
 </template>
-

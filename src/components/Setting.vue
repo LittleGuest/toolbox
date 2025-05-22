@@ -1,16 +1,14 @@
 <script setup>
 import { ref } from "vue";
-import { invoke } from "@tauri-apps/api/tauri";
 
-const language = ref('chinese');
+const language = ref("chinese");
 const theme = ref();
 const smartDetection = ref(false);
 const font = ref();
 
 const api = async () => {
   //const value = await invoke("uuid", { hyphens: hyphens.value, uppercase: uppercase.value, version: uuidVersion.value, number: number.value, });
-}
-
+};
 </script>
 
 <template>
@@ -44,7 +42,5 @@ const api = async () => {
       </el-select>
     </el-form-item>
     -->
-
-
   </el-form>
 </template>

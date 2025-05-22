@@ -1,18 +1,47 @@
 <script setup>
 import { ref } from "vue";
-import { invoke } from "@tauri-apps/api/tauri";
-import { writeText, readText } from '@tauri-apps/api/clipboard';
-import { Document, CopyDocument, ArrowUpBold, ArrowDownBold, Close } from "@element-plus/icons-vue";
+import { invoke } from "@tauri-apps/api/core";
+import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
+import { ArrowUp, ArrowDown, Copy, Paste, Close } from "@vicons/carbon";
 
-const ident = ref(4);
+const indent = ref(4);
 const ft = ref("json");
 const tt = ref("json");
 const input = ref();
 const output = ref();
+const indentOptions = [
+  {
+    label: 2,
+    value: 2
+  },
+  {
+    label: 4,
+    value: 4,
+  }
+];
+const typeOptions = [
+  {
+    label: "JSON",
+    value: "json"
+  },
+  {
+    label: "YAML",
+    value: "yaml"
+  },
+  {
+    label: "TOML",
+    value: "toml"
+  }
+];
 
 const api = async (ft, tt, value) => {
-  return await invoke("cffc", { ident: ident.value, ft: ft, tt: tt, input: value });
-}
+  return await invoke("cffc", {
+    indent: indent.value,
+    ft: ft,
+    tt: tt,
+    input: value,
+  });
+};
 
 const itt = async () => {
   output.value = await api(ft.value, tt.value, input.value);
@@ -41,45 +70,87 @@ const clear = () => {
 </script>
 
 <template>
-  <el-form label-position="right" label-width="100px">
-    <el-form-item label="缩进">
-      <el-select v-model="ident" class="m-2" size="large">
-        <el-option key="2" label="2" value="2" />
-        <el-option key="4" label="4" value="4" />
-      </el-select>
-    </el-form-item>
-
-    <el-form-item label="输入">
-      <el-select v-model="ft" class="m-2" size="large">
-        <el-option key="json" label="Json" value="json" />
-        <el-option key="toml" label="Toml" value="toml" />
-        <el-option key="yaml" label="Yaml" value="yaml" />
-      </el-select>
-      <el-button-group class="ml-4">
-        <el-button type="primary" :icon="Document" @click="pasteInput" />
-        <el-button type="primary" :icon="CopyDocument" @click="copy(input)" />
-        <el-button type="primary" :icon="Close" @click="clear" />
-      </el-button-group>
-      <el-input v-model="input" :rows="10" type="textarea" />
-    </el-form-item>
-    <el-form-item label="转换">
-      <el-button :icon="ArrowDownBold" @click="itt" />
-      <el-button :icon="ArrowUpBold" @click="tti" />
-    </el-form-item>
-
-
-    <el-form-item label="输出">
-      <el-select v-model="tt" class="m-2" size="large">
-        <el-option key="json" label="Json" value="json" />
-        <el-option key="toml" label="Toml" value="toml" />
-        <el-option key="yaml" label="Yaml" value="yaml" />
-      </el-select>
-      <el-button-group class="ml-4">
-        <el-button type="primary" :icon="Document" @click="pasteOutput" />
-        <el-button type="primary" :icon="CopyDocument" @click="copy(output)" />
-        <el-button type="primary" :icon="Close" @click="clear" />
-      </el-button-group>
-      <el-input v-model="output" :rows="10" type="textarea" />
-    </el-form-item>
-  </el-form>
+  <n-form label-placement="left">
+    <n-form-item label="缩进">
+      <n-select placeholder="请缩进字符" :options="indentOptions" v-model:value="indent" />
+    </n-form-item>
+    <n-form-item label="输入文件类型">
+      <n-select placeholder="请选择文件类型" :options="typeOptions" v-model:value="ft" />
+    </n-form-item>
+    <n-form-item label="操作">
+      <n-button-group>
+        <n-button @click="pasteInput">
+          <template #icon>
+            <n-icon>
+              <Paste />
+            </n-icon>
+          </template>
+        </n-button>
+        <n-button @click="copy(input)">
+          <template #icon>
+            <n-icon>
+              <Copy />
+            </n-icon>
+          </template>
+        </n-button>
+        <n-button @click="clear">
+          <template #icon>
+            <n-icon>
+              <Close />
+            </n-icon>
+          </template>
+        </n-button>
+      </n-button-group>
+    </n-form-item>
+    <n-form-item label="输入">
+      <n-input placeholder="" v-model:value="input" :rows="10" type="textarea" />
+    </n-form-item>
+    <n-form-item label="转换">
+      <n-button @click="itt">
+        <template #icon>
+          <n-icon>
+            <ArrowDown />
+          </n-icon>
+        </template>
+      </n-button>
+      <n-button @click="tti">
+        <template #icon>
+          <n-icon>
+            <ArrowUp />
+          </n-icon>
+        </template>
+      </n-button>
+    </n-form-item>
+    <n-form-item label="输出文件类型">
+      <n-select placeholder="请选择文件类型" :options="typeOptions" v-model:value="tt" />
+    </n-form-item>
+    <n-form-item label="操作">
+      <n-button-group>
+        <n-button @click="pasteOutput()">
+          <template #icon>
+            <n-icon>
+              <Paste />
+            </n-icon>
+          </template>
+        </n-button>
+        <n-button @click="copy(output)">
+          <template #icon>
+            <n-icon>
+              <Copy />
+            </n-icon>
+          </template>
+        </n-button>
+        <n-button @click="clear">
+          <template #icon>
+            <n-icon>
+              <Close />
+            </n-icon>
+          </template>
+        </n-button>
+      </n-button-group>
+    </n-form-item>
+    <n-form-item label="输出">
+      <n-input placeholder="" v-model:value="output" :rows="10" type="textarea" />
+    </n-form-item>
+  </n-form>
 </template>
