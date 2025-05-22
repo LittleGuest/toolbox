@@ -1,6 +1,7 @@
 use thiserror::Error;
 
 mod libs;
+mod openapi;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -50,6 +51,7 @@ pub fn run() {
             libs::qrcode,
             libs::check_ip,
             libs::ip_to_number,
+            openapi::fetch_api_config
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

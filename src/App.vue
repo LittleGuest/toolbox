@@ -2,15 +2,15 @@
 import { ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { NIcon, createDiscreteApi } from "naive-ui";
-import { Home, LetterUu, Link, NetworkPublic, Sql, TextUnderline, Xml, Time, Json, Image, Barcode, DataFormat, TextItalic } from "@vicons/carbon";
+import { Home, LetterUu, Link, NetworkPublic, Sql, TextUnderline, Xml, Time, Json, Image, Barcode, DataFormat, TextItalic, DocumentExport } from "@vicons/carbon";
 import { Binary, File, Hash, Markdown } from "@vicons/tabler";
 import { TransformFilled } from "@vicons/material";
 import { MoreOutlined } from "@vicons/antd";
 
+const { message, notification, dialog, loadingBar, modal } = createDiscreteApi(["message", "dialog", "notification", "loadingBar", "modal"]);
 const router = useRouter();
 const route = useRoute();
 
-const { message, notification, dialog, loadingBar, modal } = createDiscreteApi(["message", "dialog", "notification", "loadingBar", "modal"]);
 
 
 const renderIcon = (icon) => {
@@ -42,6 +42,11 @@ const menuOptions = [
         label: "进制转换",
         key: "/transform/baseconversion",
         icon: renderIcon(Binary),
+      },
+      {
+        label: "OpenApi",
+        key: "/transform/openapi",
+        icon: renderIcon(DocumentExport),
       }
     ]
   },

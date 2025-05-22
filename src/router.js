@@ -16,6 +16,7 @@ import Markdown from "./components/text/Markdown.vue";
 import IP from "./components/network/IP.vue";
 import Setting from "./components/Setting.vue";
 import ClipboardManager from "./components/other/ClipboardManager.vue";
+import OpenApi from "./components/transform/OpenApi.vue";
 
 const routes = [
 	{ path: "/", component: All },
@@ -25,6 +26,7 @@ const routes = [
 	{ path: "/transform/filetype", component: Cffc },
 	{ path: "/transform/time", component: Timestamp },
 	{ path: "/transform/baseconversion", component: BaseConversion },
+	{ path: "/transform/openapi", component: OpenApi },
 
 	{ path: "/encodedecode/url", component: URL },
 	{ path: "/encodedecode/base64text", component: Base64Text },
