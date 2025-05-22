@@ -2,10 +2,10 @@
 
 use std::collections::HashMap;
 
-use super::{ToolError, ToolResult};
+use crate::{Error, Result};
 
 /// url_params to json
-pub fn parse(data: &str) -> ToolResult<String> {
+pub fn parse(data: &str) -> Result<String> {
     if data.trim().is_empty() {
         return Ok(String::new());
     }
@@ -36,5 +36,5 @@ pub fn parse(data: &str) -> ToolResult<String> {
             map
         });
 
-    serde_json::to_string(&map).map_err(|e| ToolError::UrlParamsErr(e.to_string()))
+    serde_json::to_string(&map).map_err(|e| Error::UrlParamsErr(e.to_string()))
 }

@@ -6,11 +6,11 @@ use std::{
     str::FromStr,
 };
 
-use super::{ToolError, ToolResult};
+use crate::{Error, Result};
 
 /// Ipv4地址转数字
-pub fn ipv4_to_num(ip: &str) -> ToolResult<u32> {
-    let ip = Ipv4Addr::from_str(ip).map_err(|e| ToolError::IpErr(e.to_string()))?;
+pub fn ipv4_to_num(ip: &str) -> Result<u32> {
+    let ip = Ipv4Addr::from_str(ip).map_err(|e| Error::IpErr(e.to_string()))?;
     let ip = ip
         .octets()
         .iter()
@@ -26,8 +26,8 @@ pub fn num_to_ipv4(ip: u32) -> String {
 }
 
 /// Ipv6地址转数字
-pub fn ipv6_to_num(ip: &str) -> ToolResult<u128> {
-    let _ip = Ipv6Addr::from_str(ip).map_err(|e| ToolError::IpErr(e.to_string()))?;
+pub fn ipv6_to_num(ip: &str) -> Result<u128> {
+    let _ip = Ipv6Addr::from_str(ip).map_err(|e| Error::IpErr(e.to_string()))?;
     todo!()
 }
 

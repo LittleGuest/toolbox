@@ -1,6 +1,6 @@
 //! 16进制
 
-use super::{ToolError, ToolResult};
+use crate::{Error, Result};
 
 /// 16进制编码
 pub fn encode(data: &str) -> String {
@@ -8,9 +8,9 @@ pub fn encode(data: &str) -> String {
 }
 
 /// 16进制解码
-pub fn decode(data: &str) -> ToolResult<String> {
-    let data = hex::decode(data).map_err(|e| ToolError::HexErr(e.to_string()))?;
-    String::from_utf8(data).map_err(|e| ToolError::HexErr(e.to_string()))
+pub fn decode(data: &str) -> Result<String> {
+    let data = hex::decode(data).map_err(|e| Error::HexErr(e.to_string()))?;
+    String::from_utf8(data).map_err(|e| Error::HexErr(e.to_string()))
 }
 
 #[cfg(test)]

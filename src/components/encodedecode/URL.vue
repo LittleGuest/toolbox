@@ -2,6 +2,8 @@
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
+import { ArrowUp, ArrowDown, Copy, Paste, Close } from "@vicons/carbon";
+
 const input = ref("");
 const output = ref("");
 
@@ -40,27 +42,78 @@ const clear = () => {
 </script>
 
 <template>
-  <!-- <el-form label-position="right" label-width="100px"> -->
-  <!--   <el-form-item label="输入"> -->
-  <!--     <el-button-group class="ml-4"> -->
-  <!--       <el-button type="primary" :icon="Document" @click="pasteInput" /> -->
-  <!--       <el-button type="primary" :icon="CopyDocument" @click="copy(input)" /> -->
-  <!--       <el-button type="primary" :icon="Close" @click="clear" /> -->
-  <!--     </el-button-group> -->
-  <!--     <el-input v-model="input" :rows="10" type="textarea" /> -->
-  <!--   </el-form-item> -->
-  <!--   <el-form-item label="编码/解码"> -->
-  <!--     <el-button :icon="ArrowDownBold" @click="encode" /> -->
-  <!--     <el-button :icon="ArrowUpBold" @click="decode" /> -->
-  <!--   </el-form-item> -->
-  <!---->
-  <!--   <el-form-item label="输出"> -->
-  <!--     <el-button-group class="ml-4"> -->
-  <!--       <el-button type="primary" :icon="Document" @click="pasteOutput" /> -->
-  <!--       <el-button type="primary" :icon="CopyDocument" @click="copy(output)" /> -->
-  <!--       <el-button type="primary" :icon="Close" @click="clear" /> -->
-  <!--     </el-button-group> -->
-  <!--     <el-input v-model="output" :rows="10" type="textarea" /> -->
-  <!--   </el-form-item> -->
-  <!-- </el-form> -->
+  <n-form label-placement="left">
+    <n-form-item label="操作">
+      <n-button-group>
+        <n-button @click="pasteInput">
+          <template #icon>
+            <n-icon>
+              <Paste />
+            </n-icon>
+          </template>
+        </n-button>
+        <n-button @click="copy(input)">
+          <template #icon>
+            <n-icon>
+              <Copy />
+            </n-icon>
+          </template>
+        </n-button>
+        <n-button @click="clear">
+          <template #icon>
+            <n-icon>
+              <Close />
+            </n-icon>
+          </template>
+        </n-button>
+      </n-button-group>
+    </n-form-item>
+    <n-form-item label="输入">
+      <n-input placeholder="" v-model:value="input" :rows="10" type="textarea" />
+    </n-form-item>
+    <n-form-item label="编码/解码">
+      <n-button @click="encode">
+        <template #icon>
+          <n-icon>
+            <ArrowDown />
+          </n-icon>
+        </template>
+      </n-button>
+      <n-button @click="decode">
+        <template #icon>
+          <n-icon>
+            <ArrowUp />
+          </n-icon>
+        </template>
+      </n-button>
+    </n-form-item>
+    <n-form-item label="操作">
+      <n-button-group>
+        <n-button @click="pasteOutput()">
+          <template #icon>
+            <n-icon>
+              <Paste />
+            </n-icon>
+          </template>
+        </n-button>
+        <n-button @click="copy(output)">
+          <template #icon>
+            <n-icon>
+              <Copy />
+            </n-icon>
+          </template>
+        </n-button>
+        <n-button @click="clear">
+          <template #icon>
+            <n-icon>
+              <Close />
+            </n-icon>
+          </template>
+        </n-button>
+      </n-button-group>
+    </n-form-item>
+    <n-form-item label="输出">
+      <n-input placeholder="" v-model:value="output" :rows="10" type="textarea" />
+    </n-form-item>
+  </n-form>
 </template>

@@ -7,8 +7,12 @@
 		"core:default",
 		"opener:default",
 		"clipboard-manager:default",
-		"clipboard-manager:allow-write-text",
+		"clipboard-manager:allow-clear",
 		"clipboard-manager:allow-read-text",
+		"clipboard-manager:deny-read-image",
+		"clipboard-manager:allow-write-text",
+		"clipboard-manager:deny-write-image",
+		"clipboard-manager:allow-write-html",
 		"notification:default"
 	]
 }

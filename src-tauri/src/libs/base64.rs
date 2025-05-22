@@ -2,7 +2,7 @@
 
 use base64::Engine as _;
 
-use super::{ToolError, ToolResult};
+use crate::{Error, Result};
 
 /// Base64编码
 pub fn encode_text(data: &str) -> String {
@@ -10,30 +10,30 @@ pub fn encode_text(data: &str) -> String {
 }
 
 /// Base64解码
-pub fn decode_text(data: &str) -> ToolResult<String> {
+pub fn decode_text(data: &str) -> Result<String> {
     String::from_utf8(
         base64::engine::general_purpose::STANDARD_NO_PAD
             .decode(data)
-            .map_err(|e| ToolError::Base64Err(e.to_string()))?,
+            .map_err(|e| Error::Base64Err(e.to_string()))?,
     )
-    .map_err(|e| ToolError::Base64Err(e.to_string()))
+    .map_err(|e| Error::Base64Err(e.to_string()))
 }
 
 /// Base64图片编码
-pub fn encode_img(path: &str) -> ToolResult<String> {
+pub fn encode_img(path: &str) -> Result<String> {
     let image = image::io::Reader::open(path)
-        .map_err(|e| ToolError::Base64Err(e.to_string()))?
+        .map_err(|e| Error::Base64Err(e.to_string()))?
         .decode()
-        .map_err(|e| ToolError::Base64Err(e.to_string()))?;
+        .map_err(|e| Error::Base64Err(e.to_string()))?;
     let hasher = image_hasher::HasherConfig::new().to_hasher();
     let hash = hasher.hash_image(&image);
     Ok(hash.to_base64())
 }
 
 /// Base64图片解码
-pub fn decode_img(data: &str) -> ToolResult<Vec<u8>> {
+pub fn decode_img(data: &str) -> Result<Vec<u8>> {
     Ok(image_hasher::ImageHash::<Box<[u8]>>::from_base64(data)
-        .map_err(|e| ToolError::Base64Err(format!("{e:?}")))?
+        .map_err(|e| Error::Base64Err(format!("{e:?}")))?
         .as_bytes()
         .to_vec())
 }

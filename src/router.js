@@ -15,6 +15,7 @@ import Checksum from "./components/generator/Checksum.vue";
 import Markdown from "./components/text/Markdown.vue";
 import IP from "./components/network/IP.vue";
 import Setting from "./components/Setting.vue";
+import ClipboardManager from "./components/other/ClipboardManager.vue";
 
 const routes = [
 	{ path: "/", component: All },
@@ -40,6 +41,8 @@ const routes = [
 	{ path: "/text/markdown", component: Markdown },
 
 	{ path: "/network/ip", component: IP },
+
+	{ path: "/other/clipboard", component: ClipboardManager },
 ];
 
 const router = createRouter({

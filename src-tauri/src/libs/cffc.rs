@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{ToolError, ToolResult};
+use crate::{Error, Result};
 
 /// 支持的文件格式
 #[derive(Debug, Default, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -75,7 +75,7 @@ impl Data {
     }
 
     /// 格式转换
-    pub fn convert(&self) -> ToolResult<String> {
+    pub fn convert(&self) -> Result<String> {
         if self.input.is_empty() {
             return Ok("".to_string());
         }
@@ -128,60 +128,60 @@ impl Data {
     //     false
     // }
 
-    fn from_json<T>(text: &str) -> ToolResult<T>
+    fn from_json<T>(text: &str) -> Result<T>
     where
         T: Serialize + for<'a> Deserialize<'a>,
     {
-        serde_json::from_str(text).map_err(|e| ToolError::SerializeErr(e.to_string()))
+        serde_json::from_str(text).map_err(|e| Error::SerializeErr(e.to_string()))
     }
 
-    fn from_yaml<T>(text: &str) -> ToolResult<T>
+    fn from_yaml<T>(text: &str) -> Result<T>
     where
         T: Serialize + for<'a> Deserialize<'a>,
     {
-        serde_yaml::from_str::<T>(text).map_err(|e| ToolError::SerializeErr(e.to_string()))
+        serde_yaml::from_str::<T>(text).map_err(|e| Error::SerializeErr(e.to_string()))
     }
 
-    fn from_toml<T>(text: &str) -> ToolResult<T>
+    fn from_toml<T>(text: &str) -> Result<T>
     where
         T: Serialize + for<'a> Deserialize<'a>,
     {
-        toml::from_str(text).map_err(|e| ToolError::SerializeErr(e.to_string()))
+        toml::from_str(text).map_err(|e| Error::SerializeErr(e.to_string()))
     }
 
-    fn from_xml<T>(text: &str) -> ToolResult<T>
+    fn from_xml<T>(text: &str) -> Result<T>
     where
         T: Serialize + for<'a> Deserialize<'a>,
     {
-        quick_xml::de::from_str(text).map_err(|e| ToolError::SerializeErr(e.to_string()))
+        quick_xml::de::from_str(text).map_err(|e| Error::SerializeErr(e.to_string()))
     }
 
-    fn cto_json<T>(v: T) -> ToolResult<String>
+    fn cto_json<T>(v: T) -> Result<String>
     where
         T: Serialize + for<'a> Deserialize<'a>,
     {
-        serde_json::to_string(&v).map_err(|e| ToolError::SerializeErr(e.to_string()))
+        serde_json::to_string(&v).map_err(|e| Error::SerializeErr(e.to_string()))
     }
 
-    fn cto_yaml<T>(v: T) -> ToolResult<String>
+    fn cto_yaml<T>(v: T) -> Result<String>
     where
         T: Serialize + for<'a> Deserialize<'a>,
     {
-        serde_yaml::to_string(&v).map_err(|e| ToolError::SerializeErr(e.to_string()))
+        serde_yaml::to_string(&v).map_err(|e| Error::SerializeErr(e.to_string()))
     }
 
-    fn cto_toml<T>(v: T) -> ToolResult<String>
+    fn cto_toml<T>(v: T) -> Result<String>
     where
         T: Serialize + for<'a> Deserialize<'a>,
     {
-        toml::to_string(&v).map_err(|e| ToolError::SerializeErr(e.to_string()))
+        toml::to_string(&v).map_err(|e| Error::SerializeErr(e.to_string()))
     }
 
-    fn cto_xml<T>(v: T) -> ToolResult<String>
+    fn cto_xml<T>(v: T) -> Result<String>
     where
         T: Serialize + for<'a> Deserialize<'a>,
     {
-        quick_xml::se::to_string(&v).map_err(|e| ToolError::SerializeErr(e.to_string()))
+        quick_xml::se::to_string(&v).map_err(|e| Error::SerializeErr(e.to_string()))
     }
 }
 

@@ -1,6 +1,6 @@
 //! URL编码解码
 
-use super::{ToolError, ToolResult};
+use crate::{Error, Result};
 
 /// 编码URL
 pub fn encode(data: &str) -> String {
@@ -17,7 +17,7 @@ pub fn encode(data: &str) -> String {
 }
 
 /// 解码URL
-pub fn decode(data: &str) -> ToolResult<String> {
+pub fn decode(data: &str) -> Result<String> {
     if data.is_empty() {
         return Ok("".to_string());
     }
@@ -27,12 +27,12 @@ pub fn decode(data: &str) -> ToolResult<String> {
         Ok(format!(
             "{f}?{}",
             urlencoding::decode(s)
-                .map_err(|e| ToolError::UrlErr(e.to_string()))?
+                .map_err(|e| Error::UrlErr(e.to_string()))?
                 .into_owned()
         ))
     } else {
         Ok(urlencoding::decode(f)
-            .map_err(|e| ToolError::UrlErr(e.to_string()))?
+            .map_err(|e| Error::UrlErr(e.to_string()))?
             .into_owned())
     }
 }

@@ -1,12 +1,17 @@
 <script setup>
 import { ref } from "vue";
-import { useRouter, useRoute, RouterLink } from "vue-router";
-import { NIcon } from "naive-ui";
-import { Home, LetterUu, Link, NetworkPublic, Number2, Sql, TextUnderline, Xml, Time, Json, Image } from "@vicons/carbon";
-import { File, Hash, Markdown } from "@vicons/tabler";
+import { useRouter, useRoute } from "vue-router";
+import { NIcon, createDiscreteApi } from "naive-ui";
+import { Home, LetterUu, Link, NetworkPublic, Sql, TextUnderline, Xml, Time, Json, Image, Barcode, DataFormat, TextItalic } from "@vicons/carbon";
+import { Binary, File, Hash, Markdown } from "@vicons/tabler";
+import { TransformFilled } from "@vicons/material";
+import { MoreOutlined } from "@vicons/antd";
 
 const router = useRouter();
 const route = useRoute();
+
+const { message, notification, dialog, loadingBar, modal } = createDiscreteApi(["message", "dialog", "notification", "loadingBar", "modal"]);
+
 
 const renderIcon = (icon) => {
   return () => h(NIcon, null, { default: () => h(icon) });
@@ -21,7 +26,7 @@ const menuOptions = [
   {
     label: "转换",
     key: "/transform",
-    icon: renderIcon(Home),
+    icon: renderIcon(TransformFilled),
     children: [
       {
         label: "文件格式",
@@ -36,14 +41,14 @@ const menuOptions = [
       {
         label: "进制转换",
         key: "/transform/baseconversion",
-        icon: renderIcon(Number2),
+        icon: renderIcon(Binary),
       }
     ]
   },
   {
     label: "编码/解码",
     key: "/encodedecode",
-    icon: renderIcon(Home),
+    icon: renderIcon(Barcode),
     children: [
       {
         label: "Base64",
@@ -60,7 +65,7 @@ const menuOptions = [
   {
     label: "格式化",
     key: "/formatter",
-    icon: renderIcon(Home),
+    icon: renderIcon(DataFormat),
     children: [
       {
         label: "JSON Editor",
@@ -99,10 +104,10 @@ const menuOptions = [
   {
     label: "文本",
     key: "/text",
-    icon: renderIcon(Home),
+    icon: renderIcon(TextItalic),
     children: [
       {
-        label: "Markdown预览",
+        label: "Markdown",
         key: "/text/markdown",
         icon: renderIcon(Markdown),
       }
@@ -134,19 +139,36 @@ const menuOptions = [
     children: [
     ]
   },
+  {
+    label: "其它",
+    key: "/other",
+    icon: renderIcon(MoreOutlined),
+    children: [
+      {
+        label: "剪切板",
+        key: "/other/clipboard",
+        icon: renderIcon(NetworkPublic),
+      }
+    ]
+  },
 ];
 
 const activeTab = ref();
 const openTabs = ref([]);
 
+const id = () => {
+  return new Date().getTime() + Math.random().toString(36);
+};
+
 
 const handleMenuChange = (key, item) => {
   router.push(key);
-  openTabs.value.push(item);
+  openTabs.value.push({ ...item, id: id() });
 };
 
 const handleTabChange = (key) => {
-  router.push(key);
+  const index = openTabs.value.findIndex((tab) => tab.id === key);
+  router.push(openTabs.value[index].key);
 };
 
 const handleTabClose = (key) => {
@@ -162,149 +184,24 @@ const handleTabClose = (key) => {
 </script>
 
 <template>
-  <n-layout has-sider>
-    <n-layout-sider collapse-mode="width" :collapsed-width="120" :width="240" show-trigger="arrow-circle"
-      content-style="padding: 24px;" bordered>
+  <n-layout has-sider position="absolute">
+    <n-layout-sider collapse-mode="width" :collapsed-width="120" :width="260" show-trigger="arrow-circle"
+      content-style="padding: 24px;" bordered :native-scrollbar="false">
       <n-menu :options="menuOptions" v-model:value="activeTab" default-expand-all="true"
         @update:value="handleMenuChange" />
     </n-layout-sider>
-    <n-layout-content content-style="padding: 24px;">
-      <n-tabs v-model:value="activeTab" type="card" closable tab-style="min-width:80px" @close="handleTabClose"
-        @update:value="handleTabChange">
-        <n-tab-pane v-for="tab in openTabs" :key="tab.key" :tab="tab.label" :name="tab.key">
-        </n-tab-pane>
-      </n-tabs>
-
-      <router-view />
-    </n-layout-content>
+    <n-layout>
+      <n-layout-header bordered>
+        <n-tabs v-model:value="activeTab" type="card" closable tab-style="min-width:80px" @close="handleTabClose"
+          @update:value="handleTabChange">
+          <n-tab-pane v-for="tab in openTabs" :key="tab.key" :tab="tab.label" :name="tab.id" />
+        </n-tabs>
+      </n-layout-header>
+      <n-layout-content content-style="padding: 24px;">
+        <router-view />
+      </n-layout-content>
+    </n-layout>
   </n-layout>
-
-
-  <!-- <el-container style="height: 800px"> -->
-  <!--   <el-aside width="170px"> -->
-  <!--     <el-scrollbar max-height="800px"> -->
-  <!--       <el-button v-model="isCollapse" @click="changeCollapse"> -->
-  <!--         <el-icon> -->
-  <!--           <Operation /> -->
-  <!--         </el-icon> -->
-  <!--       </el-button> -->
-  <!--       <el-menu default-active="all" class="el-menu-vertical-demo" :collapse="isCollapse" router> -->
-  <!--         <el-menu-item index="all" route="all"> -->
-  <!--           <el-icon><icon-menu /></el-icon> -->
-  <!--           All tools -->
-  <!--         </el-menu-item> -->
-  <!---->
-  <!--         <el-sub-menu index="convert"> -->
-  <!--           <template #title> -->
-  <!--             <span> -->
-  <!--               <el-icon> -->
-  <!--                 <Switch /> -->
-  <!--               </el-icon> -->
-  <!--               转换器 -->
-  <!--             </span> -->
-  <!--           </template> -->
-  <!--           <el-menu-item index="cffc" route="cffc" @click="change">文件格式转换</el-menu-item> -->
-  <!--           <el-menu-item index="timestamp" route="timestamp" @click="change">时间戳</el-menu-item> -->
-  <!--           <el-menu-item index="baseconversion" route="baseconversion" @click="change">进制转换</el-menu-item> -->
-  <!--         </el-sub-menu> -->
-  <!---->
-  <!--         <el-sub-menu index="encoder_decoder"> -->
-  <!--           <template #title> -->
-  <!--             <span> -->
-  <!--               <el-icon> -->
-  <!--                 <Tickets /> -->
-  <!--               </el-icon> -->
-  <!--               编码/解码 -->
-  <!--             </span> -->
-  <!--           </template> -->
-  <!--           <el-menu-item index="url" route="url">URL</el-menu-item> -->
-  <!--           <el-menu-item index="base64Text" route="base64Text">Base 64</el-menu-item> -->
-  <!--         </el-sub-menu> -->
-  <!---->
-  <!--         <el-sub-menu index="formatter"> -->
-  <!--           <template #title> -->
-  <!--             <span> -->
-  <!--               <el-icon> -->
-  <!--                 <ScaleToOriginal /> -->
-  <!--               </el-icon> -->
-  <!--               格式化 -->
-  <!--             </span> -->
-  <!--           </template> -->
-  <!--           <el-menu-item index="jsonviewer" rout="jsonviewer">JSON Viewer</el-menu-item> -->
-  <!--           <el-menu-item index="jsoneditor" rout="jsoneditor">JSON Editor</el-menu-item> -->
-  <!--           <el-menu-item index="sqlformatter" route="sqlformatter">SQL</el-menu-item> -->
-  <!--           <el-menu-item index="xmlformatter" route="xmlformatter">XML</el-menu-item> -->
-  <!--         </el-sub-menu> -->
-  <!---->
-  <!--         <el-sub-menu index="generator"> -->
-  <!--           <template #title> -->
-  <!--             <span> -->
-  <!--               <el-icon> -->
-  <!--                 <Van /> -->
-  <!--               </el-icon> -->
-  <!--               Generators -->
-  <!--             </span> -->
-  <!--           </template> -->
-  <!--           <el-menu-item index="hash" route="hash">Hash</el-menu-item> -->
-  <!--           <el-menu-item index="uuid" route="uuid">UUID</el-menu-item> -->
-  <!--         </el-sub-menu> -->
-  <!---->
-  <!--         <el-sub-menu index="text"> -->
-  <!--           <template #title> -->
-  <!--             <span> -->
-  <!--               <el-icon> -->
-  <!--                 <Memo /> -->
-  <!--               </el-icon> -->
-  <!--               文本 -->
-  <!--             </span> -->
-  <!--           </template> -->
-  <!--           <el-menu-item index="markdown" route="markdown">Markdown预览</el-menu-item> -->
-  <!--         </el-sub-menu> -->
-  <!---->
-  <!--         <el-sub-menu index="network"> -->
-  <!--           <template #title> -->
-  <!--             <span> -->
-  <!--               <el-icon> -->
-  <!--                 <Picture /> -->
-  <!--               </el-icon> -->
-  <!--               网络 -->
-  <!--             </span> -->
-  <!--           </template> -->
-  <!--           <el-menu-item index="ipconverter" route="ipconverter">IP转换器</el-menu-item> -->
-  <!--         </el-sub-menu> -->
-  <!---->
-  <!--         <el-sub-menu index="graphic"> -->
-  <!--           <template #title> -->
-  <!--             <span> -->
-  <!--               <el-icon> -->
-  <!--                 <Picture /> -->
-  <!--               </el-icon> -->
-  <!--               图像 -->
-  <!--             </span> -->
-  <!--           </template> -->
-  <!--         </el-sub-menu> -->
-  <!---->
-  <!--         <el-menu-item index="setting" route="setting"> -->
-  <!--           <el-icon> -->
-  <!--             <setting /> -->
-  <!--           </el-icon> -->
-  <!--           设置 -->
-  <!--         </el-menu-item> -->
-  <!--       </el-menu> -->
-  <!--     </el-scrollbar> -->
-  <!--   </el-aside> -->
-  <!---->
-  <!--   <el-container> -->
-  <!--     <el-header> -->
-  <!--       {{ breadcrumb }} -->
-  <!--     </el-header> -->
-  <!--     <el-main> -->
-  <!--       <el-scrollbar max-height="800px"> -->
-  <!--         <router-view></router-view> -->
-  <!--       </el-scrollbar> -->
-  <!--     </el-main> -->
-  <!--   </el-container> -->
-  <!-- </el-container> -->
 </template>
 
 
