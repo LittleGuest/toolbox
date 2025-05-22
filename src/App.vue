@@ -129,7 +129,7 @@ const menuOptions = [
   },
   {
     label: "外链",
-    key: "/image",
+    key: "external",
     icon: renderIcon(Link),
     children: [
     ]
