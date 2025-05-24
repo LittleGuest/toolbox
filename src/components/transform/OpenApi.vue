@@ -8,9 +8,7 @@ import { Vue3JsonEditor } from "vue3-json-editor";
 
 const { message, loadingBar } = createDiscreteApi(["message", "loadingBar",]);
 
-const host = ref("http://127.0.0.1:8080");
-const name = ref("");
-const uri = ref("/v3/api-docs");
+const url = ref("http://127.0.0.1:8080/xxxxxxxx/v3/api-docs");
 const typeOptions = [
   {
     label: "DOCX",
@@ -32,27 +30,22 @@ const typeOptions = [
 const outputType = ref();
 const apiData = ref();
 
-
-const fetchApiDataApi = async (url) => {
-  return await invoke("fetch_api_config", {
-    url,
-  });
-};
-
 const fetchApiData = async () => {
-  if (!name.value.startsWith("/")) {
-    name.value = "/" + name.value;
-  }
-  if (!uri.value.startsWith("/")) {
-    uri.value = "/" + uri.value;
-  }
-
-  const res = await fetchApiDataApi(host.value + name.value + uri.value);
-  apiData.value = JSON.parse(res);
+  await invoke("fetch_api_data", {
+    url: url.value
+  }).then((res) => {
+    apiData.value = JSON.parse(res);
+  }).catch((error) => message.error(error));
 };
 
-const download = () => {
-
+const download = async () => {
+  console.log(outputType.value, url.value);
+  await invoke("download", {
+    url: url.value,
+    outputType: outputType.value
+  }).then((res) => {
+    message.info(res);
+  }).catch((error) => message.error(error));
 };
 
 const paste = async () => {
@@ -72,9 +65,7 @@ const clear = () => {
 <template>
   <n-form label-placement="left" label-width="auto">
     <n-form-item label="OpenAPI接口">
-      <n-input placeholder="" v-model:value="host" />
-      <n-input placeholder="请输入服务名" v-model:value="name" />
-      <n-input placeholder="" v-model:value="uri" />
+      <n-input placeholder="请输入OpenAPI接口" v-model:value="url" />
       <n-button @click="fetchApiData">获取</n-button>
     </n-form-item>
     <n-form-item label="输出类型">

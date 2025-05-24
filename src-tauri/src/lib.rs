@@ -3,6 +3,8 @@ use thiserror::Error;
 mod libs;
 mod openapi;
 
+pub type Result<T, E = Error> = std::result::Result<T, E>;
+
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("{0}")]
@@ -25,11 +27,24 @@ pub enum Error {
     DateTimeErr(String),
     // #[error(transparent)]
     // AnyhowError(#[from] anyhow::Error),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+    #[error(transparent)]
+    RequestErr(#[from] reqwest::Error),
+    #[error(transparent)]
+    TauriErr(#[from] tauri::Error),
     #[error("未知错误")]
     Unknown,
 }
 
-pub type Result<T, E = Error> = std::result::Result<T, E>;
+impl serde::Serialize for Error {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::ser::Serializer,
+    {
+        serializer.serialize_str(self.to_string().as_ref())
+    }
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -51,7 +66,8 @@ pub fn run() {
             libs::qrcode,
             libs::check_ip,
             libs::ip_to_number,
-            openapi::fetch_api_config
+            openapi::fetch_api_data,
+            openapi::download
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
