@@ -50,4 +50,8 @@ export default defineConfig(async () => ({
 			ignored: ["**/src-tauri/**"],
 		},
 	},
+	define: {
+		// "process.env": {},
+		// "process.env.IS_PREACT": JSON.stringify("true"),
+	},
 }));

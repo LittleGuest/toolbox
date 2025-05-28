@@ -1,3 +1,4 @@
+#![allow(unused)]
 use std::{
     collections::HashMap,
     net::{Ipv4Addr, Ipv6Addr},

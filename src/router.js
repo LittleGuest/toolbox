@@ -17,6 +17,8 @@ import IP from "./components/network/IP.vue";
 import Setting from "./components/Setting.vue";
 import ClipboardManager from "./components/other/ClipboardManager.vue";
 import OpenApi from "./components/transform/OpenApi.vue";
+import Excalidraw from "./components/graphic/Excalidraw.vue";
+import DatabaseFaker from "./components/database/DatabaseFaker.vue";
 
 const routes = [
 	{ path: "/", component: All },
@@ -39,10 +41,13 @@ const routes = [
 	{ path: "/generator/hash", component: Hash },
 	{ path: "/generator/uuid", component: UUID },
 	{ path: "/generator/checksum", component: Checksum },
+	{ path: "/database/datafaker", component: DatabaseFaker },
 
 	{ path: "/text/markdown", component: Markdown },
 
 	{ path: "/network/ip", component: IP },
+
+	{ path: "/graphic/excalidraw", component: Excalidraw },
 
 	{ path: "/other/clipboard", component: ClipboardManager },
 ];

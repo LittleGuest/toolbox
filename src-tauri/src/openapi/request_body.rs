@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use super::{content::Content, extensions::Extensions, schema::Ref, Required};
+use super::{content::Content, extensions::Extensions, Required};
 
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]

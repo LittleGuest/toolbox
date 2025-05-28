@@ -13,6 +13,9 @@
 		"clipboard-manager:allow-write-text",
 		"clipboard-manager:deny-write-image",
 		"clipboard-manager:allow-write-html",
-		"notification:default"
+		"notification:default",
+		"store:default",
+		"sql:default",
+		"sql:allow-execute"
 	]
 }

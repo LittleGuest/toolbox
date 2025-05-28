@@ -1,4 +1,4 @@
-//! https://spec.openapis.org/oas/latest.html
+//! <https://spec.openapis.org/oas/latest.html>
 
 use std::{fmt::Formatter, fs::File, io::Write};
 

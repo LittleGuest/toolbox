@@ -1,17 +1,13 @@
 <script setup>
 import { ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { NIcon, createDiscreteApi } from "naive-ui";
-import { Home, LetterUu, Link, NetworkPublic, Sql, TextUnderline, Xml, Time, Json, Image, Barcode, DataFormat, TextItalic, DocumentExport } from "@vicons/carbon";
-import { Binary, File, Hash, Markdown } from "@vicons/tabler";
+import { NIcon } from "naive-ui";
+import { Home, LetterUu, Link, NetworkPublic, Sql, TextUnderline, Xml, Time, Json, Image, Barcode, DataFormat, TextItalic, DocumentExport, ToolKit, DataBase, DataStructured, CdCreateExchange } from "@vicons/carbon";
+import { Binary, Clipboard, File, Hash, Markdown } from "@vicons/tabler";
 import { TransformFilled } from "@vicons/material";
-import { MoreOutlined } from "@vicons/antd";
 
-const { message, notification, dialog, loadingBar, modal } = createDiscreteApi(["message", "dialog", "notification", "loadingBar", "modal"]);
 const router = useRouter();
 const route = useRoute();
-
-
 
 const renderIcon = (icon) => {
   return () => h(NIcon, null, { default: () => h(icon) });
@@ -92,7 +88,7 @@ const menuOptions = [
   {
     label: "生成器",
     key: "/generator",
-    icon: renderIcon(Home),
+    icon: renderIcon(CdCreateExchange),
     children: [
       {
         label: "Hash",
@@ -104,6 +100,18 @@ const menuOptions = [
         key: "/generator/uuid",
         icon: renderIcon(LetterUu),
       }
+    ]
+  },
+  {
+    label: "数据库",
+    key: "/database",
+    icon: renderIcon(DataBase),
+    children: [
+      {
+        label: "数据生成",
+        key: "/database/datafaker",
+        icon: renderIcon(DataStructured),
+      },
     ]
   },
   {
@@ -135,6 +143,23 @@ const menuOptions = [
     key: "/image",
     icon: renderIcon(Image),
     children: [
+      {
+        label: "Excalidraw",
+        key: "/graphic/excalidraw",
+        icon: renderIcon(NetworkPublic),
+      }
+    ]
+  },
+  {
+    label: "其它",
+    key: "/other",
+    icon: renderIcon(ToolKit),
+    children: [
+      {
+        label: "剪切板",
+        key: "/other/clipboard",
+        icon: renderIcon(Clipboard),
+      }
     ]
   },
   {
@@ -142,17 +167,11 @@ const menuOptions = [
     key: "external",
     icon: renderIcon(Link),
     children: [
-    ]
-  },
-  {
-    label: "其它",
-    key: "/other",
-    icon: renderIcon(MoreOutlined),
-    children: [
       {
-        label: "剪切板",
-        key: "/other/clipboard",
-        icon: renderIcon(NetworkPublic),
+        label: "Excalidraw",
+        key: "https://excalidraw.com/",
+        icon: renderIcon(Link),
+        external: true,
       }
     ]
   },
@@ -165,8 +184,11 @@ const id = () => {
   return new Date().getTime() + Math.random().toString(36);
 };
 
-
 const handleMenuChange = (key, item) => {
+  if (item.external) {
+    window.open(key);
+    return;
+  }
   router.push(key);
   openTabs.value.push({ ...item, id: id() });
 };
@@ -189,6 +211,7 @@ const handleTabClose = (key) => {
 </script>
 
 <template>
+  <!-- <KeepAlive :include="openTabs"> -->
   <n-layout has-sider position="absolute">
     <n-layout-sider collapse-mode="width" :collapsed-width="120" :width="260" show-trigger="arrow-circle"
       content-style="padding: 24px;" bordered :native-scrollbar="false">
@@ -199,7 +222,8 @@ const handleTabClose = (key) => {
       <n-layout-header bordered>
         <n-tabs v-model:value="activeTab" type="card" closable tab-style="min-width:80px" @close="handleTabClose"
           @update:value="handleTabChange">
-          <n-tab-pane v-for="tab in openTabs" :key="tab.key" :tab="tab.label" :name="tab.id" />
+          <n-tab-pane display-directive="show:lazy" v-for="tab in openTabs" :key="tab.key" :tab="tab.label"
+            :name="tab.id" />
         </n-tabs>
       </n-layout-header>
       <n-layout-content content-style="padding: 24px;">
@@ -207,6 +231,7 @@ const handleTabClose = (key) => {
       </n-layout-content>
     </n-layout>
   </n-layout>
+  <!-- </KeepAlive> -->
 </template>
 
 

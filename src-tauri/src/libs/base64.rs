@@ -1,6 +1,7 @@
 //! Base64编码解码
 
 use base64::Engine as _;
+use image::ImageReader;
 
 use crate::{Error, Result};
 
@@ -21,7 +22,7 @@ pub fn decode_text(data: &str) -> Result<String> {
 
 /// Base64图片编码
 pub fn encode_img(path: &str) -> Result<String> {
-    let image = image::io::Reader::open(path)
+    let image = ImageReader::open(path)
         .map_err(|e| Error::Base64Err(e.to_string()))?
         .decode()
         .map_err(|e| Error::Base64Err(e.to_string()))?;

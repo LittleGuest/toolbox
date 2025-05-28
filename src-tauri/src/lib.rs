@@ -1,5 +1,11 @@
+use std::sync::Mutex;
+
+use sqlx::SqlitePool;
+use tauri::Manager;
+use tauri_plugin_sql::{Migration, MigrationKind};
 use thiserror::Error;
 
+mod database;
 mod libs;
 mod openapi;
 
@@ -33,6 +39,10 @@ pub enum Error {
     RequestErr(#[from] reqwest::Error),
     #[error(transparent)]
     TauriErr(#[from] tauri::Error),
+    #[error(transparent)]
+    SqlxErr(#[from] sqlx::Error),
+    #[error(transparent)]
+    TeraErr(#[from] tera::Error),
     #[error("未知错误")]
     Unknown,
 }
@@ -48,11 +58,31 @@ impl serde::Serialize for Error {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let migrations = vec![Migration {
+        version: 1,
+        description: "create_initial_tables",
+        sql: "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT);",
+        kind: MigrationKind::Up,
+    }];
+
     tauri::Builder::default()
+        .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_opener::init())
-        // .plugin(tauri_plugin_persisted_scope::init())
+        // .manage(DbPool(Mutex::new(pool)))
+        .setup(|app| {
+            // tauri_plugin_store::StoreBuilder::new(app, "store.bin").build();
+            let db_url = app.path().app_data_dir().unwrap().join("toolbox.db");
+            app.handle()
+                .plugin(
+                    tauri_plugin_sql::Builder::default()
+                        .add_migrations(&db_url.to_str().unwrap(), migrations)
+                        .build(),
+                )
+                .ok();
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             libs::hash,
             libs::uuid,
@@ -67,7 +97,9 @@ pub fn run() {
             libs::check_ip,
             libs::ip_to_number,
             openapi::fetch_api_data,
-            openapi::download
+            openapi::download,
+            // database::database_connects,
+            // database::add_database_connect,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

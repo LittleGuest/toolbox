@@ -8,6 +8,5 @@ const text = ref('');
 </script>
 
 <template>
-  <MdEditor v-model="text" />
+  <MdEditor v-model="text" style="min-height: 1000px;" />
 </template>
-

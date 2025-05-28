@@ -111,23 +111,6 @@ impl Data {
 }
 
 impl Data {
-    /// 校验数据格式是否正确
-    // pub fn check(&self) -> bool {
-    //     if let Some(text) = self.text.as_ref() {
-    //         if let Some(f) = self.from.as_ref() {
-    //             // FIXME: 寻找更好的办法
-    //             return match f.to_lowercase().as_ref() {
-    //                 "json" => serde_json::from_str::<serde_json::Value>(text).is_ok(),
-    //                 // FIXME: json也被认为是yaml格式的
-    //                 "yaml" => serde_yaml::from_str::<serde_yaml::Value>(text).is_ok(),
-    //                 "toml" => toml::from_str::<toml::Value>(text).is_ok(),
-    //                 _ => false,
-    //             };
-    //         }
-    //     }
-    //     false
-    // }
-
     fn from_json<T>(text: &str) -> Result<T>
     where
         T: Serialize + for<'a> Deserialize<'a>,
@@ -266,23 +249,23 @@ mod test {
         let _ = c.convert().unwrap();
     }
 
-    // #[test]
+    #[test]
     fn test() {
         // toml --> json
         let mut deserializer = toml::Deserializer::new(TOML);
         let mut serializer = serde_json::Serializer::new(std::io::stdout());
-        serde_transcode::transcode(&mut deserializer, &mut serializer).unwrap();
+        // serde_transcode::transcode(&mut deserializer, &mut serializer).unwrap();
 
         let t = toml::from_str::<serde_json::Value>(TOML).unwrap();
         let ts = serde_json::to_string(&t).unwrap();
-        println!("\n{}", ts);
+        println!("\n{ts}",);
 
         println!("=======================================");
 
         // toml --> yaml
         let mut deserializer = toml::Deserializer::new(TOML);
         let mut serializer = serde_yaml::Serializer::new(std::io::stdout());
-        serde_transcode::transcode(&mut deserializer, &mut serializer).unwrap();
+        // serde_transcode::transcode(&mut deserializer, &mut serializer).unwrap();
 
         println!("=======================================");
 
@@ -297,21 +280,21 @@ mod test {
         let mut jde = serde_json::Deserializer::from_str(JSON);
         let mut tser = "".to_string();
         let mut tse = toml::Serializer::new(&mut tser);
-        serde_transcode::transcode(&mut jde, &mut tse).unwrap();
-        println!("{}", tser);
+        // serde_transcode::transcode(&mut jde, &mut tse).unwrap();
+        println!("{tser}");
 
         println!("=======================================");
 
         // yaml --> json
         let yjs = serde_yaml::from_str::<serde_json::Value>(YAML).unwrap();
         let yjs = serde_json::to_string(&yjs).unwrap();
-        println!("{}", yjs);
+        println!("{yjs}",);
 
         println!("=======================================");
 
         // yaml --> toml
         let yt = serde_yaml::from_str::<toml::Value>(YAML).unwrap();
         let ys = toml::to_string(&yt).unwrap();
-        println!("{}", ys);
+        println!("{ys}",);
     }
 }

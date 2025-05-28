@@ -1,3 +1,5 @@
+# cargo-features = ["profile-rustflags", "trim-paths"]
+
 [package]
 name = "toolbox"
 version = "0.1.0"
@@ -25,7 +27,7 @@ serde_json = "1"
 base64 = "0.22.1"
 data-encoding = "2.9.0"
 encoding_rs = "0.8.32"
-heck = "0.4.1"
+heck = "0.5.0"
 hex = "0.4.3"
 image_hasher = "3.0.0"
 jsonwebtoken = "9.3.1"
@@ -59,6 +61,28 @@ utoipa = "5.3.1"
 lazy_static = "1.5.0"
 tera = { version = "1.20.0", default-features = false }
 rust-embed = "8.7.2"
+async-trait = "0.1.68"
+regex = "1.8.4"
+sqlx = { version = "0.8.6", features = [
+  "runtime-tokio-native-tls",
+  "all-databases",
+] }
+tauri-plugin-store = "2"
+tauri-plugin-sql = { version = "2.2.0", features = ["sqlite"] }
 
 [dev-dependencies]
 serde-transcode = "1.1.1"
+
+
+# [profile.dev]
+# incremental = true          # 以较小的步骤编译您的二进制文件。
+# rustflags = ["-Zthreads=8"] # 提高编译性能。
+#
+# [profile.release]
+# codegen-units = 1                            # 允许 LLVM 执行更好的优化。
+# lto = true                                   # 启用链接时优化。
+# opt-level = "s"                              # 优先考虑小的二进制文件大小。如果您更喜欢速度，请使用 `3`。
+# panic = "abort"                              # 通过禁用 panic 处理程序来提高性能。
+# strip = true                                 # 确保移除调试符号。
+# trim-paths = "all"                           # 从您的二进制文件中移除潜在的特权信息。
+# rustflags = ["-Cdebuginfo=0", "-Zthreads=8"] # 提高编译性能。

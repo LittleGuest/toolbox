@@ -4,7 +4,7 @@ import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
 import { invoke } from "@tauri-apps/api/core";
 import { createDiscreteApi } from "naive-ui";
 import { Copy, Paste, Close, Download } from "@vicons/carbon";
-import { Vue3JsonEditor } from "vue3-json-editor";
+import JsonEditorVue from 'json-editor-vue';
 
 const { message, loadingBar } = createDiscreteApi(["message", "loadingBar",]);
 
@@ -104,5 +104,5 @@ const clear = () => {
     </n-button>
   </n-button-group>
 
-  <Vue3JsonEditor v-model="apiData" :show-btns="false" :expandedOnStart="true" />
+  <JsonEditorVue v-model="apiData" />
 </template>
