@@ -4,6 +4,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { NButton, NButtonGroup, createDiscreteApi } from "naive-ui";
 import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Copy, Paste, Close } from "@vicons/carbon";
 import { datasourceInfosApi, saveDatasourceInfoApi, updateDatasourceInfoApi, deleteDatasourceInfoApi } from '../../db.js';
+import GeneratorConfiguration from './GeneratorConfiguration.vue';
+import GeneratorDataPreview from './GeneratorDataPreview.vue';
 
 const { message, notification, dialog, loadingBar, modal } = createDiscreteApi(["message", "dialog", "notification", "loadingBar", "modal"]);
 
@@ -33,15 +35,11 @@ const datasourceInfo = ref({
   password: null,
 });
 const schemas = ref([]);
-const tableTreeData = ref();
-
-
+const tableTreeData = ref([]);
 const current = ref(1);
 const currentStatus = ref("process");
 const keyword = ref("");
-const showIrrelevantNodes = ref(false);
-const defaultExpandedKeys = ref(["40", "4030", "403020"]);
-const defaultCheckedKeys = ref(["40302010"]);
+const defaultExpandedKeys = ref(["root"]);
 
 const updateCheckedKeys = (keys, options, meta) => {
   console.log("updateCheckedKeys", keys, options, meta);
@@ -72,13 +70,25 @@ const handleSelectTable = async () => {
   const info = datasourceInfos.value.find(info => info.name === datasourceInfo.value.name);
   info.database = datasourceInfo.value.database;
   const data = await databaseTableTreeApi(info);
-  tableTreeData.value = {
+  const maped = data.map((t) => {
+    const child = t.children.map((c) => {
+      return {
+        key: t.table_name + "@" + c.name,
+        label: c.name,
+      };
+    });
+    return {
+      key: t.table_name,
+      label: t.table_name,
+      children: child
+    };
+  });
+  ;
+  tableTreeData.value.push({
     key: "root",
-    label: "root",
-    children: data,
-  };
-  console.log(tableTreeData.value, '--==')
-
+    label: "表",
+    children: maped,
+  });
   //   await invoke("fetch_api_data", {
   //   url: url.value
   // }).then((res) => {
@@ -87,6 +97,20 @@ const handleSelectTable = async () => {
 
 };
 
+const nodeProps = ({ option }) => {
+  return {
+    onClick() {
+      message.info(`[Click] ${option}`);
+    },
+  };
+};
+
+const model = ref({
+  age: null,
+  password: null,
+  reenteredPassword: null
+});
+
 </script>
 
 <template>
@@ -94,7 +118,7 @@ const handleSelectTable = async () => {
     @negative-click="handleNegativeClick">
 
     <n-flex vertical>
-      <n-steps :current="current" :status="currentStatus" style="display: flex; justify-content: space-around;">
+      <n-steps :current="current" :status="currentStatus">
         <n-step title="选择库" />
         <n-step title="配置" />
         <n-step title="预览" />
@@ -111,19 +135,23 @@ const handleSelectTable = async () => {
         </n-form-item>
       </template>
       <template v-if="current === 2">
-        <n-input v-model:value="keyword" placeholder="搜索" />
-        <n-scrollbar style="max-height: 90%">
-          <!-- <n-tree block-line cascade checkable key-field="key" label-field="label" :selectable="false" -->
-          <!--   :data="tableTreeData" :default-expanded-keys="defaultExpandedKeys" -->
-          <!--   :default-checked-keys="defaultCheckedKeys" :show-irrelevant-nodes="showIrrelevantNodes" :pattern="keyword" -->
-          <!--   @update:checked-keys="updateCheckedKeys" /> -->
-
-          <n-tree block-line cascade checkable :selectable="false" :data="tableTreeData" :pattern="keyword"
-            @update:checked-keys="updateCheckedKeys" />
-        </n-scrollbar>
+        <n-flex>
+          <div>
+            <n-input v-model:value="keyword" placeholder="搜索" />
+            <n-tree block-line show-line="true" cascade checkable virtual-scroll
+              style="height: 800px;min-height: 300px;" :data="tableTreeData"
+              :default-expanded-keys="defaultExpandedKeys" :show-irrelevant-nodes="false" :pattern="keyword"
+              :node-props="nodeProps" @update:checked-keys="updateCheckedKeys" />
+          </div>
+          <div style="margin-left: 300px;">
+            <GeneratorConfiguration />
+          </div>
+        </n-flex>
+      </template>
+      <template v-if="current === 3">
+        <GeneratorDataPreview />
       </template>
     </n-flex>
-
 
     <template #action>
       <n-button-group>

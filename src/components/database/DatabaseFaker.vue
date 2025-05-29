@@ -45,7 +45,6 @@ const columns = [
           {
             onClick: () => {
 
-
             }
           },
           { default: () => "数据生成" }

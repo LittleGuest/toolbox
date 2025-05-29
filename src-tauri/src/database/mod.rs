@@ -59,7 +59,7 @@ pub async fn database_schemas(datasource_info: DatasourceInfo) -> Result<Vec<Sch
 
 #[derive(Debug, Serialize)]
 pub struct TableColumnTree {
-    name: String,
+    table_name: String,
     children: Vec<Column>,
 }
 
@@ -77,7 +77,7 @@ pub async fn database_table_tree(datasource_info: DatasourceInfo) -> Result<Vec<
             for table in tables.into_iter() {
                 let columns = MysqlMetadata::columns(&pool, database, &table.name).await?;
                 data.push(TableColumnTree {
-                    name: table.name,
+                    table_name: table.name,
                     children: columns,
                 });
             }
