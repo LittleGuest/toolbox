@@ -1,5 +1,5 @@
 -- Add up migration script here
-CREATE TABLE "database_connect" (
+CREATE TABLE "datasource_info" (
   "id" integer NOT NULL PRIMARY KEY AUTOINCREMENT,
   "driver" text NOT NULL,
   "name" text NOT NULL,
@@ -11,6 +11,6 @@ CREATE TABLE "database_connect" (
 );
 
 CREATE UNIQUE INDEX "index_name"
-ON "database_connect" (
+ON "datasource_info" (
   "name"
 );

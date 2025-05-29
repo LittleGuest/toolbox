@@ -98,8 +98,8 @@ pub fn run() {
             libs::ip_to_number,
             openapi::fetch_api_data,
             openapi::download,
-            // database::database_connects,
-            // database::add_database_connect,
+            database::database_schemas,
+            database::database_table_tree,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

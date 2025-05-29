@@ -1,78 +1,89 @@
-use cores::Result;
+use std::collections::HashMap;
+
+use cores::{Column, DatabaseMetadata, Driver, Error, MysqlMetadata, Result, Schema};
 use serde::{Deserialize, Serialize};
-use sqlx::{Pool, Sqlite};
-use tauri::{AppHandle, State};
+use sqlx::MySqlPool;
 
 mod cores;
 
-// #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
-// #[serde(rename_all = "camelCase")]
-// pub enum Driver {
-//     Mysql,
-//     Postgres,
-//     Sqlite,
-// }
-//
-// #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
-// #[serde(rename_all = "camelCase")]
-// pub struct DatabaseConnect {
-//     id: u64,
-//     driver: String,
-//     name: String,
-//     host: String,
-//     port: Option<u16>,
-//     username: Option<String>,
-//     password: Option<String>,
-//     database: Option<String>,
-// }
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DatasourceInfo {
+    driver: Driver,
+    name: String,
+    host: String,
+    port: Option<u16>,
+    username: Option<String>,
+    password: Option<String>,
+    database: Option<String>,
+}
 
-// #[tauri::command]
-// pub async fn database_connects<'r>(
-//     app: AppHandle,
-//     db_pool: State<'r, DbPool>,
-// ) -> Result<Vec<DatabaseConnect>> {
-//     // let store = app.store("store.bin").unwrap();
-//     // if let Some(connects) = store.get("database_connects") {
-//     //     let mut connects = serde_json::from_value::<Vec<Connect>>(connects).unwrap();
-//     //     connects
-//     // } else {
-//     //     vec![]
-//     // }
-//     // let res = connects(&*db_pool.0.lock().unwrap()).await;
-//     todo!()
-// }
-//
-// #[tauri::command]
-// pub fn add_database_connect(connect: DatabaseConnect, app: AppHandle) {
-//     // let store = app.store("store.bin").unwrap();
-//     // if let Some(connects) = store.get("database_connects") {
-//     //     let mut connects = serde_json::from_value::<Vec<Connect>>(connects).unwrap();
-//     //     let con = connects.iter().enumerate().find(|(index, con)| {
-//     //         con.driver == connect.driver
-//     //             && con.host == connect.host
-//     //             && con.port == connect.port
-//     //             && con.user == connect.user
-//     //     });
-//     //     println!("--------------------{:?}==={:?}", con, connect);
-//     //     if let Some((index, con)) = con {
-//     //         println!("====================");
-//     //         connects.remove(index);
-//     //     }
-//     //     connects.push(connect);
-//     // } else {
-//     //     let mut connects = Vec::new();
-//     //     connects.push(connect);
-//     //     store.set("database_connects", serde_json::to_value(connects).unwrap());
-//     // }
-//     todo!()
-// }
-//
-// /*
-// 连接信息保存到sqlite中？
-//
-// 1、新增连接信息
-// 2、修改连接信息
-// 3、删除连接信息
-// 4、查询连接信息
-// 5、获取表结构树
-//  */
+/// Driver::Mysql       mysql://root:root@localhost:3306/test
+/// Driver::Postgres    postgres://root:root@localhost:5432/test
+/// Driver::Sqlite      sqlite://test.sqlite
+impl DatasourceInfo {
+    pub fn url(&self) -> String {
+        match self.driver {
+            Driver::Mysql => {
+                format!(
+                    "mysql://{}:{}@{}:{}/{}",
+                    self.username.clone().unwrap_or_default(),
+                    self.password.clone().unwrap_or_default(),
+                    self.host,
+                    self.port.unwrap_or_default(),
+                    self.database.clone().unwrap_or_default()
+                )
+            }
+            Driver::Postgres => todo!(),
+            Driver::Sqlite => todo!(),
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn database_test(datasource_info: DatasourceInfo) -> Result<bool> {
+    todo!()
+}
+
+#[tauri::command]
+pub async fn database_schemas(datasource_info: DatasourceInfo) -> Result<Vec<Schema>> {
+    match datasource_info.driver {
+        Driver::Mysql => {
+            let pool = MySqlPool::connect(&datasource_info.url()).await?;
+            MysqlMetadata::schemas(&pool).await
+        }
+        Driver::Postgres => todo!(),
+        Driver::Sqlite => todo!(),
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct TableColumnTree {
+    name: String,
+    children: Vec<Column>,
+}
+
+#[tauri::command]
+pub async fn database_table_tree(datasource_info: DatasourceInfo) -> Result<Vec<TableColumnTree>> {
+    match datasource_info.driver {
+        Driver::Mysql => {
+            let Some(database) = &datasource_info.database else {
+                return Err(Error::E("请选择数据库"));
+            };
+
+            let pool = MySqlPool::connect(&datasource_info.url()).await?;
+            let tables = MysqlMetadata::tables(&pool, database).await?;
+            let mut data = Vec::with_capacity(tables.len());
+            for table in tables.into_iter() {
+                let columns = MysqlMetadata::columns(&pool, database, &table.name).await?;
+                data.push(TableColumnTree {
+                    name: table.name,
+                    children: columns,
+                });
+            }
+            Ok(data)
+        }
+        Driver::Postgres => todo!(),
+        Driver::Sqlite => todo!(),
+    }
+}

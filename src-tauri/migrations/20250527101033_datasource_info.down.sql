@@ -1,2 +1,2 @@
 -- Add down migration script here
-drop table database_connect;
+drop table datasource_info;

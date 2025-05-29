@@ -7,6 +7,8 @@ mod mysql;
 mod postgres;
 mod sqlite;
 
+pub use mysql::MysqlMetadata;
+
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Debug, Error)]
@@ -31,10 +33,19 @@ impl serde::Serialize for Error {
 /// 数据库元数据
 pub trait DatabaseMetadata {
     type Pool;
+
+    /// 获取所有的库
+    async fn schemas(pool: &Self::Pool) -> Result<Vec<Schema>>;
     /// 获取所有的表
-    async fn tables(pool: Self::Pool, schema: &str) -> Result<Vec<Table>>;
+    async fn tables(pool: &Self::Pool, schema: &str) -> Result<Vec<Table>>;
     /// 获取表的字段
-    async fn columns(pool: Self::Pool, schema: &str, table_name: &str) -> Result<Vec<Column>>;
+    async fn columns(pool: &Self::Pool, schema: &str, table_name: &str) -> Result<Vec<Column>>;
+}
+
+/// 库
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Schema {
+    pub name: String,
 }
 
 /// 表信息
@@ -46,16 +57,17 @@ pub struct Table {
 }
 
 /// 列信息
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Column {
     pub schema: String,
     pub table_name: String,
     pub name: String,
-    pub data_type: String,
+    pub r#type: String,
     pub max_length: Option<i64>,
-    pub is_nullable: bool,
-    pub comment: Option<String>,
+    pub is_nullable: String,
+    pub key: Option<String>,
     pub default: Option<String>,
+    pub comment: Option<String>,
 }
 
 /// 驱动类型

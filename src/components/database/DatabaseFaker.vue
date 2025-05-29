@@ -5,76 +5,16 @@ import Database from '@tauri-apps/plugin-sql';
 import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
 import { NButton, NButtonGroup, createDiscreteApi } from "naive-ui";
 import { ArrowUp, ArrowDown, Copy, Paste, Close } from "@vicons/carbon";
-import { repeat } from "seemly";
+import { datasourceInfosApi, saveDatasourceInfoApi, updateDatasourceInfoApi, deleteDatasourceInfoApi } from '../../db.js';
+import DataGenerator from './DataGenerator.vue';
 
 const { message, notification, dialog, loadingBar, modal } = createDiscreteApi(["message", "dialog", "notification", "loadingBar", "modal"]);
 
-
 const connects = ref([]);
 
-const loadDatabase = async () => {
-  return await Database.load('sqlite:toolbox.db');
-};
-
-
-const connectsApi = async () => {
-  const db = await loadDatabase();
-  return await db.select('select * from database_connect');
-};
-
-const saveApi = async (connect) => {
-  const db = await loadDatabase();
-  await db.execute(
-    "insert into database_connect (driver, name, host, port, database, username, password) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-    [connect.driver, connect.name, connect.host, connect.port, connect.database, connect.username, connect.password],
-  );
-};
-
-const updateApi = async (connect) => {
-  const db = await loadDatabase();
-  await db.execute(
-    "update database_connect set driver=$1, name=$2, host=$3, port=$4, database=$5, username=$6, password=$7 where id=$8",
-    [connect.driver, connect.name, connect.host, connect.port, connect.database, connect.username, connect.password, connect.id],
-  );
-};
-
-const deleteApi = async (id) => {
-  const db = await loadDatabase();
-  await db.execute(
-    "delete from database_connect where id=$1",
-    [id],
-  );
-};
-
-
-
 onMounted(async () => {
-  connects.value = await connectsApi();
+  connects.value = await datasourceInfosApi();
 });
-
-
-const keyword = ref("");
-const showIrrelevantNodes = ref(false);
-
-const defaultExpandedKeys = ref(["40", "4030", "403020"]);
-const defaultCheckedKeys = ref(["40302010"]);
-const updateCheckedKeys = (keys, options, meta) => {
-  console.log("updateCheckedKeys", keys, options, meta);
-};
-
-
-
-function createLabel(level) {
-  if (level === 4)
-    return "道生一";
-  if (level === 3)
-    return "一生二";
-  if (level === 2)
-    return "二生三";
-  if (level === 1)
-    return "三生万物";
-  return "";
-}
 
 const columns = [
   {
@@ -125,9 +65,9 @@ const columns = [
           NButton,
           {
             onClick: async () => {
-              await deleteApi(row.id);
+              await deleteDatasourceInfoApi(row.id);
               message.success("删除成功");
-              connects.value = await connectsApi();
+              connects.value = await datasourceInfosApi();
             }
           },
           { default: () => "删除" }
@@ -201,14 +141,14 @@ const saveConnect = (e) => {
       console.log(addDrawer, '==-=-=-=-=')
       if (addDrawer.value) {
         message.success("添加成功");
-        await saveApi(model.value);
+        await saveDatasourceInfoApi(model.value);
       } else {
         message.success("编辑成功");
-        await updateApi(model.value);
+        await updateDatasourceInfoApi(model.value);
       }
       addDrawer.value = false;
       showAddaDrawer.value = false;
-      connects.value = await connectsApi();
+      connects.value = await datasourceInfosApi();
     }
   });
 };
@@ -218,6 +158,8 @@ const saveConnect = (e) => {
 <template>
   <n-button @click="handleAddDrawer">新建连接</n-button>
   <n-data-table :columns="columns" :data="connects" :bordered="false" :scroll-x="1800" :max-height="550" />
+
+  <DataGenerator />
 
   <n-drawer v-model:show="showAddaDrawer" placement="bottom" resizable :default-width="502" :default-height="600">
     <n-drawer-content :title="addDrawer ? '添加' : '编辑'" closable>
@@ -253,24 +195,6 @@ const saveConnect = (e) => {
   </n-drawer>
 
 
-  <!-- <n-flex justify="space-between"> -->
-  <!--   <n-flex> -->
-  <!--     <n-input v-model:value="keyword" placeholder="搜索" /> -->
-  <!--     <n-scrollbar style="max-height: 90%"> -->
-  <!--       <n-tree block-line cascade checkable key-field="key" label-field="label" :selectable="false" :data="treeData" -->
-  <!--         :default-expanded-keys="defaultExpandedKeys" :default-checked-keys="defaultCheckedKeys" -->
-  <!--         :show-irrelevant-nodes="showIrrelevantNodes" :pattern="keyword" @update:checked-keys="updateCheckedKeys" /> -->
-  <!--     </n-scrollbar> -->
-  <!--   </n-flex> -->
-  <!---->
-  <!--   <div> -->
-  <!---->
-  <!--     {{ value }} -->
-  <!--     <n-button>Oops!</n-button> -->
-  <!--     <n-button>Oops!</n-button> -->
-  <!--     <n-button>Oops!</n-button> -->
-  <!--   </div> -->
-  <!-- </n-flex> -->
 </template>
 
 <style lang="scss" scoped>
