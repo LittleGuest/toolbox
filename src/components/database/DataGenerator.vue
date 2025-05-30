@@ -69,32 +69,31 @@ const handleSelectDatasource = async () => {
 const handleSelectTable = async () => {
   const info = datasourceInfos.value.find(info => info.name === datasourceInfo.value.name);
   info.database = datasourceInfo.value.database;
-  const data = await databaseTableTreeApi(info);
-  const maped = data.map((t) => {
-    const child = t.children.map((c) => {
+  await databaseTableTreeApi(info).then(res => {
+    const maped = res.map((t) => {
+      const child = t.children.map((c) => {
+        console.log(c, '-=-=')
+        return {
+          key: c.table_name + "@" + c.name,
+          label: c.name,
+        };
+      });
       return {
-        key: t.table_name + "@" + c.name,
-        label: c.name,
+        key: t.table_name,
+        label: t.table_name,
+        children: child
       };
     });
-    return {
-      key: t.table_name,
-      label: t.table_name,
-      children: child
-    };
-  });
-  ;
-  tableTreeData.value.push({
-    key: "root",
-    label: "表",
-    children: maped,
-  });
-  //   await invoke("fetch_api_data", {
-  //   url: url.value
-  // }).then((res) => {
-  //   apiData.value = JSON.parse(res);
-  // }).catch((error) => message.error(error));
+    ;
+    tableTreeData.value.push({
+      key: "root",
+      label: "表",
+      children: maped,
+    });
 
+  }).catch(err => {
+    message.error(err);
+  });
 };
 
 const nodeProps = ({ option }) => {
@@ -104,13 +103,6 @@ const nodeProps = ({ option }) => {
     },
   };
 };
-
-const model = ref({
-  age: null,
-  password: null,
-  reenteredPassword: null
-});
-
 </script>
 
 <template>

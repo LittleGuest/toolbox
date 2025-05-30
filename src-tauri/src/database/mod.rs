@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use cores::{Column, DatabaseMetadata, Driver, Error, MysqlMetadata, Result, Schema};
 use serde::{Deserialize, Serialize};
-use sqlx::MySqlPool;
+use sqlx::{Connection, MySqlConnection, MySqlPool};
 
 mod cores;
 
@@ -41,8 +41,15 @@ impl DatasourceInfo {
 }
 
 #[tauri::command]
-pub async fn database_test(datasource_info: DatasourceInfo) -> Result<bool> {
-    todo!()
+pub async fn database_ping(datasource_info: DatasourceInfo) -> Result<()> {
+    match datasource_info.driver {
+        Driver::Mysql => {
+            let mut conn = MySqlConnection::connect(&datasource_info.url()).await?;
+            conn.ping().await.map_err(Error::SqlxErr)
+        }
+        Driver::Postgres => todo!(),
+        Driver::Sqlite => todo!(),
+    }
 }
 
 #[tauri::command]

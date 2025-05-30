@@ -1,10 +1,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import Database from '@tauri-apps/plugin-sql';
-import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
 import { NButton, NButtonGroup, createDiscreteApi } from "naive-ui";
-import { ArrowUp, ArrowDown, Copy, Paste, Close } from "@vicons/carbon";
 import { datasourceInfosApi, saveDatasourceInfoApi, updateDatasourceInfoApi, deleteDatasourceInfoApi } from '../../db.js';
 import DataGenerator from './DataGenerator.vue';
 
@@ -132,6 +129,19 @@ const handleAddDrawer = () => {
   modelRef.value = {};
 };
 
+
+const pingApi = async (info) => {
+  await invoke("database_ping", { datasourceInfo: info }).then(res => {
+    message.success("连接成功")
+  }).catch(err => {
+    message.error("连接失败")
+  });
+};
+
+const ping = async () => {
+  await pingApi(model.value);
+}
+
 // 保存连接信息
 const saveConnect = (e) => {
   e.preventDefault();
@@ -188,6 +198,7 @@ const saveConnect = (e) => {
         </n-form-item>
       </n-form>
       <template #footer>
+        <n-button @click="ping">测试连接</n-button>
         <n-button @click="saveConnect">保存</n-button>
       </template>
     </n-drawer-content>
