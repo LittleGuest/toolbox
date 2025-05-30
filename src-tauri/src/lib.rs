@@ -1,11 +1,9 @@
-use std::sync::Mutex;
-
-use sqlx::SqlitePool;
 use tauri::Manager;
 use tauri_plugin_sql::{Migration, MigrationKind};
 use thiserror::Error;
 
 mod database;
+mod datafaker;
 mod libs;
 mod openapi;
 

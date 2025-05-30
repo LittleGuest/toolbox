@@ -45,7 +45,7 @@ struct Column {
     table_name: String,
     column_name: String,
     ordinal_position: Option<u32>,
-    column_default: Option<String>,
+    // column_default: Option<String>,
     is_nullable: String,
     character_maximum_length: Option<i64>,
     // data_type: Option<String>,
@@ -64,7 +64,7 @@ impl From<Column> for super::Column {
             max_length: c.character_maximum_length,
             is_nullable: c.is_nullable,
             // key: c.column_key,
-            default: c.column_default,
+            // default: c.column_default,
             // comment: c.column_comment,
             ..Default::default()
         }
