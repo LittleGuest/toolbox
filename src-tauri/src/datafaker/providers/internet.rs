@@ -1,16 +1,13 @@
-use rand::Rng;
+pub struct InternetProvider;
 
-pub struct Ip;
-
-impl Ip {
-    pub fn ipv4() -> String {
-        let mut rng = rand::rng();
+impl InternetProvider {
+    pub fn ipv4(&self) -> String {
         format!(
             "{}.{}.{}.{}",
-            rng.random_range(0..u8::MAX),
-            rng.random_range(0..u8::MAX),
-            rng.random_range(0..u8::MAX),
-            rng.random_range(0..u8::MAX),
+            fastrand::u8(..),
+            fastrand::u8(..),
+            fastrand::u8(..),
+            fastrand::u8(..),
         )
     }
 }

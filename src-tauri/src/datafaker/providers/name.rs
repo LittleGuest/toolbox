@@ -1,15 +1,13 @@
-use rand::Rng;
-
 pub enum Sex {
     Male,
     Female,
 }
 
-pub struct Name {
+pub struct NameProvider {
     pub locale: String,
 }
 
-impl Name {
+impl NameProvider {
     pub fn new() -> Self {
         Self {
             locale: "en".into(),
@@ -17,19 +15,19 @@ impl Name {
     }
 
     pub fn prefix(&self) -> String {
-        PREFIX[rand::rng().random_range(0..PREFIX.len())].into()
+        PREFIX[fastrand::usize(0..PREFIX.len())].into()
     }
 
     pub fn suffix(&self) -> String {
-        SUFFIX[rand::rng().random_range(0..SUFFIX.len())].into()
+        SUFFIX[fastrand::usize(0..SUFFIX.len())].into()
     }
 
     pub fn first_name(&self) -> String {
-        MALE_FIRST_NAME[rand::rng().random_range(0..MALE_FIRST_NAME_LEN)].into()
+        MALE_FIRST_NAME[fastrand::usize(0..MALE_FIRST_NAME_LEN)].into()
     }
 
     pub fn last_name(&self) -> String {
-        LAST_NAME[rand::rng().random_range(0..LAST_NAME_LEN)].into()
+        LAST_NAME[fastrand::usize(0..LAST_NAME_LEN)].into()
     }
 
     pub fn full_name(&self) -> String {
@@ -6068,55 +6066,55 @@ static LAST_NAME: [&str; 473] = [
 
 #[cfg(test)]
 mod tests {
-    use super::Name;
+    use super::NameProvider;
 
     #[test]
     fn test_prefix() {
-        assert!(!Name::new().prefix().is_empty())
+        assert!(!NameProvider::new().prefix().is_empty())
     }
 
     #[test]
     fn test_suffix() {
-        assert!(!Name::new().suffix().is_empty())
+        assert!(!NameProvider::new().suffix().is_empty())
     }
 
     #[test]
     fn test_first_name() {
-        assert!(!Name::new().first_name().is_empty())
+        assert!(!NameProvider::new().first_name().is_empty())
     }
 
     #[test]
     fn test_last_name() {
-        assert!(!Name::new().last_name().is_empty())
+        assert!(!NameProvider::new().last_name().is_empty())
     }
 
     #[test]
     fn test_full_name() {
-        assert!(!Name::new().full_name().is_empty())
+        assert!(!NameProvider::new().full_name().is_empty())
     }
 
     #[test]
     fn test_full_name_with_prefix() {
-        assert!(!Name::new().full_name_with_prefix().is_empty())
+        assert!(!NameProvider::new().full_name_with_prefix().is_empty())
     }
 
     #[test]
     fn test_full_name_with_suffix() {
-        assert!(!Name::new().full_name_with_suffix().is_empty())
+        assert!(!NameProvider::new().full_name_with_suffix().is_empty())
     }
 
     #[test]
     fn test_name_with_middle() {
-        assert!(!Name::new().name_with_middle().is_empty())
+        assert!(!NameProvider::new().name_with_middle().is_empty())
     }
 
     #[test]
     fn test_name_with_middle_prefix() {
-        assert!(!Name::new().name_with_middle_prefix().is_empty())
+        assert!(!NameProvider::new().name_with_middle_prefix().is_empty())
     }
 
     #[test]
     fn test_name_with_middle_suffix() {
-        assert!(!Name::new().name_with_middle_suffix().is_empty())
+        assert!(!NameProvider::new().name_with_middle_suffix().is_empty())
     }
 }
