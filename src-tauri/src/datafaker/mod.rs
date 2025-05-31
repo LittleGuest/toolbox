@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use providers::{Address, Email, Emoji, Internet, Name, PhoneNumber};
+use providers::{Address, Email, Emoji, Internet, Name, PhoneNumber, Uuid};
 
 mod providers;
 
@@ -60,5 +60,9 @@ impl Faker {
 
     pub fn phone_number(&self) -> PhoneNumber {
         PhoneNumber::new_with_locale(self.locale)
+    }
+
+    pub fn uuid(&self) -> Uuid {
+        Uuid
     }
 }
