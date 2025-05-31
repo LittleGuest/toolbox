@@ -1,6 +1,6 @@
-pub struct EmojiProvider;
+pub struct Emoji;
 
-impl EmojiProvider {
+impl Emoji {
     pub fn emoji(&self) -> String {
         let format = fastrand::u8(0..10);
         match format {

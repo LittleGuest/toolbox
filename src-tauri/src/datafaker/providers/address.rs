@@ -1,10 +1,17 @@
-pub struct AddressProvider {
-    locale: String,
+use crate::datafaker::Locale;
+
+pub struct Address {
+    locale: Locale,
 }
-impl AddressProvider {
+
+impl Address {
     pub fn new() -> Self {
         Self {
-            locale: "en".into(),
+            locale: Default::default(),
         }
+    }
+
+    pub fn new_with_locale(locale: Locale) -> Self {
+        Self { locale }
     }
 }

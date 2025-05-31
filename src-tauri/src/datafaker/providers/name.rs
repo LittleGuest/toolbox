@@ -1,17 +1,29 @@
+use crate::datafaker::{Locale, Provider};
+
 pub enum Sex {
     Male,
     Female,
 }
 
-pub struct NameProvider {
-    pub locale: String,
+pub struct Name {
+    pub locale: Locale,
 }
 
-impl NameProvider {
+impl Provider for Name {
+    fn name(&self) -> String {
+        std::any::type_name_of_val(self).into()
+    }
+}
+
+impl Name {
     pub fn new() -> Self {
         Self {
-            locale: "en".into(),
+            locale: Default::default(),
         }
+    }
+
+    pub fn new_with_locale(locale: Locale) -> Self {
+        Self { locale }
     }
 
     pub fn prefix(&self) -> String {
@@ -6066,55 +6078,55 @@ static LAST_NAME: [&str; 473] = [
 
 #[cfg(test)]
 mod tests {
-    use super::NameProvider;
+    use super::Name;
 
     #[test]
     fn test_prefix() {
-        assert!(!NameProvider::new().prefix().is_empty())
+        assert!(!Name::new().prefix().is_empty())
     }
 
     #[test]
     fn test_suffix() {
-        assert!(!NameProvider::new().suffix().is_empty())
+        assert!(!Name::new().suffix().is_empty())
     }
 
     #[test]
     fn test_first_name() {
-        assert!(!NameProvider::new().first_name().is_empty())
+        assert!(!Name::new().first_name().is_empty())
     }
 
     #[test]
     fn test_last_name() {
-        assert!(!NameProvider::new().last_name().is_empty())
+        assert!(!Name::new().last_name().is_empty())
     }
 
     #[test]
     fn test_full_name() {
-        assert!(!NameProvider::new().full_name().is_empty())
+        assert!(!Name::new().full_name().is_empty())
     }
 
     #[test]
     fn test_full_name_with_prefix() {
-        assert!(!NameProvider::new().full_name_with_prefix().is_empty())
+        assert!(!Name::new().full_name_with_prefix().is_empty())
     }
 
     #[test]
     fn test_full_name_with_suffix() {
-        assert!(!NameProvider::new().full_name_with_suffix().is_empty())
+        assert!(!Name::new().full_name_with_suffix().is_empty())
     }
 
     #[test]
     fn test_name_with_middle() {
-        assert!(!NameProvider::new().name_with_middle().is_empty())
+        assert!(!Name::new().name_with_middle().is_empty())
     }
 
     #[test]
     fn test_name_with_middle_prefix() {
-        assert!(!NameProvider::new().name_with_middle_prefix().is_empty())
+        assert!(!Name::new().name_with_middle_prefix().is_empty())
     }
 
     #[test]
     fn test_name_with_middle_suffix() {
-        assert!(!NameProvider::new().name_with_middle_suffix().is_empty())
+        assert!(!Name::new().name_with_middle_suffix().is_empty())
     }
 }

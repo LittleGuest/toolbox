@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 
 use cores::{Column, DatabaseMetadata, Driver, Error, MysqlMetadata, Result, Schema};
 use serde::{Deserialize, Serialize};

@@ -71,7 +71,7 @@ pub async fn fetch_api_data(url: &str) -> Result<String> {
 }
 
 #[tauri::command]
-pub async fn download(url: &str, output_type: OutputType, app: AppHandle) -> Result<String> {
+pub async fn download(url: &str, _output_type: OutputType, app: AppHandle) -> Result<String> {
     let data = fetch_api_data(url).await?;
     let openapi = serde_json::from_str::<OpenApi>(&data).unwrap();
     let mut context = tera::Context::new();

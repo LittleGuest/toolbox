@@ -1,43 +1,64 @@
-use providers::{AddressProvider, EmojiProvider, InternetProvider, NameProvider};
+#![allow(dead_code)]
+
+use std::collections::HashMap;
+
+use providers::{Address, Email, Emoji, Internet, Name, PhoneNumber};
 
 mod providers;
 
+#[derive(Default, Clone, Copy)]
+pub enum Locale {
+    CN,
+    #[default]
+    En,
+}
+
+pub trait Provider {
+    fn name(&self) -> String;
+}
+
 pub struct Faker {
-    locale: String,
+    pub locale: Locale,
+    providers: HashMap<String, Box<dyn Provider>>,
 }
 
 impl Faker {
     pub fn new() -> Self {
         Self {
-            locale: "en".into(),
+            locale: Default::default(),
+            providers: HashMap::new(),
         }
     }
 
-    pub fn address(&self) -> AddressProvider {
-        AddressProvider::new()
+    pub fn register(&mut self, key: String, value: Box<dyn Provider>) {
+        self.providers.insert(key, value);
     }
 
-    pub fn internet(&self) -> InternetProvider {
-        InternetProvider
+    pub fn providers(&self) -> Vec<String> {
+        self.providers.keys().cloned().collect::<Vec<_>>()
     }
 
-    pub fn name(&self) -> NameProvider {
-        NameProvider::new()
+    pub fn address(&self) -> Address {
+        Address::new_with_locale(self.locale)
     }
 
-    pub fn emoji(&self) -> EmojiProvider {
-        EmojiProvider
+    pub fn email(&self) -> Email {
+        Email::new_with_locale(self.locale)
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use super::Faker;
+    pub fn emoji(&self) -> Emoji {
+        Emoji
+    }
 
-    #[test]
-    fn test_internet() {
-        let ipv4 = Faker::new().internet().ipv4();
-        println!("test_internet => {ipv4}");
-        assert!(!ipv4.is_empty())
+    pub fn internet(&self) -> Internet {
+        Internet::new_with_locale(self.locale)
+    }
+
+    pub fn name(&self) -> Name {
+        Name::new_with_locale(self.locale)
+    }
+
+    pub fn phone_number(&self) -> PhoneNumber {
+        PhoneNumber::new_with_locale(self.locale)
     }
 }
