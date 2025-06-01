@@ -19,6 +19,7 @@ import ClipboardManager from "./components/other/ClipboardManager.vue";
 import OpenApi from "./components/transform/OpenApi.vue";
 import Excalidraw from "./components/graphic/Excalidraw.vue";
 import DatabaseFaker from "./components/database/DatabaseFaker.vue";
+import QRCode from "./components/other/QRCode.vue";
 
 const routes = [
 	{ path: "/", component: All },
@@ -50,6 +51,7 @@ const routes = [
 	{ path: "/graphic/excalidraw", component: Excalidraw },
 
 	{ path: "/other/clipboard", component: ClipboardManager },
+	{ path: "/other/qrcode", component: QRCode },
 ];
 
 const router = createRouter({

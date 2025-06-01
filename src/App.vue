@@ -2,7 +2,7 @@
 import { ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { NIcon } from "naive-ui";
-import { Home, LetterUu, Link, NetworkPublic, Sql, TextUnderline, Xml, Time, Json, Image, Barcode, DataFormat, TextItalic, DocumentExport, ToolKit, DataBase, DataStructured, CdCreateExchange } from "@vicons/carbon";
+import { Home, LetterUu, Link, NetworkPublic, Sql, TextUnderline, Xml, Time, Json, Image, Barcode, DataFormat, TextItalic, DocumentExport, ToolKit, DataBase, DataStructured, CdCreateExchange, QrCode } from "@vicons/carbon";
 import { Binary, Clipboard, File, Hash, Markdown } from "@vicons/tabler";
 import { TransformFilled } from "@vicons/material";
 
@@ -18,6 +18,7 @@ const menuOptions = [
     label: "首页",
     key: "/home",
     icon: renderIcon(Home),
+    closable: true,
   },
   {
     label: "转换",
@@ -25,7 +26,7 @@ const menuOptions = [
     icon: renderIcon(TransformFilled),
     children: [
       {
-        label: "文件格式",
+        label: "文件格式转换",
         key: "/transform/filetype",
         icon: renderIcon(File),
       },
@@ -159,6 +160,11 @@ const menuOptions = [
         label: "剪切板",
         key: "/other/clipboard",
         icon: renderIcon(Clipboard),
+      },
+      {
+        label: "二维码",
+        key: "/other/qrcode",
+        icon: renderIcon(QrCode),
       }
     ]
   },
@@ -178,7 +184,9 @@ const menuOptions = [
 ];
 
 const activeTab = ref();
-const openTabs = ref([]);
+const openTabs = ref([
+  menuOptions[0]
+]);
 
 const id = () => {
   return new Date().getTime() + Math.random().toString(36);
@@ -189,8 +197,10 @@ const handleMenuChange = (key, item) => {
     window.open(key);
     return;
   }
+  if (!(key === '/home' || key === '')) {
+    openTabs.value.push({ ...item, id: id() });
+  }
   router.push(key);
-  openTabs.value.push({ ...item, id: id() });
 };
 
 const handleTabChange = (key) => {
@@ -220,10 +230,10 @@ const handleTabClose = (key) => {
     </n-layout-sider>
     <n-layout>
       <n-layout-header bordered>
-        <n-tabs v-model:value="activeTab" type="card" closable tab-style="min-width:80px" @close="handleTabClose"
+        <n-tabs v-model:value="activeTab" type="card" tab-style="min-width:80px" @close="handleTabClose"
           @update:value="handleTabChange">
-          <n-tab-pane display-directive="show:lazy" v-for="tab in openTabs" :key="tab.key" :tab="tab.label"
-            :name="tab.id" />
+          <n-tab-pane display-directive="show:lazy" :closable="!tab.closable" v-for="tab in openTabs" :key="tab.key"
+            :tab="tab.label" :name="tab.id" />
         </n-tabs>
       </n-layout-header>
       <n-layout-content content-style="padding: 24px;">

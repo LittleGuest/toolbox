@@ -1,121 +1,108 @@
 <script setup>
 import { ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
+import { NIcon } from "naive-ui";
+import { Home, LetterUu, Link, NetworkPublic, Sql, TextUnderline, Xml, Time, Json, Image, Barcode, DataFormat, TextItalic, DocumentExport, ToolKit, DataBase, DataStructured, CdCreateExchange, QrCode } from "@vicons/carbon";
+import { Binary, Clipboard, File, Hash, Markdown } from "@vicons/tabler";
+import { TransformFilled } from "@vicons/material";
 
 const router = useRouter();
 const route = useRoute();
 
+
 const all = ref([
   {
-    title: "文件格式转换",
-    img: "../assets/vue.svg",
-    route: "/cffc",
+    label: "文件格式转换",
+    key: "/transform/filetype",
+    icon: File,
   },
   {
-    title: "时间戳",
-    img: "../assets/vue.svg",
-    route: "/timestamp",
+    label: "时间戳",
+    key: "/transform/time",
+    icon: Time,
   },
   {
-    title: "数值转换",
-    img: "../assets/vue.svg",
-    route: "/number",
+    label: "进制转换",
+    key: "/transform/baseconversion",
+    icon: Binary,
   },
   {
-    title: "Cron",
-    img: "../assets/vue.svg",
-    route: "/cron",
+    label: "OpenApi",
+    key: "/transform/openapi",
+    icon: DocumentExport,
   },
   {
-    title: "Html",
-    img: "../assets/vue.svg",
-    route: "/html",
+    label: "Base64",
+    key: "/encodedecode/base64text",
+    icon: TextUnderline,
   },
   {
-    title: "URL",
-    img: "../assets/vue.svg",
-    route: "/url",
+    label: "URL",
+    key: "/encodedecode/url",
+    icon: Link,
   },
   {
-    title: "Base64文本",
-    img: "../assets/vue.svg",
-    route: "/base64Text",
+    label: "JSON Editor",
+    key: "/formatter/jsoneditor",
+    icon: Json,
   },
   {
-    title: "JWT",
-    img: "../assets/vue.svg",
-    route: "/jwt",
+    label: "SQL",
+    key: "/formatter/sql",
+    icon: Sql,
   },
   {
-    title: "GZip",
-    img: "../assets/vue.svg",
-    route: "/gzip",
+    label: "XML",
+    key: "/formatter/xml",
+    icon: Xml,
   },
   {
-    title: "JSON",
-    img: "../assets/vue.svg",
-    route: "/json",
+    label: "Hash",
+    key: "/generator/hash",
+    icon: Hash,
   },
   {
-    title: "SQL",
-    img: "../assets/vue.svg",
-    route: "/sql",
+    label: "UUID",
+    key: "/generator/uuid",
+    icon: LetterUu,
   },
   {
-    title: "XMl",
-    img: "../assets/vue.svg",
-    route: "/xml",
+    label: "数据生成",
+    key: "/database/datafaker",
+    icon: DataStructured,
   },
   {
-    title: "Hash",
-    img: "../assets/vue.svg",
-    route: "/hash",
+    label: "Markdown",
+    key: "/text/markdown",
+    icon: Markdown,
   },
   {
-    title: "UUID",
-    img: "../assets/vue.svg",
-    route: "/uuid",
+    label: "IP",
+    key: "/network/ip",
+    icon: NetworkPublic,
   },
   {
-    title: "Lorem Ipsum",
-    img: "../assets/vue.svg",
-    route: "/loremIpsum",
+    label: "Excalidraw",
+    key: "/graphic/excalidraw",
+    icon: NetworkPublic,
   },
   {
-    title: "Checksum",
-    img: "../assets/vue.svg",
-    route: "/checksum",
+    label: "剪切板",
+    key: "/other/clipboard",
+    icon: Clipboard,
   },
   {
-    title: "Inpector & Case converter",
-    img: "../assets/vue.svg",
-    route: "/caseConverter",
+    label: "二维码",
+    key: "/other/qrcode",
+    icon: QrCode,
   },
   {
-    title: "Regex Tester",
-    img: "../assets/vue.svg",
-    route: "/regexTester",
-  },
-  {
-    title: "文本比较",
-    img: "../assets/vue.svg",
-    route: "/textDiff",
-  },
-  {
-    title: "Markdown预览",
-    img: "../assets/vue.svg",
-    route: "/markdown",
-  },
-  {
-    title: "PNG/JPEG comperssor",
-    img: "../assets/vue.svg",
-    route: "/pngComperssor",
+    label: "Excalidraw",
+    key: "https://excalidraw.com/",
+    icon: Link,
+    external: true,
   },
 ]);
-
-const api = async () => {
-  //const value = await invoke("uuid", { hyphens: hyphens.value, uppercase: uppercase.value, version: uuidVersion.value, number: number.value, });
-};
 
 const to = (path) => {
   router.push(path);
@@ -123,14 +110,17 @@ const to = (path) => {
 </script>
 
 <template>
-  <el-row>
-    <el-col v-for="a in all" :span="6">
-      <el-card shadow="hover" :body-style="{ padding: '0px' }" @click="to(a.route)">
-        <img src="../assets/vue.svg" class="image" />
-        <div style="padding: 14px">
-          <span>{{ a.title }}</span>
-        </div>
-      </el-card>
-    </el-col>
-  </el-row>
+  <n-flex>
+    <n-card hoverable size="small" v-for="a in all" :title="a.label" @click="to(a.key)">
+      <template #cover>
+        <n-icon size="100" :component="a.icon" />
+      </template>
+    </n-card>
+  </n-flex>
 </template>
+
+<style lang="scss" scoped>
+.n-card {
+  max-width: 150px;
+}
+</style>
