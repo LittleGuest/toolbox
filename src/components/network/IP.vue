@@ -18,35 +18,45 @@ const decimalv6 = ref("");
 const hexv6 = ref("");
 
 const checkIp = async (t, v) => {
-  return await invoke("check_ip", { t: t, ip: v });
+  return await invoke("check_ip", {
+    t: t, ip: v
+  }).then((res) => {
+    return res;
+  }).catch((error) => message.error(error));
 };
 
 const ipv4api = async () => {
-  const res = await invoke("ip_to_number", { t: "v4", ip: ipv4.value });
-  console.log(res);
+  return await invoke("ip_to_number", {
+    t: "v4", ip: ipv4.value
+  }).then((res) => {
+    return res;
+  }).catch((error) => message.error(error));
+};
+
+const ipv6api = async () => {
+  return await invoke("ip_to_number", {
+    t: "v6", ip: ipv6.value
+  }).then((res) => {
+    return res;
+  }).catch((error) => message.error(error));
+};
+
+const v4change = async (value) => {
+  // const res = await checkIp("v4", ipv4.value);
+  const res = await ipv4api();
   binaryv4.value = res.binary;
   octalv4.value = res.octal;
   decimalv4.value = res.decimal;
   hexv4.value = res.hex;
 };
 
-const ipv6api = async () => {
-  const res = await invoke("ip_to_number", { t: "v6", ip: ipv6.value });
-  console.log(res);
+const v6change = async (value) => {
+  // const res = await checkIp("v6", ipv6.value);
+  const res = await ipv6api();
   binaryv6.value = res.binary;
   octalv6.value = res.octal;
   decimalv6.value = res.decimal;
   hexv6.value = res.hex;
-};
-
-const v4change = async (value) => {
-  // const res = await checkIp("v4", ipv4.value);
-  ipv4api();
-};
-
-const v6change = async (value) => {
-  // const res = await checkIp("v6", ipv6.value);
-  ipv6api();
 };
 
 const pastev4 = async () => {

@@ -16,11 +16,19 @@ onMounted(async () => {
 
 
 const databaseSchemasApi = async (info) => {
-  return await invoke("database_schemas", { datasourceInfo: info });
+  return await invoke("database_schemas", {
+    datasourceInfo: info
+  }).then((res) => {
+    return res;
+  }).catch((error) => message.error(error));
 };
 
 const databaseTableTreeApi = async (info) => {
-  return await invoke("database_table_tree", { datasourceInfo: info });
+  return await invoke("database_table_tree", {
+    datasourceInfo: info
+  }).then((res) => {
+    return res;
+  }).catch((error) => message.error(error));
 };
 
 

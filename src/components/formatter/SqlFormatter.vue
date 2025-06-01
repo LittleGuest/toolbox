@@ -1,20 +1,44 @@
 <script setup>
 import { ref } from "vue";
-import { invoke } from "@tauri-apps/api/core";
 import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
-import { Copy, Paste } from "@vicons/carbon";
-import { format } from "sql-formatter";
-
 import CodeMirror from "vue-codemirror6";
+import { format } from "sql-formatter";
+import { Copy, Paste } from "@vicons/carbon";
 
-const language = ref("mysql");
+const dialect = ref("mysql");
 const indent = ref(2);
 const upper = ref("upper");
 const sql = ref("");
+const indentOptions = [
+  {
+    label: 2,
+    value: 2
+  },
+  {
+    label: 4,
+    value: 4,
+  }
+];
+// bigquery,db2,db2i,hive,mariadb,mysql,n1ql,plsql,postgresql,redshift,singlestoredb,
+// snowflake,spark,sql,sqlite,tidb,transactsql,trino,tsql
+const dialectOptions = [
+  {
+    label: 'MySQl',
+    value: 'mysql'
+  },
+  {
+    label: 'SQLite',
+    value: 'sqlite',
+  },
+  {
+    label: 'PostgreSQL',
+    value: 'postgresql',
+  }
+];
 
 const formatSql = () => {
   sql.value = format(sql.value, {
-    language: language.value,
+    language: 'sql',
     tabWidth: indent.value,
     keywordCase: upper.value,
   });
@@ -25,43 +49,42 @@ const paste = async () => {
   sql.value = clip;
 };
 
-const copy = (value) => {
-  writeText(value);
+const copy = async () => {
+  await writeText(sql.value);
 };
 </script>
 
 <template>
-  <el-form label-position="right" label-width="100px">
-    <el-form-item label="语言">
-      <el-select v-model="language" class="m-2" size="large">
-        <el-option key="MySQL" label="MySQL" value="mysql" />
-        <el-option key="Sqlite" label="Sqlite" value="sqlite" />
-        <el-option key="PostgreSQL" label="PostgreSQL" value="postgresql" />
-      </el-select>
-    </el-form-item>
+  <n-form label-placement="left">
+    <!-- <n-form-item label="方言"> -->
+    <!--   <n-select placeholder="请选择方言" :options="dialectOptions" v-model:value="dialect" /> -->
+    <!-- </n-form-item> -->
+    <n-form-item label="缩进">
+      <n-select placeholder="请选择缩进字符" :options="indentOptions" v-model:value="indent" />
+    </n-form-item>
+    <n-form-item label="关键字大写">
+      <n-switch v-model:value="upper" checked-value="upper" unchecked-value="lower" />
+    </n-form-item>
+    <n-form-item label="">
+      <n-button-group>
+        <n-button @click="paste">
+          <template #icon>
+            <n-icon>
+              <Paste />
+            </n-icon>
+          </template>
+        </n-button>
+        <n-button @click="copy">
+          <template #icon>
+            <n-icon>
+              <Copy />
+            </n-icon>
+          </template>
+        </n-button>
+        <n-button @click="formatSql">格式化</n-button>
+      </n-button-group>
+    </n-form-item>
 
-    <el-form-item label="缩进">
-      <el-select v-model="indent" class="m-2" size="large">
-        <el-option key="2" label="2" value="2" />
-        <el-option key="4" label="4" value="4" />
-      </el-select>
-    </el-form-item>
-    <el-form-item label="大写">
-      <el-switch v-model="upper" class="ml-2" inline-prompt
-        style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949" active-text="Y" inactive-text="N"
-        active-value="upper" inactive-value="lower" />
-    </el-form-item>
-    <el-row>
-      <el-col>
-        <el-form-item label="SQL">
-          <el-button-group class="ml-4">
-            <el-button type="primary" :icon="Document" @click="paste(sql)" />
-            <el-button type="primary" :icon="CopyDocument" @click="copy(sql)" />
-            <el-button @click="formatSql">格式化</el-button>
-          </el-button-group>
-        </el-form-item>
-        <code-mirror v-model="sql" />
-      </el-col>
-    </el-row>
-  </el-form>
+    <code-mirror basic v-model="sql" />
+  </n-form>
 </template>

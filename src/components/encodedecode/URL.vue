@@ -8,11 +8,20 @@ const input = ref("");
 const output = ref("");
 
 const encodeApi = async () => {
-  return await invoke("encode_url", { input: input.value });
+  return await invoke("encode_url", {
+    input: input.value
+  }).then((res) => {
+    return res;
+  }).catch((error) => message.error(error));
+
 };
 
 const decodeApi = async () => {
-  return await invoke("decode_url", { input: output.value });
+  return await invoke("decode_url", {
+    input: output.value
+  }).then((res) => {
+    return res;
+  }).catch((error) => message.error(error));
 };
 
 const encode = async () => {

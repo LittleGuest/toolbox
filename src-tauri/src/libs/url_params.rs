@@ -1,5 +1,3 @@
-//! url params转json
-
 use std::collections::HashMap;
 
 use crate::{Error, Result};
@@ -36,5 +34,5 @@ pub fn parse(data: &str) -> Result<String> {
             map
         });
 
-    serde_json::to_string(&map).map_err(|e| Error::UrlParamsErr(e.to_string()))
+    serde_json::to_string(&map).map_err(|e| Error::E(e.to_string()))
 }

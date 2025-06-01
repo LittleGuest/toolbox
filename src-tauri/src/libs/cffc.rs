@@ -1,12 +1,7 @@
-//! 配置文件格式转换
-//!
-//! JOSN <> YAML <> TOML <> XML
-
 use serde::{Deserialize, Serialize};
 
 use crate::{Error, Result};
 
-/// 支持的文件格式
 #[derive(Debug, Default, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum Ft {
     #[default]
@@ -41,26 +36,23 @@ impl std::fmt::Display for Ft {
 
 #[derive(Serialize, Deserialize)]
 pub struct Data {
-    /// 原始格式
     pub from: Ft,
-    /// 目标格式
     pub to: Ft,
-    pub ident: u8,
-    /// 文本数据
+    pub indent: u8,
     pub input: String,
 }
 
 impl Data {
-    pub fn new(from: Ft, to: Ft, input: &str, ident: u8) -> Self {
+    pub fn new(from: Ft, to: Ft, input: &str, indent: u8) -> Self {
         Self {
             from,
             to,
-            ident,
+            indent,
             input: input.into(),
         }
     }
 
-    /// FIXME 优化，判断文件格式
+    /// FIXME: Optimize and determine file format
     fn auto(text: &str) -> Option<Ft> {
         if serde_json::from_str::<serde_json::Value>(text).is_ok() {
             return Some(Ft::Json);
@@ -74,10 +66,9 @@ impl Data {
         None
     }
 
-    /// 格式转换
-    pub fn convert(&self) -> Result<String> {
+    pub fn transform(&self) -> Result<String> {
         if self.input.is_empty() {
-            return Ok("".to_string());
+            return Ok(String::new());
         }
 
         let _ = Self::auto(&self.input);
@@ -115,61 +106,61 @@ impl Data {
     where
         T: Serialize + for<'a> Deserialize<'a>,
     {
-        serde_json::from_str(text).map_err(|e| Error::SerializeErr(e.to_string()))
+        serde_json::from_str(text).map_err(|e| Error::E(e.to_string()))
     }
 
     fn from_yaml<T>(text: &str) -> Result<T>
     where
         T: Serialize + for<'a> Deserialize<'a>,
     {
-        serde_yaml::from_str::<T>(text).map_err(|e| Error::SerializeErr(e.to_string()))
+        serde_yaml::from_str::<T>(text).map_err(|e| Error::E(e.to_string()))
     }
 
     fn from_toml<T>(text: &str) -> Result<T>
     where
         T: Serialize + for<'a> Deserialize<'a>,
     {
-        toml::from_str(text).map_err(|e| Error::SerializeErr(e.to_string()))
+        toml::from_str(text).map_err(|e| Error::E(e.to_string()))
     }
 
     fn from_xml<T>(text: &str) -> Result<T>
     where
         T: Serialize + for<'a> Deserialize<'a>,
     {
-        quick_xml::de::from_str(text).map_err(|e| Error::SerializeErr(e.to_string()))
+        quick_xml::de::from_str(text).map_err(|e| Error::E(e.to_string()))
     }
 
     fn cto_json<T>(v: T) -> Result<String>
     where
         T: Serialize + for<'a> Deserialize<'a>,
     {
-        serde_json::to_string(&v).map_err(|e| Error::SerializeErr(e.to_string()))
+        serde_json::to_string(&v).map_err(|e| Error::E(e.to_string()))
     }
 
     fn cto_yaml<T>(v: T) -> Result<String>
     where
         T: Serialize + for<'a> Deserialize<'a>,
     {
-        serde_yaml::to_string(&v).map_err(|e| Error::SerializeErr(e.to_string()))
+        serde_yaml::to_string(&v).map_err(|e| Error::E(e.to_string()))
     }
 
     fn cto_toml<T>(v: T) -> Result<String>
     where
         T: Serialize + for<'a> Deserialize<'a>,
     {
-        toml::to_string(&v).map_err(|e| Error::SerializeErr(e.to_string()))
+        toml::to_string(&v).map_err(|e| Error::E(e.to_string()))
     }
 
     fn cto_xml<T>(v: T) -> Result<String>
     where
         T: Serialize + for<'a> Deserialize<'a>,
     {
-        quick_xml::se::to_string(&v).map_err(|e| Error::SerializeErr(e.to_string()))
+        quick_xml::se::to_string(&v).map_err(|e| Error::E(e.to_string()))
     }
 }
 
 // #[cfg(test)]
-// mod test {
+// mod tests {
 //     use super::{Data, Ft};
 //
 //     const TOML: &str = r#"
@@ -278,7 +269,7 @@ impl Data {
 //
 //         // json --> toml
 //         let mut jde = serde_json::Deserializer::from_str(JSON);
-//         let mut tser = "".to_string();
+//         let mut tser = String::new();
 //         let mut tse = toml::Serializer::new(&mut tser);
 //         // serde_transcode::transcode(&mut jde, &mut tse).unwrap();
 //         // println!("{tser}");

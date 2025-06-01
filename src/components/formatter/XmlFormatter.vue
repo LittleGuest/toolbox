@@ -2,14 +2,24 @@
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
-import xmlFormat from "xml-formatter";
-
 import CodeMirror from "vue-codemirror6";
+import xmlFormat from "xml-formatter";
+import { Copy, Paste } from "@vicons/carbon";
 
-const indent = ref("    ");
+const indent = ref('    ');
+const indentOptions = [
+  {
+    label: 2,
+    value: '  '
+  },
+  {
+    label: 4,
+    value: '    ',
+  }
+];
 const xml = ref("");
 
-const formatSql = () => {
+const formatXml = () => {
   xml.value = xmlFormat(xml.value, {
     indentation: indent.value,
     collapseContent: true,
@@ -22,31 +32,42 @@ const paste = async () => {
   xml.value = clip;
 };
 
-const copy = (value) => {
-  writeText(value);
+const copy = async () => {
+  await writeText(xml.value);
 };
 </script>
 
 <template>
-  <!-- <el-form label-position="right" label-width="100px"> -->
-  <!--   <el-form-item label="缩进"> -->
-  <!--     <el-select v-model="indent" class="m-2" size="large"> -->
-  <!--       <el-option key="2" label="2" value="  " /> -->
-  <!--       <el-option key="4" label="4" value="    " /> -->
-  <!--     </el-select> -->
-  <!--   </el-form-item> -->
-  <!---->
-  <!--   <el-row> -->
-  <!--     <el-col> -->
-  <!--       <el-form-item label="XML"> -->
-  <!--         <el-button-group class="ml-4"> -->
-  <!--           <el-button type="primary" :icon="Document" @click="paste(xml)" /> -->
-  <!--           <el-button type="primary" :icon="CopyDocument" @click="copy(xml)" /> -->
-  <!--           <el-button @click="formatSql">格式化</el-button> -->
-  <!--         </el-button-group> -->
-  <!--       </el-form-item> -->
-  <!--       <code-mirror v-model="xml" /> -->
-  <!--     </el-col> -->
-  <!--   </el-row> -->
-  <!-- </el-form> -->
+  <n-form label-placement="left">
+    <!-- <n-form-item label="方言"> -->
+    <!--   <n-select placeholder="请选择方言" :options="dialectOptions" v-model:value="dialect" /> -->
+    <!-- </n-form-item> -->
+    <n-form-item label="缩进">
+      <n-select placeholder="请选择缩进字符" :options="indentOptions" v-model:value="indent" />
+    </n-form-item>
+    <!-- <n-form-item label="关键字大写"> -->
+    <!--   <n-switch v-model:value="upper" checked-value="upper" unchecked-value="lower" /> -->
+    <!-- </n-form-item> -->
+    <n-form-item label="">
+      <n-button-group>
+        <n-button @click="paste">
+          <template #icon>
+            <n-icon>
+              <Paste />
+            </n-icon>
+          </template>
+        </n-button>
+        <n-button @click="copy">
+          <template #icon>
+            <n-icon>
+              <Copy />
+            </n-icon>
+          </template>
+        </n-button>
+        <n-button @click="formatXml">格式化</n-button>
+      </n-button-group>
+    </n-form-item>
+
+    <code-mirror basic v-model="xml" />
+  </n-form>
 </template>

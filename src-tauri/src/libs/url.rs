@@ -1,25 +1,21 @@
-//! URL编码解码
-
 use crate::{Error, Result};
 
-/// 编码URL
-pub fn encode(data: &str) -> String {
+pub fn encode(data: &str) -> Result<String> {
     if data.is_empty() {
-        return "".to_string();
+        return Ok(String::new());
     }
 
     let (f, s) = check(data);
     if let Some(s) = s {
-        format!("{f}?{}", urlencoding::encode(s).into_owned())
+        Ok(format!("{f}?{}", urlencoding::encode(s).into_owned()))
     } else {
-        urlencoding::encode(f).into_owned()
+        Ok(urlencoding::encode(f).into_owned())
     }
 }
 
-/// 解码URL
 pub fn decode(data: &str) -> Result<String> {
     if data.is_empty() {
-        return Ok("".to_string());
+        return Ok(String::new());
     }
 
     let (f, s) = check(data);
@@ -27,12 +23,12 @@ pub fn decode(data: &str) -> Result<String> {
         Ok(format!(
             "{f}?{}",
             urlencoding::decode(s)
-                .map_err(|e| Error::UrlErr(e.to_string()))?
+                .map_err(|e| Error::E(e.to_string()))?
                 .into_owned()
         ))
     } else {
         Ok(urlencoding::decode(f)
-            .map_err(|e| Error::UrlErr(e.to_string()))?
+            .map_err(|e| Error::E(e.to_string()))?
             .into_owned())
     }
 }
@@ -47,32 +43,30 @@ fn check(data: &str) -> (&str, Option<&str>) {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
 
     use super::*;
 
     #[test]
-    fn test_encode() {
+    fn test_encode() -> Result<()> {
         assert_eq!(
             "This%20string%20will%20be%20URL%20encoded.",
-            encode("This string will be URL encoded.")
+            encode("This string will be URL encoded.")?
         );
-
         assert_eq!(
             "https://crates.io/search?q%3Durlencoding",
-            encode("https://crates.io/search?q=urlencoding")
-        )
+            encode("https://crates.io/search?q=urlencoding")?
+        );
+        Ok(())
     }
 
     #[test]
-    fn test_decode() {
-        assert_eq!(
-            "👾 Exterminate!",
-            decode("%F0%9F%91%BE%20Exterminate%21").unwrap()
-        );
+    fn test_decode() -> Result<()> {
+        assert_eq!("👾 Exterminate!", decode("%F0%9F%91%BE%20Exterminate%21")?);
         assert_eq!(
             "https://crates.io/search?q=urlencoding",
-            decode("https://crates.io/search?q%3Durlencoding").unwrap()
-        )
+            decode("https://crates.io/search?q%3Durlencoding")?
+        );
+        Ok(())
     }
 }

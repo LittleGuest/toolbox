@@ -1,5 +1,5 @@
-//! JWT解码
+use crate::{Error, Result};
 
-pub fn decode(_data: &str) -> String {
+pub fn decode(_data: &str) -> Result<String> {
     todo!()
 }

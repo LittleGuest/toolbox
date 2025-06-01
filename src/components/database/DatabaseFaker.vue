@@ -184,7 +184,7 @@ const saveConnect = (e) => {
           <n-input placeholder="请输入主机名" v-model:value="model.host" clearable />
         </n-form-item>
         <n-form-item path="port" label="端口">
-          <n-input-number placeholder="请输入端口" v-model:value="model.port" clearable />
+          <n-input-number placeholder="请输入端口" v-model:value="model.port" clearable min="0" max="65535" />
         </n-form-item>
         <n-form-item path="database" label="数据库">
           <n-input placeholder="请输入数据库" v-model:value="model.database" clearable />

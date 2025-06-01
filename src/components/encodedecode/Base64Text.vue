@@ -2,17 +2,28 @@
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
+import { createDiscreteApi } from "naive-ui";
 import { ArrowUp, ArrowDown, Copy, Paste, Close } from "@vicons/carbon";
+
+const { message, loadingBar } = createDiscreteApi(["message", "loadingBar",]);
 
 const input = ref("");
 const output = ref("");
 
 const encodeBase64TextApi = async () => {
-  return await invoke("encode_base64_text", { input: input.value });
+  return await invoke("encode_base64_text", {
+    input: input.value
+  }).then((res) => {
+    return res;
+  }).catch((error) => message.error(error));
 };
 
 const decodeBase64TextApi = async () => {
-  return await invoke("decode_base64_text", { input: output.value });
+  return await invoke("decode_base64_text", {
+    input: output.value
+  }).then((res) => {
+    return res;
+  }).catch((error) => message.error(error));
 };
 
 const encode = async () => {

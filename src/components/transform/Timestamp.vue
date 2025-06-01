@@ -2,7 +2,10 @@
 import { onMounted, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
+import { createDiscreteApi } from "naive-ui";
 import { Copy, Paste, Close } from "@vicons/carbon";
+
+const { message, loadingBar } = createDiscreteApi(["message", "loadingBar",]);
 
 onMounted(() => {
   api();
@@ -14,7 +17,9 @@ const timestamp = ref();
 const timestamp_mill = ref();
 
 const api = async () => {
-  const res = await invoke("timestamp");
+  const res = await invoke("timestamp").then((res) => {
+    return res;
+  }).catch((error) => message.error(error));
 
   input.value = res.timestamp;
   datetime_utc8.value = res.datetime_utc8;
@@ -22,7 +27,7 @@ const api = async () => {
   timestamp_mill.value = res.timestamp + res.timestamp_mill;
 };
 
-const change = (value) => { };
+const change = (value) => { api(); };
 
 const clear = () => {
   input.value = "";
@@ -50,7 +55,7 @@ const copy = (value) => {
           </n-icon>
         </template>
       </n-button>
-      <n-input placeholder="" v-model:value="input" @change="change" @clear="clear" clearable />
+      <n-input placeholder="" v-model:value="input" @update:value="change" @clear="clear" clearable />
     </n-form-item>
 
     <n-form-item label="UTC+8">

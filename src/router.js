@@ -35,8 +35,8 @@ const routes = [
 	{ path: "/encodedecode/jwt", component: JWT },
 
 	{ path: "/formatter/jsoneditor", component: JsonEditor },
-	{ path: "/formatter/sqlformatter", component: SqlFormatter },
-	{ path: "/formatter/xmlformatter", component: XmlFormatter },
+	{ path: "/formatter/sql", component: SqlFormatter },
+	{ path: "/formatter/xml", component: XmlFormatter },
 
 	{ path: "/generator/hash", component: Hash },
 	{ path: "/generator/uuid", component: UUID },

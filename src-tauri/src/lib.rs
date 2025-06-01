@@ -12,25 +12,9 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("{0}")]
-    E(&'static str),
-    #[error("序列化错误: {0}")]
-    SerializeErr(String),
-    #[error("Url处理错误: {0}")]
-    UrlErr(String),
-    #[error("UUID生成错误: {0}")]
-    UuidErr(String),
-    #[error("Base64编码解码错误: {0}")]
-    Base64Err(String),
-    #[error("Hex编码解码错误: {0}")]
-    HexErr(String),
-    #[error("Ip地址转换错误: {0}")]
-    IpErr(String),
-    #[error("UrlParams转换错误: {0}")]
-    UrlParamsErr(String),
-    #[error("DateTimeErr转换错误: {0}")]
-    DateTimeErr(String),
-    // #[error(transparent)]
-    // AnyhowError(#[from] anyhow::Error),
+    E(String),
+    #[error(transparent)]
+    AnyhowError(#[from] anyhow::Error),
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]
@@ -41,8 +25,6 @@ pub enum Error {
     SqlxErr(#[from] sqlx::Error),
     #[error(transparent)]
     TeraErr(#[from] tera::Error),
-    #[error("未知错误")]
-    Unknown,
 }
 
 impl serde::Serialize for Error {
@@ -75,7 +57,7 @@ pub fn run() {
             app.handle()
                 .plugin(
                     tauri_plugin_sql::Builder::default()
-                        .add_migrations(&db_url.to_str().unwrap(), migrations)
+                        .add_migrations(db_url.to_str().unwrap(), migrations)
                         .build(),
                 )
                 .ok();

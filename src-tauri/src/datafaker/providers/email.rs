@@ -22,7 +22,7 @@ impl Email {
             1 => self.standard_public_email(),
             2 => self.standard_business_email(),
             3 => self.standard_government_email(),
-            _ => "".to_string(),
+            _ => String::new(),
         }
     }
 
@@ -39,7 +39,7 @@ impl Email {
                 self.username(),
                 BUSINESS_EMAIL_DOMAINS[fastrand::usize(0..BUSINESS_EMAIL_DOMAINS_LEN)]
             ),
-            _ => "".to_string(),
+            _ => String::new(),
         };
 
         let domain = PUBLIC_EMAIL_DOMAINS[fastrand::usize(0..PUBLIC_EMAIL_DOMAINS_LEN)].to_string();

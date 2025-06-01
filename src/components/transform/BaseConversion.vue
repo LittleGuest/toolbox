@@ -2,9 +2,12 @@
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
+import { createDiscreteApi } from "naive-ui";
 import { Copy, Paste } from "@vicons/carbon";
 
-const inputType = ref("Decimal");
+const { message, loadingBar } = createDiscreteApi(["message", "loadingBar",]);
+
+const inputType = ref("decimal");
 const input = ref("");
 const binary = ref("");
 const octal = ref("");
@@ -30,18 +33,20 @@ const typeOptions = [
 ];
 
 const api = async () => {
-  const res = await invoke("number_base", {
+  return await invoke("number_base", {
     inputType: inputType.value,
     input: input.value,
-  });
+  }).then((res) => {
+    return res;
+  }).catch((error) => message.error(error));
+};
+
+const change = async (value) => {
+  const res = await api();
   binary.value = res.binary;
   octal.value = res.octal;
   decimal.value = res.decimal;
   hex.value = res.hex;
-};
-
-const change = (value) => {
-  api();
 };
 
 const paste = async () => {
@@ -50,6 +55,14 @@ const paste = async () => {
 
 const copy = (value) => {
   writeText(value);
+};
+
+const clear = () => {
+  input.value = "";
+  binary.value = "";
+  octal.value = "";
+  decimal.value = "";
+  hex.value = "";
 };
 </script>
 
@@ -75,7 +88,7 @@ const copy = (value) => {
           </template>
         </n-button>
       </n-button-group>
-      <n-input placeholder="请输入" v-model:value="input" @input="change" maxlength="19" />
+      <n-input placeholder="请输入" clearable v-model:value="input" @update:value="change" @clear="clear" maxlength="19" />
     </n-form-item>
     <n-form-item label="二进制">
       <n-input placeholder="" disabled v-model:value="binary" />

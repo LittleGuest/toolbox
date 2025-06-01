@@ -108,7 +108,7 @@ fn sqlite_type(t: &str) -> (String, Option<u16>) {
     let rg = Regex::new("^(.*)\\((\\d+)\\)$").unwrap();
     if let Some(caps) = rg.captures(t) {
         (
-            caps.get(1).map_or("".to_string(), |tt| tt.as_str().into()),
+            caps.get(1).map_or(String::new(), |tt| tt.as_str().into()),
             caps.get(2)
                 .map_or(Some(0), |l| Some(l.as_str().parse::<u16>().unwrap_or(0))),
         )

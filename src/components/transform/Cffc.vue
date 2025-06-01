@@ -2,7 +2,10 @@
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
+import { createDiscreteApi } from "naive-ui";
 import { ArrowUp, ArrowDown, Copy, Paste, Close } from "@vicons/carbon";
+
+const { message, loadingBar } = createDiscreteApi(["message", "loadingBar",]);
 
 const indent = ref(4);
 const ft = ref("json");
@@ -40,7 +43,9 @@ const api = async (ft, tt, value) => {
     ft: ft,
     tt: tt,
     input: value,
-  });
+  }).then((res) => {
+    return res;
+  }).catch((error) => message.error(error));
 };
 
 const itt = async () => {
