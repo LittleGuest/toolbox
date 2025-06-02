@@ -63,7 +63,7 @@ impl Email {
         self.build_email(self.username(), domain)
     }
 
-    pub fn standard_account_email(&self, first_name: &str, last_name: &str) -> String {
+    pub fn standard_account_email(&self) -> String {
         let domain = PUBLIC_EMAIL_DOMAINS[fastrand::usize(0..PUBLIC_EMAIL_DOMAINS_LEN)].to_string();
         self.build_email(self.username(), domain)
     }
@@ -80,6 +80,7 @@ impl Email {
 static PUBLIC_EMAIL_DOMAINS: [&str; 6] =
     ["outlook", "hotmail", "gmail", "yahoo", "protonmail", "zoho"];
 static PUBLIC_EMAIL_DOMAINS_LEN: usize = PUBLIC_EMAIL_DOMAINS.len();
+
 static BUSINESS_EMAIL_DOMAINS: [&str; 20] = [
     "google",
     "microsoft",
@@ -103,5 +104,6 @@ static BUSINESS_EMAIL_DOMAINS: [&str; 20] = [
     "costco",
 ];
 static BUSINESS_EMAIL_DOMAINS_LEN: usize = BUSINESS_EMAIL_DOMAINS.len();
+
 static GOVERNMENT_EMAIL_DOMAINS: [&str; 4] = ["fbi", "cia", "nsa", "gov"];
 static GOVERNMENT_EMAIL_DOMAINS_LEN: usize = GOVERNMENT_EMAIL_DOMAINS.len();

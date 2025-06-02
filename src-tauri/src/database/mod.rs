@@ -1,4 +1,3 @@
-
 use cores::{Column, DatabaseMetadata, Driver, Error, MysqlMetadata, Result, Schema};
 use serde::{Deserialize, Serialize};
 use sqlx::{Connection, MySqlConnection, MySqlPool};
@@ -74,7 +73,7 @@ pub async fn database_table_tree(datasource_info: DatasourceInfo) -> Result<Vec<
     match datasource_info.driver {
         Driver::Mysql => {
             let Some(database) = &datasource_info.database else {
-                return Err(Error::E("请选择数据库"));
+                return Err(Error::E("choose database"));
             };
 
             let pool = MySqlPool::connect(&datasource_info.url()).await?;
