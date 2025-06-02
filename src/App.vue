@@ -178,6 +178,18 @@ const menuOptions = [
         key: "https://excalidraw.com/",
         icon: renderIcon(Link),
         external: true,
+      },
+      {
+        label: "正则可视化",
+        key: "https://regex-vis.com/",
+        icon: renderIcon(Link),
+        external: true,
+      },
+      {
+        label: "正则测试",
+        key: "https://regex101.com/",
+        icon: renderIcon(Link),
+        external: true,
       }
     ]
   },
