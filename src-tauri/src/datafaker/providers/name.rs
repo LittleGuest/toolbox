@@ -27,11 +27,11 @@ impl Name {
     }
 
     pub fn prefix(&self) -> String {
-        PREFIX[fastrand::usize(0..PREFIX.len())].into()
+        PREFIX[fastrand::usize(0..PREFIX_LEN)].into()
     }
 
     pub fn suffix(&self) -> String {
-        SUFFIX[fastrand::usize(0..SUFFIX.len())].into()
+        SUFFIX[fastrand::usize(0..SUFFIX_LEN)].into()
     }
 
     pub fn first_name(&self) -> String {
@@ -95,11 +95,13 @@ impl Name {
 }
 
 static PREFIX: [&str; 5] = ["Mr.", "Mrs.", "Ms.", "Miss", "Dr."];
+static PREFIX_LEN: usize = PREFIX.len();
+
 static SUFFIX: [&str; 11] = [
     "Jr.", "Sr.", "I", "II", "III", "IV", "V", "MD", "DDS", "PhD", "DVM",
 ];
+static SUFFIX_LEN: usize = SUFFIX.len();
 
-static MALE_FIRST_NAME_LEN: usize = MALE_FIRST_NAME.len();
 static MALE_FIRST_NAME: [&str; 1220] = [
     "Aaron",
     "Abdul",
@@ -1322,8 +1324,8 @@ static MALE_FIRST_NAME: [&str; 1220] = [
     "Zackary",
     "Zane",
 ];
+static MALE_FIRST_NAME_LEN: usize = MALE_FIRST_NAME.len();
 
-static FEMALE_FIRST_NAME_LEN: usize = FEMALE_FIRST_NAME.len();
 static FEMALE_FIRST_NAME: [&str; 4272] = [
     "Abbey",
     "Abbie",
@@ -5598,8 +5600,8 @@ static FEMALE_FIRST_NAME: [&str; 4272] = [
     "Zulema",
     "Zulma",
 ];
+static FEMALE_FIRST_NAME_LEN: usize = FEMALE_FIRST_NAME.len();
 
-static LAST_NAME_LEN: usize = LAST_NAME.len();
 static LAST_NAME: [&str; 473] = [
     "Abbott",
     "Abernathy",
@@ -6075,6 +6077,7 @@ static LAST_NAME: [&str; 473] = [
     "Zieme",
     "Zulauf",
 ];
+static LAST_NAME_LEN: usize = LAST_NAME.len();
 
 #[cfg(test)]
 mod tests {

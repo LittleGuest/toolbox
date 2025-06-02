@@ -84,7 +84,7 @@ impl PhoneNumber {
                 line_code
             ),
 
-            _ => "".into(),
+            _ => String::new(),
         }
     }
 }

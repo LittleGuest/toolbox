@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use providers::{Address, Email, Emoji, Internet, Name, PhoneNumber, Uuid};
+use providers::{Address, Email, Emoji, File, Internet, Name, Number, PhoneNumber, Uuid};
 
 mod providers;
 
@@ -50,12 +50,20 @@ impl Faker {
         Emoji
     }
 
+    pub fn file(&self) -> File {
+        File
+    }
+
     pub fn internet(&self) -> Internet {
         Internet::new_with_locale(self.locale)
     }
 
     pub fn name(&self) -> Name {
         Name::new_with_locale(self.locale)
+    }
+
+    pub fn number(&self) -> Number {
+        Number
     }
 
     pub fn phone_number(&self) -> PhoneNumber {

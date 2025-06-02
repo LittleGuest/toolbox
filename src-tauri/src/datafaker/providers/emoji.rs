@@ -14,7 +14,7 @@ impl Emoji {
             7 => self.object_emoji(),
             8 => self.symbol_emoji(),
             9 => self.flag_emoji(),
-            _ => "".into(),
+            _ => String::new(),
         }
     }
 
@@ -217,7 +217,6 @@ static SMILEY_EMOJI: [&str; 156] = [
     "💭",
     "💤",
 ];
-
 static SMILEY_EMOJI_LEN: usize = SMILEY_EMOJI.len();
 
 static BODY_EMOJI: [&str; 246] = [
@@ -238,7 +237,6 @@ static BODY_EMOJI: [&str; 246] = [
     "👂🏿", "🦻", "🦻🏻", "🦻🏼", "🦻🏽", "🦻🏾", "🦻🏿", "👃", "👃🏻", "👃🏼", "👃🏽", "👃🏾", "👃🏿", "🧠", "🫀", "🫁",
     "🦷", "🦴", "👀", "👁️", "👅", "👄",
 ];
-
 static BODY_EMOJI_LEN: usize = BODY_EMOJI.len();
 
 static PERSON_EMOJI: [&str; 1803] = [
@@ -2046,7 +2044,6 @@ static PERSON_EMOJI: [&str; 1803] = [
     "🫂",
     "👣",
 ];
-
 static PERSON_EMOJI_LEN: usize = PERSON_EMOJI.len();
 
 static NATURE_EMOJI: [&str; 140] = [
@@ -2191,7 +2188,6 @@ static NATURE_EMOJI: [&str; 140] = [
     "🍂",
     "🍃",
 ];
-
 static NATURE_EMOJI_LEN: usize = NATURE_EMOJI.len();
 
 static FOOD_EMOJI: [&str; 129] = [
@@ -2205,7 +2201,6 @@ static FOOD_EMOJI: [&str; 129] = [
     "🍸", "🍹", "🍺", "🍻", "🥂", "🥃", "🥤", "🧋", "🧃", "🧉", "🧊", "🥢", "🍽️", "🍴", "🥄", "🔪",
     "🏺",
 ];
-
 static FOOD_EMOJI_LEN: usize = FOOD_EMOJI.len();
 
 static TRAVEL_EMOJI: [&str; 215] = [
@@ -2224,7 +2219,6 @@ static TRAVEL_EMOJI: [&str; 215] = [
     "🌤️", "🌥️", "🌦️", "🌧️", "🌨️", "🌩️", "🌪️", "🌫️", "🌬️", "🌀", "🌈", "🌂", "☂️", "☔", "⛱️", "⚡",
     "❄️", "☃️", "⛄", "☄️", "🔥", "💧", "🌊",
 ];
-
 static TRAVEL_EMOJI_LEN: usize = TRAVEL_EMOJI.len();
 
 static ACTIVITY_EMOJI: [&str; 84] = [
@@ -2235,7 +2229,6 @@ static ACTIVITY_EMOJI: [&str; 84] = [
     "🎲", "🧩", "🧸", "🪅", "🪆", "♠️", "♥️", "♦️", "♣️", "♟️", "🃏", "🀄", "🎴", "🎭", "🖼️", "🎨",
     "🧵", "🪡", "🧶", "🪢",
 ];
-
 static ACTIVITY_EMOJI_LEN: usize = ACTIVITY_EMOJI.len();
 
 static OBJECT_EMOJI: [&str; 250] = [
@@ -2256,7 +2249,6 @@ static OBJECT_EMOJI: [&str; 250] = [
     "🛏️", "🛋️", "🪑", "🚽", "🪠", "🚿", "🛁", "🪤", "🪒", "🧴", "🧷", "🧹", "🧺", "🧻", "🪣", "🧼",
     "🪥", "🧽", "🧯", "🛒", "🚬", "⚰️", "🪦", "⚱️", "🗿", "🪧",
 ];
-
 static OBJECT_EMOJI_LEN: usize = OBJECT_EMOJI.len();
 
 static SYMBOL_EMOJI: [&str; 220] = [
@@ -2275,7 +2267,6 @@ static SYMBOL_EMOJI: [&str; 220] = [
     "🟤", "⚫", "⚪", "🟥", "🟧", "🟨", "🟩", "🟦", "🟪", "🟫", "⬛", "⬜", "◼️", "◻️", "◾", "◽",
     "▪️", "▫️", "🔶", "🔷", "🔸", "🔹", "🔺", "🔻", "💠", "🔘", "🔳", "🔲",
 ];
-
 static SYMBOL_EMOJI_LEN: usize = SYMBOL_EMOJI.len();
 
 static FLAG_EMOJI: [&str; 266] = [
@@ -2546,5 +2537,4 @@ static FLAG_EMOJI: [&str; 266] = [
     "🇿🇲",
     "🇿🇼",
 ];
-
 static FLAG_EMOJI_LEN: usize = FLAG_EMOJI.len();
