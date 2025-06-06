@@ -2,9 +2,16 @@
 
 use std::collections::HashMap;
 
-use providers::{Address, Email, Emoji, File, Internet, Name, Number, PhoneNumber, Uuid};
+use providers::{
+    Address, Education, Email, Emoji, File, Internet, Name, Number, PhoneNumber, Uuid,
+};
+use rust_embed::Embed;
 
 mod providers;
+
+#[derive(Embed)]
+#[folder = "fakerdata"]
+pub struct FakerData;
 
 #[derive(Default, Clone, Copy)]
 pub enum Locale {
@@ -36,6 +43,10 @@ impl Faker {
 
     pub fn providers(&self) -> Vec<String> {
         self.providers.keys().cloned().collect::<Vec<_>>()
+    }
+
+    pub fn education(&self) -> Education {
+        Education::new_with_locale(self.locale)
     }
 
     pub fn address(&self) -> Address {
