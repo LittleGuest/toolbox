@@ -40,6 +40,10 @@ impl Area {
         }
     }
 
+    pub fn new_with_locale(locale: Locale) -> Self {
+        Self { locale }
+    }
+
     pub fn province(&self) -> String {
         self.random().province.clone()
     }

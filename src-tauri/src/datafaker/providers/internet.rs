@@ -1,5 +1,4 @@
-use super::Name;
-use crate::datafaker::Locale;
+use crate::datafaker::{providers::Person, Locale};
 
 pub struct Internet {
     pub locale: Locale,
@@ -17,7 +16,7 @@ impl Internet {
     }
 
     pub fn username(&self) -> String {
-        let name = Name::new_with_locale(self.locale);
+        let name = Person::new_with_locale(self.locale);
         format!(
             "{}{}",
             name.first_name().to_lowercase(),
