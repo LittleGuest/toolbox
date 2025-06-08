@@ -6,6 +6,7 @@ static COLLEGE_DATA: LazyLock<Vec<String>> = LazyLock::new(|| {
     let area = FakerData::get("college").unwrap();
     String::from_utf8_lossy(&area.data)
         .lines()
+        .filter(|l| !l.is_empty())
         .map(String::from)
         .collect::<Vec<_>>()
 });
@@ -14,6 +15,7 @@ static MAJOR_DATA: LazyLock<Vec<String>> = LazyLock::new(|| {
     let area = FakerData::get("college-major").unwrap();
     String::from_utf8_lossy(&area.data)
         .lines()
+        .filter(|l| !l.is_empty())
         .map(String::from)
         .collect::<Vec<_>>()
 });
@@ -43,7 +45,7 @@ impl Education {
 
     fn school_name(&self, school: &str) -> String {
         let area = Area::new();
-        let area = area.random();
+        let area = area.area();
         format!("{}第{}{school}", area.city, self.number())
     }
 

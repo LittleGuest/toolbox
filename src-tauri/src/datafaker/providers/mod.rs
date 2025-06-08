@@ -7,7 +7,6 @@ mod file;
 mod internet;
 mod number;
 mod person;
-mod phone_number;
 mod uuid;
 
 pub use address::Address;
@@ -18,5 +17,4 @@ pub use file::File;
 pub use internet::Internet;
 pub use number::Number;
 pub use person::*;
-pub use phone_number::PhoneNumber;
 pub use uuid::Uuid;

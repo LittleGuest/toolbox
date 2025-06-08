@@ -1,4 +1,4 @@
-use std::{ops::Deref, sync::LazyLock};
+use std::{fmt::Display, ops::Deref, sync::LazyLock};
 
 use crate::datafaker::{FakerData, Locale, Provider};
 
@@ -6,6 +6,7 @@ static MALE_FIRST_NAME_DATA: LazyLock<Vec<String>> = LazyLock::new(|| {
     let area = FakerData::get("male-first-name").unwrap();
     String::from_utf8_lossy(&area.data)
         .lines()
+        .filter(|l| !l.is_empty())
         .map(String::from)
         .collect::<Vec<_>>()
 });
@@ -14,6 +15,7 @@ static FEMALE_FIRST_NAME_DATA: LazyLock<Vec<String>> = LazyLock::new(|| {
     let area = FakerData::get("female-first-name").unwrap();
     String::from_utf8_lossy(&area.data)
         .lines()
+        .filter(|l| !l.is_empty())
         .map(String::from)
         .collect::<Vec<_>>()
 });
@@ -22,6 +24,7 @@ static LAST_NAME_DATA: LazyLock<Vec<String>> = LazyLock::new(|| {
     let area = FakerData::get("last-name").unwrap();
     String::from_utf8_lossy(&area.data)
         .lines()
+        .filter(|l| !l.is_empty())
         .map(String::from)
         .collect::<Vec<_>>()
 });
@@ -30,6 +33,7 @@ static QQ_NICK_NAME_DATA: LazyLock<Vec<String>> = LazyLock::new(|| {
     let area = FakerData::get("qq-nick-name").unwrap();
     String::from_utf8_lossy(&area.data)
         .lines()
+        .filter(|l| !l.is_empty())
         .map(String::from)
         .collect::<Vec<_>>()
 });
@@ -43,9 +47,17 @@ static SUFFIX: [&str; 11] = [
 static SUFFIX_LEN: usize = SUFFIX.len();
 
 pub enum Sex {
-    Female = 1,
-    Male = 0,
-    Unknown = -1,
+    Female,
+    Male,
+}
+
+impl Display for Sex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Sex::Female => f.write_str("female"),
+            Sex::Male => f.write_str("male"),
+        }
+    }
 }
 
 pub struct Person {
@@ -67,6 +79,12 @@ impl Person {
 
     pub fn new_with_locale(locale: Locale) -> Self {
         Self { locale }
+    }
+
+    pub fn gender(&self) -> String {
+        let mut s = [Sex::Male, Sex::Female];
+        fastrand::shuffle(&mut s);
+        format!("{}", s[0])
     }
 
     pub fn prefix(&self) -> String {
