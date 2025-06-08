@@ -78,11 +78,11 @@
   - [ ] 域名
   - [ ] 静态URL
   - [ ] 强密码
-  - [ ] User-Agent
-  - [ ] 端口号
-  - [ ] app名称
-  - [ ] app bundle id
-  - [ ] app版本号
+  - [x] User-Agent
+  - [x] 端口号
+  - [x] app名称
+  - [x] app bundle id
+  - [x] app版本号
 - 其它
   - [x] 数字
   - [ ] 汉字
