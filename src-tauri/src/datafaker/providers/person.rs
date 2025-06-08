@@ -1,5 +1,6 @@
 use std::{fmt::Display, ops::Deref, sync::LazyLock};
 
+use super::random_str;
 use crate::datafaker::{FakerData, Locale, Provider};
 
 static MALE_FIRST_NAME_DATA: LazyLock<Vec<String>> = LazyLock::new(|| {
@@ -166,25 +167,7 @@ impl Person {
     }
 
     pub fn nick_name(&self) -> String {
-        Self::random_str(fastrand::usize(4..10))
-    }
-
-    fn random_str(count: usize) -> String {
-        let mut str = String::with_capacity(count);
-        if count == 0 {
-            return str;
-        }
-
-        (0..count).for_each(|_| {
-            let char: char = match fastrand::u8(0..3) {
-                0 => fastrand::u8(b'a'..=b'z').into(),
-                1 => fastrand::u8(b'A'..=b'Z').into(),
-                _ => fastrand::u8(48..=57).into(),
-            };
-            str.push(char);
-        });
-
-        str
+        random_str(fastrand::usize(4..10))
     }
 }
 
