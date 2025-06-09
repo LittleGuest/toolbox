@@ -51,6 +51,8 @@ static SPECIAL_CHARS: [&str; 16] = [
     "!", ".", "_", "@", "#", "$", "%", "^", "&", ",", "(", ")", "`", "[", "]", "*",
 ];
 
+static MOBILE_PREFIX: [&str; 7] = ["13", "147", "15", "16", "17", "18", "19"];
+
 pub enum Sex {
     Female,
     Male,
@@ -192,6 +194,20 @@ impl Person {
         }
         fastrand::shuffle(&mut pwd);
         pwd.join("")
+    }
+
+    pub fn mobile(&self) -> String {
+        let prefix = MOBILE_PREFIX[fastrand::usize(0..MOBILE_PREFIX.len())];
+        let mut mobile = String::with_capacity(11);
+        mobile.push_str(prefix);
+        (0..mobile.capacity() - prefix.len()).for_each(|_| {
+            mobile.push(fastrand::u8(0..10).into());
+        });
+        mobile
+    }
+
+    pub fn id_card(&self) -> String {
+        todo!()
     }
 }
 
