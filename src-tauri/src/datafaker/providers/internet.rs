@@ -1,3 +1,7 @@
+use std::{ops::Range, sync::LazyLock};
+
+use regex::Regex;
+
 use super::random_str;
 use crate::datafaker::{providers::Person, Locale};
 
@@ -37,6 +41,60 @@ static ANDROID_MANUFACTURERS: [&str; 23] = [
     "gionee",
 ];
 
+static PRIVATE_RANGES_REGEX: LazyLock<[Regex; 8]> = LazyLock::new(|| {
+    let local: Regex = Regex::new(r"^10\.").unwrap();
+    let shared_addr: Regex = Regex::new(r"^100\.(6[4-9]|[7-9]\d|1[0-1]\d|12[0-7])\.").unwrap();
+    let loopback: Regex = Regex::new(r"^127\.").unwrap();
+    let local_link_addr: Regex = Regex::new(r"^169\.254\.").unwrap();
+    let local_private_172: Regex = Regex::new(r"^172\.(1[6-9]|2\d|3[0-1])\.").unwrap();
+    let ietf_protocols: Regex = Regex::new(r"^192\.0\.0\.").unwrap();
+    let local_private_192: Regex = Regex::new(r"^192\.168\.").unwrap();
+    let benchmark: Regex = Regex::new(r"^198\.(1[8-9])\.").unwrap();
+
+    [
+        local,
+        shared_addr,
+        loopback,
+        local_link_addr,
+        local_private_172,
+        ietf_protocols,
+        local_private_192,
+        benchmark,
+    ]
+});
+
+static RESERVED_RANGES_REGEX: LazyLock<[Regex; 7]> = LazyLock::new(|| {
+    let local: Regex = Regex::new(r"^0\.").unwrap();
+    let test_net_192: Regex = Regex::new(r"^192\.0\.2\.").unwrap();
+    let relay: Regex = Regex::new(r"^192\.88\.99\.").unwrap();
+    let test_net_198: Regex = Regex::new(r"^198\.51\.100\.").unwrap();
+    let test_net_203: Regex = Regex::new(r"^203\.0\.113\.").unwrap();
+    let multicast: Regex = Regex::new(r"^(22[4-9]|23\d)\.").unwrap();
+    let future_use: Regex = Regex::new(r"^(24\d|25[0-5])\.").unwrap();
+
+    [
+        local,
+        test_net_192,
+        relay,
+        test_net_198,
+        test_net_203,
+        multicast,
+        future_use,
+    ]
+});
+
+static PRIVATE_RANGES: [&[Range<i32>; 4]; 8] = [
+    &[10..10, 0..255, 0..255, 1..255],
+    &[100..100, 64..127, 0..255, 1..255],
+    &[127..127, 0..255, 0..255, 1..255],
+    &[169..169, 254..254, 0..255, 1..255],
+    &[172..172, 16..31, 0..255, 1..255],
+    &[192..192, 0..0, 0..0, 1..255],
+    &[192..192, 168..168, 0..255, 1..255],
+    &[198..198, 18..19, 0..255, 1..255],
+];
+static PRIVATE_RANGES_LEN: usize = PRIVATE_RANGES.len();
+
 pub struct Internet {
     pub locale: Locale,
 }
@@ -71,6 +129,69 @@ impl Internet {
         )
     }
 
+    pub fn ipv4_with_mask(&self) -> String {
+        let mut ip = self.ipv4();
+        ip.push('/');
+        ip.push_str(fastrand::u8(1..=32).to_string().as_str());
+        ip
+    }
+
+    pub fn ipv4_public(&self) -> String {
+        loop {
+            let ip = self.ipv4();
+            if Self::is_private_network(&ip) || Self::is_reserved_network(&ip) {
+                continue;
+            }
+            return ip;
+        }
+    }
+
+    fn is_private_network(ip: &str) -> bool {
+        for elem in PRIVATE_RANGES_REGEX.iter() {
+            if (elem).is_match(ip) {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn is_reserved_network(ip: &str) -> bool {
+        for elem in RESERVED_RANGES_REGEX.iter() {
+            if (elem).is_match(ip) {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn ipv4_private(&self) -> String {
+        let ranges = PRIVATE_RANGES[fastrand::usize(0..PRIVATE_RANGES.len())];
+        let mut slist = vec![];
+        for i in ranges {
+            if i.start == i.end {
+                slist.push(i.start.to_string());
+                continue;
+            }
+            slist.push(fastrand::i32(i.start..i.end).to_string());
+        }
+        slist.join(".")
+    }
+
+    pub fn ipv6(&self) -> String {
+        let mut slist: Vec<String> = vec![];
+        for _ in 0..8 {
+            slist.push(format!("{:x}", fastrand::u16(..)));
+        }
+        slist.join(":")
+    }
+
+    pub fn ipv6_with_mask(&self) -> String {
+        let mut ip = self.ipv6();
+        ip.push('/');
+        ip.push_str(fastrand::u8(1..=127).to_string().as_str());
+        ip
+    }
+
     pub fn app_name(&self) -> String {
         random_str(fastrand::usize(4..11))
     }
@@ -94,8 +215,15 @@ impl Internet {
         )
     }
 
+    pub fn mac(&self) -> String {
+        (0..6).fold(String::new(), |mut s, _| {
+            s.push_str(&format!("{:02x}", fastrand::u8(..)));
+            s
+        })
+    }
+
     pub fn port(&self) -> String {
-        fastrand::u16(1025..=65535).to_string()
+        fastrand::u16(1025..).to_string()
     }
 
     pub fn user_agent_pc(&self) -> String {
