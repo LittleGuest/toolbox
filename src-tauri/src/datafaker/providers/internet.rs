@@ -95,6 +95,32 @@ static PRIVATE_RANGES: [&[Range<i32>; 4]; 8] = [
 ];
 static PRIVATE_RANGES_LEN: usize = PRIVATE_RANGES.len();
 
+static PUBLIC_EMAIL_DOMAINS: [&str; 6] =
+    ["outlook", "hotmail", "gmail", "yahoo", "protonmail", "zoho"];
+static BUSINESS_EMAIL_DOMAINS: [&str; 20] = [
+    "google",
+    "microsoft",
+    "apple",
+    "nvidia",
+    "meta",
+    "facebook",
+    "netflix",
+    "amazon",
+    "slack",
+    "amd",
+    "intel",
+    "hp",
+    "ibm",
+    "wellsfargo",
+    "goldmansachs",
+    "janestreet",
+    "akumacaptial",
+    "sequioacapital",
+    "walmart",
+    "costco",
+];
+static GOVERNMENT_EMAIL_DOMAINS: [&str; 4] = ["fbi", "cia", "nsa", "gov"];
+
 pub struct Internet {
     pub locale: Locale,
 }
@@ -117,6 +143,88 @@ impl Internet {
             name.first_name().to_lowercase(),
             name.last_name().to_lowercase()
         )
+    }
+
+    pub fn domain(&self) -> String {
+        format!(
+            "{}.{}",
+            random_str(fastrand::usize(2..11)),
+            DOMAIN_SUFFIX[fastrand::usize(0..DOMAIN_SUFFIX.len())],
+        )
+        .to_lowercase()
+    }
+
+    pub fn static_url(&self) -> String {
+        let mut prefix = "http://";
+        if fastrand::u8(0..101) % 3 == 0 {
+            prefix = "https://";
+        }
+        format!(
+            "{prefix}{}/{}/{}.{}",
+            self.domain(),
+            fastrand::usize(1..10000000000),
+            random_str(fastrand::usize(8..33)),
+            random_str(fastrand::usize(8..33)),
+        )
+    }
+
+    pub fn standard_generic_email(&self) -> String {
+        match fastrand::u8(0..4) {
+            0 => self.standard_public_email_alias(),
+            1 => self.standard_public_email(),
+            2 => self.standard_business_email(),
+            3 => self.standard_government_email(),
+            _ => String::new(),
+        }
+    }
+
+    pub fn standard_public_email(&self) -> String {
+        let domain =
+            PUBLIC_EMAIL_DOMAINS[fastrand::usize(0..PUBLIC_EMAIL_DOMAINS.len())].to_string();
+        self.build_email(self.username(), domain)
+    }
+
+    pub fn standard_public_email_alias(&self) -> String {
+        let username = match fastrand::u8(0..2) {
+            0 => format!("{}+{}", self.username(), fastrand::u8(0..100)),
+            1 => format!(
+                "{}+{}",
+                self.username(),
+                BUSINESS_EMAIL_DOMAINS[fastrand::usize(0..BUSINESS_EMAIL_DOMAINS.len())]
+            ),
+            _ => String::new(),
+        };
+
+        let domain =
+            PUBLIC_EMAIL_DOMAINS[fastrand::usize(0..PUBLIC_EMAIL_DOMAINS.len())].to_string();
+
+        self.build_email(username, domain)
+    }
+
+    pub fn standard_business_email(&self) -> String {
+        let domain =
+            BUSINESS_EMAIL_DOMAINS[fastrand::usize(0..BUSINESS_EMAIL_DOMAINS.len())].to_string();
+
+        self.build_email(self.username(), domain)
+    }
+
+    pub fn standard_government_email(&self) -> String {
+        let domain = GOVERNMENT_EMAIL_DOMAINS[fastrand::usize(0..GOVERNMENT_EMAIL_DOMAINS.len())]
+            .to_string();
+
+        //Some government emails end with .gov domain
+
+        self.build_email(self.username(), domain)
+    }
+
+    pub fn standard_account_email(&self) -> String {
+        let domain =
+            PUBLIC_EMAIL_DOMAINS[fastrand::usize(0..PUBLIC_EMAIL_DOMAINS.len())].to_string();
+        self.build_email(self.username(), domain)
+    }
+
+    fn build_email(&self, username: String, domain: String) -> String {
+        format!("{username}@{domain}.com",)
     }
 
     pub fn ipv4(&self) -> String {

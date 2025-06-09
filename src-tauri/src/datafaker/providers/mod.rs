@@ -1,7 +1,6 @@
 mod address;
 mod area;
 mod education;
-mod email;
 mod emoji;
 mod file;
 mod internet;
@@ -11,7 +10,6 @@ mod uuid;
 
 pub use address::Address;
 pub use education::Education;
-pub use email::Email;
 pub use emoji::Emoji;
 pub use file::File;
 pub use internet::Internet;

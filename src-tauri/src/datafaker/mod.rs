@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use providers::{Address, Education, Email, Emoji, File, Internet, Number, Person, Uuid};
+use providers::{Address, Education, Emoji, File, Internet, Number, Person, Uuid};
 use rust_embed::Embed;
 
 mod providers;
@@ -49,10 +49,6 @@ impl Faker {
 
     pub fn address(&self) -> Address {
         Address::new_with_locale(self.locale)
-    }
-
-    pub fn email(&self) -> Email {
-        Email::new_with_locale(self.locale)
     }
 
     pub fn emoji(&self) -> Emoji {

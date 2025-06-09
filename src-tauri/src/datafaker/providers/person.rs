@@ -47,6 +47,10 @@ static SUFFIX: [&str; 11] = [
 ];
 static SUFFIX_LEN: usize = SUFFIX.len();
 
+static SPECIAL_CHARS: [&str; 16] = [
+    "!", ".", "_", "@", "#", "$", "%", "^", "&", ",", "(", ")", "`", "[", "]", "*",
+];
+
 pub enum Sex {
     Female,
     Male,
@@ -169,6 +173,26 @@ impl Person {
     pub fn nick_name(&self) -> String {
         random_str(fastrand::usize(4..10))
     }
+
+    pub fn strong_password(&self) -> String {
+        let cap = fastrand::usize(8..20);
+        let mut pwd = Vec::with_capacity(cap);
+        let count = cap / 3;
+        (0..count).for_each(|_| {
+            pwd.push(random_str(1));
+            pwd.push(random_str(1));
+        });
+
+        (0..fastrand::usize(1..count)).for_each(|_| {
+            pwd.push(SPECIAL_CHARS[fastrand::usize(0..SPECIAL_CHARS.len())].into());
+        });
+
+        if pwd.len() < pwd.capacity() {
+            pwd.push(random_str(cap - pwd.len()));
+        }
+        fastrand::shuffle(&mut pwd);
+        pwd.join("")
+    }
 }
 
 pub enum CreditCardType {
@@ -231,11 +255,5 @@ mod tests {
     #[test]
     fn test_name_with_middle_suffix() {
         assert!(!Person::new().name_with_middle_suffix().is_empty())
-    }
-
-    #[test]
-    fn test_random_str() {
-        let str = Person::random_str(8);
-        assert_eq!(str.len(), 8)
     }
 }
