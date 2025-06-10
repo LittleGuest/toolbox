@@ -109,8 +109,13 @@ const menuOptions = [
     icon: renderIcon(DataBase),
     children: [
       {
-        label: "数据生成",
+        label: "假数据生成",
         key: "/database/datafaker",
+        icon: renderIcon(DataStructured),
+      },
+      {
+        label: "数据库差异",
+        key: "/database/diff",
         icon: renderIcon(DataStructured),
       },
     ]
