@@ -65,6 +65,7 @@ async-trait = "0.1.68"
 regex = "1.8.4"
 sqlx = { version = "0.8.6", features = [
   "runtime-tokio-native-tls",
+  "any",
   "all-databases",
 ] }
 tauri-plugin-store = "2"
@@ -73,6 +74,7 @@ fastrand = "2.3.0"
 anyhow = "1.0.98"
 
 [dev-dependencies]
+dotenv = "0.15.0"
 serde-transcode = "1.1.1"
 
 

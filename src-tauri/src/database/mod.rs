@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{Connection, MySqlConnection, MySqlPool};
 
 mod cores;
+mod diff;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
