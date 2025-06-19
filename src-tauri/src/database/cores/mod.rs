@@ -1,4 +1,6 @@
 #![allow(unused)]
+use std::fmt::Display;
+
 use serde::{Deserialize, Serialize};
 use sqlx::{AnyPool, Database, Pool};
 use thiserror::Error;
@@ -42,6 +44,8 @@ pub trait DatabaseMetadata {
     async fn columns(pool: &Self::Pool, schema: &str, table_name: &str) -> Result<Vec<Column>>;
     /// 获取表索引
     async fn indexs(pool: &Self::Pool, schema: &str, table_name: &str) -> Result<Vec<Index>>;
+    /// 创建表SQL
+    async fn create_table_sql(pool: &Self::Pool, schema: &str, table_name: &str) -> Result<String>;
 }
 
 /// 库
@@ -94,23 +98,23 @@ pub struct Column {
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
-struct Index {
+pub struct Index {
     /// 表名
-    table_name: String,
+    pub table_name: String,
     /// 如果索引不能包括重复词，则为0。如果可以，则为1。
-    non_unique: i32,
+    pub non_unique: i32,
     /// 索引的名称
-    key_name: String,
+    pub key_name: String,
     /// 索引中的列的序号。对于组合索引，这表示列在索引中的位置。
-    seq_in_index: u32,
+    pub seq_in_index: u32,
     /// 作用于列名称
-    column_name: String,
+    pub column_name: String,
     /// 索引的前缀长度。对于部分索引，这表示索引的前缀长度。
-    sub_part: Option<i32>,
+    pub sub_part: Option<i32>,
     /// 用过的索引方法（BTREE, FULLTEXT, HASH, RTREE）
-    index_type: String,
+    pub index_type: String,
     /// 索引的注释
-    index_comment: String,
+    pub index_comment: String,
 }
 
 #[derive(Debug, Clone, Copy, Hash, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
@@ -154,6 +158,52 @@ pub enum ColumnType {
     Varbinary,
     VarChar,
     Year,
+}
+
+impl Display for ColumnType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ColumnType::Bigint => f.write_str("BIGINT"),
+            ColumnType::Binary => f.write_str("BIGINT"),
+            ColumnType::Bit => f.write_str("BIGINT"),
+            ColumnType::Blob => f.write_str("BIGINT"),
+            ColumnType::Char => f.write_str("BIGINT"),
+            ColumnType::Date => f.write_str("BIGINT"),
+            ColumnType::DateTime => f.write_str("BIGINT"),
+            ColumnType::Decimal => f.write_str("BIGINT"),
+            ColumnType::Double => f.write_str("BIGINT"),
+            ColumnType::Enum => f.write_str("BIGINT"),
+            ColumnType::Float => f.write_str("BIGINT"),
+            ColumnType::Geometry => f.write_str("BIGINT"),
+            ColumnType::GeometryCollection => f.write_str("BIGINT"),
+            ColumnType::Int => f.write_str("BIGINT"),
+            ColumnType::Integer => f.write_str("BIGINT"),
+            ColumnType::Json => f.write_str("BIGINT"),
+            ColumnType::LineString => f.write_str("BIGINT"),
+            ColumnType::LongBlob => f.write_str("BIGINT"),
+            ColumnType::LongText => f.write_str("BIGINT"),
+            ColumnType::MediumBlob => f.write_str("BIGINT"),
+            ColumnType::MediumInt => f.write_str("BIGINT"),
+            ColumnType::MediumText => f.write_str("BIGINT"),
+            ColumnType::MultilineString => f.write_str("BIGINT"),
+            ColumnType::MultiPoint => f.write_str("BIGINT"),
+            ColumnType::Numeric => f.write_str("BIGINT"),
+            ColumnType::Point => f.write_str("BIGINT"),
+            ColumnType::Polygon => f.write_str("BIGINT"),
+            ColumnType::Real => f.write_str("BIGINT"),
+            ColumnType::Set => f.write_str("BIGINT"),
+            ColumnType::SmallInt => f.write_str("BIGINT"),
+            ColumnType::Text => f.write_str("BIGINT"),
+            ColumnType::Time => f.write_str("BIGINT"),
+            ColumnType::Timestamp => f.write_str("BIGINT"),
+            ColumnType::TinyBlob => f.write_str("BIGINT"),
+            ColumnType::TinyInt => f.write_str("BIGINT"),
+            ColumnType::TinyText => f.write_str("BIGINT"),
+            ColumnType::Varbinary => f.write_str("BIGINT"),
+            ColumnType::VarChar => f.write_str("BIGINT"),
+            ColumnType::Year => f.write_str("BIGINT"),
+        }
+    }
 }
 
 impl From<String> for ColumnType {

@@ -7,6 +7,7 @@ const SHOW_DATABASES: &str = "SHOW DATABASES";
 const SHOW_COLUMNS: &str = "SHOW FULL COLUMNS FROM ? FROM ?";
 const SHOW_TABLES:&str = "SELECT table_schema, table_name, CAST(TABLE_TYPE AS CHAR) TABLE_TYPE, table_comment FROM information_schema.`TABLES` WHERE TABLE_SCHEMA = ?";
 const SHOW_INDEX: &str = "SHOW INDEX FROM ? FROM ?";
+const SHOW_CREATE_TABLE: &str = "SHOW CREATE TABLE ?";
 const WORD_UNSIGNED: &str = "unsigned";
 const WORD_PRIMARY: &str = "PRIMARY";
 
@@ -320,6 +321,19 @@ impl DatabaseMetadata for MysqlMetadata {
             .fetch_all(pool)
             .await?;
         Ok(rows.into_iter().map(|row| row.into()).collect::<Vec<_>>())
+    }
+
+    async fn create_table_sql(pool: &Self::Pool, schema: &str, table_name: &str) -> Result<String> {
+        let rows: String = sqlx::query(&format!("SHOW CREATE TABLE {schema}.{table_name}"))
+            .bind(table_name)
+            .bind(schema)
+            .map(|row: MySqlRow| {
+                let sql: Vec<u8> = row.get(1);
+                String::from_utf8_lossy(&sql).to_string()
+            })
+            .fetch_one(pool)
+            .await?;
+        Ok(rows)
     }
 }
 

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::MySqlPool;
 
 use super::{
-    cores::{Column, ColumnType, Error, Result},
+    cores::{Column, ColumnType, Error, Index, Result},
     DatasourceInfo,
 };
 use crate::database::cores::{DatabaseMetadata, Driver, MysqlMetadata};
@@ -19,7 +19,6 @@ pub async fn table_struct(datasource_info: &DatasourceInfo) -> Result<HashMap<St
                 return Err(Error::E("choose database"));
             };
             let pool = MySqlPool::connect(&datasource_info.url()).await?;
-
             let tables = MysqlMetadata::tables(&pool, database).await?;
             let mut data = HashMap::with_capacity(tables.len());
             for table in tables.into_iter() {
@@ -30,7 +29,29 @@ pub async fn table_struct(datasource_info: &DatasourceInfo) -> Result<HashMap<St
                     .map(|c| (c.name.clone(), c.into()))
                     .collect::<HashMap<String, FieldBo>>();
                 // 索引
-                let indexs: HashMap<String, IndexBo> = HashMap::new();
+                let indexs: HashMap<String, IndexBo> = {
+                    // 根据索引名称分组（将组合索引合并在一起）
+                    let indexs = MysqlMetadata::indexs(&pool, database, &table.name)
+                        .await?
+                        .into_iter()
+                        .map(IndexBo::from)
+                        .fold(HashMap::new(), |mut map, ix| {
+                            map.entry(ix.key_name.clone())
+                                .or_insert_with(Vec::new)
+                                .push(ix);
+                            map
+                        });
+                    let indexs_len = indexs.len();
+                    indexs.into_iter().fold(
+                        HashMap::with_capacity(indexs_len),
+                        |mut map, (key_name, ixs)| {
+                            let mut ix = ixs[0].clone();
+                            ix.column_name = merge_index_name(ixs);
+                            map.insert(key_name, ix);
+                            map
+                        },
+                    )
+                };
 
                 data.insert(
                     table.name.clone(),
@@ -50,7 +71,38 @@ pub async fn table_struct(datasource_info: &DatasourceInfo) -> Result<HashMap<St
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// 合并组合索引的名称
+fn merge_index_name(mut indexs: Vec<IndexBo>) -> String {
+    indexs.sort_by_key(|ix| ix.seq_in_index);
+    indexs
+        .into_iter()
+        .map(|ix| {
+            format!("`{}`{}", ix.column_name, {
+                match ix.sub_part {
+                    Some(sp) => format!("({sp})"),
+                    None => "".into(),
+                }
+            })
+        })
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+pub async fn create_table_sql(
+    datasource_info: &DatasourceInfo,
+    table_name: &str,
+) -> Result<String> {
+    let pool = MySqlPool::connect(&datasource_info.url()).await?;
+    let sql = MysqlMetadata::create_table_sql(
+        &pool,
+        &datasource_info.database.clone().unwrap_or_default(),
+        table_name,
+    )
+    .await?;
+    Ok(sql)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TableBo {
     /// 表名
     name: String,
@@ -65,7 +117,7 @@ pub struct TableBo {
     is_both_has: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct FieldBo {
     // 表名
     pub table_name: String,
@@ -119,7 +171,7 @@ impl From<Column> for FieldBo {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct IndexBo {
     /// 表名
     table_name: String,
@@ -128,16 +180,32 @@ pub struct IndexBo {
     /// 索引的名称
     key_name: String,
     /// 索引中的列的序号。对于组合索引，这表示列在索引中的位置。
-    seq_index: i32,
+    seq_in_index: u32,
     /// 作用于列名称
     column_name: String,
     /// 索引的前缀长度。对于部分索引，这表示索引的前缀长度。
-    sub_part: i32,
+    sub_part: Option<i32>,
     /// 用过的索引方法（BTREE, FULLTEXT, HASH, RTREE）
     index_type: String,
     /// 索引的注释
-    index_comment: Option<String>,
+    index_comment: String,
 
     /// 是否双方都有(用于比对)
     is_both_has: bool,
+}
+
+impl From<Index> for IndexBo {
+    fn from(ix: Index) -> Self {
+        Self {
+            table_name: ix.table_name,
+            non_unique: ix.non_unique,
+            key_name: ix.key_name,
+            seq_in_index: ix.seq_in_index,
+            column_name: ix.column_name,
+            sub_part: ix.sub_part,
+            index_type: ix.index_type,
+            index_comment: ix.index_comment,
+            is_both_has: false,
+        }
+    }
 }
