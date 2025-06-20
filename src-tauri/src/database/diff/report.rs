@@ -31,31 +31,31 @@ pub async fn diff_report(source: DatasourceInfo, target: DatasourceInfo) -> Resu
             table_info.target_comment = target_table.comment.clone();
         }
         if !table_info.columns.is_empty()
-            || !table_info.incre_column.is_empty()
-            || !table_info.miss_column.is_empty()
+            || !table_info.incre_columns.is_empty()
+            || !table_info.miss_columns.is_empty()
             || !table_info.indexs.is_empty()
-            || !table_info.incre_index.is_empty()
-            || !table_info.miss_index.is_empty()
+            || !table_info.incre_indexs.is_empty()
+            || !table_info.miss_indexs.is_empty()
             || table_info.comment_change
         {
             changes.push(table_info);
         }
     }
 
-    diff_report.change = changes;
+    diff_report.changes = changes;
     for (tname, tt) in target_ts.into_iter() {
         if !tt.is_both_has {
-            diff_report.incre.push(tname);
+            diff_report.incres.push(tname);
         }
     }
     for (sname, st) in source_ts.into_iter() {
         if !st.is_both_has {
-            diff_report.miss.push(sname);
+            diff_report.misses.push(sname);
         }
     }
-    diff_report.change.sort();
-    diff_report.incre.sort();
-    diff_report.miss.sort();
+    diff_report.changes.sort();
+    diff_report.incres.sort();
+    diff_report.misses.sort();
 
     Ok(diff_report)
 }
@@ -136,21 +136,21 @@ async fn handle_column_change(
 
     for (tname, tf) in target.columns.iter() {
         if !tf.is_both_has {
-            table_info.incre_column.push(tname.clone());
+            table_info.incre_columns.push(tname.clone());
         }
     }
 
     for (sname, sf) in source.columns.iter() {
         if !sf.is_both_has {
-            table_info.miss_column.push(sname.clone());
+            table_info.miss_columns.push(sname.clone());
         }
     }
 
     table_info.columns = fields;
 
     table_info.columns.sort();
-    table_info.incre_column.sort();
-    table_info.miss_column.sort();
+    table_info.incre_columns.sort();
+    table_info.miss_columns.sort();
 }
 
 async fn handle_index_change(
@@ -207,21 +207,21 @@ async fn handle_index_change(
 
     for (iname, ti) in target.indexs.iter() {
         if !ti.is_both_has {
-            table_info.incre_index.push(iname.clone());
+            table_info.incre_indexs.push(iname.clone());
         }
     }
 
     for (iname, si) in source.indexs.iter() {
         if !si.is_both_has {
-            table_info.miss_index.push(iname.clone());
+            table_info.miss_indexs.push(iname.clone());
         }
     }
 
     table_info.indexs = indexs;
 
     table_info.indexs.sort();
-    table_info.incre_index.sort();
-    table_info.miss_index.sort();
+    table_info.incre_indexs.sort();
+    table_info.miss_indexs.sort();
 }
 
 /// 获取结构差异SQL，以source为基准，target变动
@@ -397,28 +397,30 @@ async fn diff_index(si: &IndexBo, ti: Option<&IndexBo>) -> String {
 
 /// 差异报告
 #[derive(Debug, Default, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DiffReport {
     /// 增加的表
-    incre: Vec<String>,
+    incres: Vec<String>,
     /// 缺少的表
-    miss: Vec<String>,
+    misses: Vec<String>,
     /// 变化的表
-    change: Vec<TableInfo>,
+    changes: Vec<TableInfo>,
 }
 
 /// 表信息变化
 #[derive(Debug, Default, Hash, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "camelCase")]
 pub struct TableInfo {
     /// 表名
     table_name: String,
     /// 增加的字段
-    incre_column: Vec<String>,
+    incre_columns: Vec<String>,
     /// 缺少的字段
-    miss_column: Vec<String>,
+    miss_columns: Vec<String>,
     /// 增加的索引
-    incre_index: Vec<String>,
+    incre_indexs: Vec<String>,
     /// 缺少的索引
-    miss_index: Vec<String>,
+    miss_indexs: Vec<String>,
     /// 是否改过表的描述
     comment_change: bool,
     /// 原表表描述
@@ -445,6 +447,7 @@ impl TableInfo {
 
 /// 列信息变化
 #[derive(Debug, Default, Hash, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "camelCase")]
 pub struct FieldInfo {
     /// 列名称
     name: String,
@@ -489,6 +492,7 @@ impl FieldInfo {
 
 /// 索引信息变化
 #[derive(Debug, Default, Hash, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "camelCase")]
 pub struct IndexInfo {
     /// 索引名称
     name: String,
@@ -546,9 +550,9 @@ mod tests {
 
         let report = diff_report(source, target).await?;
         dbg!(&report);
-        println!("{}", report.change.len());
-        println!("{}", report.incre.len());
-        println!("{}", report.miss.len());
+        println!("{}", report.changes.len());
+        println!("{}", report.incres.len());
+        println!("{}", report.misses.len());
 
         Ok(())
     }

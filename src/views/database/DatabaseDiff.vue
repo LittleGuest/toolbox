@@ -3,7 +3,7 @@ import { ref, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { NButton, NButtonGroup, createDiscreteApi } from "naive-ui";
 import { datasourceInfosApi, saveDatasourceInfoApi, updateDatasourceInfoApi, deleteDatasourceInfoApi } from '../../db.js';
-import DataGenerator from './DataGenerator.vue';
+import DatabaseDiffReport from './DatabaseDiffReport.vue';
 import { QuestionCircleOutlined } from "@vicons/antd";
 
 const { message, notification, dialog, loadingBar, modal } = createDiscreteApi(["message", "dialog", "notification", "loadingBar", "modal"]);
@@ -12,6 +12,20 @@ const connects = ref([]);
 
 onMounted(async () => {
   connects.value = await datasourceInfosApi();
+
+  sourceTables.value = connects.value.map((c) => {
+    return {
+      label: c.database + '@' + c.name,
+      value: c.database + '@' + c.name,
+    };
+  });
+
+  targetTables.value = connects.value.map((c) => {
+    return {
+      label: c.database + '@' + c.name,
+      value: c.database + '@' + c.name,
+    };
+  });
 });
 
 const columns = [
@@ -108,6 +122,12 @@ const rules = {
       message: "请输入主机地址"
     }
   ],
+  database: [
+    {
+      required: true,
+      message: "请输入数据库"
+    }
+  ],
 };
 const driverOptions = [
   {
@@ -163,20 +183,34 @@ const saveConnect = (e) => {
   });
 };
 
-const sourceTable = ref();
-const sourceTables = ref([
-  {
-    label: "sdfs",
-    value: "sdfsdf"
-  }
-]);
-const targetTable = ref();
+const sourceTables = ref();
 const targetTables = ref([]);
+const reportSourceTable = ref();
+const reportTargetTable = ref();
+const reportSourceDatasourceInfo = ref();
+const reportTargetDatasourceInfo = ref();
+const showDiffReportDrawer = ref(false);
+const diffSourceTable = ref();
+const diffTargetTable = ref();
+const checkTable = ref();
 const showCheckDrawer = ref(false);
 const standardCheckd = ref([])
 const standardChecks = ref([]);
 
-const generateReport = () => { };
+
+const generateReport = () => {
+  if (!reportSourceTable.value || !reportTargetTable.value) {
+    message.error('请选择基准库和变动库');
+    return;
+  }
+  reportSourceDatasourceInfo.value = connects.value.find(info => info.database + '@' + info.name === reportSourceTable.value);
+  reportTargetDatasourceInfo.value = connects.value.find(info => info.database + '@' + info.name === reportTargetTable.value);
+  showDiffReportDrawer.value = true;
+};
+const closeDiffReportDrawer = () => {
+  showDiffReportDrawer.value = false;
+};
+
 const generateSql = (type) => { };
 const generateCheck = () => { };
 const generateCode = () => { };
@@ -187,7 +221,7 @@ const showCheck = () => {
 </script>
 
 <template>
-  <n-form inline :label-width="80" label-placement="left">
+  <n-form inline :label-width="80" label-placement="left" class="opt">
     <n-form-item>
       差异报告
       <n-tooltip trigger="hover">
@@ -200,16 +234,16 @@ const showCheck = () => {
       </n-tooltip>
     </n-form-item>
     <n-form-item label="基准表">
-      <n-select placeholder="请选择基准表" v-model:value="sourceTable" :options="sourceTables" />
+      <n-select placeholder="请选择基准表" v-model:value="reportSourceTable" :options="sourceTables" />
     </n-form-item>
     <n-form-item label="变动表">
-      <n-select placeholder="请选择目标表" v-model:value="targetTable" :options="targetTables" />
+      <n-select placeholder="请选择目标表" v-model:value="reportTargetTable" :options="targetTables" />
     </n-form-item>
     <n-form-item>
       <n-button @click="generateReport">生成</n-button>
     </n-form-item>
   </n-form>
-  <n-form inline :label-width="80" label-placement="left">
+  <n-form inline :label-width="80" label-placement="left" class="opt">
     <n-form-item>
       差异SQL
       <n-tooltip trigger="hover">
@@ -223,17 +257,17 @@ const showCheck = () => {
       </n-tooltip>
     </n-form-item>
     <n-form-item label="基准表">
-      <n-select placeholder="请选择基准表" v-model:value="sourceTable" :options="sourceTables" />
+      <n-select placeholder="请选择基准表" v-model:value="diffSourceTable" :options="sourceTables" />
     </n-form-item>
     <n-form-item label="变动表">
-      <n-select placeholder="请选择目标表" v-model:value="targetTable" :options="targetTables" />
+      <n-select placeholder="请选择目标表" v-model:value="diffTargetTable" :options="targetTables" />
     </n-form-item>
     <n-form-item>
       <n-button @click="generateSql('struct')">结构差异</n-button>
       <n-button @click="generateSql('data')">数据差异</n-button>
     </n-form-item>
   </n-form>
-  <n-form inline :label-width="80" label-placement="left">
+  <n-form inline :label-width="80" label-placement="left" class="opt">
     <n-form-item>
       规范检查
       <n-tooltip trigger="hover">
@@ -246,7 +280,7 @@ const showCheck = () => {
       </n-tooltip>
     </n-form-item>
     <n-form-item label="基准表">
-      <n-select placeholder="请选择基准表" v-model:value="sourceTable" :options="sourceTables" />
+      <n-select placeholder="请选择基准表" v-model:value="checkTable" :options="sourceTables" />
     </n-form-item>
     <n-form-item>
       <n-button @click="generateCheck">生成</n-button>
@@ -290,15 +324,15 @@ const showCheck = () => {
         <n-form-item path="port" label="端口">
           <n-input-number placeholder="请输入端口" v-model:value="model.port" clearable min="0" max="65535" />
         </n-form-item>
-        <n-form-item path="database" label="数据库">
-          <n-input placeholder="请输入数据库" v-model:value="model.database" clearable />
-        </n-form-item>
         <n-form-item path="username" label="用户名">
           <n-input placeholder="请输入用户名" v-model:value="model.username" clearable />
         </n-form-item>
         <n-form-item path="password" label="密码">
           <n-input placeholder="请输入密码" v-model:value="model.password" type="password" clearable
             @input="handlePasswordInput" @keydown.enter.prevent />
+        </n-form-item>
+        <n-form-item path="database" label="数据库">
+          <n-input placeholder="请输入数据库" v-model:value="model.database" clearable />
         </n-form-item>
       </n-form>
       <template #footer>
@@ -333,12 +367,18 @@ const showCheck = () => {
       </template>
     </n-drawer-content>
   </n-drawer>
+
+  <DatabaseDiffReport v-if="showDiffReportDrawer" :source="reportSourceDatasourceInfo"
+    :target="reportTargetDatasourceInfo" :showDrawer="showDiffReportDrawer"
+    @closeDiffReportDrawer="closeDiffReportDrawer" />
 </template>
 
-<style lang="scss">
-.n-form-item {
-  .n-form-item-blank {
-    width: 130px;
+<style lang="scss" scoped>
+.opt {
+  .n-form-item {
+    .n-select {
+      width: 250px;
+    }
   }
 }
 </style>

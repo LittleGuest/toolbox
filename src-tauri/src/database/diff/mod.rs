@@ -11,6 +11,8 @@ use crate::database::cores::{DatabaseMetadata, Driver, MysqlMetadata};
 
 mod report;
 
+pub use report::{diff_report, diff_sql, DiffReport};
+
 /// 所有表结构信息
 pub async fn table_struct(datasource_info: &DatasourceInfo) -> Result<HashMap<String, TableBo>> {
     match datasource_info.driver {

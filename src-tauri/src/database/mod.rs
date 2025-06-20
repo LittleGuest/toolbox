@@ -1,4 +1,5 @@
 use cores::{Column, DatabaseMetadata, Driver, Error, MysqlMetadata, Result, Schema};
+use diff::DiffReport;
 use serde::{Deserialize, Serialize};
 use sqlx::{Connection, MySqlConnection, MySqlPool};
 
@@ -92,4 +93,20 @@ pub async fn database_table_tree(datasource_info: DatasourceInfo) -> Result<Vec<
         Driver::Postgres => todo!(),
         Driver::Sqlite => todo!(),
     }
+}
+
+#[tauri::command]
+pub async fn database_diff_report(
+    source: DatasourceInfo,
+    target: DatasourceInfo,
+) -> Result<DiffReport> {
+    diff::diff_report(source, target).await
+}
+
+#[tauri::command]
+pub async fn database_diff_sql(
+    source: DatasourceInfo,
+    target: DatasourceInfo,
+) -> Result<Vec<String>> {
+    diff::diff_sql(source, target).await
 }
