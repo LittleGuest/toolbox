@@ -5,6 +5,7 @@ import { NButton, NButtonGroup, createDiscreteApi } from "naive-ui";
 import { datasourceInfosApi, saveDatasourceInfoApi, updateDatasourceInfoApi, deleteDatasourceInfoApi } from '../../db.js';
 import DatabaseDiffReport from './DatabaseDiffReport.vue';
 import { QuestionCircleOutlined } from "@vicons/antd";
+import DatabaseDiffSql from "./DatabaseDiffSql.vue";
 
 const { message, notification, dialog, loadingBar, modal } = createDiscreteApi(["message", "dialog", "notification", "loadingBar", "modal"]);
 
@@ -187,11 +188,12 @@ const sourceTables = ref();
 const targetTables = ref([]);
 const reportSourceTable = ref();
 const reportTargetTable = ref();
-const reportSourceDatasourceInfo = ref();
-const reportTargetDatasourceInfo = ref();
+const sourceDatasourceInfo = ref();
+const targetDatasourceInfo = ref();
 const showDiffReportDrawer = ref(false);
-const diffSourceTable = ref();
-const diffTargetTable = ref();
+const showDiffSqlDrawer = ref(false);
+const sqlSourceTable = ref();
+const sqlTargetTable = ref();
 const checkTable = ref();
 const showCheckDrawer = ref(false);
 const standardCheckd = ref([])
@@ -203,15 +205,26 @@ const generateReport = () => {
     message.error('请选择基准库和变动库');
     return;
   }
-  reportSourceDatasourceInfo.value = connects.value.find(info => info.database + '@' + info.name === reportSourceTable.value);
-  reportTargetDatasourceInfo.value = connects.value.find(info => info.database + '@' + info.name === reportTargetTable.value);
+  sourceDatasourceInfo.value = connects.value.find(info => info.database + '@' + info.name === reportSourceTable.value);
+  targetDatasourceInfo.value = connects.value.find(info => info.database + '@' + info.name === reportTargetTable.value);
   showDiffReportDrawer.value = true;
 };
-const closeDiffReportDrawer = () => {
+
+const closeDrawer = () => {
   showDiffReportDrawer.value = false;
+  showDiffSqlDrawer.value = false;
 };
 
-const generateSql = (type) => { };
+const generateSql = (type) => {
+  if (!sqlSourceTable.value || !sqlTargetTable.value) {
+    message.error('请选择基准库和变动库');
+    return;
+  }
+  sourceDatasourceInfo.value = connects.value.find(info => info.database + '@' + info.name === sqlSourceTable.value);
+  targetDatasourceInfo.value = connects.value.find(info => info.database + '@' + info.name === sqlTargetTable.value);
+  showDiffSqlDrawer.value = true;
+};
+
 const generateCheck = () => { };
 const generateCode = () => { };
 const showCheck = () => {
@@ -257,10 +270,10 @@ const showCheck = () => {
       </n-tooltip>
     </n-form-item>
     <n-form-item label="基准表">
-      <n-select placeholder="请选择基准表" v-model:value="diffSourceTable" :options="sourceTables" />
+      <n-select placeholder="请选择基准表" v-model:value="sqlSourceTable" :options="sourceTables" />
     </n-form-item>
     <n-form-item label="变动表">
-      <n-select placeholder="请选择目标表" v-model:value="diffTargetTable" :options="targetTables" />
+      <n-select placeholder="请选择目标表" v-model:value="sqlTargetTable" :options="targetTables" />
     </n-form-item>
     <n-form-item>
       <n-button @click="generateSql('struct')">结构差异</n-button>
@@ -368,9 +381,10 @@ const showCheck = () => {
     </n-drawer-content>
   </n-drawer>
 
-  <DatabaseDiffReport v-if="showDiffReportDrawer" :source="reportSourceDatasourceInfo"
-    :target="reportTargetDatasourceInfo" :showDrawer="showDiffReportDrawer"
-    @closeDiffReportDrawer="closeDiffReportDrawer" />
+  <DatabaseDiffReport v-if="showDiffReportDrawer" :source="sourceDatasourceInfo" :target="targetDatasourceInfo"
+    :showDrawer="showDiffReportDrawer" @closeDrawer="closeDrawer" />
+  <DatabaseDiffSql v-if="showDiffSqlDrawer" :source="sourceDatasourceInfo" :target="targetDatasourceInfo"
+    :showDrawer="showDiffSqlDrawer" @closeDrawer="closeDrawer" />
 </template>
 
 <style lang="scss" scoped>

@@ -21,7 +21,7 @@ const props = defineProps({
     required: true,
   },
 });
-const emits = defineEmits(['closeDiffReportDrawer']);
+const emits = defineEmits(['closeDrawer']);
 
 const isDoCloseAll = ref(1);
 const increList = ref([]);
@@ -228,7 +228,7 @@ const downloadImg = () => {
 };
 
 const onClose = () => {
-  emits('closeDiffReportDrawer');
+  emits('closeDrawer');
 };
 
 onMounted(async () => {
