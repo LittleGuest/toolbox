@@ -10,8 +10,10 @@ use super::{
 use crate::database::cores::{DatabaseMetadata, Driver, MysqlMetadata};
 
 mod report;
+mod standard_check;
 
 pub use report::{diff_report, diff_sql, DiffReport};
+pub use standard_check::{standard_check, CheckReportBo, StandardCheck};
 
 /// 所有表结构信息
 pub async fn table_struct(datasource_info: &DatasourceInfo) -> Result<HashMap<String, TableBo>> {

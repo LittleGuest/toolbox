@@ -1,7 +1,11 @@
+use std::collections::HashMap;
+
 use cores::{Column, DatabaseMetadata, Driver, Error, MysqlMetadata, Result, Schema};
 use diff::DiffReport;
 use serde::{Deserialize, Serialize};
 use sqlx::{Connection, MySqlConnection, MySqlPool};
+
+use crate::database::diff::CheckReportBo;
 
 mod cores;
 mod diff;
@@ -109,4 +113,17 @@ pub async fn database_diff_sql(
     target: DatasourceInfo,
 ) -> Result<Vec<String>> {
     diff::diff_sql(source, target).await
+}
+
+#[tauri::command]
+pub async fn database_standard_check_codes() ->  Vec<HashMap<String, String>> {
+    diff::StandardCheck::codes()
+}
+
+#[tauri::command]
+pub async fn database_standard_check(
+    source: DatasourceInfo,
+    check_codes: Vec<i32>,
+) -> Result<Vec<CheckReportBo>> {
+    diff::standard_check(source, check_codes).await
 }

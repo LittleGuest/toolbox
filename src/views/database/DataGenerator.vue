@@ -80,7 +80,6 @@ const handleSelectTable = async () => {
   await databaseTableTreeApi(info).then(res => {
     const maped = res.map((t) => {
       const child = t.children.map((c) => {
-        console.log(c, '-=-=')
         return {
           key: c.table_name + "@" + c.name,
           label: c.name,

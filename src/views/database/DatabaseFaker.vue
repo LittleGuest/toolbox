@@ -147,7 +147,6 @@ const saveConnect = (e) => {
   e.preventDefault();
   formRef.value?.validate(async (errors) => {
     if (!errors) {
-      console.log(addDrawer, '==-=-=-=-=')
       if (addDrawer.value) {
         message.success("添加成功");
         await saveDatasourceInfoApi(model.value);

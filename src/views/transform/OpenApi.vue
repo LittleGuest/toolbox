@@ -39,7 +39,6 @@ const fetchApiData = async () => {
 };
 
 const download = async () => {
-  console.log(outputType.value, url.value);
   await invoke("download", {
     url: url.value,
     outputType: outputType.value

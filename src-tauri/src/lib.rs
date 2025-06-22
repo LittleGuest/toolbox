@@ -83,6 +83,8 @@ pub fn run() {
             database::database_table_tree,
             database::database_diff_report,
             database::database_diff_sql,
+            database::database_standard_check_codes,
+            database::database_standard_check,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
