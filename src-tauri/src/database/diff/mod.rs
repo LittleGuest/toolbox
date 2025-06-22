@@ -39,12 +39,13 @@ pub async fn table_struct(datasource_info: &DatasourceInfo) -> Result<HashMap<St
                         .await?
                         .into_iter()
                         .map(IndexBo::from)
-                        .fold(HashMap::new(), |mut map, ix| {
-                            map.entry(ix.key_name.clone())
-                                .or_insert_with(Vec::new)
-                                .push(ix);
-                            map
-                        });
+                        .fold(
+                            HashMap::new(),
+                            |mut map: HashMap<String, Vec<IndexBo>>, ix| {
+                                map.entry(ix.key_name.clone()).or_default().push(ix);
+                                map
+                            },
+                        );
                     let indexs_len = indexs.len();
                     indexs.into_iter().fold(
                         HashMap::with_capacity(indexs_len),

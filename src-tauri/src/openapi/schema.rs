@@ -27,7 +27,7 @@ pub struct Components {
 #[serde(untagged, rename_all = "camelCase")]
 pub enum Schema {
     Array(Array),
-    Object(Object),
+    Object(Box<Object>),
     OneOf(OneOf),
     AllOf(AllOf),
     AnyOf(AnyOf),
@@ -35,7 +35,7 @@ pub enum Schema {
 
 impl Default for Schema {
     fn default() -> Self {
-        Schema::Object(Object::default())
+        Schema::Object(Box::default())
     }
 }
 

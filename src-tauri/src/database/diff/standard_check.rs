@@ -385,7 +385,7 @@ pub async fn standard_check(
     let mut source_ts = super::table_struct(&source).await?;
     let mut map = DashMap::new();
     let mut words = DashMap::new();
-    let mut spelling_check = check_codes.contains(&StandardCheck::NameErrorSpell.code());
+    let spelling_check = check_codes.contains(&StandardCheck::NameErrorSpell.code());
 
     for (sname, st) in source_ts.iter_mut() {
         check_word(sname, &check_codes, sname, &mut map).await?;
@@ -411,7 +411,7 @@ pub async fn standard_check(
 
         let mut cnames = vec![];
         for (cname, sc) in st.columns.iter() {
-            let key = format!("{}#{}", sname, cname);
+            let key = format!("{sname}#{cname}");
             cnames.push(cname);
             check_word(sname, &check_codes, &key, &mut map).await?;
             if spelling_check {
@@ -419,48 +419,49 @@ pub async fn standard_check(
             }
 
             // 字段是is开头，但类型不是unsigned tinyint
-            if check_codes.contains(&StandardCheck::FieldIsStartErrorType.code()) {
-                if cname.contains("is_") && !ColumnType::TinyInt.eq(&sc.r#type.unwrap()) {
-                    add_to_map(&mut map, &key, StandardCheck::FieldIsStartErrorType, vec![]);
-                }
+            if check_codes.contains(&StandardCheck::FieldIsStartErrorType.code())
+                && cname.contains("is_")
+                && !ColumnType::TinyInt.eq(&sc.r#type.unwrap())
+            {
+                add_to_map(&mut map, &key, StandardCheck::FieldIsStartErrorType, vec![]);
             }
 
             // 字段是is开头，但字段备注没有包含“是否”二字
-            if check_codes.contains(&StandardCheck::FieldIsStartErrorComment.code()) {
-                if cname.starts_with("is_") && !sc.comment.eq("是否") {
-                    add_to_map(
-                        &mut map,
-                        &key,
-                        StandardCheck::FieldIsStartErrorComment,
-                        vec![],
-                    );
-                }
+            if check_codes.contains(&StandardCheck::FieldIsStartErrorComment.code())
+                && cname.starts_with("is_")
+                && !sc.comment.eq("是否")
+            {
+                add_to_map(
+                    &mut map,
+                    &key,
+                    StandardCheck::FieldIsStartErrorComment,
+                    vec![],
+                );
             }
 
             // 字段备注包含“是否”二字，但字段名称不是is开头
-            if check_codes.contains(&StandardCheck::FieldIsContainComment.code()) {
-                if cname.contains("is_") && sc.comment.eq("是否") {
-                    add_to_map(&mut map, &key, StandardCheck::FieldIsContainComment, vec![]);
-                }
+            if check_codes.contains(&StandardCheck::FieldIsContainComment.code())
+                && cname.contains("is_")
+                && sc.comment.eq("是否")
+            {
+                add_to_map(&mut map, &key, StandardCheck::FieldIsContainComment, vec![]);
             }
 
             // 小数类型为 decimal
-            if check_codes.contains(&StandardCheck::FieldTypeUseFloat.code()) {
-                if ColumnType::Float.eq(&sc.r#type.unwrap())
-                    || ColumnType::Double.eq(&sc.r#type.unwrap())
-                {
-                    add_to_map(&mut map, &key, StandardCheck::FieldIsContainComment, vec![]);
-                }
+            if check_codes.contains(&StandardCheck::FieldTypeUseFloat.code())
+                && (ColumnType::Float.eq(&sc.r#type.unwrap())
+                    || ColumnType::Double.eq(&sc.r#type.unwrap()))
+            {
+                add_to_map(&mut map, &key, StandardCheck::FieldIsContainComment, vec![]);
             }
         }
         // 表缺少必备三字段
-        if check_codes.contains(&StandardCheck::TableMissField.code()) {
-            if cnames
+        if check_codes.contains(&StandardCheck::TableMissField.code())
+            && cnames
                 .iter()
                 .any(|&n| !(n.eq("id") && n.eq("created_at") && n.eq("updated_at")))
-            {
-                add_to_map(&mut map, &sname, StandardCheck::TableMissField, vec![]);
-            }
+        {
+            add_to_map(&mut map, sname, StandardCheck::TableMissField, vec![]);
         }
     }
 
@@ -492,19 +493,25 @@ async fn check_report(map: DashMap<String, Vec<Suggest>>) -> Result<Vec<CheckRep
         }
 
         if let Some(cr) = check_report_map.get_mut(table_name) {
-            let mut child = CheckReportBo::default();
-            child.name = column_name.to_string();
-            child.suggests = suggests.clone();
+            let child = CheckReportBo {
+                name: column_name.to_string(),
+                suggests: suggests.clone(),
+                ..Default::default()
+            };
             cr.children.push(child);
         } else {
-            let mut report = CheckReportBo::default();
-            report.name = table_name.to_string();
+            let mut report = CheckReportBo {
+                name: table_name.to_string(),
+                ..Default::default()
+            };
             if is_table {
                 report.suggests = suggests.clone();
             } else {
-                let mut child = CheckReportBo::default();
-                child.name = column_name.to_string();
-                child.suggests = suggests.clone();
+                let child = CheckReportBo {
+                    name: column_name.to_string(),
+                    suggests: suggests.clone(),
+                    ..Default::default()
+                };
                 report.children.push(child);
             }
             check_report_map.insert(table_name.to_string(), report);
@@ -525,10 +532,10 @@ async fn check_word(
     map: &mut DashMap<String, Vec<Suggest>>,
 ) -> Result<()> {
     // 检查小写
-    if check_codes.contains(&StandardCheck::NameContainUpperCase.code()) {
-        if REG_UPPER_CASE.is_match(word) {
-            add_to_map(map, key, StandardCheck::NameContainUpperCase, vec![]);
-        }
+    if check_codes.contains(&StandardCheck::NameContainUpperCase.code())
+        && REG_UPPER_CASE.is_match(word)
+    {
+        add_to_map(map, key, StandardCheck::NameContainUpperCase, vec![]);
     }
     // 不能以数字开头
     if check_codes.contains(&StandardCheck::NameDigitStart.code()) {
@@ -543,10 +550,10 @@ async fn check_word(
         }
     }
     // 禁用关键字
-    if check_codes.contains(&StandardCheck::NameUseKeyword.code()) {
-        if MYSQL_RESERVED_KEY_WORDS.contains(&word.to_lowercase().as_str()) {
-            add_to_map(map, key, StandardCheck::NameUseKeyword, vec![]);
-        }
+    if check_codes.contains(&StandardCheck::NameUseKeyword.code())
+        && MYSQL_RESERVED_KEY_WORDS.contains(&word.to_lowercase().as_str())
+    {
+        add_to_map(map, key, StandardCheck::NameUseKeyword, vec![]);
     }
     Ok(())
 }
@@ -560,7 +567,7 @@ async fn collect_word(
         if let Some(ws) = map.get_mut(key) {
             ws.insert(name.into());
         } else {
-            let mut ws = DashSet::new();
+            let ws = DashSet::new();
             ws.insert(name.to_lowercase());
             map.insert(key.into(), ws);
         }
@@ -625,15 +632,8 @@ async fn check_index(
         .iter()
         .filter(|(inm, _)| !inm.eq_ignore_ascii_case("PRIMARY"))
     {
-        if (index.non_unique == 0 && !index.key_name.contains("uk_"))
-            || !index.key_name.contains("idx_")
-        {
-            add_to_map(
-                map,
-                key,
-                StandardCheck::IndexNameError,
-                vec![index.key_name.clone()],
-            );
+        if (index.non_unique == 0 && !iname.contains("uk_")) || !iname.contains("idx_") {
+            add_to_map(map, key, StandardCheck::IndexNameError, vec![iname.clone()]);
         }
     }
     Ok(())
@@ -696,7 +696,11 @@ fn add_to_map(
 ) {
     let desc = check.format_desc(&args);
     let suggest = if StandardCheck::NameErrorSpell.eq(&check) {
-        Suggest::new_with_word(check.code(), desc, args.get(0).cloned().unwrap_or_default())
+        Suggest::new_with_word(
+            check.code(),
+            desc,
+            args.first().cloned().unwrap_or_default(),
+        )
     } else {
         Suggest::new(check.code(), desc)
     };
