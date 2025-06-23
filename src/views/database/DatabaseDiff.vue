@@ -40,7 +40,7 @@ onMounted(async () => {
     };
   });
 
-  standardCheckCodes.value = await databaseStandardCheckApi();
+  standardCheckCodeList.value = await databaseStandardCheckApi();
 });
 
 const columns = [
@@ -220,6 +220,7 @@ const standardCheckTable = ref();
 const showStandardCheckDrawer = ref(false);
 const showCustomCheckDrawer = ref(false);
 const customStandardChecked = ref([]);
+const standardCheckCodeList = ref([]);
 const standardCheckCodes = ref([]);
 
 const generateReport = () => {
@@ -257,7 +258,7 @@ const generateSql = (type) => {
   showDiffSqlDrawer.value = true;
 };
 
-const generateCheck = () => {
+const generateCheck = (custom) => {
   if (!standardCheckTable.value) {
     message.error("请选择基准库");
     return;
@@ -265,6 +266,11 @@ const generateCheck = () => {
   sourceDatasourceInfo.value = connects.value.find(
     (info) => info.database + "#" + info.name === standardCheckTable.value,
   );
+  if (custom) {
+    standardCheckCodes.value = customStandardChecked.value;
+  } else {
+    standardCheckCodes.value = standardCheckCodeList.value.map(c => c.code);
+  }
   showCustomCheckDrawer.value = false;
   showStandardCheckDrawer.value = true;
 };
@@ -346,7 +352,7 @@ const showCheck = () => {
       <n-select placeholder="请选择基准表" v-model:value="standardCheckTable" :options="sourceTables" />
     </n-form-item>
     <n-form-item>
-      <n-button @click="generateCheck">检查</n-button>
+      <n-button @click="generateCheck(false)">检查</n-button>
       <n-button @click="showCheck">自定义检查</n-button>
     </n-form-item>
   </n-form>
@@ -410,15 +416,15 @@ const showCheck = () => {
       <n-form label-placement="left" label-width="auto" require-mark-placement="right-hanging">
         <n-form-item label="">
           <n-checkbox-group v-model:value="customStandardChecked">
-            <n-space>
-              <n-checkbox v-for="code in standardCheckCodes" :value="code.code"> {{ code.desc }} </n-checkbox>
+            <n-space style="flex-flow: column;">
+              <n-checkbox v-for="code in standardCheckCodeList" :value="code.code"> {{ code.desc }} </n-checkbox>
             </n-space>
           </n-checkbox-group>
         </n-form-item>
       </n-form>
       <template #footer>
         <n-button @click="closeDrawer()">取消</n-button>
-        <n-button @click="generateCheck()">保存</n-button>
+        <n-button @click="generateCheck(true)">保存</n-button>
       </template>
     </n-drawer-content>
   </n-drawer>

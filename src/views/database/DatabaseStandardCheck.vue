@@ -35,7 +35,7 @@ const checkPluralizeTypeCode = 31;
 const databaseStandardCheckApi = async () => {
   return await invoke("database_standard_check", {
     source: props.source,
-    checkCodes: props.checkCodes.map((c) => Number(c.code)),
+    checkCodes: props.checkCodes.map((c) => Number(c)),
   })
     .then((res) => {
       return res;
@@ -73,6 +73,7 @@ const onClose = () => {
 };
 
 onMounted(async () => {
+  console.log('props', props.checkCodes);
   checkReports.value = await databaseStandardCheckApi();
 });
 </script>
@@ -89,7 +90,7 @@ onMounted(async () => {
           <div class="block-content">
             <p class="m-p" v-for="(item1, index1) in item.suggests">
               <span class="m-span">{{ index1 + 1 }}.</span class="m-span">
-              <span>{{ item1.desc }}}}</span>
+              <span>{{ item1.desc }}</span>
               <n-button v-if="item1.code == checkSpellingTypeCode || item1.code == checkPluralizeTypeCode"
                 style="margin-left: 10px;" type="success" @click="showIgnoreConfirm(item1.code, item1.originWord)">
                 <n-tooltip trigger="hover">

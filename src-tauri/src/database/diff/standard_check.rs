@@ -413,14 +413,14 @@ pub async fn standard_check(
         for (cname, sc) in st.columns.iter() {
             let key = format!("{sname}#{cname}");
             cnames.push(cname);
-            check_word(sname, &check_codes, &key, &mut map).await?;
+            check_word(cname, &check_codes, &key, &mut map).await?;
             if spelling_check {
                 collect_word(&key, cname, &mut words).await?;
             }
 
             // 字段是is开头，但类型不是unsigned tinyint
             if check_codes.contains(&StandardCheck::FieldIsStartErrorType.code())
-                && cname.contains("is_")
+                && cname.starts_with("is_")
                 && !ColumnType::TinyInt.eq(&sc.r#type.unwrap())
             {
                 add_to_map(&mut map, &key, StandardCheck::FieldIsStartErrorType, vec![]);
@@ -429,7 +429,7 @@ pub async fn standard_check(
             // 字段是is开头，但字段备注没有包含“是否”二字
             if check_codes.contains(&StandardCheck::FieldIsStartErrorComment.code())
                 && cname.starts_with("is_")
-                && !sc.comment.eq("是否")
+                && !sc.comment.contains("是否")
             {
                 add_to_map(
                     &mut map,
@@ -441,8 +441,8 @@ pub async fn standard_check(
 
             // 字段备注包含“是否”二字，但字段名称不是is开头
             if check_codes.contains(&StandardCheck::FieldIsContainComment.code())
-                && cname.contains("is_")
-                && sc.comment.eq("是否")
+                && !cname.starts_with("is_")
+                && sc.comment.contains("是否")
             {
                 add_to_map(&mut map, &key, StandardCheck::FieldIsContainComment, vec![]);
             }
@@ -452,7 +452,7 @@ pub async fn standard_check(
                 && (ColumnType::Float.eq(&sc.r#type.unwrap())
                     || ColumnType::Double.eq(&sc.r#type.unwrap()))
             {
-                add_to_map(&mut map, &key, StandardCheck::FieldIsContainComment, vec![]);
+                add_to_map(&mut map, &key, StandardCheck::FieldTypeUseFloat, vec![]);
             }
         }
         // 表缺少必备三字段
@@ -493,12 +493,16 @@ async fn check_report(map: DashMap<String, Vec<Suggest>>) -> Result<Vec<CheckRep
         }
 
         if let Some(cr) = check_report_map.get_mut(table_name) {
-            let child = CheckReportBo {
-                name: column_name.to_string(),
-                suggests: suggests.clone(),
-                ..Default::default()
-            };
-            cr.children.push(child);
+            if is_table {
+                cr.suggests = suggests.clone();
+            } else {
+                let child = CheckReportBo {
+                    name: column_name.to_string(),
+                    suggests: suggests.clone(),
+                    ..Default::default()
+                };
+                cr.children.push(child);
+            }
         } else {
             let mut report = CheckReportBo {
                 name: table_name.to_string(),
@@ -521,7 +525,7 @@ async fn check_report(map: DashMap<String, Vec<Suggest>>) -> Result<Vec<CheckRep
 }
 
 static REG_UPPER_CASE: LazyLock<Regex> = LazyLock::new(|| Regex::new(".*[A-Z]+.*").unwrap());
-static REG_START_WITH_NUMBER: LazyLock<Regex> = LazyLock::new(|| Regex::new("[0-9].*").unwrap());
+static REG_START_WITH_NUMBER: LazyLock<Regex> = LazyLock::new(|| Regex::new("^[0-9].*").unwrap());
 static REG_NUMBER: LazyLock<Regex> = LazyLock::new(|| Regex::new("[\\d]").unwrap());
 
 /// 检查名称
@@ -538,16 +542,10 @@ async fn check_word(
         add_to_map(map, key, StandardCheck::NameContainUpperCase, vec![]);
     }
     // 不能以数字开头
-    if check_codes.contains(&StandardCheck::NameDigitStart.code()) {
-        if word.contains('_') {
-            word.split('_')
-                .filter(|w| REG_START_WITH_NUMBER.is_match(w))
-                .for_each(|w| {
-                    add_to_map(map, key, StandardCheck::NameDigitStart, vec![w.into()]);
-                });
-        } else if REG_START_WITH_NUMBER.is_match(word) {
-            add_to_map(map, key, StandardCheck::NameDigitStart, vec![word.into()]);
-        }
+    if check_codes.contains(&StandardCheck::NameDigitStart.code())
+        && REG_START_WITH_NUMBER.is_match(word)
+    {
+        add_to_map(map, key, StandardCheck::NameDigitStart, vec![word.into()]);
     }
     // 禁用关键字
     if check_codes.contains(&StandardCheck::NameUseKeyword.code())
