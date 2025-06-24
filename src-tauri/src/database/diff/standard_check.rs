@@ -3,6 +3,7 @@ use std::{collections::HashMap, sync::LazyLock};
 use dashmap::{DashMap, DashSet};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use symspell::{AsciiStringStrategy, SymSpell, Verbosity};
 
 use crate::database::{
     cores::{ColumnType, Error, Result},
@@ -465,12 +466,9 @@ pub async fn standard_check(
         }
     }
 
-    // 单词拼写检查
     if spelling_check {
-        check_spelling(&words, &map).await?;
+        check_spelling(words, &mut map).await?;
     }
-
-    // TODO: map排序
 
     check_report(map).await
 }
@@ -580,9 +578,11 @@ async fn collect_word(
     Ok(())
 }
 
+/// 单词单数形式缓存
 static SINGULARIZE_MAP: LazyLock<DashMap<String, String>> = LazyLock::new(DashMap::new);
 /// 忽略拼写检查的单词
 static IGNORE_SPELLING_WORD: LazyLock<Vec<String>> = LazyLock::new(Vec::new);
+/// 拼写检查缓存
 static SPELLING_MAP: LazyLock<DashMap<String, Vec<String>>> = LazyLock::new(DashMap::new);
 
 /// 检查单词的单复数
@@ -637,51 +637,45 @@ async fn check_index(
     Ok(())
 }
 
-/// TODO：单词拼写检查
+/// 单词拼写检查
 async fn check_spelling(
-    word: &DashMap<String, DashSet<String>>,
-    map: &DashMap<String, Vec<Suggest>>,
+    word: DashMap<String, DashSet<String>>,
+    map: &mut DashMap<String, Vec<Suggest>>,
 ) -> Result<()> {
-    // for (key,ws) in word.iter().filter(|(_,ws)|{ws.is_empty()}) {
-    //     for w in ws.iter().filter(|w|!IGNORE_SPELLING_WORD.lock().unwrap().contains(w)) {
-    //         let mut spelling_map=SPELLING_MAP.lock().unwrap();
-    //         let new = w;
-    //         if let Some(suggests) = spelling_map.get_mut(w){
+    // let mut temp_map = HashMap::new();
+    // for (key, ws) in word.into_iter().filter(|(_, ws)| !ws.is_empty()) {
+    //     let mut symspell: SymSpell<AsciiStringStrategy> = SymSpell::default();
+    //     symspell.load_dictionary("./database/diff/word_checker", 0, 1, ",");
+    //     for w in ws.iter().filter(|w| !IGNORE_SPELLING_WORD.contains(w)) {
+    //         let suggests = SPELLING_MAP.get_mut(w.key());
+    //         let mut suggestions = vec![];
     //
-    //         }else{
-    //             // 去掉单词中的数字
-    //             // REG_NUMBER;
-    //
-    //             spelling_map.insert(w.clone(), suggests);
+    //         if suggests.is_none_or(|s| s.value().is_empty()) {
+    //             let w2 = REG_NUMBER.replace_all(w.key(), "");
+    //             suggestions = if w2.len() > 1 {
+    //                 let suggestions = symspell.lookup(&w2, Verbosity::Top, 2);
+    //                 suggestions
+    //                     .iter()
+    //                     .map(|s| s.term.clone())
+    //                     .collect::<Vec<_>>()
+    //             } else {
+    //                 vec![w.key().into()]
+    //             };
     //         }
-    //     }
-    // }
-    // {
-    //     for (Map.Entry<String, Set<String>> entry : wordMap.entrySet()) {
-    //     if (!CollectionUtils.isEmpty(entry.getValue())) {
-    //         for (String word : entry.getValue()) {
-    //             if (!CommonData.ignoreSpellingWordStr.contains(word)) {
-    //                 List<String> suggestList = spellingMap.get(word);
-    //                 String newWord = word;
-    //                 if (CollectionUtils.isEmpty(suggestList)) {
-    //                     // 去掉单词中的数字
-    //                     String word2 = numberCompile.matcher(word).replaceAll("");
-    //                     if (word2.length() > 1) {
-    //                         newWord = word2;
-    //                         suggestList = EnWordCheckers.correctList(word2);
-    //                     } else {
-    //                         suggestList = new ArrayList<>();
-    //                         suggestList.add(word);
-    //                     }
-    //                     spellingMap.put(word, suggestList);
-    //                 }
-    //                 if (!CollectionUtils.isEmpty(suggestList) && (suggestList.size() > 1 || !suggestList.get(0).equals(newWord))) {
-    //                     this.add2Map(resultMap, entry.getKey(), RegulationCheckTypeEnum.NAME_ERROR_SPELL, Arrays.asList(word, suggestList.toString()));
-    //                 }
+    //         SPELLING_MAP.entry(w.key().into()).insert(suggestions);
+    //         let suggests = SPELLING_MAP.get(w.key());
+    //         if let Some(sgs) = suggests {
+    //             if !sgs.value().is_empty() {
+    //                 let args = vec![w.key().into()];
+    //                 let args = args
+    //                     .into_iter()
+    //                     .chain(sgs.value().clone())
+    //                     .collect::<Vec<_>>();
+    //                 add_to_map(map, &key, StandardCheck::NameErrorSpell, args);
     //             }
     //         }
+    //         // SPELLING_MAP.entry(w.key().into()).insert(sgs);
     //     }
-    // }
     // }
     Ok(())
 }

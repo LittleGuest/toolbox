@@ -74,6 +74,7 @@ fastrand = "2.3.0"
 anyhow = "1.0.98"
 Inflector = "0.11.4"
 dashmap = "6.1.0"
+symspell = "0.4.5"
 
 [dev-dependencies]
 dotenv = "0.15.0"
