@@ -1,3 +1,4 @@
+use rust_embed::Embed;
 use tauri::Manager;
 use tauri_plugin_sql::{Migration, MigrationKind};
 use thiserror::Error;
@@ -35,6 +36,10 @@ impl serde::Serialize for Error {
         serializer.serialize_str(self.to_string().as_ref())
     }
 }
+
+#[derive(Embed)]
+#[folder = "templates/"]
+struct Templates;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {

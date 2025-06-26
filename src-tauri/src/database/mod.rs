@@ -9,16 +9,24 @@ use crate::database::diff::CheckReportBo;
 
 mod cores;
 mod diff;
+mod generator;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DatasourceInfo {
+    /// 数据库驱动
     driver: Driver,
+    /// 数据源名称
     name: String,
+    /// 数据库主机地址
     host: String,
+    /// 数据库端口号
     port: Option<u16>,
+    /// 数据库账号
     username: Option<String>,
+    /// 数据库密码
     password: Option<String>,
+    /// 指定的数据库名称
     database: Option<String>,
 }
 
@@ -38,8 +46,15 @@ impl DatasourceInfo {
                     self.database.clone().unwrap_or_default()
                 )
             }
-            Driver::Postgres => todo!(),
-            Driver::Sqlite => todo!(),
+            Driver::Postgres => format!(
+                "postgres://{}:{}@{}:{}/{}",
+                self.username.clone().unwrap_or_default(),
+                self.password.clone().unwrap_or_default(),
+                self.host,
+                self.port.unwrap_or_default(),
+                self.database.clone().unwrap_or_default()
+            ),
+            Driver::Sqlite => format!("sqlite://{}", self.database.clone().unwrap_or_default()),
         }
     }
 }
@@ -116,7 +131,7 @@ pub async fn database_diff_sql(
 }
 
 #[tauri::command]
-pub async fn database_standard_check_codes() ->  Vec<HashMap<String, String>> {
+pub async fn database_standard_check_codes() -> Vec<HashMap<String, String>> {
     diff::StandardCheck::codes()
 }
 

@@ -85,6 +85,7 @@ pub struct Column {
     pub enum_values: Option<Vec<String>>,
     /// 备注
     pub comment: String,
+
     /// 是否为空
     pub is_null: bool,
     /// 是否自增
@@ -95,6 +96,9 @@ pub struct Column {
     pub is_primary_key: bool,
     /// 是否无符号
     pub is_unsigned: bool,
+
+    // 对应 Rust 类型
+    pub rust_type: String,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -254,7 +258,7 @@ impl From<String> for ColumnType {
 }
 
 /// 驱动类型
-#[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum Driver {
     Mysql,

@@ -18,7 +18,7 @@ use tag::Tag;
 use tauri::{AppHandle, Manager};
 use tera::Tera;
 
-use crate::Result;
+use crate::{Result, Templates};
 
 mod content;
 mod encoding;
@@ -60,10 +60,6 @@ pub enum OutputType {
 //         tera
 //     };
 // }
-
-#[derive(Embed)]
-#[folder = "templates/"]
-struct Templates;
 
 #[tauri::command]
 pub async fn fetch_api_data(url: &str) -> Result<String> {

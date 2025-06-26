@@ -1,0 +1,39 @@
+package ${packageEntityName};
+
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.experimental.Accessors;
+<%for(dataType in dataTypeList){%>
+import ${dataType};
+<%}%>
+
+/**
+ * ${tableInfoBo.tableComment} entity
+ * @author TODO ${date(),'yyyy-MM-dd HH:mm'}
+ */
+@Data
+@EqualsAndHashCode(callSuper = false)
+@ApiModel("${tableInfoBo.tableUpperCaseName}${tableInfoBo.tableComment}")
+@Accessors(chain = true)
+@TableName("${tableInfoBo.tableName}")
+public class ${tableInfoBo.tableUpperCaseName} {
+
+	<%for(field in tableInfoBo.fieldList){%>
+    <%if(field.isPrimaryKey == 1){%>
+    @ApiModelProperty(value = "${field.fieldComment}")
+    @TableId(value = "${field.fieldName}", type = IdType.AUTO)
+    private ${field.fieldValueType} ${field.fieldCamelName};
+
+    <%}%>
+    <%if(field.isPrimaryKey != 1){%>
+    @ApiModelProperty(value = "${field.fieldComment}")
+    private ${field.fieldValueType} ${field.fieldCamelName};
+
+    <%}%>
+	<%}%>
+}

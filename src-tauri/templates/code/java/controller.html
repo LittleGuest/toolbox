@@ -1,0 +1,18 @@
+package ${packageControllerName};
+
+import io.swagger.annotations.Api;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * ${tableInfoBo.tableComment} Controller
+ * @author TODO ${date(),'yyyy-MM-dd HH:mm'}
+ */
+@Api(tags = "${tableInfoBo.tableUpperCaseName}${tableInfoBo.tableComment}")
+@RequestMapping("/${tableInfoBo.tableCamelName}")
+@RestController
+@Slf4j
+public class ${tableInfoBo.tableUpperCaseName}Controller {
+
+}

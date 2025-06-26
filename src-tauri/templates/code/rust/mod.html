@@ -1,0 +1,94 @@
+use async_static::async_static;
+use serde::{Deserialize, Serialize};
+
+{% if driver == 'Mysql' %}
+use sqlx::{MySql, Pool};
+{% elif driver == 'Postgres' %}
+use sqlx::{Postgres, Pool}; 
+{% elif driver == 'Sqlite' %}
+use sqlx::{Sqlite, Pool};
+{% endif %}
+
+
+{% for table_name, _ in table_names %}
+mod {{ table_name }};
+pub use {{ table_name }}::*;
+{% endfor %}
+
+async_static! {
+{% if driver == 'Mysql' %}
+    static ref DB: Pool<MySql> = pool().await;
+{% elif driver == 'Postgres' %}
+    static ref DB: Pool<Postgres> = pool().await;    
+{% elif driver == 'Sqlite' %}
+    static ref DB: Pool<Sqlite> = pool().await;    
+{% endif %}
+}
+
+{% if driver == 'Mysql' %}
+async fn pool() -> Pool<MySql> {
+    sqlx::MySqlPool::connect("{{ driver_url }}").await.unwrap()
+}
+{% elif driver == 'Postgres' %}
+async fn pool() -> Pool<Postgres> {
+    sqlx::PgPool::connect("{{ driver_url }}").await.unwrap()
+}
+{% elif driver == 'Sqlite' %}
+async fn pool() -> Pool<Sqlite> {
+    sqlx::SqlitePool::connect("{{ driver_url }}").await.unwrap()
+}
+{% endif %}
+
+
+/// 分页返回封装
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct PageRes<T> {
+    page: i64,
+    page_size: i64,
+    total: i64,
+    list: Vec<T>,
+    first: bool,
+    last: bool,
+    has_next: bool,
+    has_pre: bool,
+    total_pages: i64,
+}
+
+impl<T> std::default::Default for PageRes<T> {
+    fn default() -> Self {
+        Self {
+            page: 1,
+            page_size: 15,
+            total: 0,
+            list: vec![],
+            first: true,
+            last: false,
+            has_next: false,
+            has_pre: false,
+            total_pages: 0,
+        }
+    }
+}
+
+impl<T> PageRes<T>
+where
+    T: Serialize + Clone,
+{
+    pub fn new(total: i64, mut page: i64, page_size: i64, list: &[T]) -> Self {
+        if page <= 0 {
+            page = 1;
+        }
+        let total_pages = (total as f64 / page_size as f64).ceil() as i64;
+        Self {
+            page,
+            page_size,
+            total,
+            list: list.iter().cloned().collect::<Vec<_>>(),
+            first: page == 1,
+            last: page == total_pages,
+            has_next: page < total_pages,
+            has_pre: page > 1,
+            total_pages,
+        }
+    }
+}

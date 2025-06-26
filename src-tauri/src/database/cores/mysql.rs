@@ -161,6 +161,7 @@ impl Column {
 
 impl From<Column> for super::Column {
     fn from(col: Column) -> Self {
+        let rust_type = t2t(&format!("{}", col.r#type.unwrap())).into();
         Self {
             database: col.schema.clone(),
             schema: col.schema,
@@ -177,7 +178,63 @@ impl From<Column> for super::Column {
             is_unique: col.is_unique,
             is_primary_key: col.is_primary_key,
             is_unsigned: col.is_unsigned,
+
+            rust_type,
         }
+    }
+}
+
+/// Rust type             MySQL type(s)
+/// bool                    TINYINT(1), BOOLEAN
+/// i8                      TINYINT
+/// i16                     SMALLINT
+/// i32                     INT
+/// i64                     BIGINT
+/// u8                      TINYINT UNSIGNED
+/// u16                     SMALLINT UNSIGNED
+/// u32                     INT UNSIGNED
+/// u64                     BIGINT UNSIGNED
+/// f32                     FLOAT
+/// f64                     DOUBLE
+/// &str, String            VARCHAR, CHAR, TEXT
+/// &[u8], Vec<u8>          VARBINARY, BINARY, BLOB
+///
+/// time::PrimitiveDateTime DATETIME
+/// time::OffsetDateTime    TIMESTAMP
+/// time::Date              DATE
+/// time::Time              TIME
+///
+/// bigdecimal::BigDecimal  DECIMAL
+///
+/// uuid::Uuid              BYTE(16), VARCHAR, CHAR, TEXT
+/// uuid::fmt::Hyphenated   CHAR(36)
+/// uuid::fmt::Simple       CHAR(32)
+///
+/// serde_json::JsonValue  JSON
+///
+/// Mysql 类型转换为Rust对应类型
+fn t2t(ty: &str) -> &str {
+    match ty.to_uppercase().as_str() {
+        "TINYINT(1)" | "BOOLEAN" => "bool",
+        "TINYINT" => "i8",
+        "TINYINT UNSIGNED" | "BIT" => "u8",
+        "SMALLINT" => "i16",
+        "SMALLINT UNSIGNED" => "u16",
+        "INT" | "MEDIUMINT" => "i32",
+        "INT UNSIGNED" | "MEDIUMINT UNSIGNED" => "u32",
+        "BIGINT" => "i64",
+        "BIGINT UNSIGNED" => "u64",
+        "FLOAT" => "f32",
+        "DOUBLE" | "NUMERIC" => "f64",
+        "VARBINARY" | "BINARY" | "BLOB" => "Vec<u8>",
+        "YEAR" => "time::Date",
+        "DATE" => "time::Date",
+        "TIME" => "time::Time",
+        "DATETIME" => "time::PrimitiveDateTime",
+        "TIMESTAMP" => "time::offsetDateTime",
+        "DECIMAL" => "bigdecimal::BigDecimal",
+        "JSON" => "serde_json:JsonValue",
+        _ => "String",
     }
 }
 

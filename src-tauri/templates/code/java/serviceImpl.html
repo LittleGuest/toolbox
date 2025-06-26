@@ -1,0 +1,16 @@
+package ${packageServiceImplName};
+
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import ${packageEntityName}.${tableInfoBo.tableUpperCaseName};
+import ${packageMapperName}.${tableInfoBo.tableUpperCaseName}Mapper;
+import ${packageServiceName}.I${tableInfoBo.tableUpperCaseName}Service;
+import org.springframework.stereotype.Service;
+
+/**
+ * ${tableInfoBo.tableComment}
+ * @author TODO ${date(),'yyyy-MM-dd HH:mm'}
+ */
+@Service
+public class ${tableInfoBo.tableUpperCaseName}ServiceImpl extends ServiceImpl<${tableInfoBo.tableUpperCaseName}Mapper, ${tableInfoBo.tableUpperCaseName}> implements I${tableInfoBo.tableUpperCaseName}Service {
+
+}
