@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::{schema::Schema, RefOr};
+use super::{RefOr, schema::Schema};
 
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, PartialEq)]

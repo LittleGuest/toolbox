@@ -4,16 +4,16 @@ use serde::{Deserialize, Serialize};
 use sqlx::MySqlPool;
 
 use super::{
-    cores::{Column, ColumnType, Error, Index, Result},
     DatasourceInfo,
+    cores::{Column, ColumnType, Error, Index, Result},
 };
 use crate::database::cores::{DatabaseMetadata, Driver, MysqlMetadata};
 
 mod report;
 mod standard_check;
 
-pub use report::{diff_report, diff_sql, DiffReport};
-pub use standard_check::{standard_check, CheckReportBo, StandardCheck};
+pub use report::{DiffReport, diff_report, diff_sql};
+pub use standard_check::{CheckReportBo, StandardCheck, standard_check};
 
 /// 所有表结构信息
 pub async fn table_struct(datasource_info: &DatasourceInfo) -> Result<HashMap<String, TableBo>> {

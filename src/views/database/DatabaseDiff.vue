@@ -12,6 +12,7 @@ import DatabaseDiffReport from "./DatabaseDiffReport.vue";
 import { QuestionCircleOutlined } from "@vicons/antd";
 import DatabaseDiffSql from "./DatabaseDiffSql.vue";
 import DatabaseStandardCheck from "./DatabaseStandardCheck.vue";
+import DatabaseGeneratorCode from "./DatabaseGeneratorCode.vue";
 
 const { message, notification, dialog, loadingBar, modal } = createDiscreteApi([
   "message",
@@ -222,6 +223,7 @@ const showCustomCheckDrawer = ref(false);
 const customStandardChecked = ref([]);
 const standardCheckCodeList = ref([]);
 const standardCheckCodes = ref([]);
+const showGeneratorCodeDrawer = ref(false);
 
 const generateReport = () => {
   if (!reportSourceTable.value || !reportTargetTable.value) {
@@ -275,7 +277,9 @@ const generateCheck = (custom) => {
   showStandardCheckDrawer.value = true;
 };
 
-const generateCode = () => { };
+const generateCode = () => {
+  showGeneratorCodeDrawer.value = true;
+};
 
 const showCheck = () => {
   if (!standardCheckTable.value) {
@@ -369,7 +373,7 @@ const showCheck = () => {
       </n-tooltip>
     </n-form-item>
     <n-form-item>
-      <n-button @click="generateCode">生成</n-button>
+      <n-button @click="generateCode()">生成</n-button>
     </n-form-item>
   </n-form>
 
@@ -435,6 +439,8 @@ const showCheck = () => {
     :showDrawer="showDiffSqlDrawer" @closeDrawer="closeDrawer" />
   <DatabaseStandardCheck v-if="showStandardCheckDrawer" :source="sourceDatasourceInfo" :checkCodes="standardCheckCodes"
     :showDrawer="showStandardCheckDrawer" @closeDrawer="closeDrawer" />
+  <DatabaseGeneratorCode v-if="showGeneratorCodeDrawer" :datasource="connects" :showDrawer="showStandardCheckDrawer"
+    @closeDrawer="closeDrawer" />
 </template>
 
 <style lang="scss" scoped>

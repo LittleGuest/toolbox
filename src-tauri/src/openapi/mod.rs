@@ -10,8 +10,8 @@ use rust_embed::Embed;
 use schema::{Components, Ref};
 use security::SecurityRequirement;
 use serde::{
-    de::{Error, Expected, Visitor},
     Deserialize, Deserializer, Serialize, Serializer,
+    de::{Error, Expected, Visitor},
 };
 use server::Server;
 use tag::Tag;

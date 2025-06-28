@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 
 use super::{FieldBo, IndexBo, TableBo};
 use crate::database::{
-    cores::{ColumnType, Result},
     DatasourceInfo,
+    cores::{ColumnType, Result},
 };
 
 /// 获取差异报告信息，以source为基准，target变动
@@ -254,11 +254,12 @@ async fn diff_table(
     let mut last_column = "";
     for (sname, sf) in source.columns.iter() {
         let tf = target.columns.get(sname);
-        if let Some(tf) = tf {
-            if tf.eq(sf) {
-                continue;
-            }
+        if let Some(tf) = tf
+            && tf.eq(sf)
+        {
+            continue;
         }
+
         fix_sql.push(diff_column(sf, tf, last_column).await);
         last_column = sname;
     }
@@ -292,18 +293,19 @@ async fn diff_column(sf: &FieldBo, tf: Option<&FieldBo>, last_column: &str) -> S
         ));
     }
 
-    if let Some(len) = sf.length {
-        if len > 0 {
-            fix_sql.push('(');
-            fix_sql.push_str(len.to_string().as_str());
-            if let Some(scale) = sf.scale {
-                if scale > 0 {
-                    fix_sql.push(',');
-                    fix_sql.push_str(scale.to_string().as_str());
-                }
-            }
-            fix_sql.push(')');
+    if let Some(len) = sf.length
+        && len > 0
+    {
+        fix_sql.push('(');
+        fix_sql.push_str(len.to_string().as_str());
+        if let Some(scale) = sf.scale
+            && scale > 0
+        {
+            fix_sql.push(',');
+            fix_sql.push_str(scale.to_string().as_str());
         }
+
+        fix_sql.push(')');
     }
 
     if sf.is_unsigned {

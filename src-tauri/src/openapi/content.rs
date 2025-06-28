@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::{encoding::Encoding, example::Example, extensions::Extensions, schema::Schema, RefOr};
+use super::{RefOr, encoding::Encoding, example::Example, extensions::Extensions, schema::Schema};
 
 #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
 #[non_exhaustive]

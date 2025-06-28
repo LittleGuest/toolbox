@@ -1,11 +1,11 @@
 use serde::{Deserialize, Serialize};
-use sqlx::{mysql::MySqlRow, AnyPool, ColumnIndex, Database, FromRow, MySql, MySqlPool, Pool, Row};
+use sqlx::{AnyPool, ColumnIndex, Database, FromRow, MySql, MySqlPool, Pool, Row, mysql::MySqlRow};
 
 use super::{ColumnType, DatabaseMetadata, Result};
 
 const SHOW_DATABASES: &str = "SHOW DATABASES";
 const SHOW_COLUMNS: &str = "SHOW FULL COLUMNS FROM ? FROM ?";
-const SHOW_TABLES:&str = "SELECT table_schema, table_name, CAST(TABLE_TYPE AS CHAR) TABLE_TYPE, table_comment FROM information_schema.`TABLES` WHERE TABLE_SCHEMA = ?";
+const SHOW_TABLES: &str = "SELECT table_schema, table_name, CAST(TABLE_TYPE AS CHAR) TABLE_TYPE, table_comment FROM information_schema.`TABLES` WHERE TABLE_SCHEMA = ?";
 const SHOW_INDEX: &str = "SHOW INDEX FROM ? FROM ?";
 const SHOW_CREATE_TABLE: &str = "SHOW CREATE TABLE ?";
 const WORD_UNSIGNED: &str = "unsigned";

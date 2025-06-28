@@ -85,6 +85,7 @@ pub fn run() {
             openapi::download,
             database::database_ping,
             database::database_schemas,
+            database::database_tables,
             database::database_table_tree,
             database::database_diff_report,
             database::database_diff_sql,

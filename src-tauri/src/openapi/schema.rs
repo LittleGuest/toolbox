@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::{
-    extensions::Extensions, response::Response, security::SecurityScheme, xml::Xml, Deprecated,
-    Number, RefOr,
+    Deprecated, Number, RefOr, extensions::Extensions, response::Response,
+    security::SecurityScheme, xml::Xml,
 };
 
 #[non_exhaustive]

@@ -5,7 +5,7 @@ use diff::DiffReport;
 use serde::{Deserialize, Serialize};
 use sqlx::{Connection, MySqlConnection, MySqlPool};
 
-use crate::database::diff::CheckReportBo;
+use crate::database::{cores::Table, diff::CheckReportBo};
 
 mod cores;
 mod diff;
@@ -77,6 +77,18 @@ pub async fn database_schemas(datasource_info: DatasourceInfo) -> Result<Vec<Sch
         Driver::Mysql => {
             let pool = MySqlPool::connect(&datasource_info.url()).await?;
             MysqlMetadata::schemas(&pool).await
+        }
+        Driver::Postgres => todo!(),
+        Driver::Sqlite => todo!(),
+    }
+}
+
+#[tauri::command]
+pub async fn database_tables(datasource_info: DatasourceInfo) -> Result<Vec<Table>> {
+    match datasource_info.driver {
+        Driver::Mysql => {
+            let pool = MySqlPool::connect(&datasource_info.url()).await?;
+            MysqlMetadata::tables(&pool, &datasource_info.database.unwrap_or_default()).await
         }
         Driver::Postgres => todo!(),
         Driver::Sqlite => todo!(),

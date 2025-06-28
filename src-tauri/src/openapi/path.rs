@@ -2,9 +2,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::{
-    extensions::Extensions, external_docs::ExternalDocs, request_body::RequestBody,
-    response::Responses, schema::Schema, security::SecurityRequirement, server::Server, Deprecated,
-    RefOr, Required,
+    Deprecated, RefOr, Required, extensions::Extensions, external_docs::ExternalDocs,
+    request_body::RequestBody, response::Responses, schema::Schema, security::SecurityRequirement,
+    server::Server,
 };
 
 pub type PathsMap<K, V> = std::collections::BTreeMap<K, V>;

@@ -34,10 +34,10 @@ pub fn decode(data: &str) -> Result<String> {
 }
 
 fn check(data: &str) -> (&str, Option<&str>) {
-    if data.starts_with("http") || data.starts_with("https") || data.contains('?') {
-        if let Some(data) = data.split_once('?') {
-            return (data.0, Some(data.1));
-        }
+    if (data.starts_with("http") || data.starts_with("https") || data.contains('?'))
+        && let Some(data) = data.split_once('?')
+    {
+        return (data.0, Some(data.1));
     }
     (data, None)
 }

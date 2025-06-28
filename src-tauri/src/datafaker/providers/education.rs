@@ -1,6 +1,6 @@
 use std::{ops::Deref, sync::LazyLock};
 
-use crate::datafaker::{providers::area::Area, FakerData, Locale};
+use crate::datafaker::{FakerData, Locale, providers::area::Area};
 
 static COLLEGE_DATA: LazyLock<Vec<String>> = LazyLock::new(|| {
     let area = FakerData::get("college").unwrap();

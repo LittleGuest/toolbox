@@ -6,9 +6,9 @@ use serde::{Deserialize, Serialize};
 use symspell::{AsciiStringStrategy, SymSpell, Verbosity};
 
 use crate::database::{
+    DatasourceInfo,
     cores::{ColumnType, Error, Result},
     diff::IndexBo,
-    DatasourceInfo,
 };
 
 static MYSQL_RESERVED_KEY_WORDS: [&str; 235] = [

@@ -18,7 +18,11 @@ pub enum Error {
     #[error("{0}")]
     E(&'static str),
     #[error(transparent)]
+    Io(#[from] std::io::Error),
+    #[error(transparent)]
     SqlxErr(#[from] sqlx::Error),
+    #[error(transparent)]
+    TeraErr(#[from] tera::Error),
     #[error("未知错误")]
     Unknown,
 }
