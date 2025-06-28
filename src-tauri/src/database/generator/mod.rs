@@ -353,8 +353,6 @@ impl Generator {
             return Err(Error::E("表信息为空"));
         }
 
-        // 创建生成目录
-        fs::create_dir_all(path)?;
         let data = self.preview(tables, tables_columns).await?;
         match self.language {
             Language::Rust => {
@@ -363,14 +361,14 @@ impl Generator {
                     && let Some(code) = data.get("error.rs")
                     && let Some(code) = code.get("error.rs")
                 {
-                    Self::write_file(&format!("{path}error.rs"), code).await?;
+                    Self::write_file(&format!("{path}/error.rs"), code, self.r#override).await?;
                 }
                 // 创建 mod.rs 文件
                 if self.gen_mod
-                    && let Some(code) = data.get("error.rs")
-                    && let Some(code) = code.get("error.rs")
+                    && let Some(code) = data.get("mod.rs")
+                    && let Some(code) = code.get("mod.rs")
                 {
-                    Self::write_file(&format!("{path}mod.rs"), code).await?;
+                    Self::write_file(&format!("{path}/mod.rs"), code, self.r#override).await?;
                 }
                 // 创建 model 文件
                 for (key, value) in data
@@ -378,7 +376,13 @@ impl Generator {
                     .filter(|(k, _)| !["error.rs", "mod.rs"].contains(&k.as_str()))
                 {
                     for (file_name, code) in value {
-                        Self::write_file(&format!("{path}{key}/{file_name}"), &code).await?;
+                        dbg!(format!("{path}{key}/{file_name}"));
+                        Self::write_file(
+                            &format!("{path}{key}/{file_name}"),
+                            &code,
+                            self.r#override,
+                        )
+                        .await?;
                     }
                 }
             }
@@ -390,12 +394,91 @@ impl Generator {
     }
 
     /// 写入文件
-    async fn write_file<P>(path: P, contents: &str) -> Result<()>
+    async fn write_file<P>(path: P, contents: &str, r#override: bool) -> Result<()>
     where
         P: AsRef<Path>,
     {
-        let mut tf = fs::File::create(path)?;
-        tf.write_all(contents.as_bytes())?;
+        if let Some(path) = path.as_ref().parent() {
+            fs::create_dir_all(path)?;
+        }
+        if !path.as_ref().exists() || (path.as_ref().exists() && r#override) {
+            let mut tf = fs::File::create(path)?;
+            tf.write_all(contents.as_bytes())?;
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn datasource_info() -> DatasourceInfo {
+        DatasourceInfo {
+            driver: crate::database::cores::Driver::Mysql,
+            name: "127.0.0.1".into(),
+            host: "127.0.0.1".into(),
+            port: Some(3306),
+            username: Some("root".into()),
+            password: Some("123456".into()),
+            database: Some("differ".into()),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_preview_rust() -> Result<()> {
+        let mut gt = Generator {
+            datasource_info: datasource_info(),
+            language: Language::Rust,
+            table_names: vec![],
+            ignore_tables: vec![],
+            ignore_table_prefix: None,
+            path: Some(".".to_string()),
+            r#override: false,
+            gen_mod: true,
+            gen_error: true,
+            gen_entity: true,
+            gen_mapper: false,
+            gen_mapper_xml: false,
+            gen_service: true,
+            gen_controller: true,
+            entity_package_name: None,
+            mapper_package_name: None,
+            mapper_xml_package_name: None,
+            service_package_name: None,
+            service_impl_package_name: None,
+            controller_package_name: None,
+        };
+        let codes = gt.run(true).await?;
+        assert!(!codes.is_empty());
+        dbg!(&serde_json::to_string(&codes));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_gen_rust() -> Result<()> {
+        let mut gt = Generator {
+            datasource_info: datasource_info(),
+            language: Language::Rust,
+            table_names: vec![],
+            ignore_tables: vec![],
+            ignore_table_prefix: None,
+            path: Some("./target".to_string()),
+            r#override: false,
+            gen_mod: true,
+            gen_error: true,
+            gen_entity: true,
+            gen_mapper: false,
+            gen_mapper_xml: false,
+            gen_service: true,
+            gen_controller: true,
+            entity_package_name: None,
+            mapper_package_name: None,
+            mapper_xml_package_name: None,
+            service_package_name: None,
+            service_impl_package_name: None,
+            controller_package_name: None,
+        };
+        let _ = gt.run(false).await;
         Ok(())
     }
 }

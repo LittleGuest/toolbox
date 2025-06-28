@@ -74,7 +74,7 @@ impl<T> PageRes<T>
 where
     T: Serialize + Clone,
 {
-    pub fn new(total: i64, mut page: i64, page_size: i64, list: &[T]) -> Self {
+    pub fn new(total: i64, mut page: i64, page_size: i64, list: Vec<T>) -> Self {
         if page <= 0 {
             page = 1;
         }
@@ -83,7 +83,7 @@ where
             page,
             page_size,
             total,
-            list: list.iter().cloned().collect::<Vec<_>>(),
+            list,
             first: page == 1,
             last: page == total_pages,
             has_next: page < total_pages,

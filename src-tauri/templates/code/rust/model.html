@@ -23,8 +23,8 @@ use crate::{error::Error, result::Result};
 #[serde(rename_all(serialize = "camelCase"))]
 pub struct {{ struct_name }} { {% if has_columns %}{% for column in columns %}
     /// {{column.comment}}
-    {%if column.field_type == "String" -%}#[validate(length(max = {{column.max_length}}))]{%- endif%}
-    pub {{column.name}}: {%if column.is_nullable %}Option<{{column.field_type}}>{% else %}{{column.field_type}}{% endif %},{% endfor %}{% endif %}
+    {%if column.rust_type == "String" -%}#[validate(length(max = {{column.max_length}}))]{%- endif%}
+    pub {{column.name}}: {%if column.is_nullable %}Option<{{column.rust_type}}>{% else %}{{column.rust_type}}{% endif %},{% endfor %}{% endif %}
 }
 
 impl std::fmt::Display for {{ struct_name }} {
@@ -65,7 +65,7 @@ impl {{ struct_name }} {
 
         {% if has_columns %}{% for column in columns %}
         if let Some({{column.name}}) = &req.{{column.name}} {
-        {%if column.field_type == "String"%}
+        {%if column.rust_type == "String"%}
             where_sql.push_str(&format!(" and {} like '%{}%' ",  "{{column.name}}", {{column.name}}));
         {%else%}
             where_sql.push_str(&format!(" and {} = {} ",  "{{column.name}}", {{column.name}}));
@@ -158,7 +158,7 @@ impl {{ struct_name }} {
         let mut where_sql = " 1 = 1 ".to_string();
         {% if has_columns %}{% for column in columns %}
         if let Some({{column.name}}) = &req.{{column.name}} {
-            {%if column.field_type == "String"%}
+            {%if column.rust_type == "String"%}
                 where_sql.push_str(&format!(" and {} like '%{}%' ",  "{{column.name}}", {{column.name}}));
             {%else%}
                 where_sql.push_str(&format!(" and {} = {} ",  "{{column.name}}", {{column.name}}));
@@ -225,5 +225,5 @@ pub struct {{ struct_name }}Req {
 
     {% if has_columns %}{% for column in columns %}
     /// {{column.comment}}
-    pub {{column.name}}: Option<{{column.field_type}}>,{% endfor %}{% endif %}
+    pub {{column.name}}: Option<{{column.rust_type}}>,{% endfor %}{% endif %}
 }
