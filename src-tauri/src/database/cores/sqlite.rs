@@ -37,6 +37,56 @@ struct TableColumn {
     pk: Option<u8>,
 }
 
+/// Rust type             SQLite type(s)
+/// bool                    BOOLEAN
+/// i8                      INTEGER
+/// i16                     INTEGER
+/// i32                     INTEGER
+/// i64                     BIGINT, INT8
+/// u8                      INTEGER
+/// u16                     INTEGER
+/// u32                     INTEGER
+/// f32                     REAL
+/// f64                     REAL
+/// &str, String            TEXT
+/// &[u8], Vec<u8>          BLOB
+///
+/// time::PrimitiveDateTime DATETIME
+/// time::OffsetDateTime    DATETIME
+/// time::Date              DATE
+/// time::Time              TIME
+///
+/// Sqlite类型转换为Rust类型
+fn t2t(ty: &str) -> &str {
+    match ty.to_uppercase().as_str() {
+        "BOOLEAN" => "bool",
+        "INTEGER" => "i32",
+        "BIGINT" | "INT8" => "i64",
+        "REAL" => "f64",
+        "BLOB" => "Vec<u8>",
+        "DATE" => "time::Date",
+        "TIME" => "time::Time",
+        "DATETIME" => "time::OffsetDateTime",
+        _ => "String",
+    }
+}
+
+/// 根据sqlite字段类型截取类型和长度
+/// date、datetime、int没有长度
+/// varchar有长度
+fn sqlite_type(t: &str) -> (String, Option<u16>) {
+    let rg = Regex::new("^(.*)\\((\\d+)\\)$").unwrap();
+    if let Some(caps) = rg.captures(t) {
+        (
+            caps.get(1).map_or(String::new(), |tt| tt.as_str().into()),
+            caps.get(2)
+                .map_or(Some(0), |l| Some(l.as_str().parse::<u16>().unwrap_or(0))),
+        )
+    } else {
+        (t.to_string(), None)
+    }
+}
+
 // pub async fn tables(pool: &Pool<sqlx::Sqlite>, table_names: &[&str]) -> Result<Vec<super::Table>> {
 //     let mut sql =
 //         "SELECT type, name, tbl_name, rootpage, sql FROM sqlite_master WHERE type = 'table'"

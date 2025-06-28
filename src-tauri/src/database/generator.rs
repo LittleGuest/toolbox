@@ -18,10 +18,6 @@ use crate::{
     },
 };
 
-// mod mysql;
-// mod postgres;
-// mod sqlite;
-
 /// Rust 1.85关键字
 const KEYWORDS: [&str; 53] = [
     "as", "async", "await", "break", "const", "continue", "crate", "dyn", "else", "enum", "extern",
