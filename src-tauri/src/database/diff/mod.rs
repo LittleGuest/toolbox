@@ -1,13 +1,11 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
-use sqlx::MySqlPool;
 
 use super::{
     DatasourceInfo,
     cores::{Column, ColumnType, Error, Index, Result},
 };
-use crate::database::cores::{DatabaseMetadata, Driver, MysqlMetadata};
 
 mod report;
 mod standard_check;
@@ -17,63 +15,61 @@ pub use standard_check::{CheckReportBo, StandardCheck, standard_check};
 
 /// 所有表结构信息
 pub async fn table_struct(datasource_info: &DatasourceInfo) -> Result<HashMap<String, TableBo>> {
-    match datasource_info.driver {
-        Driver::Mysql => {
-            let Some(database) = &datasource_info.database else {
-                return Err(Error::E("choose database"));
-            };
-            let pool = MySqlPool::connect(&datasource_info.url()).await?;
-            let tables = MysqlMetadata::tables(&pool, database).await?;
-            let mut data = HashMap::with_capacity(tables.len());
-            for table in tables.into_iter() {
-                // 表字段
-                let columns = MysqlMetadata::columns(&pool, database, &table.name)
-                    .await?
-                    .into_iter()
-                    .map(|c| (c.name.clone(), c.into()))
-                    .collect::<HashMap<String, FieldBo>>();
-                // 索引
-                let indexs: HashMap<String, IndexBo> = {
-                    // 根据索引名称分组（将组合索引合并在一起）
-                    let indexs = MysqlMetadata::indexs(&pool, database, &table.name)
-                        .await?
-                        .into_iter()
-                        .map(IndexBo::from)
-                        .fold(
-                            HashMap::new(),
-                            |mut map: HashMap<String, Vec<IndexBo>>, ix| {
-                                map.entry(ix.key_name.clone()).or_default().push(ix);
-                                map
-                            },
-                        );
-                    let indexs_len = indexs.len();
-                    indexs.into_iter().fold(
-                        HashMap::with_capacity(indexs_len),
-                        |mut map, (key_name, ixs)| {
-                            let mut ix = ixs[0].clone();
-                            ix.column_name = merge_index_name(ixs);
-                            map.insert(key_name, ix);
-                            map
-                        },
-                    )
-                };
+    let meta = datasource_info.database_metadata().await;
 
-                data.insert(
-                    table.name.clone(),
-                    TableBo {
-                        name: table.name,
-                        comment: table.comment,
-                        columns,
-                        indexs,
-                        is_both_has: false,
+    let Some(database) = &datasource_info.database else {
+        return Err(Error::E("choose database"));
+    };
+
+    let tables = meta.tables(database).await?;
+    let mut data = HashMap::with_capacity(tables.len());
+    for table in tables.into_iter() {
+        // 表字段
+        let columns = meta
+            .columns(database, &table.name)
+            .await?
+            .into_iter()
+            .map(|c| (c.name.clone(), c.into()))
+            .collect::<HashMap<String, FieldBo>>();
+        // 索引
+        let indexs: HashMap<String, IndexBo> = {
+            // 根据索引名称分组（将组合索引合并在一起）
+            let indexs = meta
+                .indexs(database, &table.name)
+                .await?
+                .into_iter()
+                .map(IndexBo::from)
+                .fold(
+                    HashMap::new(),
+                    |mut map: HashMap<String, Vec<IndexBo>>, ix| {
+                        map.entry(ix.key_name.clone()).or_default().push(ix);
+                        map
                     },
                 );
-            }
-            Ok(data)
-        }
-        Driver::Postgres => todo!(),
-        Driver::Sqlite => todo!(),
+            let indexs_len = indexs.len();
+            indexs.into_iter().fold(
+                HashMap::with_capacity(indexs_len),
+                |mut map, (key_name, ixs)| {
+                    let mut ix = ixs[0].clone();
+                    ix.column_name = merge_index_name(ixs);
+                    map.insert(key_name, ix);
+                    map
+                },
+            )
+        };
+
+        data.insert(
+            table.name.clone(),
+            TableBo {
+                name: table.name,
+                comment: table.comment,
+                columns,
+                indexs,
+                is_both_has: false,
+            },
+        );
     }
+    Ok(data)
 }
 
 /// 合并组合索引的名称
@@ -97,13 +93,13 @@ pub async fn create_table_sql(
     datasource_info: &DatasourceInfo,
     table_name: &str,
 ) -> Result<String> {
-    let pool = MySqlPool::connect(&datasource_info.url()).await?;
-    let sql = MysqlMetadata::create_table_sql(
-        &pool,
-        &datasource_info.database.clone().unwrap_or_default(),
-        table_name,
-    )
-    .await?;
+    let meta = datasource_info.database_metadata().await;
+    let sql = meta
+        .create_table_sql(
+            &datasource_info.database.clone().unwrap_or_default(),
+            table_name,
+        )
+        .await?;
     Ok(sql)
 }
 

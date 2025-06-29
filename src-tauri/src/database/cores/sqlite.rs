@@ -1,8 +1,10 @@
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, Pool};
+use sqlx::{AnyPool, FromRow, Pool};
 
-use crate::Result;
+use crate::database::cores::{DatabaseMetadata, Result};
+
+pub struct SqliteMetadata(AnyPool);
 
 /// 表信息来自 sqlite_master
 #[derive(Debug, Serialize, Deserialize, FromRow)]
@@ -84,6 +86,46 @@ fn sqlite_type(t: &str) -> (String, Option<u16>) {
         )
     } else {
         (t.to_string(), None)
+    }
+}
+
+impl SqliteMetadata {
+    pub fn new(pool: AnyPool) -> Self {
+        Self(pool)
+    }
+}
+
+impl DatabaseMetadata for SqliteMetadata {
+    fn schemas(&self) -> super::BoxFuture<'_, Result<Vec<super::Schema>>> {
+        todo!()
+    }
+
+    fn tables<'a>(&'a self, schema: &'a str) -> super::BoxFuture<'a, Result<Vec<super::Table>>> {
+        todo!()
+    }
+
+    fn columns<'a>(
+        &'a self,
+        schema: &'a str,
+        table_name: &'a str,
+    ) -> super::BoxFuture<'a, Result<Vec<super::Column>>> {
+        todo!()
+    }
+
+    fn indexs<'a>(
+        &'a self,
+        schema: &'a str,
+        table_name: &'a str,
+    ) -> super::BoxFuture<'a, Result<Vec<super::Index>>> {
+        todo!()
+    }
+
+    fn create_table_sql<'a>(
+        &'a self,
+        schema: &'a str,
+        table_name: &'a str,
+    ) -> super::BoxFuture<'a, Result<String>> {
+        todo!()
     }
 }
 

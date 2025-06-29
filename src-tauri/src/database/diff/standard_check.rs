@@ -3,7 +3,6 @@ use std::{collections::HashMap, sync::LazyLock};
 use dashmap::{DashMap, DashSet};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use symspell::{AsciiStringStrategy, SymSpell, Verbosity};
 
 use crate::database::{
     DatasourceInfo,
@@ -637,7 +636,7 @@ async fn check_index(
     Ok(())
 }
 
-/// 单词拼写检查
+/// TODO: 单词拼写检查
 async fn check_spelling(
     word: DashMap<String, DashSet<String>>,
     map: &mut DashMap<String, Vec<Suggest>>,

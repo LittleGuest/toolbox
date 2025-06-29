@@ -164,8 +164,7 @@ impl Area {
                 COMMUNITY_SUFFIX_DATA.get(second).unwrap(),
             );
             let mut extra = "";
-            let x = fastrand::u8(0..11);
-            if x % 3 == 0 {
+            if fastrand::u8(0..11).is_multiple_of(3) {
                 extra = DIRECTION.get(fastrand::usize(0..DIRECTION.len())).unwrap();
             }
 

@@ -156,7 +156,7 @@ impl Internet {
 
     pub fn static_url(&self) -> String {
         let mut prefix = "http://";
-        if fastrand::u8(0..101) % 3 == 0 {
+        if fastrand::u8(0..101).is_multiple_of(3) {
             prefix = "https://";
         }
         format!(

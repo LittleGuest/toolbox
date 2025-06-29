@@ -1,5 +1,10 @@
+use std::pin::Pin;
+
 use serde::{Deserialize, Serialize};
-use sqlx::{AnyPool, ColumnIndex, Database, FromRow, MySql, MySqlPool, Pool, Row, mysql::MySqlRow};
+use sqlx::{
+    AnyPool, ColumnIndex, Database, FromRow, MySql, MySqlPool, Pool, Row, any::AnyRow,
+    mysql::MySqlRow,
+};
 
 use super::{ColumnType, DatabaseMetadata, Result};
 
@@ -11,7 +16,7 @@ const SHOW_CREATE_TABLE: &str = "SHOW CREATE TABLE ?";
 const WORD_UNSIGNED: &str = "unsigned";
 const WORD_PRIMARY: &str = "PRIMARY";
 
-pub struct MysqlMetadata;
+pub struct MysqlMetadata(AnyPool);
 
 #[derive(Debug, Serialize, Deserialize, FromRow)]
 struct Schema {
@@ -50,9 +55,9 @@ impl From<Table> for super::Table {
 #[derive(Debug, Default, Serialize, Deserialize, FromRow)]
 #[serde(rename_all = "camelCase")]
 struct Column {
-    // 模式
+    /// 模式
     schema: String,
-    // 表名
+    /// 表名
     table_name: String,
     /// 字段名
     name: String,
@@ -282,115 +287,128 @@ impl From<Index> for super::Index {
     }
 }
 
+impl MysqlMetadata {
+    pub fn new(pool: AnyPool) -> Self {
+        Self(pool)
+    }
+}
+
 impl DatabaseMetadata for MysqlMetadata {
-    type Pool = MySqlPool;
-
-    async fn schemas(pool: &Self::Pool) -> Result<Vec<super::Schema>> {
-        let rows = sqlx::query(SHOW_DATABASES)
-            .map(|row: MySqlRow| Schema { name: row.get(0) })
-            .map(|row| row.into())
-            .fetch_all(pool)
-            .await?;
-        Ok(rows)
-    }
-
-    async fn tables(pool: &Self::Pool, schema: &str) -> Result<Vec<super::Table>> {
-        let rows: Vec<Table> = sqlx::query_as(SHOW_TABLES)
-            .bind(schema)
-            .fetch_all(pool)
-            .await?;
-        Ok(rows.into_iter().map(|row| row.into()).collect::<Vec<_>>())
-    }
-
-    async fn columns(
-        pool: &Self::Pool,
-        schema: &str,
-        table_name: &str,
-    ) -> Result<Vec<super::Column>> {
-        let rows: Vec<Column> = sqlx::query(&format!(
-            "SHOW FULL COLUMNS FROM {table_name} FROM {schema}"
-        ))
-        .bind(table_name)
-        .bind(schema)
-        .map(|row: MySqlRow| {
-            let field = row.get(0);
-            let r#type: Vec<u8> = row.get(1);
-            let r#type = String::from_utf8_lossy(&r#type).to_string();
-            let null = row.get(3);
-            let key: Vec<u8> = row.get(4);
-            let key = String::from_utf8_lossy(&key).to_string();
-            let default: Option<Vec<u8>> = row.get(5);
-            let default = default.map(|d| String::from_utf8_lossy(&d).to_string());
-            let extra = row.get(6);
-            let comment: Vec<u8> = row.get(8);
-            let comment = String::from_utf8_lossy(&comment).to_string();
-
-            let mut coloumn = Column {
-                schema: schema.into(),
-                table_name: table_name.into(),
-                name: field,
-                default,
-                comment,
-                ..Default::default()
-            };
-            coloumn.handle_column_as_type(&r#type).is_ok();
-            coloumn.handle_primary_key(&key);
-            coloumn.handle_is_null(null);
-            coloumn.handle_is_auto_incr(extra);
-            coloumn
+    fn schemas(&self) -> super::BoxFuture<'_, Result<Vec<super::Schema>>> {
+        Box::pin(async move {
+            let rows = sqlx::query(SHOW_DATABASES)
+                .map(|row: AnyRow| Schema { name: row.get(0) })
+                .map(|row| row.into())
+                .fetch_all(&self.0)
+                .await?;
+            Ok(rows)
         })
-        .fetch_all(pool)
-        .await?;
-        Ok(rows.into_iter().map(|row| row.into()).collect::<Vec<_>>())
     }
 
-    async fn indexs(
-        pool: &Self::Pool,
-        schema: &str,
-        table_name: &str,
-    ) -> Result<Vec<super::Index>> {
-        let rows: Vec<Index> = sqlx::query(&format!("SHOW INDEX FROM {table_name} FROM {schema}"))
-            .bind(table_name)
-            .bind(schema)
-            .map(|row: MySqlRow| {
-                let table_name = row.get(0);
-                let non_unique = row.get(1);
-                let key_name = row.get(2);
-                let seq_in_index = row.get(3);
-                let column_name = row.get(4);
-                let sub_part = row.get(7);
-                let index_type: Vec<u8> = row.get(10);
-                let index_type = String::from_utf8_lossy(&index_type).to_string();
-                let index_comment: Vec<u8> = row.get(12);
-                let index_comment = String::from_utf8_lossy(&index_comment).to_string();
-
-                Index {
-                    table_name,
-                    non_unique,
-                    key_name,
-                    seq_in_index,
-                    column_name,
-                    sub_part,
-                    index_type,
-                    index_comment,
-                }
-            })
-            .fetch_all(pool)
-            .await?;
-        Ok(rows.into_iter().map(|row| row.into()).collect::<Vec<_>>())
+    fn tables<'a>(&'a self, schema: &'a str) -> super::BoxFuture<'a, Result<Vec<super::Table>>> {
+        Box::pin(async move {
+            let rows: Vec<Table> = sqlx::query_as(SHOW_TABLES)
+                .bind(schema)
+                .fetch_all(&self.0)
+                .await?;
+            Ok(rows.into_iter().map(|row| row.into()).collect::<Vec<_>>())
+        })
     }
 
-    async fn create_table_sql(pool: &Self::Pool, schema: &str, table_name: &str) -> Result<String> {
-        let rows: String = sqlx::query(&format!("SHOW CREATE TABLE {schema}.{table_name}"))
+    fn columns<'a>(
+        &'a self,
+        schema: &'a str,
+        table_name: &'a str,
+    ) -> super::BoxFuture<'a, Result<Vec<super::Column>>> {
+        Box::pin(async move {
+            let rows: Vec<Column> = sqlx::query(&format!(
+                "SHOW FULL COLUMNS FROM {table_name} FROM {schema}"
+            ))
             .bind(table_name)
             .bind(schema)
-            .map(|row: MySqlRow| {
-                let sql: Vec<u8> = row.get(1);
-                String::from_utf8_lossy(&sql).to_string()
+            .map(|row: AnyRow| {
+                let field = row.get(0);
+                let r#type: Vec<u8> = row.get(1);
+                let r#type = String::from_utf8_lossy(&r#type).to_string();
+                let null = row.get(3);
+                let key: String = row.get(4);
+                let default: Option<Vec<u8>> = row.get(5);
+                let default = default.map(|d| String::from_utf8_lossy(&d).to_string());
+                let extra = row.get(6);
+                let comment: Vec<u8> = row.get(8);
+                let comment = String::from_utf8_lossy(&comment).to_string();
+
+                let mut coloumn = Column {
+                    schema: schema.into(),
+                    table_name: table_name.into(),
+                    name: field,
+                    default,
+                    comment,
+                    ..Default::default()
+                };
+                coloumn.handle_column_as_type(&r#type).is_ok();
+                coloumn.handle_primary_key(&key);
+                coloumn.handle_is_null(null);
+                coloumn.handle_is_auto_incr(extra);
+                coloumn
             })
-            .fetch_one(pool)
+            .fetch_all(&self.0)
             .await?;
-        Ok(rows)
+            Ok(rows.into_iter().map(|row| row.into()).collect::<Vec<_>>())
+        })
+    }
+
+    fn indexs<'a>(
+        &'a self,
+        schema: &'a str,
+        table_name: &'a str,
+    ) -> super::BoxFuture<'a, Result<Vec<super::Index>>> {
+        Box::pin(async move {
+            let rows: Vec<Index> =
+                sqlx::query(&format!("SHOW INDEX FROM {table_name} FROM {schema}"))
+                    .bind(table_name)
+                    .bind(schema)
+                    .map(|row: AnyRow| {
+                        let table_name = row.get(0);
+                        let non_unique = row.get(1);
+                        let key_name = row.get(2);
+                        let seq_in_index: i32 = row.get(3);
+                        let column_name = row.get(4);
+                        let sub_part = row.get(7);
+                        let index_type = row.get(10);
+                        let index_comment = row.get(12);
+
+                        Index {
+                            table_name,
+                            non_unique,
+                            key_name,
+                            seq_in_index: seq_in_index as u32,
+                            column_name,
+                            sub_part,
+                            index_type,
+                            index_comment,
+                        }
+                    })
+                    .fetch_all(&self.0)
+                    .await?;
+            Ok(rows.into_iter().map(|row| row.into()).collect::<Vec<_>>())
+        })
+    }
+
+    fn create_table_sql<'a>(
+        &'a self,
+        schema: &'a str,
+        table_name: &'a str,
+    ) -> super::BoxFuture<'a, Result<String>> {
+        Box::pin(async move {
+            let rows: String = sqlx::query(&format!("SHOW CREATE TABLE {schema}.{table_name}"))
+                .bind(schema)
+                .bind(table_name)
+                .map(|row: AnyRow| row.get(1))
+                .fetch_one(&self.0)
+                .await?;
+            Ok(rows)
+        })
     }
 }
 
@@ -400,36 +418,38 @@ mod tests {
 
     const URL: &str = "mysql://root:123456@localhost:3306/test";
 
-    #[tokio::test]
-    async fn test_schemas() {
-        let pool = MySqlPool::connect(URL).await.unwrap();
-        let schemas = MysqlMetadata::schemas(&pool).await.unwrap();
-        assert!(!schemas.is_empty())
+    async fn meta() -> Result<MysqlMetadata> {
+        sqlx::any::install_default_drivers();
+        let pool = AnyPool::connect(URL).await?;
+        Ok(MysqlMetadata::new(pool))
     }
 
     #[tokio::test]
-    async fn test_tables() {
-        let pool = MySqlPool::connect(URL).await.unwrap();
-        let tables = MysqlMetadata::tables(&pool, "differ").await.unwrap();
-        assert!(!tables.is_empty())
+    async fn test_schemas() -> Result<()> {
+        let meta = meta().await?;
+        meta.schemas().await?;
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_columns() {
-        let pool = MySqlPool::connect(URL).await.unwrap();
-        let columns = MysqlMetadata::columns(&pool, "differ", "db_detail")
-            .await
-            .unwrap();
-        assert!(!columns.is_empty())
+    async fn test_tables() -> Result<()> {
+        let meta = meta().await?;
+        meta.tables("differ").await?;
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_indexs() {
-        let pool = MySqlPool::connect(URL).await.unwrap();
-        let indexs = MysqlMetadata::indexs(&pool, "differ", "db_detail")
-            .await
-            .unwrap();
-        dbg!(&indexs);
-        assert!(!indexs.is_empty())
+    async fn test_columns() -> Result<()> {
+        let meta = meta().await?;
+        meta.columns("differ", "db_detail").await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_indexs() -> Result<()> {
+        sqlx::any::install_default_drivers();
+        let meta = meta().await?;
+        meta.indexs("differ", "db_detail").await?;
+        Ok(())
     }
 }

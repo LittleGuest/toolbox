@@ -531,6 +531,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_diff_report() -> Result<()> {
+        sqlx::any::install_default_drivers();
         let source = DatasourceInfo {
             driver: crate::database::cores::Driver::Mysql,
             name: "127.0.0.1".into(),
@@ -561,6 +562,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_diff_sql() -> Result<()> {
+        sqlx::any::install_default_drivers();
         let source = DatasourceInfo {
             driver: crate::database::cores::Driver::Mysql,
             name: "127.0.0.1".into(),

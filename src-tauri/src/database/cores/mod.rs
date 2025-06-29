@@ -1,5 +1,5 @@
 #![allow(unused)]
-use std::fmt::Display;
+use std::{fmt::Display, pin::Pin};
 
 use serde::{Deserialize, Serialize};
 use sqlx::{AnyPool, Database, Pool};
@@ -10,6 +10,8 @@ mod postgres;
 mod sqlite;
 
 pub use mysql::MysqlMetadata;
+pub use postgres::PostgresMetadata;
+pub use sqlite::SqliteMetadata;
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -36,20 +38,32 @@ impl serde::Serialize for Error {
     }
 }
 
-/// 数据库元数据
-pub trait DatabaseMetadata {
-    type Pool;
+type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
+/// 数据库元数据
+pub trait DatabaseMetadata: Send + Sync {
     /// 获取所有的库
-    async fn schemas(pool: &Self::Pool) -> Result<Vec<Schema>>;
+    fn schemas(&self) -> BoxFuture<'_, Result<Vec<Schema>>>;
     /// 获取所有的表
-    async fn tables(pool: &Self::Pool, schema: &str) -> Result<Vec<Table>>;
+    fn tables<'a>(&'a self, schema: &'a str) -> BoxFuture<'a, Result<Vec<Table>>>;
     /// 获取表的字段
-    async fn columns(pool: &Self::Pool, schema: &str, table_name: &str) -> Result<Vec<Column>>;
+    fn columns<'a>(
+        &'a self,
+        schema: &'a str,
+        table_name: &'a str,
+    ) -> BoxFuture<'a, Result<Vec<Column>>>;
     /// 获取表索引
-    async fn indexs(pool: &Self::Pool, schema: &str, table_name: &str) -> Result<Vec<Index>>;
+    fn indexs<'a>(
+        &'a self,
+        schema: &'a str,
+        table_name: &'a str,
+    ) -> BoxFuture<'a, Result<Vec<Index>>>;
     /// 创建表SQL
-    async fn create_table_sql(pool: &Self::Pool, schema: &str, table_name: &str) -> Result<String>;
+    fn create_table_sql<'a>(
+        &'a self,
+        schema: &'a str,
+        table_name: &'a str,
+    ) -> BoxFuture<'a, Result<String>>;
 }
 
 /// 库

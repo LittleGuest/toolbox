@@ -3,9 +3,12 @@ use std::collections::HashMap;
 use cores::{Column, DatabaseMetadata, Driver, Error, MysqlMetadata, Result, Schema};
 use diff::DiffReport;
 use serde::{Deserialize, Serialize};
-use sqlx::{Connection, MySqlConnection, MySqlPool};
+use sqlx::{AnyPool, Connection, MySqlConnection};
 
-use crate::database::{cores::Table, diff::CheckReportBo};
+use crate::database::{
+    cores::{PostgresMetadata, SqliteMetadata, Table},
+    diff::CheckReportBo,
+};
 
 mod cores;
 mod diff;
@@ -57,6 +60,15 @@ impl DatasourceInfo {
             Driver::Sqlite => format!("sqlite://{}", self.database.clone().unwrap_or_default()),
         }
     }
+
+    pub async fn database_metadata(&self) -> Box<dyn DatabaseMetadata> {
+        let pool = AnyPool::connect(&self.url()).await.unwrap();
+        match self.driver {
+            Driver::Mysql => Box::new(MysqlMetadata::new(pool)),
+            Driver::Postgres => Box::new(PostgresMetadata::new(pool)),
+            Driver::Sqlite => Box::new(SqliteMetadata::new(pool)),
+        }
+    }
 }
 
 #[tauri::command]
@@ -73,26 +85,16 @@ pub async fn database_ping(datasource_info: DatasourceInfo) -> Result<()> {
 
 #[tauri::command]
 pub async fn database_schemas(datasource_info: DatasourceInfo) -> Result<Vec<Schema>> {
-    match datasource_info.driver {
-        Driver::Mysql => {
-            let pool = MySqlPool::connect(&datasource_info.url()).await?;
-            MysqlMetadata::schemas(&pool).await
-        }
-        Driver::Postgres => todo!(),
-        Driver::Sqlite => todo!(),
-    }
+    datasource_info.database_metadata().await.schemas().await
 }
 
 #[tauri::command]
 pub async fn database_tables(datasource_info: DatasourceInfo) -> Result<Vec<Table>> {
-    match datasource_info.driver {
-        Driver::Mysql => {
-            let pool = MySqlPool::connect(&datasource_info.url()).await?;
-            MysqlMetadata::tables(&pool, &datasource_info.database.unwrap_or_default()).await
-        }
-        Driver::Postgres => todo!(),
-        Driver::Sqlite => todo!(),
-    }
+    datasource_info
+        .database_metadata()
+        .await
+        .tables(&datasource_info.database.unwrap_or_default())
+        .await
 }
 
 #[derive(Debug, Serialize)]
@@ -103,27 +105,20 @@ pub struct TableColumnTree {
 
 #[tauri::command]
 pub async fn database_table_tree(datasource_info: DatasourceInfo) -> Result<Vec<TableColumnTree>> {
-    match datasource_info.driver {
-        Driver::Mysql => {
-            let Some(database) = &datasource_info.database else {
-                return Err(Error::E("choose database"));
-            };
-
-            let pool = MySqlPool::connect(&datasource_info.url()).await?;
-            let tables = MysqlMetadata::tables(&pool, database).await?;
-            let mut data = Vec::with_capacity(tables.len());
-            for table in tables.into_iter() {
-                let columns = MysqlMetadata::columns(&pool, database, &table.name).await?;
-                data.push(TableColumnTree {
-                    table_name: table.name,
-                    children: columns,
-                });
-            }
-            Ok(data)
-        }
-        Driver::Postgres => todo!(),
-        Driver::Sqlite => todo!(),
+    let Some(database) = &datasource_info.database else {
+        return Err(Error::E("choose database"));
+    };
+    let meta = datasource_info.database_metadata().await;
+    let tables = meta.tables(database).await?;
+    let mut data = Vec::with_capacity(tables.len());
+    for table in tables.into_iter() {
+        let columns = meta.columns(database, &table.name).await?;
+        data.push(TableColumnTree {
+            table_name: table.name,
+            children: columns,
+        });
     }
+    Ok(data)
 }
 
 #[tauri::command]

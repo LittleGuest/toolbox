@@ -43,6 +43,8 @@ struct Templates;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    sqlx::any::install_default_drivers();
+
     let migrations = vec![Migration {
         version: 1,
         description: "create_initial_tables",

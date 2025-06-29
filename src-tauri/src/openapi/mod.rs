@@ -6,7 +6,6 @@ use extensions::Extensions;
 use external_docs::ExternalDocs;
 use info::Info;
 use path::Paths;
-use rust_embed::Embed;
 use schema::{Components, Ref};
 use security::SecurityRequirement;
 use serde::{

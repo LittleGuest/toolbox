@@ -7,14 +7,13 @@ use std::{
 
 use heck::ToUpperCamelCase;
 use serde::{Deserialize, Serialize};
-use sqlx::MySqlPool;
 use tera::Tera;
 
 use crate::{
     Templates,
     database::{
         DatasourceInfo, Result,
-        cores::{Column, DatabaseMetadata, Driver, Error, MysqlMetadata, Table},
+        cores::{Column, Error, Table},
     },
 };
 
@@ -127,59 +126,25 @@ impl Generator {
     }
 
     async fn prepare(&self) -> Result<(Vec<Table>, Vec<Column>)> {
-        match self.datasource_info.driver {
-            Driver::Mysql => {
-                let pool = MySqlPool::connect(&self.datasource_info.url()).await?;
-                let tables = MysqlMetadata::tables(
-                    &pool,
-                    &self.datasource_info.database.clone().unwrap_or_default(),
-                )
-                .await?;
-
-                let mut table_names = vec![];
-                if self.table_names.is_empty() {
-                    table_names = tables.iter().map(|t| t.name.clone()).collect::<Vec<_>>();
-                }
-
-                let mut columns = vec![];
-                for t in table_names {
-                    columns.extend(
-                        MysqlMetadata::columns(
-                            &pool,
-                            &self.datasource_info.database.clone().unwrap_or_default(),
-                            &t,
-                        )
-                        .await?,
-                    );
-                }
-                Ok((tables, columns))
-            }
-            Driver::Postgres => todo!(),
-            Driver::Sqlite => todo!(),
-            // Driver::Sqlite => {
-            //     // let pool = sqlx::SqlitePool::connect(&self.driver_url()).await?;
-            //     // let tables = sqlite::tables(&pool, &table_names).await?;
-            //     // let tables_columns = sqlite::columns(&pool, &table_names).await?;
-            //     // Ok((tables, tables_columns))
-            //     todo!()
-            // }
-            // Driver::Mysql => {
-            //     // let pool = sqlx::MySqlPool::connect(&self.driver_url()).await?;
-            //     // let tables = mysql::tables(&pool, &table_names).await?;
-            //     // let tables_columns = mysql::columns(&pool, &table_names).await?;
-            //     // Ok((tables, tables_columns))
-            //     todo!()
-            // }
-            // Driver::Postgres => {
-            //     // let pool = sqlx::PgPool::connect(&self.driver_url()).await?;
-            //     // let tables =
-            //     //     postgres::tables(&self.datasource_info.database, &pool, &table_names).await?;
-            //     // let tables_columns =
-            //     //     postgres::columns(&self.datasource_info.database, &pool, &table_names).await?;
-            //     // Ok((tables, tables_columns))
-            //     todo!()
-            // }
+        let meta = self.datasource_info.database_metadata().await;
+        let tables = meta
+            .tables(&self.datasource_info.database.clone().unwrap_or_default())
+            .await?;
+        let mut table_names = vec![];
+        if self.table_names.is_empty() {
+            table_names = tables.iter().map(|t| t.name.clone()).collect::<Vec<_>>();
         }
+        let mut columns = vec![];
+        for t in table_names {
+            columns.extend(
+                meta.columns(
+                    &self.datasource_info.database.clone().unwrap_or_default(),
+                    &t,
+                )
+                .await?,
+            );
+        }
+        Ok((tables, columns))
     }
 
     /// 渲染模板
@@ -422,6 +387,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_preview_rust() -> Result<()> {
+        sqlx::any::install_default_drivers();
         let mut gt = Generator {
             datasource_info: datasource_info(),
             language: Language::Rust,
@@ -452,6 +418,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_gen_rust() -> Result<()> {
+        sqlx::any::install_default_drivers();
         let mut gt = Generator {
             datasource_info: datasource_info(),
             language: Language::Rust,
