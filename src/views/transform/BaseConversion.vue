@@ -2,10 +2,10 @@
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
-import { createDiscreteApi } from "naive-ui";
+import { useMessage } from "naive-ui";
 import { Copy, Paste } from "@vicons/carbon";
 
-const { message, loadingBar } = createDiscreteApi(["message", "loadingBar",]);
+const message = useMessage();
 
 const inputType = ref("decimal");
 const input = ref("");

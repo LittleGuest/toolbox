@@ -3,11 +3,11 @@ use sqlx::{AnyPool, FromRow, Pool, Row, any::AnyRow};
 
 use crate::database::cores::{ColumnType, DatabaseMetadata, Result};
 
-const SHOW_DATABASES: &str = "SHOW DATABASES";
-const SHOW_COLUMNS: &str = "SHOW FULL COLUMNS FROM ? FROM ?";
-const SHOW_TABLES: &str = "SELECT tb.table_catalog, tb.table_schema, tb.TABLE_NAME, d.description FROM information_schema.tables tb JOIN pg_class C ON C.relname = tb. TABLE_NAME LEFT JOIN pg_description d ON d.objoid = C.OID  AND d.objsubid = '0' WHERE tb.table_catalog = ? and tb.table_schema = ? ";
-const SHOW_INDEX: &str = "SHOW INDEX FROM ? FROM ?";
-const SHOW_CREATE_TABLE: &str = "SHOW CREATE TABLE ?";
+const SHOW_DATABASES: &str = "";
+const SHOW_COLUMNS: &str = "";
+const SHOW_TABLES: &str = "SELECT tb.table_catalog, tb.table_schema, tb.TABLE_NAME, d.description FROM information_schema.tables tb JOIN pg_class C ON C.relname = tb. TABLE_NAME LEFT JOIN pg_description d ON d.objoid = C.OID  AND d.objsubid = '0' WHERE tb.table_catalog = $1 and tb.table_schema = $2 ";
+const SHOW_INDEX: &str = "";
+const SHOW_CREATE_TABLE: &str = "";
 const WORD_UNSIGNED: &str = "unsigned";
 const WORD_PRIMARY: &str = "PRIMARY";
 
@@ -397,43 +397,43 @@ impl DatabaseMetadata for PostgresMetadata {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//
-//     const URL: &str = "postgres://postgres:postgres@localhost:5432/postgres";
-//
-//     async fn meta() -> Result<PostgresMetadata> {
-//         sqlx::any::install_default_drivers();
-//         let pool = AnyPool::connect(URL).await?;
-//         Ok(PostgresMetadata::new(pool))
-//     }
-//
-//     #[tokio::test]
-//     async fn test_schemas() -> Result<()> {
-//         let meta = meta().await?;
-//         let _ = meta.schemas().await?;
-//         Ok(())
-//     }
-//
-//     #[tokio::test]
-//     async fn test_tables() -> Result<()> {
-//         let meta = meta().await?;
-//         let _ = meta.tables("differ").await?;
-//         Ok(())
-//     }
-//
-//     #[tokio::test]
-//     async fn test_columns() -> Result<()> {
-//         let meta = meta().await?;
-//         let _ = meta.columns("differ", "db_detail").await?;
-//         Ok(())
-//     }
-//
-//     #[tokio::test]
-//     async fn test_indexs() -> Result<()> {
-//         let meta = meta().await?;
-//         let _ = meta.indexs("differ", "db_detail").await?;
-//         Ok(())
-//     }
-// }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const URL: &str = "postgres://postgres:postgres@localhost:5432/postgres";
+
+    async fn meta() -> Result<PostgresMetadata> {
+        sqlx::any::install_default_drivers();
+        let pool = AnyPool::connect(URL).await?;
+        Ok(PostgresMetadata::new(pool))
+    }
+
+    #[tokio::test]
+    async fn test_schemas() -> Result<()> {
+        let meta = meta().await?;
+        let _ = meta.schemas().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_tables() -> Result<()> {
+        let meta = meta().await?;
+        let _ = meta.tables("differ").await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_columns() -> Result<()> {
+        let meta = meta().await?;
+        let _ = meta.columns("differ", "db_detail").await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_indexs() -> Result<()> {
+        let meta = meta().await?;
+        let _ = meta.indexs("differ", "db_detail").await?;
+        Ok(())
+    }
+}

@@ -1,11 +1,11 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { NButton, NButtonGroup, createDiscreteApi } from "naive-ui";
+import { NButton, NButtonGroup, useMessage } from "naive-ui";
 import { datasourceInfosApi, saveDatasourceInfoApi, updateDatasourceInfoApi, deleteDatasourceInfoApi } from '../../db.js';
 import DataGenerator from './DataGenerator.vue';
 
-const { message, notification, dialog, loadingBar, modal } = createDiscreteApi(["message", "dialog", "notification", "loadingBar", "modal"]);
+const message = useMessage();
 
 const connects = ref([]);
 

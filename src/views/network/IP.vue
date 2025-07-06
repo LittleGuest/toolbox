@@ -2,8 +2,9 @@
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
+import { useMessage } from "naive-ui";
 
-import { notification } from "../../tool.js";
+const message = useMessage();
 
 const ipv4 = ref("");
 const binaryv4 = ref("");
@@ -69,7 +70,7 @@ const pastev6 = async () => {
 
 const copy = (value) => {
   writeText(value);
-  notification("复制成功");
+  message.info("复制成功");
 };
 </script>
 

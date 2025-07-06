@@ -1,13 +1,13 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { NButton, NButtonGroup, createDiscreteApi } from "naive-ui";
+import { NButton, NButtonGroup, useMessage } from "naive-ui";
 import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Copy, Paste, Close } from "@vicons/carbon";
 import { datasourceInfosApi, saveDatasourceInfoApi, updateDatasourceInfoApi, deleteDatasourceInfoApi } from '../../db.js';
 import GeneratorConfiguration from './GeneratorConfiguration.vue';
 import GeneratorDataPreview from './GeneratorDataPreview.vue';
 
-const { message, notification, dialog, loadingBar, modal } = createDiscreteApi(["message", "dialog", "notification", "loadingBar", "modal"]);
+const message = useMessage();
 
 
 onMounted(async () => {
