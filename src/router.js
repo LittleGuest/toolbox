@@ -1,64 +1,52 @@
 import { createRouter, createWebHashHistory } from "vue-router";
-import All from "./views/All.vue";
-import BaseConversion from "./views/transform/BaseConversion.vue";
-import Cffc from "./views/transform/Cffc.vue";
-import Timestamp from "./views/transform/Timestamp.vue";
-import URL from "./views/encodedecode/URL.vue";
-import Base64Text from "./views/encodedecode/Base64Text.vue";
-import JWT from "./views/encodedecode/JWT.vue";
-import JsonEditor from "./views/formatter/JsonEditor.vue";
-import SqlFormatter from "./views/formatter/SqlFormatter.vue";
-import XmlFormatter from "./views/formatter/XmlFormatter.vue";
-import Hash from "./views/generator/Hash.vue";
-import UUID from "./views/generator/UUID.vue";
-import Checksum from "./views/generator/Checksum.vue";
-import Markdown from "./views/text/Markdown.vue";
-import IP from "./views/network/IP.vue";
-import Setting from "./views/Setting.vue";
-import ClipboardManager from "./views/other/ClipboardManager.vue";
-import OpenApi from "./views/transform/OpenApi.vue";
-import Excalidraw from "./views/graphic/Excalidraw.vue";
-import DatabaseFaker from "./views/database/DatabaseFaker.vue";
-import DatabaseDiff from "./views/database/DatabaseDiff.vue";
-import QRCode from "./views/other/QRCode.vue";
 
 const routes = [
-  { path: "/", component: All },
-  { path: "/home", component: All },
-  { path: "/setting", component: Setting },
+	{ path: "/", component: ()=>import("@/views/All.vue") },
+	{ path: "/home", component: ()=>import("@/views/All.vue") },
+	{ path: "/setting", component: ()=>import("@/views/Setting.vue") },
 
-  { path: "/transform/filetype", component: Cffc },
-  { path: "/transform/time", component: Timestamp },
-  { path: "/transform/baseconversion", component: BaseConversion },
-  { path: "/transform/openapi", component: OpenApi },
+	{ path: "/transform/filetype", component: ()=>import("@/views/transform/Cffc.vue") },
+	{ path: "/transform/time", component: ()=>import("@/views/transform/Timestamp.vue") },
+	{ path: "/transform/baseconversion", component: ()=>import("@/views/transform/BaseConversion.vue") },
+	{ path: "/transform/openapi", component: ()=>import("@/views/transform/OpenApi.vue") },
 
-  { path: "/encodedecode/url", component: URL },
-  { path: "/encodedecode/base64text", component: Base64Text },
-  { path: "/encodedecode/jwt", component: JWT },
+	{ path: "/encodedecode/url", component: ()=>import("@/views/encodedecode/URL.vue") },
+	{ path: "/encodedecode/base64text", component: ()=>import("@/views/encodedecode/Base64Text.vue") },
+	{ path: "/encodedecode/jwt", component: ()=>import("@/views/encodedecode/JWT.vue") },
 
-  { path: "/formatter/jsoneditor", component: JsonEditor },
-  { path: "/formatter/sql", component: SqlFormatter },
-  { path: "/formatter/xml", component: XmlFormatter },
+	{ path: "/formatter/jsoneditor", component: ()=>import("@/views/formatter/JsonEditor.vue") },
+	{ path: "/formatter/sql", component: ()=>import("@/views/formatter/SqlFormatter.vue") },
+	{ path: "/formatter/xml", component: ()=>import("@/views/formatter/XmlFormatter.vue") },
 
-  { path: "/generator/hash", component: Hash },
-  { path: "/generator/uuid", component: UUID },
-  { path: "/generator/checksum", component: Checksum },
-  { path: "/database/datafaker", component: DatabaseFaker },
-  { path: "/database/diff", component: DatabaseDiff },
+	{ path: "/generator/hash", component: ()=>import("@/views/generator/Hash.vue") },
+	{ path: "/generator/uuid", component: ()=>import("@/views/generator/UUID.vue") },
+	{ path: "/generator/checksum", component: ()=>import("@/views/generator/Checksum.vue") },
+	{
+		path: "/database/datafaker",
+		component: () => import("@/views/database/DatabaseFaker.vue"),
+	},
+	{
+		path: "/database/datafaker/generator",
+		name: "DataGenerator",
+		// props: true,
+		props: (route)=>({...route.query}),
+		component: () => import("@/views/database/DataGenerator.vue"),
+	},
+	{ path: "/database/diff", component: ()=>import("@/views/database/DatabaseDiff.vue") },
 
-  { path: "/text/markdown", component: Markdown },
+	{ path: "/text/markdown", component: ()=>import("@/views/text/Markdown.vue") },
 
-  { path: "/network/ip", component: IP },
+	{ path: "/network/ip", component: ()=>import("@/views/network/IP.vue") },
 
-  { path: "/graphic/excalidraw", component: Excalidraw },
+	{ path: "/graphic/excalidraw", component: ()=>import("@/views/graphic/Excalidraw.vue") },
 
-  { path: "/other/clipboard", component: ClipboardManager },
-  { path: "/other/qrcode", component: QRCode },
+	{ path: "/other/clipboard", component: ()=>import("@/views/other/ClipboardManager.vue") },
+	{ path: "/other/qrcode", component: ()=>import("@/views/other/QRCode.vue") },
 ];
 
 const router = createRouter({
-  history: createWebHashHistory(),
-  routes,
+	history: createWebHashHistory(),
+	routes,
 });
 
 export default router;

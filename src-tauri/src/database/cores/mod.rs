@@ -82,6 +82,7 @@ pub struct Table {
 
 /// 列信息
 #[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Column {
     // 库名
     pub database: String,
@@ -120,6 +121,7 @@ pub struct Column {
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Index {
     /// 表名
     pub table_name: String,

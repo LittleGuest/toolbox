@@ -97,9 +97,13 @@ pub async fn database_tables(datasource_info: DatasourceInfo) -> Result<Vec<Tabl
         .await
 }
 
-#[derive(Debug, Serialize)]
+/// 表信息
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TableColumnTree {
+    schema: String,
     table_name: String,
+    table_comment: String,
     children: Vec<Column>,
 }
 
@@ -114,7 +118,9 @@ pub async fn database_table_tree(datasource_info: DatasourceInfo) -> Result<Vec<
     for table in tables.into_iter() {
         let columns = meta.columns(database, &table.name).await?;
         data.push(TableColumnTree {
+            schema: table.schema,
             table_name: table.name,
+            table_comment: table.comment,
             children: columns,
         });
     }

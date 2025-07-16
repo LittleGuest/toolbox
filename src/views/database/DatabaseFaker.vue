@@ -2,10 +2,13 @@
 import { ref, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { NButton, NButtonGroup, useMessage } from "naive-ui";
-import { datasourceInfosApi, saveDatasourceInfoApi, updateDatasourceInfoApi, deleteDatasourceInfoApi } from '../../db.js';
+import { datasourceInfosApi, saveDatasourceInfoApi, updateDatasourceInfoApi, deleteDatasourceInfoApi } from '@/db.js';
 import DataGenerator from './DataGenerator.vue';
+import { useRoute, useRouter } from "vue-router";
 
 const message = useMessage();
+const router = useRouter();
+const route = useRoute();
 
 const connects = ref([]);
 
@@ -41,10 +44,13 @@ const columns = [
           NButton,
           {
             onClick: () => {
-
+              router.push({
+                name:'DataGenerator',
+                query: { datasourceId:row.id }
+              });
             }
           },
-          { default: () => "数据生成" }
+          { default: () => "配置" }
         ),
         h(
           NButton,
@@ -166,8 +172,6 @@ const saveConnect = (e) => {
 <template>
   <n-button @click="handleAddDrawer">新建连接</n-button>
   <n-data-table :columns="columns" :data="connects" :bordered="false" :scroll-x="1800" :max-height="550" />
-
-  <DataGenerator />
 
   <n-drawer v-model:show="showAddaDrawer" placement="bottom" resizable :default-width="502" :default-height="600">
     <n-drawer-content :title="addDrawer ? '添加' : '编辑'" closable>
