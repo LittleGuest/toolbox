@@ -18,20 +18,29 @@ pub use number::Number;
 pub use person::*;
 pub use uuid::Uuid;
 
+/// 随机字符串，count为字符串长度
 fn random_str(count: usize) -> String {
-    let mut str = String::with_capacity(count);
     if count == 0 {
-        return str;
+        return String::new();
     }
-
-    (0..count).for_each(|_| {
+    (0..count).fold(String::with_capacity(count), |mut s: String, _| {
         let char: char = match fastrand::u8(0..3) {
             0 => fastrand::u8(b'a'..=b'z').into(),
             1 => fastrand::u8(b'A'..=b'Z').into(),
             _ => fastrand::u8(48..=57).into(),
         };
-        str.push(char);
-    });
+        s.push(char);
+        s
+    })
+}
 
-    str
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_random_str() {
+        let s = random_str(18);
+        assert_eq!(s.len(), 18);
+    }
 }

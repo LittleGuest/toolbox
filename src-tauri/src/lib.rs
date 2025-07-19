@@ -93,6 +93,7 @@ pub fn run() {
             database::database_diff_sql,
             database::database_standard_check_codes,
             database::database_standard_check,
+            datafaker::datafaker_providers,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
