@@ -59,6 +59,18 @@ pub struct RegexGenerator {
     pub forbidden_links: bool,
 }
 
+impl Default for RegexGenerator {
+    fn default() -> Self {
+        Self {
+            pattern: r"[A-Za-z0-9]{10}",
+            include_default: None,
+            include_null: None,
+            unique: None,
+            forbidden_links: false,
+        }
+    }
+}
+
 impl RegexGenerator {
     pub fn new(
         pattern: &'static str,
