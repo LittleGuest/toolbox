@@ -8,7 +8,6 @@ use rust_embed::Embed;
 use serde::Deserialize;
 use thiserror::Error;
 
-mod generators;
 mod providers;
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;

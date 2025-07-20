@@ -8,6 +8,7 @@ mod internet;
 mod name;
 mod number;
 mod person;
+mod sequence;
 mod uuid;
 
 pub use address::Address;
@@ -15,9 +16,10 @@ pub use education::Education;
 pub use emoji::Emoji;
 pub use file::File;
 pub use internet::Internet;
-pub use name::Name;
+pub use name::{Name, NameGenerator};
 pub use number::{Number, NumberGenerator};
 pub use person::*;
+pub use sequence::SequenceGenerator;
 pub use uuid::Uuid;
 
 /// 随机字符串，count为字符串长度
