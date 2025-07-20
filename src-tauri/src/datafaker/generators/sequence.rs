@@ -54,6 +54,17 @@ impl SequenceGenerator {
         }
     }
 
+    /// 预览
+    pub fn preview(&mut self, count: i64) -> Result<Vec<Option<i64>>> {
+        self.check(Some(count))?;
+        let mut res = Vec::with_capacity(count as usize);
+        (0..count).for_each(|_| {
+            res.push(self.next());
+        });
+        Ok(res)
+    }
+
+    /// 检查参数
     pub fn check(&self, count: Option<i64>) -> Result<()> {
         // 开始值必须大于等于最小值
         if let Some(min) = self.min
@@ -72,6 +83,7 @@ impl SequenceGenerator {
             && let Some(max) = self.max
             && let Some(count) = count
             && count > max - min
+            && !self.cycle
         {
             return Err(Error::SequenceCountNotEnough);
         }
@@ -134,7 +146,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn test_sequence_generator_min_max_err()  {
+    fn test_sequence_generator_min_max_err() {
         let mut generator = SequenceGenerator::new();
         generator.start = 5;
         generator.min = Some(5);
@@ -187,6 +199,32 @@ mod tests {
         (1..=10).for_each(|_| {
             seqs.push(generator.next());
         });
+        assert_eq!(seqs.len(), 10);
+        assert_eq!(
+            seqs,
+            vec![
+                Some(3),
+                Some(4),
+                Some(5),
+                Some(1),
+                Some(2),
+                Some(3),
+                Some(4),
+                Some(5),
+                Some(1),
+                Some(2),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_sequence_generator_preview() {
+        let mut generator = SequenceGenerator::new();
+        generator.cycle = true;
+        generator.start = 3;
+        generator.min = Some(1);
+        generator.max = Some(5);
+        let seqs = generator.preview(10).unwrap();
         assert_eq!(seqs.len(), 10);
         assert_eq!(
             seqs,

@@ -1,6 +1,8 @@
 use std::{ops::Deref, sync::LazyLock};
 
-use super::Person;
+use rand::Rng;
+
+use super::Name;
 use crate::datafaker::{FakerData, Locale};
 
 static STREET_SUFFIX_DATA: LazyLock<Vec<String>> = LazyLock::new(|| {
@@ -40,7 +42,7 @@ impl Address {
     }
 
     pub fn street_name(&self) -> String {
-        let name = self.name();
+        let mut name = Name::new_with_locale(rand::rng(), self.locale);
         match fastrand::u8(0..2) {
             0 => format!("{} {}", name.first_name(), self.street_suffix()),
             1 => format!("{} {}", name.last_name(), self.street_suffix()),
@@ -85,7 +87,7 @@ impl Address {
     }
 
     pub fn city(&self) -> String {
-        let name = self.name();
+        let mut name = Name::new_with_locale(rand::rng(), self.locale);
         match fastrand::u8(0..4) {
             0 => format!(
                 "{} {}{}",
@@ -166,10 +168,6 @@ impl Address {
             SECONDARY_FORMATS[fastrand::usize(0..SECONDARY_FORMATS_LEN)],
             fastrand::u16(100..999)
         )
-    }
-
-    fn name(&self) -> Person {
-        Person::new_with_locale(self.locale)
     }
 }
 

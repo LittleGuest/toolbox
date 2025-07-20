@@ -5,6 +5,7 @@ mod education;
 mod emoji;
 mod file;
 mod internet;
+mod name;
 mod number;
 mod person;
 mod uuid;
@@ -14,7 +15,8 @@ pub use education::Education;
 pub use emoji::Emoji;
 pub use file::File;
 pub use internet::Internet;
-pub use number::Number;
+pub use name::Name;
+pub use number::{Number, NumberGenerator};
 pub use person::*;
 pub use uuid::Uuid;
 

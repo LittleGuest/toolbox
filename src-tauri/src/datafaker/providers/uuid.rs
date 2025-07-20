@@ -1,6 +1,6 @@
 use uuid::Uuid as UUID;
 
-use super::Person;
+use super::Name;
 
 pub struct Uuid;
 
@@ -68,7 +68,7 @@ impl Uuid {
     }
 
     fn name(&self) -> String {
-        Person::new().last_name()
+        Name::default().last_name()
     }
 }
 

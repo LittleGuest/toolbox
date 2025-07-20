@@ -1,7 +1,11 @@
 #![allow(dead_code)]
 
+use std::collections::HashSet;
+
 use providers::{Address, Education, Emoji, File, Internet, Number, Person, Uuid};
+use rand::rngs::ThreadRng;
 use rust_embed::Embed;
+use serde::Deserialize;
 use thiserror::Error;
 
 mod generators;
@@ -11,10 +15,20 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("invalid sequence min max")]
+    #[error("无效的最大最小值")]
     InvalidSequenceMinMax,
-    #[error("sequence count not enough")]
+    #[error("序列号数量不足")]
     SequenceCountNotEnough,
+    #[error("开始值不能大于结束值")]
+    StartNotGreaterThanEnd,
+    #[error("小数位数不能超过10位")]
+    DecimalPlacesNotGreaterThan10,
+    #[error("出现百分比不能超过100")]
+    PercentNotGreaterThan100,
+    #[error("默认值长度不能超过字段长度")]
+    LengthNotGreaterThanFieldLength,
+    #[error("无效参数 {0}")]
+    InvalidParameter(&'static str),
 }
 
 impl serde::Serialize for Error {
@@ -30,11 +44,21 @@ impl serde::Serialize for Error {
 #[folder = "fakerdata"]
 pub struct FakerData;
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, Deserialize)]
 pub enum Locale {
-    CN,
+    /// 英文
     #[default]
-    En,
+    #[serde(rename = "en_us")]
+    EnUs,
+    /// 简体中文
+    #[serde(rename = "zh_cn")]
+    ZhCn,
+    /// 繁体中文
+    #[serde(rename = "zh_tw")]
+    ZhTw,
+    /// 中文拼音
+    #[serde(rename = "zh_pinyin")]
+    ZhPinyin,
 }
 
 /// 数据提供者
@@ -44,6 +68,8 @@ pub trait Provider {
 
 /// 假数据生成器
 pub struct Faker {
+    /// 随机数生成器
+    rng: ThreadRng,
     pub locale: Locale,
     // providers: HashMap<String, Box<dyn Provider>>,
     providers: Vec<String>,
@@ -52,6 +78,7 @@ pub struct Faker {
 impl Faker {
     pub fn new() -> Self {
         Self {
+            rng: rand::rng(),
             locale: Default::default(),
             providers: {
                 let mut p = Vec::new();
@@ -96,8 +123,8 @@ impl Faker {
         Internet::new_with_locale(self.locale)
     }
 
-    pub fn number(&self) -> Number {
-        Number
+    pub fn number(&self) -> Number<ThreadRng> {
+        Number::new(self.rng.clone())
     }
 
     pub fn person(&self) -> Person {
@@ -106,6 +133,70 @@ impl Faker {
 
     pub fn uuid(&self) -> Uuid {
         Uuid
+    }
+}
+
+/// 默认值组件
+#[derive(Debug, Clone)]
+pub struct DefaultComponent {
+    /// 默认值
+    pub default: String,
+    /// 默认值出现百分比
+    pub percent: f64,
+}
+
+impl DefaultComponent {
+    pub fn new(default: String, percent: f64) -> Self {
+        Self { default, percent }
+    }
+
+    /// 检查默认值组件参数  
+    pub fn check(&self, len: Option<usize>) -> Result<()> {
+        if self.percent - 100.0 > 0.0 {
+            return Err(Error::PercentNotGreaterThan100);
+        }
+        if let Some(len) = len
+            && self.default.len() > len
+        {
+            return Err(Error::LengthNotGreaterThanFieldLength);
+        }
+        Ok(())
+    }
+}
+
+/// NULL值组件
+#[derive(Debug, Clone)]
+pub struct NullComponent {
+    /// NULL值出现百分比
+    pub percent: f64,
+}
+
+impl NullComponent {
+    pub fn new(percent: f64) -> Self {
+        Self { percent }
+    }
+
+    /// 检查NULL值组件参数
+    pub fn check(&self) -> Result<()> {
+        if self.percent - 100.0 > 0.0 {
+            return Err(Error::PercentNotGreaterThan100);
+        }
+        Ok(())
+    }
+}
+
+/// 唯一值组件
+#[derive(Debug, Clone)]
+pub struct UniqueComponent {
+    /// 已经生成的唯一值
+    pub value: HashSet<String>,
+}
+
+impl UniqueComponent {
+    pub fn new() -> Self {
+        Self {
+            value: HashSet::new(),
+        }
     }
 }
 

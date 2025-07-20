@@ -3,7 +3,10 @@ use std::{ops::Range, sync::LazyLock};
 use regex::Regex;
 
 use super::random_str;
-use crate::datafaker::{Locale, providers::Person};
+use crate::datafaker::{
+    Locale,
+    providers::{Name, Person},
+};
 
 static DOMAIN_SUFFIX: [&str; 24] = [
     "com", "org", "net", "cn", "io", "im", "info", "mobi", "biz", "pro", "us", "me", "top", "tv",
@@ -137,7 +140,8 @@ impl Internet {
     }
 
     pub fn username(&self) -> String {
-        let name = Person::new_with_locale(self.locale);
+        let mut name = Name::new_with_locale(rand::rng(), self.locale);
+
         format!(
             "{}{}",
             name.first_name().to_lowercase(),
