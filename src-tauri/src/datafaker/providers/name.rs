@@ -304,15 +304,17 @@ impl Default for NameGenerator {
 }
 
 impl NameGenerator {
-    pub fn new(format: NameFormat, locals: Vec<Locale>) -> Self {
-        Self {
+    pub fn new(format: NameFormat, locals: Vec<Locale>) -> Result<Self> {
+        let name = Self {
             format,
             locales: locals,
             include_default: None,
             include_null: None,
             unique: None,
             forbidden_links: false,
-        }
+        };
+        name.check()?;
+        Ok(name)
     }
 
     /// 校验参数
@@ -441,8 +443,10 @@ mod tests {
 
         #[test]
         fn test_name_generator_with_locale() {
-            let mut generator =
+            let generator =
                 NameGenerator::new(NameFormat::FullName, vec![Locale::ZhCn, Locale::EnUs]);
+            assert!(generator.is_ok());
+            let mut generator = generator.unwrap();
             let res = generator.generate(10);
             assert!(res.is_ok());
             let res = res.unwrap();
@@ -452,7 +456,9 @@ mod tests {
 
         #[test]
         fn test_name_generator_with_format() {
-            let mut generator = NameGenerator::new(NameFormat::FirstName, vec![Locale::ZhCn]);
+            let generator = NameGenerator::new(NameFormat::FirstName, vec![Locale::ZhCn]);
+            assert!(generator.is_ok());
+            let mut generator = generator.unwrap();
             let res = generator.generate(10);
             assert!(res.is_ok());
             let res = res.unwrap();
@@ -463,7 +469,9 @@ mod tests {
                     .all(|v| MALE_FIRST_NAME_DATA.contains(&v.unwrap()))
             );
 
-            let mut generator = NameGenerator::new(NameFormat::LastName, vec![Locale::ZhCn]);
+            let generator = NameGenerator::new(NameFormat::LastName, vec![Locale::ZhCn]);
+            assert!(generator.is_ok());
+            let mut generator = generator.unwrap();
             let res = generator.generate(10);
             assert!(res.is_ok());
             let res = res.unwrap();
@@ -474,7 +482,9 @@ mod tests {
                     .all(|v| LAST_NAME_DATA.contains(&v.unwrap()))
             );
 
-            let mut generator = NameGenerator::new(NameFormat::FullName, vec![Locale::ZhCn]);
+            let generator = NameGenerator::new(NameFormat::FullName, vec![Locale::ZhCn]);
+            assert!(generator.is_ok());
+            let mut generator = generator.unwrap();
             let res = generator.generate(10);
             assert!(res.is_ok());
             let res = res.unwrap();
@@ -484,7 +494,9 @@ mod tests {
 
         #[test]
         fn test_name_generator_with_default() {
-            let mut generator = NameGenerator::new(NameFormat::FullName, vec![Locale::ZhCn]);
+            let generator = NameGenerator::new(NameFormat::FullName, vec![Locale::ZhCn]);
+            assert!(generator.is_ok());
+            let mut generator = generator.unwrap();
             generator.include_default = Some(DefaultComponent::new("默认姓名".to_string(), 100.0));
             let res = generator.generate(10);
             assert!(res.is_ok());
@@ -496,7 +508,9 @@ mod tests {
 
         #[test]
         fn test_name_generator_with_null() {
-            let mut generator = NameGenerator::new(NameFormat::FullName, vec![Locale::ZhCn]);
+            let generator = NameGenerator::new(NameFormat::FullName, vec![Locale::ZhCn]);
+            assert!(generator.is_ok());
+            let mut generator = generator.unwrap();
             generator.include_null = Some(NullComponent::new(100.0));
             let res = generator.generate(10);
             assert!(res.is_ok());
@@ -508,7 +522,9 @@ mod tests {
         #[test]
         #[should_panic]
         fn test_name_generator_with_default_null_error() {
-            let mut generator = NameGenerator::new(NameFormat::FullName, vec![Locale::ZhCn]);
+            let generator = NameGenerator::new(NameFormat::FullName, vec![Locale::ZhCn]);
+            assert!(generator.is_ok());
+            let mut generator = generator.unwrap();
             generator.include_default = Some(DefaultComponent::new("默认姓名".to_string(), 56.0));
             generator.include_null = Some(NullComponent::new(56.0));
             generator.check().unwrap()
@@ -516,7 +532,9 @@ mod tests {
 
         #[test]
         fn test_name_generator_with_default_null() {
-            let mut generator = NameGenerator::new(NameFormat::FullName, vec![Locale::ZhCn]);
+            let generator = NameGenerator::new(NameFormat::FullName, vec![Locale::ZhCn]);
+            assert!(generator.is_ok());
+            let mut generator = generator.unwrap();
             generator.include_default = Some(DefaultComponent::new("默认姓名".to_string(), 80.0));
             generator.include_null = Some(NullComponent::new(20.0));
             let res = generator.generate(1000);
@@ -529,7 +547,9 @@ mod tests {
 
         #[test]
         fn test_name_generator_with_unique() {
-            let mut generator = NameGenerator::new(NameFormat::FullName, vec![Locale::ZhCn]);
+            let generator = NameGenerator::new(NameFormat::FullName, vec![Locale::ZhCn]);
+            assert!(generator.is_ok());
+            let mut generator = generator.unwrap();
             generator.unique = Some(UniqueComponent::new());
             let res = generator.generate(10);
             assert!(res.is_ok());

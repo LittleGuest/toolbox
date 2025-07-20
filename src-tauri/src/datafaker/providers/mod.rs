@@ -8,6 +8,7 @@ mod internet;
 mod name;
 mod number;
 mod person;
+mod regex;
 mod sequence;
 mod uuid;
 

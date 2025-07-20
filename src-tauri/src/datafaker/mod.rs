@@ -28,6 +28,10 @@ pub enum Error {
     LengthNotGreaterThanFieldLength,
     #[error("无效参数 {0}")]
     InvalidParameter(&'static str),
+    #[error("正则表达式错误")]
+    RegexSyntaxError(#[from] regex_syntax::Error),
+    #[error("正则表达式随机字符串生成错误")]
+    RegexGeneratorError(#[from] rand_regex::Error),
 }
 
 impl serde::Serialize for Error {
