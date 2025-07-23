@@ -23,16 +23,16 @@ const routes = [
 	{ path: "/generator/checksum", component: ()=>import("@/views/generator/Checksum.vue") },
 	{
 		path: "/database/datafaker",
-		component: () => import("@/views/database/DatabaseFaker.vue"),
+		component: () => import("@/views/database/datafaker/DatabaseFaker.vue"),
 	},
 	{
 		path: "/database/datafaker/generator",
 		name: "DataGenerator",
 		// props: true,
 		props: (route)=>({...route.query}),
-		component: () => import("@/views/database/DataGenerator.vue"),
+		component: () => import("@/views/database/datafaker/DataGenerator.vue"),
 	},
-	{ path: "/database/diff", component: ()=>import("@/views/database/DatabaseDiff.vue") },
+	{ path: "/database/diff", component: ()=>import("@/views/database/diff/DatabaseDiff.vue") },
 
 	{ path: "/text/markdown", component: ()=>import("@/views/text/Markdown.vue") },
 

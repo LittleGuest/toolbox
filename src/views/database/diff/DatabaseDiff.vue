@@ -7,7 +7,7 @@ import {
   saveDatasourceInfoApi,
   updateDatasourceInfoApi,
   deleteDatasourceInfoApi,
-} from "../../db.js";
+} from "@/db.js";
 import DatabaseDiffReport from "./DatabaseDiffReport.vue";
 import { QuestionCircleOutlined } from "@vicons/antd";
 import DatabaseDiffSql from "./DatabaseDiffSql.vue";
