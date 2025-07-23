@@ -10,6 +10,7 @@ mod number;
 mod person;
 mod regex;
 mod sequence;
+mod text;
 mod uuid;
 
 pub use address::Address;

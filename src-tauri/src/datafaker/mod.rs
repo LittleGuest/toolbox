@@ -26,6 +26,8 @@ pub enum Error {
     PercentNotGreaterThan100,
     #[error("默认值长度不能超过字段长度")]
     LengthNotGreaterThanFieldLength,
+    #[error("无效时间")]
+    InvalidDateTime,
     #[error("无效参数 {0}")]
     InvalidParameter(&'static str),
     #[error("正则表达式错误")]

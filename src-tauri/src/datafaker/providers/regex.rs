@@ -133,11 +133,6 @@ impl RegexGenerator {
                     continue;
                 }
             }
-            // 不包含默认值和NULL值
-            // // 如果是原始数据模式，直接返回生成的字符串
-            // if self.config.raw_data_mode {
-            //     return Ok(Some(result));
-            // }
             res.push(Some(samples[i].clone()));
         }
         Ok(res)
