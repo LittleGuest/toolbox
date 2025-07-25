@@ -1,7 +1,8 @@
 #![allow(dead_code)]
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashMap, HashSet};
 
+use indexmap::IndexMap;
 use providers::{Address, Education, Emoji, File, Internet, Number, Person, Uuid};
 use rand::rngs::ThreadRng;
 use rust_embed::Embed;
@@ -77,7 +78,7 @@ pub struct Faker {
     rng: ThreadRng,
     pub locale: Locale,
     // providers: HashMap<String, Box<dyn Provider>>,
-    providers: Vec<String>,
+    providers: HashMap<String, String>,
 }
 
 impl Faker {
@@ -86,15 +87,19 @@ impl Faker {
             rng: rand::rng(),
             locale: Default::default(),
             providers: {
-                let mut p = Vec::new();
-                p.push("education".into());
-                p.push("address".into());
-                p.push("emoji".into());
-                p.push("file".into());
-                p.push("internet".into());
-                p.push("number".into());
-                p.push("person".into());
-                p.push("uuid".into());
+                let mut p = HashMap::new();
+                p.insert("address".into(), "地址".into());
+                p.insert("education".into(), "教育".into());
+                p.insert("emoji".into(), "emoji".into());
+                p.insert("file".into(), "文件".into());
+                p.insert("internet".into(), "互联网".into());
+                p.insert("name".into(), "姓名".into());
+                p.insert("number".into(), "数字".into());
+                p.insert("person".into(), "个人".into());
+                p.insert("regex".into(), "正则表达式".into());
+                p.insert("sequence".into(), "序列".into());
+                p.insert("text".into(), "文本".into());
+                p.insert("uuid".into(), "UUID".into());
                 p
             },
         }
@@ -207,32 +212,90 @@ impl UniqueComponent {
 
 /// 获取数据提供者列表
 #[tauri::command]
-pub async fn datafaker_providers() -> Result<Vec<String>> {
+pub async fn datafaker_providers() -> Result<HashMap<String, String>> {
     Ok(Faker::new().providers)
 }
 
-/// 根据表字段名和类型适配一个合适的生成器，优先适配字段名
+/// 根据表字段名或字段类型匹配一个合适的生成器，优先适配字段名
 #[tauri::command]
-pub async fn datafaker_adapter(field_name: String, field_type: String) -> Result<String> {
-    if field_name.is_empty() {
-        return Ok("name".into());
+pub async fn datafaker_adapter(
+    field_name: Option<String>,
+    field_type: Option<String>,
+) -> Result<String> {
+    // 根据字段名称匹配合适的生成器
+    if let Some(field_name) = field_name {
+        match field_name.to_lowercase().as_str() {
+            "id" => return Ok("uuid".into()),
+            "name" | "nick_name" => return Ok("name".into()),
+            "username" => return Ok("internet".into()),
+            "age" => return Ok("number".into()),
+            "sex" => return Ok("person".into()),
+            "email" | "phone" | "ip" => return Ok("internet".into()),
+            "address" => return Ok("address".into()),
+            "date" | "time" | "datetime" | "timestamp" => return Ok("datetime".into()),
+            _ => {}
+        }
     }
 
-    if field_type.is_empty() {
-        return Ok("name".into());
+    // 根据字段类型匹配生成器
+    if let Some(field_type) = field_type {
+        match field_type.to_lowercase().as_str() {
+            "tinyint" | "int" | "smallint" | "integer" | "bigint" | "mediumint" => {
+                return Ok("number".into());
+            }
+            "binary" => return Ok("binary".into()),
+            "bit" => return Ok("bit".into()),
+            "blob" => return Ok("blob".into()),
+            "decimal" => return Ok("decimal".into()),
+            "double" => return Ok("double".into()),
+            "enum" => return Ok("enum".into()),
+            "float" => return Ok("float".into()),
+            "geometry" => return Ok("geometry".into()),
+            "geometrycollection" => return Ok("geometrycollection".into()),
+            "json" => return Ok("json".into()),
+            "longblob" => return Ok("longblob".into()),
+            "mediumblob" => return Ok("mediumblob".into()),
+            "multipoint" => return Ok("multipoint".into()),
+            "numeric" => return Ok("numeric".into()),
+            "point" => return Ok("point".into()),
+            "polygon" => return Ok("polygon".into()),
+            "real" => return Ok("real".into()),
+            "set" => return Ok("set".into()),
+            "char" => return Ok("char".into()),
+            "varchar" | "tinytext" | "text" | "longtext" | "mediumtext" | "linestring"
+            | "multilinestring" => return Ok("text".into()),
+            "date" => return Ok("date".into()),
+            "datetime" => return Ok("datetime".into()),
+            "time" => return Ok("time".into()),
+            "timestamp" => return Ok("timestamp".into()),
+            "tinyblob" => return Ok("tinyblob".into()),
+            "varbinary" => return Ok("varbinary".into()),
+            "year" => return Ok("year".into()),
+            _ => {}
+        }
     }
-    let field_type = field_type.to_lowercase();
-    if field_type.contains("int") || field_type.contains("number") {
-        return Ok("number".into());
+    // 默认正则表达式生成器
+    Ok("regex".into())
+}
+
+/// 表字段
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Column {
+    /// 字段名
+    pub name: String,
+    /// 字段类型
+    pub column_type: String,
+}
+
+/// 根据表字段名或字段类型匹配一个合适的生成器，优先适配字段名
+#[tauri::command]
+pub async fn datafaker_adapter_columns(columns: Vec<Column>) -> Result<IndexMap<String, String>> {
+    let mut res = IndexMap::new();
+    for column in columns {
+        let generator =
+            datafaker_adapter(Some(column.name.clone()), Some(column.column_type.clone())).await?;
+        res.insert(column.name, generator);
     }
-    if field_type.contains("text") || field_type.contains("char") {
-        return Ok("person".into());
-    }
-    if field_type.contains("date") || field_type.contains("time") {
-        return Ok("datetime".into());
-    }
-    if field_type.contains("json") || field_type.contains("object") {
-        return Ok("json".into());
-    }
-    Ok("name".into())
+    Ok(res)
 }

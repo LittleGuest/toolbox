@@ -78,6 +78,7 @@ symspell = "0.4.5"
 rand = "0.9.1"
 rand_regex = "0.18.1"
 regex-syntax = "0.8.5"
+indexmap = "2.10.0"
 
 [dev-dependencies]
 dotenv = "0.15.0"

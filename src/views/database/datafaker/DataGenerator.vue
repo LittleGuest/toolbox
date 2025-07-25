@@ -7,12 +7,15 @@ import { VueFlow, useVueFlow, MarkerType } from "@vue-flow/core";
 import { MiniMap } from "@vue-flow/minimap";
 import { Background } from "@vue-flow/background";
 import { ControlButton, Controls } from "@vue-flow/controls";
-import TableNode from "@/components/TableNode.vue";
+import TableNode from "@/components/datafaker/TableNode.vue";
+import ColumnNode from "@/components/datafaker/ColumnNode.vue";
+import DatafakerNode from "@/components/datafaker/DatafakerNode.vue";
 import { datasourceDetailApi } from "@/db.js";
 
 const message = useMessage();
 const {
   onConnect,
+  findNode,
   addEdges,
   addNodes,
   screenToFlowCoordinate,
@@ -122,10 +125,12 @@ const onDrop = (event) => {
     x: event.clientX,
     y: event.clientY,
   });
-  const nodeId = data.data.schema + "/" + data.data.tableName;
-  const newNode = {
+  const nodeId = data.data.schema + "#" + data.data.tableName;
+  const tableNode = {
     id: nodeId,
     type: "table",
+    width: 200,
+    height: 30,
     position,
     data: data.data,
   };
@@ -140,22 +145,132 @@ const onDrop = (event) => {
 
     off();
   });
-  addNodes(newNode);
+  addNodes(tableNode);
+
+  // 查找表节点，获取表节点信息
+  const tableNode2 = findNode(tableNode.id);
+  const columnNodes = data.data.children.map((item, index) => {
+    return {
+      id: `${item.database}#${item.schema}#${item.tableName}#${item.name}`,
+      type: "column",
+      width: 200,
+      height: 30,
+      position: {
+        x: tableNode2.position.x - tableNode2.width / 2,
+        y: tableNode2.position.y + tableNode2.height + 18 + index * 63,
+      },
+      data: item,
+    };
+  });
+  console.log("columnNodes", columnNodes);
+  addNodes(columnNodes);
 
   // TODO: 拖拽节点放下时
+  adapterGenerator(data.data, tableNode2);
+};
+
+// 自动生成生成器节点
+// 为每个字段匹配一个合适的生成器
+// data：字段信息
+// pNode：表节点
+const adapterGenerator = async (data, pNode) => {
+  if (!data.children) {
+    return;
+  }
+  // 字段的生成器
+  const res = await adapterColumnsApi(
+    data.children.map((item) => {
+      return {
+        name: item.name,
+        columnType: item.type,
+      };
+    })
+  );
   // 自动生成生成器节点node,自动创建连线edge(为每个字段匹配一个合适的生成器)
-  // TODO：节点放下动画,生成器节点生成的动画,自动创建连线的动画
+
+  // 自动生成生成器节点
+  const generatorNodes = Object.entries(res).map(([key, value], index) => {
+    return {
+      id: data.schema + "#" + data.tableName + "#" + key + "#" + value,
+      type: "datafaker",
+      width: 120,
+      height: 30,
+      position: {
+        x: pNode.position.x + pNode.dimensions.width + 200,
+        y: pNode.position.y + pNode.height + index * 80,
+      },
+      data: {
+        id: data.schema + "#" + data.tableName + "#" + key + "#" + value,
+        columnType: key,
+        datafaker: value,
+        datafakerName: datafakersObj.value[value] || "未命名",
+      },
+    };
+  });
+  // 添加生成器节点到画布
+  addNodes(generatorNodes);
+
+  // 自动创建连线
+  const edges = generatorNodes.map((item) => {
+    const field = data.children.find((child) => {
+      if (child.name === item.data.columnType) {
+        return child;
+      }
+    });
+    return {
+      id: `${item.id}#edge`,
+      source: item.id,
+      target: `${field.database}#${field.schema}#${field.tableName}#${field.name}`,
+      animated: true,
+      markerEnd: MarkerType.ArrowClosed,
+    };
+  });
+  addEdges(edges);
+  // TODO: 节点放下动画,生成器节点生成的动画,自动创建连线的动画
 };
 
 onConnect(addEdges);
 
-onMounted(async () => {
+// 生成器列表
+const datafakersObj = ref();
+
+// 生成器列表
+const datafakersApi = async () => {
+  return await invoke("datafaker_providers")
+    .then((res) => {
+      return res;
+    })
+    .catch((err) => {
+      message.error(err);
+    });
+};
+// 生成器列表
+const adapterColumnsApi = async (columns) => {
+  return await invoke("datafaker_adapter_columns", { columns })
+    .then((res) => {
+      return res;
+    })
+    .catch((err) => {
+      message.error(err);
+    });
+};
+
+// 初始化
+const init = async () => {
   // 数据源详情
   const detail = await datasourceDetailApi(props.datasourceId);
   datasourceInfo.value = detail[0];
   if (datasourceInfo.value) {
+    // 数据表
     datasourceTables.value = await databaseTableTreeApi(datasourceInfo.value);
   }
+
+  // 生成器列表
+  datafakersObj.value = await datafakersApi();
+};
+
+onMounted(async () => {
+  await init();
 });
 </script>
 
@@ -190,12 +305,19 @@ onMounted(async () => {
     <VueFlow
       :nodes="nodes"
       :edges="edges"
+      :nodes-draggable="false"
       @drop="onDrop"
       @dragover="onDragOver"
       @dragleave="onDragLeave"
     >
       <template #node-table="props">
         <TableNode :id="props.id" :data="props.data" />
+      </template>
+      <template #node-column="props">
+        <ColumnNode :id="props.id" :data="props.data" />
+      </template>
+      <template #node-datafaker="props">
+        <DatafakerNode :data="props.data" />
       </template>
 
       <Background />
