@@ -9,6 +9,8 @@ use rust_embed::Embed;
 use serde::Deserialize;
 use thiserror::Error;
 
+use crate::datafaker::providers::RegexGenerator;
+
 mod providers;
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
@@ -298,4 +300,10 @@ pub async fn datafaker_adapter_columns(columns: Vec<Column>) -> Result<IndexMap<
         res.insert(column.name, generator);
     }
     Ok(res)
+}
+
+#[tauri::command]
+pub async fn preview_regex(pattern: String) -> Result<String> {
+    let generator = RegexGenerator::new(pattern, None, None, None, false)?;
+    generator.preview()
 }

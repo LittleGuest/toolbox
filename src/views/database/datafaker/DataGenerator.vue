@@ -10,6 +10,7 @@ import { ControlButton, Controls } from "@vue-flow/controls";
 import TableNode from "@/components/datafaker/TableNode.vue";
 import ColumnNode from "@/components/datafaker/ColumnNode.vue";
 import DatafakerNode from "@/components/datafaker/DatafakerNode.vue";
+import ColumnDatafakerDrawer from "@/components/datafaker/ColumnDatafakerDrawer.vue";
 import { datasourceDetailApi } from "@/db.js";
 
 const message = useMessage();
@@ -20,6 +21,7 @@ const {
   addNodes,
   screenToFlowCoordinate,
   onNodesInitialized,
+  onNodeDoubleClick,
   updateNode,
 } = useVueFlow();
 
@@ -201,7 +203,7 @@ const adapterGenerator = async (data, pNode) => {
       },
       data: {
         id: data.schema + "#" + data.tableName + "#" + key + "#" + value,
-        columnType: key,
+        columnName: key,
         datafaker: value,
         datafakerName: datafakersObj.value[value] || "未命名",
       },
@@ -213,7 +215,7 @@ const adapterGenerator = async (data, pNode) => {
   // 自动创建连线
   const edges = generatorNodes.map((item) => {
     const field = data.children.find((child) => {
-      if (child.name === item.data.columnType) {
+      if (child.name === item.data.columnName) {
         return child;
       }
     });
@@ -229,7 +231,22 @@ const adapterGenerator = async (data, pNode) => {
   // TODO: 节点放下动画,生成器节点生成的动画,自动创建连线的动画
 };
 
-onConnect(addEdges);
+// 打开生成器弹窗
+const showDatafakerDialog = ref(false);
+// 生成器弹窗数据
+const datafakerData = ref();
+// 节点双击事件处理
+onNodeDoubleClick((event) => {
+  console.log("双击节点:", event);
+  const node = event.node;
+  const data = node.data;
+  if (node.type === "datafaker") {
+    datafakerData.value = data;
+    showDatafakerDialog.value = true;
+  }
+});
+
+// onConnect(addEdges);
 
 // 生成器列表
 const datafakersObj = ref();
@@ -306,6 +323,7 @@ onMounted(async () => {
       :nodes="nodes"
       :edges="edges"
       :nodes-draggable="false"
+      :zoom-on-double-click="false"
       @drop="onDrop"
       @dragover="onDragOver"
       @dragleave="onDragLeave"
@@ -323,6 +341,12 @@ onMounted(async () => {
       <Background />
       <MiniMap />
     </VueFlow>
+
+    <ColumnDatafakerDrawer
+      v-if="showDatafakerDialog"
+      :show="showDatafakerDialog"
+      :data="datafakerData"
+    />
   </div>
 </template>
 

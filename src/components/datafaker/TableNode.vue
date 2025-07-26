@@ -10,10 +10,13 @@ const props = defineProps({
 </script>
 
 <template>
-  <n-card>
-    {{ data.database }}#{{ data.schema }}#{{ data.tableName }}
+  <n-card class="table-node">
+    {{ data.tableName }}
   </n-card>
 </template>
 
 <style lang="scss" scoped>
+.table-node {
+  background-color: #f5f5f5;
+}
 </style>

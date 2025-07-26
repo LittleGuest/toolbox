@@ -95,6 +95,7 @@ pub fn run() {
             database::database_standard_check,
             datafaker::datafaker_providers,
             datafaker::datafaker_adapter_columns,
+            datafaker::preview_regex,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

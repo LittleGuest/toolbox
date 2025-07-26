@@ -47,7 +47,7 @@ impl<R: Rng> Regex<R> {
 #[derive(Debug, Clone)]
 pub struct RegexGenerator {
     /// 正则表达式模式
-    pub pattern: &'static str,
+    pub pattern: String,
 
     /// 包含默认值
     pub include_default: Option<DefaultComponent>,
@@ -62,7 +62,7 @@ pub struct RegexGenerator {
 impl Default for RegexGenerator {
     fn default() -> Self {
         Self {
-            pattern: r"[A-Za-z0-9]{10}",
+            pattern: "[A-Za-z0-9]{10}".into(),
             include_default: None,
             include_null: None,
             unique: None,
@@ -73,7 +73,7 @@ impl Default for RegexGenerator {
 
 impl RegexGenerator {
     pub fn new(
-        pattern: &'static str,
+        pattern: String,
         include_default: Option<DefaultComponent>,
         include_null: Option<NullComponent>,
         unique: Option<UniqueComponent>,
@@ -112,7 +112,7 @@ impl RegexGenerator {
     pub fn generate(&mut self, count: usize) -> Result<Vec<Option<String>>> {
         self.check()?;
         let mut res = Vec::with_capacity(count);
-        let mut regex = Regex::new(rand::rng(), self.pattern.into(), 1);
+        let mut regex = Regex::new(rand::rng(), self.pattern.clone(), 1);
         let samples = regex.random(count)?;
         for i in 0..count {
             // 包含默认值
@@ -136,6 +136,13 @@ impl RegexGenerator {
             res.push(Some(samples[i].clone()));
         }
         Ok(res)
+    }
+
+    /// 预览随机字符串
+    pub fn preview(&self) -> Result<String> {
+        let mut regex = Regex::new(rand::rng(), self.pattern.clone(), 1);
+        let samples = regex.random(1)?;
+        Ok(samples[0].clone())
     }
 }
 
@@ -161,7 +168,7 @@ mod tests {
 
         #[test]
         fn test_regex_generator_basic() {
-            let pattern = r"[A-Za-z0-9]{10}";
+            let pattern = "[A-Za-z0-9]{10}".into();
             let generator = RegexGenerator::new(pattern, None, None, None, false);
             assert!(generator.is_ok());
             let mut generator = generator.unwrap();
@@ -174,7 +181,7 @@ mod tests {
         #[test]
         fn test_regex_generator_with_null() {
             // 配置100%生成NULL值
-            let pattern = r"[A-Za-z0-9]{10}";
+            let pattern = "[A-Za-z0-9]{10}".into();
             let generator =
                 RegexGenerator::new(pattern, None, Some(NullComponent::new(100.0)), None, false);
             assert!(generator.is_ok());
@@ -189,7 +196,7 @@ mod tests {
         #[test]
         fn test_regex_generator_with_default() {
             // 配置100%生成默认值
-            let pattern = r"[A-Za-z0-9]{10}";
+            let pattern = "[A-Za-z0-9]{10}".into();
             let generator = RegexGenerator::new(
                 pattern,
                 Some(DefaultComponent::new("DEFAULT_VALUE".to_string(), 100.0)),
@@ -209,7 +216,7 @@ mod tests {
         #[test]
         #[should_panic]
         fn test_invalid_patterns() {
-            let pattern = r"[A-Za-z0-9]{x}";
+            let pattern = "[A-Za-z0-9]{x}".into();
             RegexGenerator::new(pattern, None, None, None, false).unwrap();
         }
     }
