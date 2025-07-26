@@ -7,7 +7,6 @@ import { QuestionCircleOutlined } from "@vicons/antd";
 const defaultValue = {
   pattern: "[A-Za-z0-9]{10}", // 正则表达式
   rawDataMode: false, // 原始数据模式
-  previewValue: "", // 预览值
 
   includeDefault: false, // 包含默认值
   defaultValue: "", // 默认值
@@ -19,15 +18,16 @@ const defaultValue = {
 };
 
 // 表单数据
-let form = reactive({
+const form = reactive({
   ...defaultValue,
 });
+// 预览数据
+const previewValue = ref("");
 
 // 重置属性
 const reset = () => {
   form.pattern = defaultValue.pattern;
   form.rawDataMode = defaultValue.rawDataMode;
-  form.previewValue = defaultValue.previewValue;
   form.includeDefault = defaultValue.includeDefault;
   form.defaultValue = defaultValue.defaultValue;
   form.defaultPercentage = defaultValue.defaultPercentage;
@@ -35,6 +35,7 @@ const reset = () => {
   form.nullPercentage = defaultValue.nullPercentage;
   form.unique = defaultValue.unique;
   form.forbiddenLinks = defaultValue.forbiddenLinks;
+  previewValue.value = "";
 };
 
 // 预览API
@@ -50,7 +51,7 @@ const previewApi = async (pattern) => {
 
 // 生成预览数据
 const preview = async () => {
-  form.previewValue = await previewApi(form.pattern);
+  previewValue.value = await previewApi(form.pattern);
 };
 </script>
 
@@ -84,7 +85,7 @@ const preview = async () => {
 
     <!-- 预览 -->
     <n-form-item path="previewValue" label="预览">
-      <n-input v-model:value="form.previewValue" readonly placeholder="" />
+      <n-input v-model:value="previewValue" readonly placeholder="" />
       <n-button @click="preview">刷新</n-button>
     </n-form-item>
 
