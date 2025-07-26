@@ -3,7 +3,7 @@ import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { QuestionCircleOutlined } from "@vicons/antd";
 
-// 正则表达式生成器默认值
+// 生成器默认值
 const defaultValue = {
   pattern: "[A-Za-z0-9]{10}", // 正则表达式
   rawDataMode: false, // 原始数据模式
@@ -37,7 +37,7 @@ const reset = () => {
   form.forbiddenLinks = defaultValue.forbiddenLinks;
 };
 
-// 预览正则表达式
+// 预览API
 const previewApi = async (pattern) => {
   return await invoke("preview_regex", { pattern })
     .then((res) => {
@@ -56,6 +56,7 @@ const preview = async () => {
 
 <template>
   <n-form :model="form" label-placement="left" label-width="180">
+    <!-- 正则表达式 -->
     <n-form-item path="pattern" label="正则表达式">
       <n-input
         v-model:value="form.pattern"
@@ -64,6 +65,8 @@ const preview = async () => {
         placeholder="例如: [A-Za-z0-9]{10}"
       />
     </n-form-item>
+
+    <!-- 原始数据模式 -->
     <n-form-item path="rawDataMode" label="原始数据模式">
       <n-checkbox
         v-model:checked="form.rawDataMode"
@@ -78,13 +81,20 @@ const preview = async () => {
         原始数据模式下，生成的数据将直接使用正则表达式生成的结果。
       </n-tooltip>
     </n-form-item>
+
+    <!-- 预览 -->
     <n-form-item path="previewValue" label="预览">
       <n-input v-model:value="form.previewValue" readonly placeholder="" />
       <n-button @click="preview">刷新</n-button>
     </n-form-item>
+
+    <!-- 其它配置选项 -->
+
+    <!-- 包含默认值 -->
     <n-form-item path="includeDefault" label="包含默认值">
       <n-checkbox v-model:checked="form.includeDefault" />
     </n-form-item>
+    <!-- 默认值 -->
     <n-form-item path="defaultValue" label=" ">
       <n-input
         placeholder="请输入默认值"
@@ -93,6 +103,7 @@ const preview = async () => {
         clearable
       />
     </n-form-item>
+    <!-- 默认值百分比 -->
     <n-form-item path="defaultPercentage" label=" ">
       <n-input-number
         placeholder="百分比"
@@ -101,14 +112,16 @@ const preview = async () => {
         :min="0"
         :max="100"
         :step="1"
-        clearable
       >
         <template #suffix> % </template>
       </n-input-number>
     </n-form-item>
+
+    <!-- 包含NULL值 -->
     <n-form-item path="includeNull" label="包含NULL值">
       <n-checkbox v-model:checked="form.includeNull" />
     </n-form-item>
+    <!-- NULL值百分比 -->
     <n-form-item path="nullPercentage" label=" ">
       <n-input-number
         class="percentage-input"
@@ -120,12 +133,17 @@ const preview = async () => {
         :step="1"
       />
     </n-form-item>
-    <n-form-item path="previewValue" label="设置唯一">
+
+    <!-- 唯一值 -->
+    <n-form-item path="unique" label="设置唯一">
       <n-checkbox v-model:checked="form.unique" />
     </n-form-item>
-    <n-form-item path="previewValue" label="禁用字段之间数据链接">
+
+    <!-- 禁用字段之间数据链接 -->
+    <n-form-item path="forbiddenLinks" label="禁用字段之间数据链接">
       <n-checkbox v-model:checked="form.forbiddenLinks" />
     </n-form-item>
+
     <n-form-item label=" ">
       <n-button @click="reset"> 重置属性 </n-button>
     </n-form-item>
