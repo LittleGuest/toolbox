@@ -92,6 +92,10 @@ const datafakerOptions = [
     label: "网址",
     value: "website",
   },
+  {
+    label: "文件扩展名",
+    value: "file_extension",
+  },
 ];
 
 // 关闭抽屉
@@ -138,6 +142,7 @@ onMounted(() => {
       <DateTime v-if="datafakerValue === 'datetime'" />
       <Time v-if="datafakerValue === 'time'" />
       <Email v-if="datafakerValue === 'email'" />
+      <FileExtension v-if="datafakerValue === 'file_extension'" />
       <Name v-if="datafakerValue === 'name'" />
       <Number v-if="datafakerValue === 'number'" />
       <Regex v-if="datafakerValue === 'regex'" />

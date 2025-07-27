@@ -6,30 +6,62 @@ import { useMessage } from "naive-ui";
 // 消息提示
 const message = useMessage();
 
+// 扩展类型和数据
+const fileExtensionTypeData = [
+  {
+    label: "图片",
+    value: "image",
+    data: [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg", ".webp", ".tiff"],
+  },
+  {
+    label: "视频",
+    value: "video",
+    data: [".mp4", ".avi", ".mov", ".wmv", ".flv", ".mkv", ".webm", ".ogv"],
+  },
+  {
+    label: "音频",
+    value: "audio",
+    data: [".mp3", ".wav", ".aac", ".flac", ".ogg", ".wma", ".amr", ".aiff"],
+  },
+  {
+    label: "文档",
+    value: "document",
+    data: [
+      ".doc",
+      ".docx",
+      ".xls",
+      ".xlsx",
+      ".ppt",
+      ".pptx",
+      ".odt",
+      ".ods",
+      ".odp",
+    ],
+  },
+  {
+    label: "压缩",
+    value: "compression",
+    data: [".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".xz", ".z"],
+  },
+  {
+    label: "自定义",
+    value: "custom",
+    data: [],
+  },
+];
+
 // 生成器默认值
 const defaultValue = {
-  // 子域名
-  subdomain: ["auth.", "drive.", "image.", "video.", "www."],
-  // 顶级域名
-  topdomain: [
-    ".biz",
-    ".co.jp",
-    ".com",
-    ".cn",
-    ".info",
-    ".jp",
-    ".net",
-    ".org",
-    ".us",
-    ".xyz",
-  ],
+  // 扩展名类型
+  fileExtensionType: "image",
+  // 扩展名
+  fileExtension: [],
 
   includeDefault: false, // 包含默认值
   defaultValue: "", // 默认值
   defaultPercentage: 5, // 默认值百分比
   includeNull: false, // 包含空值
   nullPercentage: 5, // 空值百分比
-  unique: false, // 唯一值
   forbiddenLinks: false, // 禁用字段之间的数据链接
 };
 
@@ -38,16 +70,30 @@ const form = reactive({
   ...defaultValue,
 });
 
+// 扩展名类型选项
+const fileExtensionTypeOptions = fileExtensionTypeData.map((item) => ({
+  label: item.label,
+  value: item.value,
+}));
+// 监听扩展名类型变化
+watch(
+  () => form.fileExtensionType,
+  (newValue) => {
+    form.fileExtension = fileExtensionTypeData.find(
+      (item) => item.value === newValue
+    ).data;
+  }
+);
+
 // 重置属性
 const reset = () => {
-  form.subdomain = defaultValue.subdomain;
-  form.topdomain = defaultValue.topdomain;
+  form.fileExtensionType = defaultValue.fileExtensionType;
+  form.fileExtension = defaultValue.fileExtension;
   form.includeDefault = defaultValue.includeDefault;
   form.defaultValue = defaultValue.defaultValue;
   form.defaultPercentage = defaultValue.defaultPercentage;
   form.includeNull = defaultValue.includeNull;
   form.nullPercentage = defaultValue.nullPercentage;
-  form.unique = defaultValue.unique;
   form.forbiddenLinks = defaultValue.forbiddenLinks;
   previewValue.value = "";
 };
@@ -56,7 +102,7 @@ const reset = () => {
 const previewValue = ref("");
 // 预览API
 const previewApi = async (config) => {
-  return await invoke("preview_website", { config })
+  return await invoke("preview_file_extension", { config })
     .then((res) => {
       return res;
     })
@@ -67,31 +113,35 @@ const previewApi = async (config) => {
 // 生成预览数据
 const preview = async () => {
   previewValue.value = await previewApi({
-    subdomain: form.subdomain,
-    topdomain: form.topdomain,
+    fileExtensionType: form.fileExtensionType,
+    fileExtension: form.fileExtension,
   });
 };
 </script>
 
 <template>
   <n-form :model="form" label-placement="left" label-width="180">
-    <!-- 子域 -->
-    <n-form-item path="subdomain" label="子域">
-      <n-input
-        v-model:value="form.subdomain"
-        type="textarea"
-        :rows="6"
-        placeholder="例如: auth, drive, image, video, www"
+    <n-form-item
+      path="fileExtensionType"
+      label="扩展名类型"
+      label-placement="left"
+      label-width="180"
+    >
+      <n-select
+        v-model:value="form.fileExtensionType"
+        :options="fileExtensionTypeOptions"
+        placeholder="请选择扩展名类型"
+        filterable
       />
     </n-form-item>
 
-    <!-- 顶级域名 -->
-    <n-form-item path="topdomain" label="顶级域名">
+    <!-- 扩展名 -->
+    <n-form-item path="fileExtension" label="扩展名">
       <n-input
-        v-model:value="form.topdomain"
+        v-model:value="form.fileExtension"
         type="textarea"
         :rows="6"
-        placeholder="例如: .biz, .co.jp, .com, .cn, .info, .jp, .net, .org, .us, .xyz"
+        placeholder="例如: .jpg, .jpeg, .png, .gif, .bmp, .svg, .webp, .tiff, .ico, .eps, .txt, .rtf, .pdf, .docx, .xlsx, .csv, .html, .zip"
       />
     </n-form-item>
 
@@ -146,11 +196,6 @@ const preview = async () => {
       >
         <template #suffix> % </template>
       </n-input-number>
-    </n-form-item>
-
-    <!-- 唯一值 -->
-    <n-form-item path="unique" label="设置唯一">
-      <n-checkbox v-model:checked="form.unique" />
     </n-form-item>
 
     <!-- 禁用字段之间数据链接 -->
