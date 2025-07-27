@@ -344,7 +344,7 @@ onMounted(async () => {
 
     <ColumnDatafakerDrawer
       v-if="showDatafakerDialog"
-      :show="showDatafakerDialog"
+      v-model:show="showDatafakerDialog"
       :data="datafakerData"
     />
   </div>

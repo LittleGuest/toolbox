@@ -6,6 +6,8 @@ import Text from "./common/Text.vue";
 import Number from "./common/Number.vue";
 import Email from "./common/Email.vue";
 import DateTime from "./common/DateTime.vue";
+import Time from "./common/Time.vue";
+import Date from "./common/Date.vue";
 
 const props = defineProps({
   show: {
@@ -86,18 +88,28 @@ const datafakerOptions = [
   },
 ];
 
+// 关闭抽屉
+const close = () => {
+  emit("update:show", false);
+};
+
 onMounted(() => {
-  console.log(props);
+  console.log("props", props);
 });
 </script>
 
 <template>
-  <n-drawer v-if="show" :show="show" width="50%">
+  <n-drawer
+    v-if="show"
+    :show="show"
+    width="50%"
+    :on-esc="close"
+    :on-mask-click="close"
+  >
     <n-drawer-content closable>
       <template #header>
         {{ data?.columnName }}-{{ data?.columnType }} 生成器配置
       </template>
-
       <n-form-item
         path="percentage"
         label="生成器"
@@ -111,17 +123,18 @@ onMounted(() => {
           filterable
         />
       </n-form-item>
-
-      <!-- <Regex /> -->
-      <!-- <Name /> -->
-      <!-- <Text /> -->
-      <!-- <Number /> -->
-      <!-- <Email /> -->
-      <DateTime />
-
+      <Date v-if="datafakerValue === 'date'" />
+      <DateTime v-if="datafakerValue === 'datetime'" />
+      <Time v-if="datafakerValue === 'time'" />
+      <Email v-if="datafakerValue === 'email'" />
+      <Name v-if="datafakerValue === 'name'" />
+      <Number v-if="datafakerValue === 'number'" />
+      <Regex v-if="datafakerValue === 'regex'" />
+      <Text v-if="datafakerValue === 'text'" />
+      <Time v-if="datafakerValue === 'time'" />
       <template #footer>
         <n-space>
-          <n-button @click="show = false">取消</n-button>
+          <n-button @click="close">取消</n-button>
           <n-button type="primary" @click="saveChanges">保存</n-button>
         </n-space>
       </template>
