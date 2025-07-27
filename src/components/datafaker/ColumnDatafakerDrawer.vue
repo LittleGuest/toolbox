@@ -15,6 +15,7 @@ import Sequence from "./common/Sequence.vue";
 import Uuid from "./common/Uuid.vue";
 import FilePath from "./common/FilePath.vue";
 import Hostname from "./common/Hostname.vue";
+import Mac from "./common/Mac.vue";
 
 // 定义属性
 const props = defineProps({
@@ -115,6 +116,10 @@ const datafakerOptions = [
     label: "文件路径",
     value: "file_path",
   },
+  {
+    label: "MAC地址",
+    value: "mac",
+  },
 ];
 
 // 关闭抽屉
@@ -165,6 +170,7 @@ onMounted(() => {
       <FileName v-if="datafakerValue === 'file_name'" />
       <FilePath v-if="datafakerValue === 'file_path'" />
       <Hostname v-if="datafakerValue === 'hostname'" />
+      <Mac v-if="datafakerValue === 'mac'" />
       <Name v-if="datafakerValue === 'name'" />
       <Number v-if="datafakerValue === 'number'" />
       <Regex v-if="datafakerValue === 'regex'" />
