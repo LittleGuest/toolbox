@@ -56,7 +56,7 @@ const reset = () => {
 const previewValue = ref("");
 // 预览API
 const previewApi = async (config) => {
-  return await invoke("preview_website", { config })
+  return await invoke("preview_hostname", { config })
     .then((res) => {
       return res;
     })

@@ -8,7 +8,10 @@ const message = useMessage();
 
 // 生成器默认值
 const defaultValue = {
-  pattern: "([0-9a-f]{2}[:]){5}([0-9a-f]{2})", // 正则表达式
+  // IP地址类型
+  ipType: "ipv4",
+  pattern:
+    "(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])[.]){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])", // 正则表达式
 
   includeDefault: false, // 包含默认值
   defaultValue: "", // 默认值
@@ -26,6 +29,7 @@ const form = reactive({
 
 // 重置属性
 const reset = () => {
+  form.ipType = defaultValue.ipType;
   form.pattern = defaultValue.pattern;
   form.includeDefault = defaultValue.includeDefault;
   form.defaultValue = defaultValue.defaultValue;
@@ -41,7 +45,7 @@ const reset = () => {
 const previewValue = ref("");
 // 预览API
 const previewApi = async (config) => {
-  return await invoke("preview_mac", { config })
+  return await invoke("preview_ip", { config })
     .then((res) => {
       return res;
     })
@@ -52,6 +56,7 @@ const previewApi = async (config) => {
 // 生成预览数据
 const preview = async () => {
   previewValue.value = await previewApi({
+    ipType: form.ipType,
     pattern: form.pattern,
   });
 };
@@ -59,6 +64,13 @@ const preview = async () => {
 
 <template>
   <n-form :model="form" label-placement="left" label-width="180">
+    <!-- IP地址类型 -->
+    <n-form-item path="ipType" label="IP地址类型">
+      <n-radio-group v-model:value="form.ipType">
+        <n-radio value="ipv4">IPv4</n-radio>
+        <n-radio value="ipv6">IPv6</n-radio>
+      </n-radio-group>
+    </n-form-item>
     <!-- 正则表达式 -->
     <n-form-item path="pattern" label="正则表达式">
       <n-input

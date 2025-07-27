@@ -16,6 +16,7 @@ import Uuid from "./common/Uuid.vue";
 import FilePath from "./common/FilePath.vue";
 import Hostname from "./common/Hostname.vue";
 import Mac from "./common/Mac.vue";
+import IP from "./common/IP.vue";
 
 // 定义属性
 const props = defineProps({
@@ -120,6 +121,10 @@ const datafakerOptions = [
     label: "MAC地址",
     value: "mac",
   },
+  {
+    label: "IP地址",
+    value: "ip",
+  },
 ];
 
 // 关闭抽屉
@@ -170,6 +175,7 @@ onMounted(() => {
       <FileName v-if="datafakerValue === 'file_name'" />
       <FilePath v-if="datafakerValue === 'file_path'" />
       <Hostname v-if="datafakerValue === 'hostname'" />
+      <IP v-if="datafakerValue === 'ip'" />
       <Mac v-if="datafakerValue === 'mac'" />
       <Name v-if="datafakerValue === 'name'" />
       <Number v-if="datafakerValue === 'number'" />
