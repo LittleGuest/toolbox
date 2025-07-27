@@ -4,6 +4,7 @@ import Regex from "./common/Regex.vue";
 import Name from "./common/Name.vue";
 import Text from "./common/Text.vue";
 import Number from "./common/Number.vue";
+import Email from "./common/Email.vue";
 
 const props = defineProps({
   show: {
@@ -113,7 +114,8 @@ onMounted(() => {
       <!-- <Regex /> -->
       <!-- <Name /> -->
       <!-- <Text /> -->
-      <Number />
+      <!-- <Number /> -->
+      <Email />
 
       <template #footer>
         <n-space>
