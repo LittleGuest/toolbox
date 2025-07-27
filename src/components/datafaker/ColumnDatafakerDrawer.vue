@@ -17,6 +17,7 @@ import FilePath from "./common/FilePath.vue";
 import Hostname from "./common/Hostname.vue";
 import Mac from "./common/Mac.vue";
 import IP from "./common/IP.vue";
+import Enum from "./common/Enum.vue";
 
 // 定义属性
 const props = defineProps({
@@ -125,6 +126,10 @@ const datafakerOptions = [
     label: "IP地址",
     value: "ip",
   },
+  {
+    label: "枚举",
+    value: "enum",
+  },
 ];
 
 // 关闭抽屉
@@ -171,6 +176,7 @@ onMounted(() => {
       <DateTime v-if="datafakerValue === 'datetime'" />
       <Time v-if="datafakerValue === 'time'" />
       <Email v-if="datafakerValue === 'email'" />
+      <Enum v-if="datafakerValue === 'enum'" />
       <FileExtension v-if="datafakerValue === 'file_extension'" />
       <FileName v-if="datafakerValue === 'file_name'" />
       <FilePath v-if="datafakerValue === 'file_path'" />
