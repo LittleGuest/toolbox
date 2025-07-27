@@ -180,7 +180,7 @@ const adapterGenerator = async (data, pNode) => {
     return;
   }
   // 字段的生成器
-  const res = await adapterColumnsApi(
+  const columnDatafaker = await adapterColumnsApi(
     data.children.map((item) => {
       return {
         name: item.name,
@@ -188,37 +188,37 @@ const adapterGenerator = async (data, pNode) => {
       };
     })
   );
-  // 自动生成生成器节点node,自动创建连线edge(为每个字段匹配一个合适的生成器)
-
-  // 自动生成生成器节点
-  const generatorNodes = Object.entries(res).map(([key, value], index) => {
-    return {
-      id: data.schema + "#" + data.tableName + "#" + key + "#" + value,
-      type: "datafaker",
-      width: 120,
-      height: 30,
-      position: {
-        x: pNode.position.x + pNode.dimensions.width + 200,
-        y: pNode.position.y + pNode.height + index * 80,
-      },
-      data: {
+  // 自动生成生成器节点（为每个字段匹配一个合适的生成器）
+  const generatorNodes = Object.entries(columnDatafaker).map(
+    ([key, value], index) => {
+      const columnData = data.children.find((item) => item.name === key);
+      return {
         id: data.schema + "#" + data.tableName + "#" + key + "#" + value,
-        columnName: key,
-        datafaker: value,
-        datafakerName: datafakersObj.value[value] || "未命名",
-      },
-    };
-  });
+        type: "datafaker",
+        width: 120,
+        height: 30,
+        position: {
+          x: pNode.position.x + pNode.dimensions.width + 200,
+          y: pNode.position.y + pNode.height + index * 80,
+        },
+        data: {
+          id: data.schema + "#" + data.tableName + "#" + key + "#" + value,
+          columnName: key,
+          datafaker: value,
+          datafakerName: datafakersObj.value[value] || "未命名",
+          ...columnData,
+        },
+      };
+    }
+  );
   // 添加生成器节点到画布
   addNodes(generatorNodes);
 
   // 自动创建连线
   const edges = generatorNodes.map((item) => {
-    const field = data.children.find((child) => {
-      if (child.name === item.data.columnName) {
-        return child;
-      }
-    });
+    const field = data.children.find(
+      (child) => child.name === item.data.columnName
+    );
     return {
       id: `${item.id}#edge`,
       source: item.id,

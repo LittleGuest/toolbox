@@ -9,6 +9,7 @@ import DateTime from "./common/DateTime.vue";
 import Time from "./common/Time.vue";
 import Date from "./common/Date.vue";
 
+// 定义属性
 const props = defineProps({
   show: {
     type: Boolean,
@@ -19,6 +20,7 @@ const props = defineProps({
     required: true,
   },
 });
+// 定义事件
 const emit = defineEmits(["update:show"]);
 
 // 数据生成器配置
@@ -95,6 +97,7 @@ const close = () => {
 
 onMounted(() => {
   console.log("props", props);
+  datafakerValue.value = props.data.datafaker;
 });
 </script>
 
@@ -108,7 +111,11 @@ onMounted(() => {
   >
     <n-drawer-content closable>
       <template #header>
-        {{ data?.columnName }}-{{ data?.columnType }} 生成器配置
+        <n-flex>
+          <span>{{ data?.columnName }}</span>
+          <span>{{ data?.type }}</span>
+          <span>生成器配置</span>
+        </n-flex>
       </template>
       <n-form-item
         path="percentage"
@@ -130,8 +137,10 @@ onMounted(() => {
       <Name v-if="datafakerValue === 'name'" />
       <Number v-if="datafakerValue === 'number'" />
       <Regex v-if="datafakerValue === 'regex'" />
+      <Sequence v-if="datafakerValue === 'sequence'" />
       <Text v-if="datafakerValue === 'text'" />
       <Time v-if="datafakerValue === 'time'" />
+      <Uuid v-if="datafakerValue === 'uuid'" />
       <template #footer>
         <n-space>
           <n-button @click="close">取消</n-button>

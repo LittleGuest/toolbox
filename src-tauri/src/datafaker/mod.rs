@@ -302,6 +302,7 @@ pub async fn datafaker_adapter_columns(columns: Vec<Column>) -> Result<IndexMap<
     Ok(res)
 }
 
+/// 预览正则表达式数据
 #[tauri::command]
 pub async fn preview_regex(pattern: String) -> Result<String> {
     let generator = RegexGenerator::new(pattern, None, None, None, false)?;
