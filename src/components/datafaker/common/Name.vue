@@ -14,13 +14,10 @@ const defaultValue = {
   unique: false, // 唯一值
   forbiddenLinks: false, // 禁用字段之间的数据链接
 };
-
 // 表单数据
 const form = reactive({
   ...defaultValue,
 });
-// 预览数据
-const previewValue = ref("");
 
 // 重置属性
 const reset = () => {
@@ -36,6 +33,26 @@ const reset = () => {
   previewValue.value = "";
 };
 
+// 预览数据
+const previewValue = ref("");
+// 预览API
+const previewApi = async (config) => {
+  return await invoke("preview_name", { config })
+    .then((res) => {
+      return res;
+    })
+    .catch((err) => {
+      message.error(err);
+    });
+};
+// 生成预览数据
+const preview = async () => {
+  previewValue.value = await previewApi({
+    format: form.format,
+    locales: form.locales,
+  });
+};
+
 // 格式选项
 const formatOptions = [
   { label: "全名", value: "full_name" },
@@ -46,22 +63,6 @@ const formatOptions = [
   // { label: "头衔", value: "title" },
   // { label: "用户名", value: "username" },
 ];
-
-// 预览API
-const previewApi = async (pattern) => {
-  return await invoke("preview_name", { pattern })
-    .then((res) => {
-      return res;
-    })
-    .catch((err) => {
-      message.error(err);
-    });
-};
-
-// 生成预览数据
-const preview = async () => {
-  previewValue.value = await previewApi(form.pattern);
-};
 </script>
 
 <template>
@@ -138,7 +139,9 @@ const preview = async () => {
           :min="0"
           :max="100"
           :step="1"
-        />
+        >
+          <template #suffix> % </template>
+        </n-input-number>
       </n-form-item>
 
       <!-- 唯一值 -->

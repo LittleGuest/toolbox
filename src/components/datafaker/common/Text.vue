@@ -1,12 +1,11 @@
 <script setup>
-import { ref } from "vue";
+import { ref, reactive } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { QuestionCircleOutlined } from "@vicons/antd";
 
 // 生成器默认值
 const defaultValue = {
-  pattern: "[A-Za-z0-9]{10}", // 正则表达式
-  rawDataMode: false, // 原始数据模式
+  minLength: 100, // 最小字符数
+  maxLength: 10000, // 最大字符数
 
   includeDefault: false, // 包含默认值
   defaultValue: "", // 默认值
@@ -16,7 +15,6 @@ const defaultValue = {
   unique: false, // 唯一值
   forbiddenLinks: false, // 禁用字段之间的数据链接
 };
-
 // 表单数据
 const form = reactive({
   ...defaultValue,
@@ -24,8 +22,8 @@ const form = reactive({
 
 // 重置属性
 const reset = () => {
-  form.pattern = defaultValue.pattern;
-  form.rawDataMode = defaultValue.rawDataMode;
+  form.minLength = defaultValue.minLength;
+  form.maxLength = defaultValue.maxLength;
   form.includeDefault = defaultValue.includeDefault;
   form.defaultValue = defaultValue.defaultValue;
   form.defaultPercentage = defaultValue.defaultPercentage;
@@ -51,38 +49,31 @@ const previewApi = async (config) => {
 // 生成预览数据
 const preview = async () => {
   previewValue.value = await previewApi({
-    pattern: form.pattern,
-    rawDataMode: form.rawDataMode,
+    minLength: form.minLength,
+    maxLength: form.maxLength,
   });
 };
 </script>
 
 <template>
   <n-form :model="form" label-placement="left" label-width="180">
-    <!-- 正则表达式 -->
-    <n-form-item path="pattern" label="正则表达式">
-      <n-input
-        v-model:value="form.pattern"
-        type="textarea"
-        :rows="6"
-        placeholder="例如: [A-Za-z0-9]{10}"
-      />
-    </n-form-item>
-
-    <!-- 原始数据模式 -->
-    <n-form-item path="rawDataMode" label="原始数据模式">
-      <n-checkbox
-        v-model:checked="form.rawDataMode"
-        style="margin-right: 5px"
-      />
-      <n-tooltip trigger="hover">
-        <template #trigger>
-          <n-icon size="20">
-            <QuestionCircleOutlined />
-          </n-icon>
-        </template>
-        原始数据模式下，生成的数据将直接使用正则表达式生成的结果。
-      </n-tooltip>
+    <!-- 字符数范围 -->
+    <n-form-item label="字符数">
+      <div style="display: inline-flex; align-items: center">
+        <n-input-number
+          v-model:value="form.minLength"
+          :min="1"
+          :max="form.maxLength - 1"
+          placeholder="最小值"
+        />
+        <span>—</span>
+        <n-input-number
+          v-model:value="form.maxLength"
+          :min="form.minLength + 1"
+          :max="4294967295"
+          placeholder="最大值"
+        />
+      </div>
     </n-form-item>
 
     <!-- 预览 -->
@@ -127,7 +118,6 @@ const preview = async () => {
     <!-- NULL值百分比 -->
     <n-form-item path="nullPercentage" label=" ">
       <n-input-number
-        class="percentage-input"
         placeholder="百分比"
         :disabled="!form.includeNull"
         v-model:value="form.nullPercentage"
@@ -137,16 +127,6 @@ const preview = async () => {
       >
         <template #suffix> % </template>
       </n-input-number>
-    </n-form-item>
-
-    <!-- 唯一值 -->
-    <n-form-item path="unique" label="设置唯一">
-      <n-checkbox v-model:checked="form.unique" />
-    </n-form-item>
-
-    <!-- 禁用字段之间数据链接 -->
-    <n-form-item path="forbiddenLinks" label="禁用字段之间数据链接">
-      <n-checkbox v-model:checked="form.forbiddenLinks" />
     </n-form-item>
 
     <n-form-item label=" ">

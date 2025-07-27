@@ -1,7 +1,8 @@
 <script setup>
 import { ref, onMounted } from "vue";
-import Regex from "@/components/datafaker/common/Regex.vue";
+import Regex from "./common/Regex.vue";
 import Name from "./common/Name.vue";
+import Text from "./common/Text.vue";
 
 const props = defineProps({
   show: {
@@ -109,7 +110,8 @@ onMounted(() => {
       </n-form-item>
 
       <!-- <Regex /> -->
-      <Name />
+      <!-- <Name /> -->
+      <Text />
 
       <template #footer>
         <n-space>
