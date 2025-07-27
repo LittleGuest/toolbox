@@ -1,6 +1,10 @@
 <script setup>
-import { ref, reactive, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import { ref, reactive, watch } from "vue";
+import { useMessage } from "naive-ui";
+
+// 消息提示
+const message = useMessage();
 
 // 生成器默认值
 const defaultValue = {
@@ -155,7 +159,6 @@ watch(
     <!-- NULL值百分比 -->
     <n-form-item path="nullPercentage" label=" ">
       <n-input-number
-        class="percentage-input"
         placeholder="百分比"
         :disabled="!form.includeNull"
         v-model:value="form.nullPercentage"

@@ -1,6 +1,10 @@
 <script setup>
-import { ref, reactive } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import { ref, reactive } from "vue";
+import { useMessage } from "naive-ui";
+
+// 消息提示
+const message = useMessage();
 
 // 生成器默认值
 const defaultValue = {

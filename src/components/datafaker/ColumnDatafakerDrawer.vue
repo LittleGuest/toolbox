@@ -5,6 +5,7 @@ import Name from "./common/Name.vue";
 import Text from "./common/Text.vue";
 import Number from "./common/Number.vue";
 import Email from "./common/Email.vue";
+import DateTime from "./common/DateTime.vue";
 
 const props = defineProps({
   show: {
@@ -115,7 +116,8 @@ onMounted(() => {
       <!-- <Name /> -->
       <!-- <Text /> -->
       <!-- <Number /> -->
-      <Email />
+      <!-- <Email /> -->
+      <DateTime />
 
       <template #footer>
         <n-space>
