@@ -88,6 +88,10 @@ const datafakerOptions = [
     label: "日期时间",
     value: "datetime",
   },
+  {
+    label: "网址",
+    value: "website",
+  },
 ];
 
 // 关闭抽屉
@@ -141,6 +145,7 @@ onMounted(() => {
       <Text v-if="datafakerValue === 'text'" />
       <Time v-if="datafakerValue === 'time'" />
       <Uuid v-if="datafakerValue === 'uuid'" />
+      <Website v-if="datafakerValue === 'website'" />
       <template #footer>
         <n-space>
           <n-button @click="close">取消</n-button>
