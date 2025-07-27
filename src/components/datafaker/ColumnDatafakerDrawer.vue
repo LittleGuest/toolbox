@@ -14,6 +14,7 @@ import Website from "./common/Website.vue";
 import Sequence from "./common/Sequence.vue";
 import Uuid from "./common/Uuid.vue";
 import FilePath from "./common/FilePath.vue";
+import Hostname from "./common/Hostname.vue";
 
 // 定义属性
 const props = defineProps({
@@ -99,6 +100,10 @@ const datafakerOptions = [
     value: "website",
   },
   {
+    label: "主机名",
+    value: "hostname",
+  },
+  {
     label: "文件扩展名",
     value: "file_extension",
   },
@@ -159,6 +164,7 @@ onMounted(() => {
       <FileExtension v-if="datafakerValue === 'file_extension'" />
       <FileName v-if="datafakerValue === 'file_name'" />
       <FilePath v-if="datafakerValue === 'file_path'" />
+      <Hostname v-if="datafakerValue === 'hostname'" />
       <Name v-if="datafakerValue === 'name'" />
       <Number v-if="datafakerValue === 'number'" />
       <Regex v-if="datafakerValue === 'regex'" />
