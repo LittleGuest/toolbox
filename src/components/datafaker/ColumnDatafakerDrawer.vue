@@ -18,6 +18,7 @@ import Hostname from "./common/Hostname.vue";
 import Mac from "./common/Mac.vue";
 import IP from "./common/IP.vue";
 import Enum from "./common/Enum.vue";
+import ForeignKey from "./common/ForeignKey.vue";
 
 // 定义属性
 const props = defineProps({
@@ -130,6 +131,10 @@ const datafakerOptions = [
     label: "枚举",
     value: "enum",
   },
+  {
+    label: "外键",
+    value: "foreign_key",
+  },
 ];
 
 // 关闭抽屉
@@ -180,6 +185,7 @@ onMounted(() => {
       <FileExtension v-if="datafakerValue === 'file_extension'" />
       <FileName v-if="datafakerValue === 'file_name'" />
       <FilePath v-if="datafakerValue === 'file_path'" />
+      <ForeignKey v-if="datafakerValue === 'foreign_key'" />
       <Hostname v-if="datafakerValue === 'hostname'" />
       <IP v-if="datafakerValue === 'ip'" />
       <Mac v-if="datafakerValue === 'mac'" />
