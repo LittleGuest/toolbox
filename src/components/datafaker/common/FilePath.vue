@@ -9,6 +9,10 @@ const message = useMessage();
 
 // 生成器默认值
 const defaultValue = {
+  // 路径类型
+  pathType: ["linux", "windows", "macos"],
+  // 包含文件名称
+  includeFileName: true,
   // 扩展名类型
   fileExtensionType: "",
   // 扩展名
@@ -44,6 +48,7 @@ watch(
 
 // 重置属性
 const reset = () => {
+  form.includeFileName = defaultValue.includeFileName;
   form.fileExtensionType = defaultValue.fileExtensionType;
   form.fileExtension = defaultValue.fileExtension;
   form.includeDefault = defaultValue.includeDefault;
@@ -59,7 +64,7 @@ const reset = () => {
 const previewValue = ref("");
 // 预览API
 const previewApi = async (config) => {
-  return await invoke("preview_file_extension", { config })
+  return await invoke("preview_file_path", { config })
     .then((res) => {
       return res;
     })
@@ -70,6 +75,7 @@ const previewApi = async (config) => {
 // 生成预览数据
 const preview = async () => {
   previewValue.value = await previewApi({
+    includeFileName: form.includeFileName,
     fileExtensionType: form.fileExtensionType,
     fileExtension: form.fileExtension,
   });
@@ -78,6 +84,18 @@ const preview = async () => {
 
 <template>
   <n-form :model="form" label-placement="left" label-width="180">
+    <!-- 路径类型 -->
+    <n-form-item path="pathType" label="路径类型">
+      <n-checkbox-group v-model:value="form.pathType">
+        <n-checkbox value="linux">linux</n-checkbox>
+        <n-checkbox value="windows">windows</n-checkbox>
+        <n-checkbox value="macos">macos</n-checkbox>
+      </n-checkbox-group>
+    </n-form-item>
+    <!-- 包含文件名称 -->
+    <n-form-item path="includeFileName" label="包含文件名称">
+      <n-checkbox v-model:checked="form.includeFileName" />
+    </n-form-item>
     <n-form-item
       path="fileExtensionType"
       label="扩展名类型"
@@ -85,6 +103,7 @@ const preview = async () => {
       label-width="180"
     >
       <n-select
+        :disabled="!form.includeFileName"
         v-model:value="form.fileExtensionType"
         :options="fileExtensionTypeOptions"
         placeholder="请选择扩展名类型"
@@ -95,6 +114,7 @@ const preview = async () => {
     <!-- 扩展名 -->
     <n-form-item path="fileExtension" label="扩展名">
       <n-input
+        :disabled="!form.includeFileName"
         v-model:value="form.fileExtension"
         type="textarea"
         :rows="6"

@@ -8,6 +8,12 @@ import Email from "./common/Email.vue";
 import DateTime from "./common/DateTime.vue";
 import Time from "./common/Time.vue";
 import Date from "./common/Date.vue";
+import FileExtension from "./common/FileExtension.vue";
+import FileName from "./common/FileName.vue";
+import Website from "./common/Website.vue";
+import Sequence from "./common/Sequence.vue";
+import Uuid from "./common/Uuid.vue";
+import FilePath from "./common/FilePath.vue";
 
 // 定义属性
 const props = defineProps({
@@ -96,6 +102,14 @@ const datafakerOptions = [
     label: "文件扩展名",
     value: "file_extension",
   },
+  {
+    label: "文件名",
+    value: "file_name",
+  },
+  {
+    label: "文件路径",
+    value: "file_path",
+  },
 ];
 
 // 关闭抽屉
@@ -143,6 +157,8 @@ onMounted(() => {
       <Time v-if="datafakerValue === 'time'" />
       <Email v-if="datafakerValue === 'email'" />
       <FileExtension v-if="datafakerValue === 'file_extension'" />
+      <FileName v-if="datafakerValue === 'file_name'" />
+      <FilePath v-if="datafakerValue === 'file_path'" />
       <Name v-if="datafakerValue === 'name'" />
       <Number v-if="datafakerValue === 'number'" />
       <Regex v-if="datafakerValue === 'regex'" />

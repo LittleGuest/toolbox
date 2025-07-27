@@ -9,6 +9,8 @@ const message = useMessage();
 
 // 生成器默认值
 const defaultValue = {
+  // 包含扩展名
+  includeExtension: true,
   // 扩展名类型
   fileExtensionType: "",
   // 扩展名
@@ -44,6 +46,7 @@ watch(
 
 // 重置属性
 const reset = () => {
+  form.includeExtension = defaultValue.includeExtension;
   form.fileExtensionType = defaultValue.fileExtensionType;
   form.fileExtension = defaultValue.fileExtension;
   form.includeDefault = defaultValue.includeDefault;
@@ -59,7 +62,7 @@ const reset = () => {
 const previewValue = ref("");
 // 预览API
 const previewApi = async (config) => {
-  return await invoke("preview_file_extension", { config })
+  return await invoke("preview_file_name", { config })
     .then((res) => {
       return res;
     })
@@ -70,6 +73,7 @@ const previewApi = async (config) => {
 // 生成预览数据
 const preview = async () => {
   previewValue.value = await previewApi({
+    includeExtension: form.includeExtension,
     fileExtensionType: form.fileExtensionType,
     fileExtension: form.fileExtension,
   });
@@ -78,6 +82,10 @@ const preview = async () => {
 
 <template>
   <n-form :model="form" label-placement="left" label-width="180">
+    <!-- 包含扩展名 -->
+    <n-form-item path="includeExtension" label="包含扩展名">
+      <n-checkbox v-model:checked="form.includeExtension" />
+    </n-form-item>
     <n-form-item
       path="fileExtensionType"
       label="扩展名类型"
@@ -85,6 +93,7 @@ const preview = async () => {
       label-width="180"
     >
       <n-select
+        :disabled="!form.includeExtension"
         v-model:value="form.fileExtensionType"
         :options="fileExtensionTypeOptions"
         placeholder="请选择扩展名类型"
@@ -95,6 +104,7 @@ const preview = async () => {
     <!-- 扩展名 -->
     <n-form-item path="fileExtension" label="扩展名">
       <n-input
+        :disabled="!form.includeExtension"
         v-model:value="form.fileExtension"
         type="textarea"
         :rows="6"
