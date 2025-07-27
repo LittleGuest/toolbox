@@ -90,18 +90,29 @@ impl Faker {
             locale: Default::default(),
             providers: {
                 let mut p = HashMap::new();
-                p.insert("address".into(), "地址".into());
-                p.insert("education".into(), "教育".into());
-                p.insert("emoji".into(), "emoji".into());
-                p.insert("file".into(), "文件".into());
-                p.insert("internet".into(), "互联网".into());
+                p.insert("date".into(), "日期".into());
+                p.insert("datetime".into(), "日期时间".into());
+                p.insert("email".into(), "邮箱".into());
+                p.insert("enum".into(), "枚举".into());
+                p.insert("file_extension".into(), "文件扩展名".into());
+                p.insert("file_name".into(), "文件名".into());
+                p.insert("file_path".into(), "文件路径".into());
+                p.insert("foreign_key".into(), "外键".into());
+                p.insert("hostname".into(), "主机名".into());
+                p.insert("ip".into(), "IP地址".into());
+                p.insert("mac".into(), "MAC地址".into());
                 p.insert("name".into(), "姓名".into());
                 p.insert("number".into(), "数字".into());
-                p.insert("person".into(), "个人".into());
                 p.insert("regex".into(), "正则表达式".into());
                 p.insert("sequence".into(), "序列".into());
                 p.insert("text".into(), "文本".into());
+                p.insert("time".into(), "时间".into());
                 p.insert("uuid".into(), "UUID".into());
+                p.insert("website".into(), "网址".into());
+
+                p.insert("address".into(), "地址".into());
+                p.insert("education".into(), "教育".into());
+                p.insert("emoji".into(), "emoji".into());
                 p
             },
         }
