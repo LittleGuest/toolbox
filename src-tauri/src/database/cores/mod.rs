@@ -232,7 +232,7 @@ impl Display for ColumnType {
 
 impl From<String> for ColumnType {
     fn from(value: String) -> Self {
-        match value.to_uppercase().as_str() {
+        match value.trim().to_uppercase().as_str() {
             "BIGINT" => Self::Bigint,
             "BINARY" => Self::Binary,
             "BIT" => Self::Bit,
