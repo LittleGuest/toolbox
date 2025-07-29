@@ -59,7 +59,7 @@ const copy = (value) => {
     </n-form-item>
 
     <n-form-item label="UTC+8">
-      <n-input placeholder="" disabled v-model:value="datetime_utc8" />
+      <n-input placeholder="" readonly v-model:value="datetime_utc8" />
       <n-button @click="copy(datetime_utc8)">
         <template #icon>
           <n-icon>
@@ -70,7 +70,7 @@ const copy = (value) => {
     </n-form-item>
 
     <n-form-item label="时间戳（秒）">
-      <n-input placeholder="" disabled v-model:value="timestamp" />
+      <n-input placeholder="" readonly v-model:value="timestamp" />
       <n-button @click="copy(timestamp)">
         <template #icon>
           <n-icon>
@@ -81,7 +81,7 @@ const copy = (value) => {
     </n-form-item>
 
     <n-form-item label="时间戳（毫秒）">
-      <n-input placeholder="" disabled v-model:value="timestamp_mill" />
+      <n-input placeholder="" readonly v-model:value="timestamp_mill" />
       <n-button @click="copy(timestamp_mill)">
         <template #icon>
           <n-icon>

@@ -2,7 +2,7 @@
 import { ref, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { NButton, NButtonGroup, useMessage } from "naive-ui";
-import { datasourceInfosApi, saveDatasourceInfoApi, updateDatasourceInfoApi, deleteDatasourceInfoApi } from '@/db.js';
+import { datasourceInfosApi, saveDatasourceInfoApi, updateDatasourceInfoApi, deleteDatasourceInfoApi } from '@/store/db.js';
 import DataGenerator from './DataGenerator.vue';
 import { useRoute, useRouter } from "vue-router";
 

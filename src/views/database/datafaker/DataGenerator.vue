@@ -11,7 +11,7 @@ import TableNode from "@/components/datafaker/TableNode.vue";
 import ColumnNode from "@/components/datafaker/ColumnNode.vue";
 import DatafakerNode from "@/components/datafaker/DatafakerNode.vue";
 import ColumnDatafakerDrawer from "@/components/datafaker/ColumnDatafakerDrawer.vue";
-import { datasourceDetailApi } from "@/db.js";
+import { datasourceDetailApi } from "@/store/db.js";
 
 const message = useMessage();
 const {

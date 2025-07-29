@@ -132,47 +132,47 @@ const menuOptions = [
       }
     ]
   },
-  {
-    label: "网络",
-    key: "/network",
-    icon: renderIcon(NetworkPublic),
-    children: [
-      {
-        label: "IP",
-        key: "/network/ip",
-        icon: renderIcon(NetworkPublic),
-      }
-    ]
-  },
-  {
-    label: "图像",
-    key: "/image",
-    icon: renderIcon(Image),
-    children: [
-      {
-        label: "Excalidraw",
-        key: "/graphic/excalidraw",
-        icon: renderIcon(NetworkPublic),
-      }
-    ]
-  },
-  {
-    label: "其它",
-    key: "/other",
-    icon: renderIcon(ToolKit),
-    children: [
-      {
-        label: "剪切板",
-        key: "/other/clipboard",
-        icon: renderIcon(Clipboard),
-      },
-      {
-        label: "二维码",
-        key: "/other/qrcode",
-        icon: renderIcon(QrCode),
-      }
-    ]
-  },
+  // {
+  //   label: "网络",
+  //   key: "/network",
+  //   icon: renderIcon(NetworkPublic),
+  //   children: [
+  //     {
+  //       label: "IP",
+  //       key: "/network/ip",
+  //       icon: renderIcon(NetworkPublic),
+  //     }
+  //   ]
+  // },
+  // {
+  //   label: "图像",
+  //   key: "/image",
+  //   icon: renderIcon(Image),
+  //   children: [
+  //     {
+  //       label: "Excalidraw",
+  //       key: "/graphic/excalidraw",
+  //       icon: renderIcon(NetworkPublic),
+  //     }
+  //   ]
+  // },
+  // {
+  //   label: "其它",
+  //   key: "/other",
+  //   icon: renderIcon(ToolKit),
+  //   children: [
+  //     {
+  //       label: "剪切板",
+  //       key: "/other/clipboard",
+  //       icon: renderIcon(Clipboard),
+  //     },
+  //     {
+  //       label: "二维码",
+  //       key: "/other/qrcode",
+  //       icon: renderIcon(QrCode),
+  //     }
+  //   ]
+  // },
   {
     label: "外链",
     key: "external",

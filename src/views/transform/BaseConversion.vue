@@ -91,7 +91,7 @@ const clear = () => {
       <n-input placeholder="请输入" clearable v-model:value="input" @update:value="change" @clear="clear" maxlength="19" />
     </n-form-item>
     <n-form-item label="二进制">
-      <n-input placeholder="" disabled v-model:value="binary" />
+      <n-input placeholder="" readonly v-model:value="binary" />
       <n-button @click="copy(binary)">
         <template #icon>
           <n-icon>
@@ -101,7 +101,7 @@ const clear = () => {
       </n-button>
     </n-form-item>
     <n-form-item label="八进制">
-      <n-input placeholder="" disabled v-model:value="octal" />
+      <n-input placeholder="" readonly v-model:value="octal" />
       <n-button @click="copy(octal)">
         <template #icon>
           <n-icon>
@@ -111,7 +111,7 @@ const clear = () => {
       </n-button>
     </n-form-item>
     <n-form-item label="十进制">
-      <n-input placeholder="" disabled v-model:value="decimal" />
+      <n-input placeholder="" readonly v-model:value="decimal" />
       <n-button @click="copy(decimal)">
         <template #icon>
           <n-icon>
@@ -121,7 +121,7 @@ const clear = () => {
       </n-button>
     </n-form-item>
     <n-form-item label="十六进制">
-      <n-input placeholder="" disabled v-model:value="hex" />
+      <n-input placeholder="" readonly v-model:value="hex" />
       <n-button @click="copy(hex)">
         <template #icon>
           <n-icon>

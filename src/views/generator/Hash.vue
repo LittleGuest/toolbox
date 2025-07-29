@@ -70,7 +70,7 @@ const clear = () => {
         type="textarea" />
     </n-form-item>
     <n-form-item label="MD5">
-      <n-input placeholder="" disabled v-model:value="hash.md5" />
+      <n-input placeholder="" readonly v-model:value="hash.md5" />
       <n-button @click="copy(hash.md5)">
         <template #icon>
           <n-icon>
@@ -80,7 +80,7 @@ const clear = () => {
       </n-button>
     </n-form-item>
     <n-form-item label="SHA1">
-      <n-input placeholder="" disabled v-model:value="hash.sha1" />
+      <n-input placeholder="" readonly v-model:value="hash.sha1" />
       <n-button @click="copy(hash.sha1)">
         <template #icon>
           <n-icon>
@@ -90,7 +90,7 @@ const clear = () => {
       </n-button>
     </n-form-item>
     <n-form-item label="SHA256">
-      <n-input placeholder="" disabled v-model:value="hash.sha256" />
+      <n-input placeholder="" readonly v-model:value="hash.sha256" />
       <n-button @click="copy(hash.sha256)">
         <template #icon>
           <n-icon>
@@ -100,7 +100,7 @@ const clear = () => {
       </n-button>
     </n-form-item>
     <n-form-item label="SHA512">
-      <n-input placeholder="" disabled v-model:value="hash.sha512" />
+      <n-input placeholder="" readonly v-model:value="hash.sha512" />
       <n-button @click="copy(hash.sha512)">
         <template #icon>
           <n-icon>
@@ -110,7 +110,7 @@ const clear = () => {
       </n-button>
     </n-form-item>
     <n-form-item label="SHA3 256">
-      <n-input placeholder="" disabled v-model:value="hash.sha3_256" />
+      <n-input placeholder="" readonly v-model:value="hash.sha3_256" />
       <n-button @click="copy(hash.sha3_256)">
         <template #icon>
           <n-icon>
@@ -120,7 +120,7 @@ const clear = () => {
       </n-button>
     </n-form-item>
     <n-form-item label="SHA3 512">
-      <n-input placeholder="" disabled v-model:value="hash.sha3_512" />
+      <n-input placeholder="" readonly v-model:value="hash.sha3_512" />
       <n-button @click="copy(hash.sha3_512)">
         <template #icon>
           <n-icon>
