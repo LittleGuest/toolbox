@@ -72,6 +72,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             libs::hash,
+            libs::checksum,
             libs::uuid,
             libs::encode_base64_text,
             libs::decode_base64_text,

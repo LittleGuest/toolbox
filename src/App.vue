@@ -100,6 +100,11 @@ const menuOptions = [
         label: "UUID",
         key: "/generator/uuid",
         icon: renderIcon(LetterUu),
+      },
+      {
+        label: "文件校验",
+        key: "/generator/checksum",
+        icon: renderIcon(File),
       }
     ]
   },

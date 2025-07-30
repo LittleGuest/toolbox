@@ -2,37 +2,55 @@ use sha1::Digest;
 
 use crate::{Error, Result};
 
-pub fn md5(data: &str) -> Result<String> {
+pub fn md5(data: impl AsRef<[u8]>) -> Result<String> {
     let mut hasher = md5::Md5::new();
     hasher.update(data);
     Ok(format!("{:x}", hasher.finalize()))
 }
 
-pub fn sha1(data: &str) -> Result<String> {
+pub fn sha1(data: impl AsRef<[u8]>) -> Result<String> {
     let mut hasher = sha1::Sha1::new();
     hasher.update(data);
     Ok(format!("{:x}", hasher.finalize()))
 }
 
-pub fn sha256(data: &str) -> Result<String> {
+pub fn sha256(data: impl AsRef<[u8]>) -> Result<String> {
     let mut hasher = sha2::Sha256::new();
     hasher.update(data);
     Ok(format!("{:x}", hasher.finalize()))
 }
 
-pub fn sha512(data: &str) -> Result<String> {
+pub fn sha512(data: impl AsRef<[u8]>) -> Result<String> {
     let mut hasher = sha2::Sha512::new();
     hasher.update(data);
     Ok(format!("{:x}", hasher.finalize()))
 }
 
-pub fn sha3_256(data: &str) -> Result<String> {
+pub fn sha2_224(data: impl AsRef<[u8]>) -> Result<String> {
+    let mut hasher = sha2::Sha224::new();
+    hasher.update(data);
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
+pub fn sha2_384(data: impl AsRef<[u8]>) -> Result<String> {
+    let mut hasher = sha2::Sha384::new();
+    hasher.update(data);
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
+pub fn sha3_256(data: impl AsRef<[u8]>) -> Result<String> {
     let mut hasher = sha3::Sha3_256::new();
     hasher.update(data);
     Ok(format!("{:x}", hasher.finalize()))
 }
 
-pub fn sha3_512(data: &str) -> Result<String> {
+pub fn sha3_384(data: impl AsRef<[u8]>) -> Result<String> {
+    let mut hasher = sha3::Sha3_384::new();
+    hasher.update(data);
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
+pub fn sha3_512(data: impl AsRef<[u8]>) -> Result<String> {
     let mut hasher = sha3::Sha3_512::new();
     hasher.update(data);
     Ok(format!("{:x}", hasher.finalize()))

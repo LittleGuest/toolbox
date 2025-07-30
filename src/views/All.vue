@@ -66,6 +66,11 @@ const all = ref([
     key: "/generator/uuid",
     icon: LetterUu,
   },
+   {
+    label: "Checksum",
+    key: "/generator/checksum",
+    icon: File,
+  },
   {
     label: "数据生成",
     key: "/database/datafaker",

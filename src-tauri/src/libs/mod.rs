@@ -11,6 +11,7 @@ use crate::{Error, Result};
 
 mod base64;
 mod cffc;
+mod checksum;
 mod datetime;
 mod hash;
 mod hex;
@@ -55,6 +56,21 @@ pub fn hash(
         map.insert("sha3_256", sha3_256);
         map.insert("sha3_512", sha3_512);
     }
+    Ok(map)
+}
+
+#[tauri::command]
+pub async fn checksum(file_data: Vec<u8>) -> Result<HashMap<&'static str, String>> {
+    let mut map = HashMap::with_capacity(6);
+    map.insert("md5", hash::md5(&file_data)?);
+    map.insert("sha1", hash::sha1(&file_data)?);
+    map.insert("sha256", hash::sha256(&file_data)?);
+    map.insert("sha512", hash::sha512(&file_data)?);
+    map.insert("sha2_224", hash::sha2_224(&file_data)?);
+    map.insert("sha2_384", hash::sha2_384(&file_data)?);
+    map.insert("sha3_256", hash::sha3_256(&file_data)?);
+    map.insert("sha3_384", hash::sha3_384(&file_data)?);
+    map.insert("sha3_512", hash::sha3_512(&file_data)?);
     Ok(map)
 }
 
