@@ -7,7 +7,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Error, Result};
+use crate::{Error, Result, libs::checksum::Checksum};
 
 mod base64;
 mod cffc;
@@ -24,21 +24,25 @@ mod url_params;
 mod uuid;
 
 #[tauri::command]
-pub fn hash(
+pub async fn hash(
     uppercase: bool,
     output_type: Option<&str>,
     hmac_mode: bool,
     input: Option<&str>,
-) -> Result<HashMap<&'static str, String>> {
+) -> Result<HashMap<String, String>> {
     let mut map = HashMap::with_capacity(6);
 
     if let Some(input) = input {
-        let mut md5 = hash::md5(input)?;
-        let mut sha1 = hash::sha1(input)?;
-        let mut sha256 = hash::sha256(input)?;
-        let mut sha512 = hash::sha512(input)?;
-        let mut sha3_256 = hash::sha3_256(input)?;
-        let mut sha3_512 = hash::sha3_512(input)?;
+        let (md5, sha1, sha256, sha512, sha3_256, sha3_512) = tokio::join!(
+            hash::md5(input),
+            hash::sha1(input),
+            hash::sha256(input),
+            hash::sha512(input),
+            hash::sha3_256(input),
+            hash::sha3_512(input),
+        );
+        let (mut md5, mut sha1, mut sha256, mut sha512, mut sha3_256, mut sha3_512) =
+            (md5?, sha1?, sha256?, sha512?, sha3_256?, sha3_512?);
 
         if uppercase {
             md5 = md5.to_uppercase();
@@ -49,29 +53,19 @@ pub fn hash(
             sha3_512 = sha3_512.to_uppercase();
         }
 
-        map.insert("md5", md5);
-        map.insert("sha1", sha1);
-        map.insert("sha256", sha256);
-        map.insert("sha512", sha512);
-        map.insert("sha3_256", sha3_256);
-        map.insert("sha3_512", sha3_512);
+        map.insert("md5".into(), md5);
+        map.insert("sha1".into(), sha1);
+        map.insert("sha256".into(), sha256);
+        map.insert("sha512".into(), sha512);
+        map.insert("sha3_256".into(), sha3_256);
+        map.insert("sha3_512".into(), sha3_512);
     }
     Ok(map)
 }
 
 #[tauri::command]
-pub async fn checksum(file_data: Vec<u8>) -> Result<HashMap<&'static str, String>> {
-    let mut map = HashMap::with_capacity(6);
-    map.insert("md5", hash::md5(&file_data)?);
-    map.insert("sha1", hash::sha1(&file_data)?);
-    map.insert("sha256", hash::sha256(&file_data)?);
-    map.insert("sha512", hash::sha512(&file_data)?);
-    map.insert("sha2_224", hash::sha2_224(&file_data)?);
-    map.insert("sha2_384", hash::sha2_384(&file_data)?);
-    map.insert("sha3_256", hash::sha3_256(&file_data)?);
-    map.insert("sha3_384", hash::sha3_384(&file_data)?);
-    map.insert("sha3_512", hash::sha3_512(&file_data)?);
-    Ok(map)
+pub async fn checksum(r#type: &str, file_path: &str) -> Result<String> {
+    Checksum::sum(r#type, file_path).await
 }
 
 #[tauri::command]

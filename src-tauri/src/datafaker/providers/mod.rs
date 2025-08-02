@@ -21,9 +21,9 @@ pub use internet::Internet;
 pub use name::{Name, NameGenerator};
 pub use number::{Number, NumberGenerator};
 pub use person::*;
+pub use regex::{Regex, RegexGenerator};
 pub use sequence::SequenceGenerator;
 pub use uuid::Uuid;
-pub use regex::{Regex,RegexGenerator};
 
 /// 随机字符串，count为字符串长度
 fn random_str(count: usize) -> String {

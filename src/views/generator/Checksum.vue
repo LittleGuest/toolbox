@@ -1,73 +1,111 @@
 <script setup>
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { useMessage } from "naive-ui";
+import { open } from "@tauri-apps/plugin-dialog";
+import { useMessage, useLoadingBar } from "naive-ui";
 import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
 import { ArchiveOutlined } from "@vicons/material";
-import { Copy } from "@vicons/carbon";
+import { Copy, Paste } from "@vicons/carbon";
 
 const message = useMessage();
+const loadingBar = useLoadingBar();
 
-const input = ref("");
-const output = ref("");
-const chechsum = ref({});
-const fileList = ref([]);
+// 校验值
+const checksum = ref("");
+// 校验值对比
+const validValue = ref("");
+// 校验算法
+const checksumAlgorithm = ref("md5sum");
+// 校验算法
+const checksumOptions = ref([
+  {
+    label: "md5sum",
+    value: "md5sum",
+  },
+  {
+    label: "sha1sum",
+    value: "sha1sum",
+  },
+  {
+    label: "sha2_224sum",
+    value: "sha2_224sum",
+  },
+  {
+    label: "sha2_256sum",
+    value: "sha2_256sum",
+  },
+  {
+    label: "sha2_384sum",
+    value: "sha2_384sum",
+  },
+  {
+    label: "sha2_512sum",
+    value: "sha2_512sum",
+  },
+  {
+    label: "sha3_256sum",
+    value: "sha3_256sum",
+  },
+  {
+    label: "sha3_384sum",
+    value: "sha3_384sum",
+  },
+  {
+    label: "sha3_512sum",
+    value: "sha3_512sum",
+  },
+]);
 
-const api = async () => {
-  return await invoke("checksum", {})
+// checksum API
+const api = async (type, filePath) => {
+  return await invoke("checksum", { type, filePath })
     .then((res) => {
       return res;
     })
     .catch((error) => message.error(error));
 };
 
-// 自定义上传
-const customRequest = async ({
-  file,
-  data,
-  headers,
-  withCredentials,
-  action,
-  onFinish,
-  onError,
-  onProgress,
-}) => {
+// 文件路径
+const filePath = ref("");
+// 上传
+const handleUpload = async () => {
   try {
-    // 读取文件为 ArrayBuffer
-    const arrayBuffer = await file.file.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-
-    // FIXME: 大文件上传
-
-    const res = await invoke("checksum", {
-      fileName: file.name,
-      fileData: Array.from(uint8Array), // 转换为普通数组
+    // 使用 Tauri 文件对话框
+    const selected = await open({
+      // 单选文件
+      multiple: false,
+      filters: [
+        {
+          name: "All Files",
+          extensions: ["*"],
+        },
+      ],
     });
-    chechsum.value = res;
-    return file;
+
+    if (selected) {
+      // 选择的文件路径
+      filePath.value = selected;
+    }
   } catch (error) {
-    console.error("上传失败:", error);
-    throw error;
+    console.error("文件选择错误:", error);
+    loadingBar.error();
   }
 };
 
-// 上传完成的回调
-const handleFinish = ({ file, event }) => {
-  // console.log(event);
-  // message.success((event?.target).response);
-  // const ext = file.name.split(".")[1];
-  // file.name = `更名.${ext}`;
-  // file.url = "__HTTPS__://www.mocky.io/v2/5e4bafc63100007100d8b70f";
-  // return file;
-  message.success(`文件 ${file.name} 上传成功！`);
+// 上传
+const upload = async () => {
+  checksum.value = "";
+  loadingBar.start();
+
+  // 文件校验
+  checksum.value = await api(checksumAlgorithm.value, filePath.value);
+  loadingBar.finish();
 };
 
-// 上传前的回调
-const handleBeforeUpload = ({ file }) => {
-  // 只上传一个文件
-  fileList.value = [file];
-  return true;
-};
+// 校验值对比
+const checksumMatched = computed(() => {
+  return checksum.value === validValue.value;
+});
 
 // 复制
 const copy = (value) => {
@@ -77,32 +115,39 @@ const copy = (value) => {
   writeText(value);
   message.success("复制成功");
 };
+// 粘贴
+const paste = async () => {
+  validValue.value = await readText();
+};
 </script>
 
 <template>
   <n-form label-placement="left" label-width="180">
-    <n-form-item>
-      <n-upload
-        :show-file-list="true"
-        v-model:file-list="fileList"
-        :custom-request="customRequest"
-        @finish="handleFinish"
-        :on-before-upload="handleBeforeUpload"
-      >
-        <n-upload-dragger>
-          <div>
-            <n-icon size="48" :depth="3">
-              <ArchiveOutlined />
-            </n-icon>
-          </div>
-          <n-text> 点击或者拖动文件到该区域来上传 </n-text>
-        </n-upload-dragger>
-      </n-upload>
+    <n-form-item label=" ">
+      <n-flex align="center">
+        <n-button size="large" type="success" @click="handleUpload"
+          >上传</n-button
+        >
+        <span>{{ filePath }}</span>
+      </n-flex>
     </n-form-item>
 
-    <n-form-item label="MD5">
-      <n-input placeholder="" readonly v-model:value="chechsum.md5" />
-      <n-button @click="copy(chechsum.md5)">
+    <!-- 校验算法 -->
+    <n-form-item label="校验算法">
+      <n-select v-model:value="checksumAlgorithm" :options="checksumOptions" />
+      <n-button @click="upload"> 计算 </n-button>
+    </n-form-item>
+
+    <!-- 校验值 -->
+    <n-form-item label="校验值">
+      <n-button @click="paste">
+        <template #icon>
+          <n-icon>
+            <Paste />
+          </n-icon>
+        </template>
+      </n-button>
+      <n-button @click="copy(checksum)">
         <template #icon>
           <n-icon>
             <Copy />
@@ -110,85 +155,63 @@ const copy = (value) => {
         </template>
       </n-button>
     </n-form-item>
-    <n-form-item label="SHA1">
-      <n-input placeholder="" readonly v-model:value="chechsum.sha1" />
-      <n-button @click="copy(chechsum.sha1)">
-        <template #icon>
-          <n-icon>
-            <Copy />
-          </n-icon>
-        </template>
-      </n-button>
+    <n-form-item label=" ">
+      <n-input
+        placeholder=""
+        type="textarea"
+        :autosize="{
+          minRows: 3,
+        }"
+        readonly
+        v-model:value="checksum"
+      />
     </n-form-item>
-    <n-form-item label="SHA256">
-      <n-input placeholder="" readonly v-model:value="chechsum.sha256" />
-      <n-button @click="copy(chechsum.sha256)">
-        <template #icon>
-          <n-icon>
-            <Copy />
-          </n-icon>
-        </template>
-      </n-button>
+
+    <n-form-item label="对比值">
+      <n-button-group>
+        <n-button @click="paste">
+          <template #icon>
+            <n-icon>
+              <Paste />
+            </n-icon>
+          </template>
+        </n-button>
+        <n-button @click="copy(validValue)">
+          <template #icon>
+            <n-icon>
+              <Copy />
+            </n-icon>
+          </template>
+        </n-button>
+      </n-button-group>
     </n-form-item>
-    <n-form-item label="SHA512">
-      <n-input placeholder="" readonly v-model:value="chechsum.sha512" />
-      <n-button @click="copy(chechsum.sha512)">
-        <template #icon>
-          <n-icon>
-            <Copy />
-          </n-icon>
-        </template>
-      </n-button>
+    <n-form-item label=" ">
+      <n-input
+        placeholder=""
+        type="textarea"
+        :autosize="{
+          minRows: 3,
+        }"
+        readonly
+        v-model:value="validValue"
+      />
     </n-form-item>
-    <n-form-item label="SHA2 224">
-      <n-input placeholder="" readonly v-model:value="chechsum.sha2_224" />
-      <n-button @click="copy(chechsum.sha2_224)">
-        <template #icon>
-          <n-icon>
-            <Copy />
-          </n-icon>
-        </template>
-      </n-button>
-    </n-form-item>
-    <n-form-item label="SHA2 384">
-      <n-input placeholder="" readonly v-model:value="chechsum.sha2_384" />
-      <n-button @click="copy(chechsum.sha2_384)">
-        <template #icon>
-          <n-icon>
-            <Copy />
-          </n-icon>
-        </template>
-      </n-button>
-    </n-form-item>
-    <n-form-item label="SHA3 256">
-      <n-input placeholder="" readonly v-model:value="chechsum.sha3_256" />
-      <n-button @click="copy(chechsum.sha3_256)">
-        <template #icon>
-          <n-icon>
-            <Copy />
-          </n-icon>
-        </template>
-      </n-button>
-    </n-form-item>
-    <n-form-item label="SHA3 384">
-      <n-input placeholder="" readonly v-model:value="chechsum.sha3_384" />
-      <n-button @click="copy(chechsum.sha3_384)">
-        <template #icon>
-          <n-icon>
-            <Copy />
-          </n-icon>
-        </template>
-      </n-button>
-    </n-form-item>
-    <n-form-item label="SHA3 512">
-      <n-input placeholder="" readonly v-model:value="chechsum.sha3_512" />
-      <n-button @click="copy(chechsum.sha3_512)">
-        <template #icon>
-          <n-icon>
-            <Copy />
-          </n-icon>
-        </template>
-      </n-button>
+    <n-form-item label=" " v-if="validValue">
+      <span :class="checksumMatched ? 'matched' : 'notMatched'">{{
+        checksumMatched ? "一致" : "不一致"
+      }}</span>
     </n-form-item>
   </n-form>
 </template>
+
+<style lang="scss" scoped>
+.matched {
+  font-size: 24px;
+  color: #18a058;
+}
+
+.notMatched {
+  font-size: 24px;
+  color: #d03050;
+}
+</style>
