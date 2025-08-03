@@ -135,7 +135,7 @@ const paste = async () => {
     <!-- 校验算法 -->
     <n-form-item label="校验算法">
       <n-select v-model:value="checksumAlgorithm" :options="checksumOptions" />
-      <n-button @click="upload"> 计算 </n-button>
+      <n-button type="success" @click="upload"> 计算 </n-button>
     </n-form-item>
 
     <!-- 校验值 -->

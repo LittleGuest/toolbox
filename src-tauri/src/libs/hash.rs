@@ -1,56 +1,63 @@
-use sha1::Digest;
-
 use crate::{Error, Result};
 
 pub async fn md5(data: impl AsRef<[u8]>) -> Result<String> {
+    use md5::Digest;
     let mut hasher = md5::Md5::new();
     hasher.update(data);
     Ok(format!("{:x}", hasher.finalize()))
 }
 
 pub async fn sha1(data: impl AsRef<[u8]>) -> Result<String> {
+    use sha1::Digest;
     let mut hasher = sha1::Sha1::new();
     hasher.update(data);
     Ok(format!("{:x}", hasher.finalize()))
 }
 
 pub async fn sha256(data: impl AsRef<[u8]>) -> Result<String> {
+    use sha2::Digest;
     let mut hasher = sha2::Sha256::new();
     hasher.update(data);
     Ok(format!("{:x}", hasher.finalize()))
 }
 
 pub async fn sha512(data: impl AsRef<[u8]>) -> Result<String> {
+    use sha2::Digest;
     let mut hasher = sha2::Sha512::new();
     hasher.update(data);
     Ok(format!("{:x}", hasher.finalize()))
 }
 
 pub async fn sha2_224(data: impl AsRef<[u8]>) -> Result<String> {
+    use sha2::Digest;
     let mut hasher = sha2::Sha224::new();
     hasher.update(data);
     Ok(format!("{:x}", hasher.finalize()))
 }
 
 pub async fn sha2_384(data: impl AsRef<[u8]>) -> Result<String> {
+    use sha2::Digest;
     let mut hasher = sha2::Sha384::new();
     hasher.update(data);
     Ok(format!("{:x}", hasher.finalize()))
 }
 
 pub async fn sha3_256(data: impl AsRef<[u8]>) -> Result<String> {
+    use sha3::Digest;
     let mut hasher = sha3::Sha3_256::new();
     hasher.update(data);
     Ok(format!("{:x}", hasher.finalize()))
 }
 
 pub async fn sha3_384(data: impl AsRef<[u8]>) -> Result<String> {
+    use sha3::Digest;
     let mut hasher = sha3::Sha3_384::new();
     hasher.update(data);
     Ok(format!("{:x}", hasher.finalize()))
 }
 
 pub async fn sha3_512(data: impl AsRef<[u8]>) -> Result<String> {
+    use sha3::Digest;
     let mut hasher = sha3::Sha3_512::new();
     hasher.update(data);
     Ok(format!("{:x}", hasher.finalize()))
