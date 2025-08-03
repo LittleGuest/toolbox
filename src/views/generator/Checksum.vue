@@ -4,7 +4,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useMessage, useLoadingBar } from "naive-ui";
 import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
-import { ArchiveOutlined } from "@vicons/material";
 import { Copy, Paste } from "@vicons/carbon";
 
 const message = useMessage();

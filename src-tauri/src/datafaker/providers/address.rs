@@ -1,7 +1,5 @@
 use std::{ops::Deref, sync::LazyLock};
 
-use rand::Rng;
-
 use super::Name;
 use crate::datafaker::{FakerData, Locale};
 

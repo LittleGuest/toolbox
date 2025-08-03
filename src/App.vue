@@ -92,14 +92,14 @@ const menuOptions = [
     icon: renderIcon(CdCreateExchange),
     children: [
       {
-        label: "Hash",
-        key: "/generator/hash",
-        icon: renderIcon(Hash),
-      },
-      {
         label: "UUID",
         key: "/generator/uuid",
         icon: renderIcon(LetterUu),
+      },
+      {
+        label: "文本Hash",
+        key: "/generator/hash",
+        icon: renderIcon(Hash),
       },
       {
         label: "文件校验",

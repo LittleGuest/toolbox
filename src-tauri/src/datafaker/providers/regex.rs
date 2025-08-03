@@ -33,8 +33,11 @@ impl<R: Rng> Regex<R> {
     /// 生成随机字符串，count为字符串数量
     pub fn random(&mut self, count: usize) -> Result<Vec<String>> {
         let mut parser = regex_syntax::ParserBuilder::new().unicode(false).build();
-        let hir = parser.parse(&self.pattern)?;
-        let reg = rand_regex::Regex::with_hir(hir, self.max_repeat)?;
+        let hir = parser
+            .parse(&self.pattern)
+            .map_err(|_| Error::RegexSyntax)?;
+        let reg = rand_regex::Regex::with_hir(hir, self.max_repeat)
+            .map_err(|_| Error::RegexGenerator)?;
         let samples = (&mut self.rng)
             .sample_iter(&reg)
             .take(count)
@@ -91,7 +94,7 @@ impl RegexGenerator {
     }
 
     pub fn check(&self) -> Result<()> {
-        regex_syntax::parse(&self.pattern)?;
+        regex_syntax::parse(&self.pattern).map_err(|_| Error::RegexSyntax)?;
         let mut percent = 0.0;
         if let Some(dc) = &self.include_default {
             dc.check(None)?;
@@ -114,7 +117,7 @@ impl RegexGenerator {
         let mut res = Vec::with_capacity(count);
         let mut regex = Regex::new(rand::rng(), self.pattern.clone(), 1);
         let samples = regex.random(count)?;
-        for i in 0..count {
+        for item in samples.iter().take(count) {
             // 包含默认值
             if let Some(dc) = &self.include_default {
                 // 根据默认值出现百分比判断是否应用默认值
@@ -133,7 +136,7 @@ impl RegexGenerator {
                     continue;
                 }
             }
-            res.push(Some(samples[i].clone()));
+            res.push(Some(item.clone()));
         }
         Ok(res)
     }

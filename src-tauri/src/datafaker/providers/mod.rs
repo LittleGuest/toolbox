@@ -18,11 +18,10 @@ pub use education::Education;
 pub use emoji::Emoji;
 pub use file::File;
 pub use internet::Internet;
-pub use name::{Name, NameGenerator};
-pub use number::{Number, NumberGenerator};
+pub use name::Name;
+pub use number::Number;
 pub use person::*;
-pub use regex::{Regex, RegexGenerator};
-pub use sequence::SequenceGenerator;
+pub use regex::RegexGenerator;
 pub use uuid::Uuid;
 
 /// 随机字符串，count为字符串长度

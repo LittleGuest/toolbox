@@ -3,10 +3,7 @@ use std::{ops::Range, sync::LazyLock};
 use regex::Regex;
 
 use super::random_str;
-use crate::datafaker::{
-    Locale,
-    providers::{Name, Person},
-};
+use crate::datafaker::{Locale, providers::Name};
 
 static DOMAIN_SUFFIX: [&str; 24] = [
     "com", "org", "net", "cn", "io", "im", "info", "mobi", "biz", "pro", "us", "me", "top", "tv",
