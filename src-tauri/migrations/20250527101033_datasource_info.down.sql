@@ -1,2 +1,2 @@
 -- Add down migration script here
-drop table datasource_info;
+drop table if exists "datasource_info";
