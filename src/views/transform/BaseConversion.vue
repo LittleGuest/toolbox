@@ -67,7 +67,7 @@ const clear = () => {
 </script>
 
 <template>
-  <n-form label-placement="left">
+  <n-form label-placement="left" label-width="80">
     <n-form-item label="输入类型">
       <n-select placeholder="请选择类型" :options="typeOptions" v-model:value="inputType" />
     </n-form-item>

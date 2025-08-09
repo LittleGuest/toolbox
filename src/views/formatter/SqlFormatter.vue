@@ -55,7 +55,7 @@ const copy = async () => {
 </script>
 
 <template>
-  <n-form label-placement="left">
+  <n-form label-placement="left" label-width="100">
     <!-- <n-form-item label="方言"> -->
     <!--   <n-select placeholder="请选择方言" :options="dialectOptions" v-model:value="dialect" /> -->
     <!-- </n-form-item> -->

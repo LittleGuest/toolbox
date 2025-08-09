@@ -4,6 +4,8 @@ const routes = [
 	{ path: "/", component: ()=>import("@/views/All.vue") },
 	{ path: "/home", component: ()=>import("@/views/All.vue") },
 	{ path: "/setting", component: ()=>import("@/views/Setting.vue") },
+	{ path: "/codeSnippet", component: ()=>import("@/views/snippet/CodeSnippet.vue") },
+
 
 	{ path: "/transform/filetype", component: ()=>import("@/views/transform/Cffc.vue") },
 	{ path: "/transform/time", component: ()=>import("@/views/transform/Timestamp.vue") },

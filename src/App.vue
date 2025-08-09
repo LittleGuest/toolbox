@@ -2,7 +2,28 @@
 import { ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { NIcon } from "naive-ui";
-import { Home, LetterUu, Link, NetworkPublic, Sql, TextUnderline, Xml, Time, Json, Image, Barcode, DataFormat, TextItalic, DocumentExport, ToolKit, DataBase, DataStructured, CdCreateExchange, QrCode } from "@vicons/carbon";
+import {
+  Home,
+  LetterUu,
+  Link,
+  NetworkPublic,
+  Sql,
+  TextUnderline,
+  Xml,
+  Time,
+  Json,
+  Image,
+  Barcode,
+  DataFormat,
+  TextItalic,
+  DocumentExport,
+  ToolKit,
+  DataBase,
+  DataStructured,
+  CdCreateExchange,
+  QrCode,
+  Code,
+} from "@vicons/carbon";
 import { Binary, Clipboard, File, Hash, Markdown } from "@vicons/tabler";
 import { TransformFilled } from "@vicons/material";
 
@@ -19,6 +40,11 @@ const menuOptions = [
     key: "/home",
     icon: renderIcon(Home),
     closable: true,
+  },
+  {
+    label: "代码片段",
+    key: "/codeSnippet",
+    icon: renderIcon(Code),
   },
   {
     label: "转换",
@@ -44,8 +70,8 @@ const menuOptions = [
         label: "OpenApi",
         key: "/transform/openapi",
         icon: renderIcon(DocumentExport),
-      }
-    ]
+      },
+    ],
   },
   {
     label: "编码/解码",
@@ -62,7 +88,7 @@ const menuOptions = [
         key: "/encodedecode/url",
         icon: renderIcon(Link),
       },
-    ]
+    ],
   },
   {
     label: "格式化",
@@ -84,7 +110,7 @@ const menuOptions = [
         key: "/formatter/xml",
         icon: renderIcon(Xml),
       },
-    ]
+    ],
   },
   {
     label: "生成器",
@@ -105,8 +131,8 @@ const menuOptions = [
         label: "文件校验",
         key: "/generator/checksum",
         icon: renderIcon(File),
-      }
-    ]
+      },
+    ],
   },
   {
     label: "数据库",
@@ -123,7 +149,7 @@ const menuOptions = [
         key: "/database/diff",
         icon: renderIcon(DataStructured),
       },
-    ]
+    ],
   },
   {
     label: "文本",
@@ -134,8 +160,8 @@ const menuOptions = [
         label: "Markdown",
         key: "/text/markdown",
         icon: renderIcon(Markdown),
-      }
-    ]
+      },
+    ],
   },
   // {
   //   label: "网络",
@@ -200,52 +226,24 @@ const menuOptions = [
         key: "https://regex101.com/",
         icon: renderIcon(Link),
         external: true,
-      }
-    ]
+      },
+    ],
   },
 ];
 
-const activeTab = ref();
-const openTabs = ref([
-  menuOptions[0]
-]);
-
-const id = () => {
-  return new Date().getTime() + Math.random().toString(36);
-};
-
+// 菜单点击事件
 const handleMenuChange = (key, item) => {
   if (item.external) {
     window.open(key);
     return;
   }
-  if (!(key === '/home' || key === '')) {
-    openTabs.value.push({ ...item, id: id() });
-  }
   router.push(key);
 };
-
-const handleTabChange = (key) => {
-  const index = openTabs.value.findIndex((tab) => tab.id === key);
-  router.push(openTabs.value[index].key);
-};
-
-const handleTabClose = (key) => {
-  if (openTabs.value.length === 1) {
-    return;
-  }
-  const index = openTabs.value.findIndex((tab) => tab.key === key);
-  openTabs.value.splice(index, 1);
-  activeTab.value = openTabs.value[openTabs.value.length - 1].key;
-  router.push(activeTab.value);
-};
-
 </script>
 
 <template>
-  <!-- <KeepAlive :include="openTabs"> -->
   <n-layout has-sider position="absolute">
-    <n-layout-sider collapse-mode="width" :collapsed-width="120" :width="260" show-trigger="arrow-circle"
+    <!-- <n-layout-sider collapse-mode="width" :collapsed-width="120" :width="260" show-trigger="arrow-circle"
       content-style="padding: 24px;" bordered :native-scrollbar="false">
       <n-menu :options="menuOptions" v-model:value="activeTab" default-expand-all="true"
         @update:value="handleMenuChange" />
@@ -261,10 +259,29 @@ const handleTabClose = (key) => {
       <n-layout-content content-style="padding: 24px;">
         <router-view />
       </n-layout-content>
+    </n-layout> -->
+
+    <n-layout-sider
+      collapse-mode="width"
+      :collapsed-width="120"
+      :width="260"
+      show-trigger="arrow-circle"
+      bordered
+      :native-scrollbar="false"
+    >
+      <n-menu
+        :options="menuOptions"
+        default-expand-all="true"
+        @update:value="handleMenuChange"
+      />
+    </n-layout-sider>
+    <n-layout>
+      <n-layout-content style="padding: 24px; height: 100%">
+        <router-view />
+      </n-layout-content>
+      <!-- <n-layout-footer> Made by 蒲建全 2856792730@qq.com </n-layout-footer> -->
     </n-layout>
   </n-layout>
-  <!-- </KeepAlive> -->
 </template>
-
 
 <style scoped></style>

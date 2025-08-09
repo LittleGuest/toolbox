@@ -43,7 +43,7 @@ const clear = () => {
 </script>
 
 <template>
-  <n-form label-placement="left">
+  <n-form label-placement="left" label-width="80">
     <!-- <n-form-item label="大写"> -->
     <!--   <n-switch v-model:value="uppercase" @update.value="change" checked="Y" unchecked="N" /> -->
     <!-- </n-form-item> -->

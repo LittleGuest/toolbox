@@ -46,7 +46,7 @@ const copy = (value) => {
 </script>
 
 <template>
-  <n-form label-placement="left">
+  <n-form label-placement="left" label-width="120">
     <n-form-item label="时间">
       <n-button @click="paste">
         <template #icon>

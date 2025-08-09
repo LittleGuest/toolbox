@@ -53,7 +53,7 @@ const clear = () => {
 </script>
 
 <template>
-  <n-form label-placement="left">
+  <n-form label-placement="left" label-width="80">
     <n-form-item label="操作">
       <n-button-group>
         <n-button @click="pasteInput">

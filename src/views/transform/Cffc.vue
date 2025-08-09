@@ -75,7 +75,7 @@ const clear = () => {
 </script>
 
 <template>
-  <n-form label-placement="left">
+  <n-form label-placement="left" label-width="100">
     <n-form-item label="缩进">
       <n-select placeholder="请缩进字符" :options="indentOptions" v-model:value="indent" />
     </n-form-item>

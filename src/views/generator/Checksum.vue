@@ -121,7 +121,7 @@ const paste = async () => {
 </script>
 
 <template>
-  <n-form label-placement="left" label-width="180">
+  <n-form label-placement="left" label-width="80">
     <n-form-item label=" ">
       <n-flex align="center">
         <n-button size="large" type="success" @click="handleUpload"
