@@ -2,7 +2,7 @@
 import { ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { NIcon } from "naive-ui";
-import { Home, LetterUu, Link, NetworkPublic, Sql, TextUnderline, Xml, Time, Json, Image, Barcode, DataFormat, TextItalic, DocumentExport, ToolKit, DataBase, DataStructured, CdCreateExchange, QrCode } from "@vicons/carbon";
+import { Home, LetterUu, Link, NetworkPublic, Sql, TextUnderline, Xml, Time, Json, Image, Barcode, DataFormat, TextItalic, DocumentExport, ToolKit, DataBase, DataStructured, CdCreateExchange, QrCode, Code } from "@vicons/carbon";
 import { Binary, Clipboard, File, Hash, Markdown } from "@vicons/tabler";
 import { TransformFilled } from "@vicons/material";
 
@@ -82,31 +82,36 @@ const all = ref([
     icon: Markdown,
   },
   {
-    label: "IP",
-    key: "/network/ip",
-    icon: NetworkPublic,
-  },
-  {
-    label: "Excalidraw",
-    key: "/graphic/excalidraw",
-    icon: NetworkPublic,
-  },
-  {
-    label: "剪切板",
-    key: "/other/clipboard",
-    icon: Clipboard,
-  },
-  {
-    label: "二维码",
-    key: "/other/qrcode",
-    icon: QrCode,
-  },
-  {
-    label: "Excalidraw",
-    key: "https://excalidraw.com/",
-    icon: Link,
-    external: true,
-  },
+      label: "代码片段",
+    key: "/codeSnippet",
+    icon: Code,
+  }
+  // {
+  //   label: "IP",
+  //   key: "/network/ip",
+  //   icon: NetworkPublic,
+  // },
+  // {
+  //   label: "Excalidraw",
+  //   key: "/graphic/excalidraw",
+  //   icon: NetworkPublic,
+  // },
+  // {
+  //   label: "剪切板",
+  //   key: "/other/clipboard",
+  //   icon: Clipboard,
+  // },
+  // {
+  //   label: "二维码",
+  //   key: "/other/qrcode",
+  //   icon: QrCode,
+  // },
+  // {
+  //   label: "Excalidraw",
+  //   key: "https://excalidraw.com/",
+  //   icon: Link,
+  //   external: true,
+  // },
 ]);
 
 const to = (path) => {

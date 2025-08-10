@@ -5,6 +5,7 @@ const routes = [
 	{ path: "/home", component: ()=>import("@/views/All.vue") },
 	{ path: "/setting", component: ()=>import("@/views/Setting.vue") },
 	{ path: "/codeSnippet", component: ()=>import("@/views/snippet/CodeSnippet.vue") },
+	{ path: "/todo", component: ()=>import("@/views/todo/Todo.vue") },
 
 
 	{ path: "/transform/filetype", component: ()=>import("@/views/transform/Cffc.vue") },

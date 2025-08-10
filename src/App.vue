@@ -1,38 +1,30 @@
 <script setup>
-import { ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { NIcon } from "naive-ui";
 import {
   Home,
   LetterUu,
   Link,
-  NetworkPublic,
   Sql,
   TextUnderline,
   Xml,
   Time,
   Json,
-  Image,
   Barcode,
   DataFormat,
   TextItalic,
   DocumentExport,
-  ToolKit,
   DataBase,
   DataStructured,
   CdCreateExchange,
-  QrCode,
   Code,
 } from "@vicons/carbon";
-import { Binary, Clipboard, File, Hash, Markdown } from "@vicons/tabler";
+import { Binary, File, Hash, Markdown } from "@vicons/tabler";
 import { TransformFilled } from "@vicons/material";
+import { renderIcon } from "@/util/tool";
 
 const router = useRouter();
 const route = useRoute();
-
-const renderIcon = (icon) => {
-  return () => h(NIcon, null, { default: () => h(icon) });
-};
 
 const menuOptions = [
   {
@@ -45,6 +37,11 @@ const menuOptions = [
     label: "代码片段",
     key: "/codeSnippet",
     icon: renderIcon(Code),
+  },
+  {
+    label: "待办事项",
+    key: "/todo",
+    icon: renderIcon("src/assets/todo.svg"),
   },
   {
     label: "转换",
