@@ -15,17 +15,3 @@ export const notification = async (body) => {
     sendNotification({ title: "Toolbox", body: body });
   }
 };
-
-export const renderIcon = (icon) => {
-  // 如果是字符串路径，则渲染为SVG图像
-  if (typeof icon === "string") {
-    return () =>
-      h("img", {
-        src: icon,
-        width: "20",
-        height: "20",
-        style: "vertical-align: middle;",
-      });
-  }
-  return () => h(NIcon, null, { default: () => h(icon) });
-};
