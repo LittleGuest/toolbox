@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 
+use database::{
+    Column, ColumnType, DatabaseMetadata, Driver, Index, Schema, Table, database_metadata,
+    error::{Error, Result},
+};
 use serde::{Deserialize, Serialize};
 
-use super::{
-    DatasourceInfo,
-    cores::{Column, ColumnType, Error, Index, Result},
-};
+use super::DatasourceInfo;
 
 mod report;
 mod standard_check;
@@ -15,7 +16,7 @@ pub use standard_check::{CheckReportBo, StandardCheck, standard_check};
 
 /// 所有表结构信息
 pub async fn table_struct(datasource_info: &DatasourceInfo) -> Result<HashMap<String, TableBo>> {
-    let meta = datasource_info.database_metadata().await;
+    let meta = database_metadata(&datasource_info.url()).await;
 
     let Some(database) = &datasource_info.database else {
         return Err(Error::E("choose database"));
@@ -93,7 +94,7 @@ pub async fn create_table_sql(
     datasource_info: &DatasourceInfo,
     table_name: &str,
 ) -> Result<String> {
-    let meta = datasource_info.database_metadata().await;
+    let meta = database_metadata(&datasource_info.url()).await;
     let sql = meta
         .create_table_sql(
             &datasource_info.database.clone().unwrap_or_default(),

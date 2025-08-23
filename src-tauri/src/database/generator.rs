@@ -5,17 +5,15 @@ use std::{
     path::Path,
 };
 
+use database::{
+    Column, Driver, Table, database_metadata,
+    error::{Error, Result},
+};
 use heck::ToUpperCamelCase;
 use serde::{Deserialize, Serialize};
 use tera::Tera;
 
-use crate::{
-    Templates,
-    database::{
-        DatasourceInfo, Result,
-        cores::{Column, Error, Table},
-    },
-};
+use crate::{Templates, database::DatasourceInfo};
 
 /// Rust 1.85关键字
 const KEYWORDS: [&str; 53] = [
@@ -126,7 +124,7 @@ impl Generator {
     }
 
     async fn prepare(&self) -> Result<(Vec<Table>, Vec<Column>)> {
-        let meta = self.datasource_info.database_metadata().await;
+        let meta = database_metadata(&self.datasource_info.url()).await;
         let tables = meta
             .tables(&self.datasource_info.database.clone().unwrap_or_default())
             .await?;
@@ -150,7 +148,9 @@ impl Generator {
     /// 渲染模板
     async fn render(&self, path: &str, tera: &mut Tera, ctx: &tera::Context) -> Result<String> {
         let template = Templates::get(path).ok_or(Error::E("模板文件不存在"))?;
-        Ok(tera.render_str(str::from_utf8(template.data.as_ref()).unwrap(), ctx)?)
+        Ok(tera
+            .render_str(str::from_utf8(template.data.as_ref()).unwrap(), ctx)
+            .map_err(|_| Error::E("模板渲染失败"))?)
     }
 
     /// 预览代码
@@ -375,7 +375,7 @@ mod tests {
     use super::*;
     fn datasource_info() -> DatasourceInfo {
         DatasourceInfo {
-            driver: crate::database::cores::Driver::Mysql,
+            driver: Driver::Mysql,
             name: "127.0.0.1".into(),
             host: "127.0.0.1".into(),
             port: Some(3306),

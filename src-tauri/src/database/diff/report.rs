@@ -1,10 +1,8 @@
+use database::{ColumnType, Driver, error::Result};
 use serde::{Deserialize, Serialize};
 
 use super::{FieldBo, IndexBo, TableBo};
-use crate::database::{
-    DatasourceInfo,
-    cores::{ColumnType, Result},
-};
+use crate::database::DatasourceInfo;
 
 /// 获取差异报告信息，以source为基准，target变动
 pub async fn diff_report(source: DatasourceInfo, target: DatasourceInfo) -> Result<DiffReport> {
@@ -533,7 +531,7 @@ mod tests {
     async fn test_diff_report() -> Result<()> {
         sqlx::any::install_default_drivers();
         let source = DatasourceInfo {
-            driver: crate::database::cores::Driver::Mysql,
+            driver: Driver::Mysql,
             name: "127.0.0.1".into(),
             host: "127.0.0.1".into(),
             port: Some(3306),
@@ -542,7 +540,7 @@ mod tests {
             database: Some("test".into()),
         };
         let target = DatasourceInfo {
-            driver: crate::database::cores::Driver::Mysql,
+            driver: Driver::Mysql,
             name: "127.0.0.1".into(),
             host: "127.0.0.1".into(),
             port: Some(3306),
@@ -564,7 +562,7 @@ mod tests {
     async fn test_diff_sql() -> Result<()> {
         sqlx::any::install_default_drivers();
         let source = DatasourceInfo {
-            driver: crate::database::cores::Driver::Mysql,
+            driver: Driver::Mysql,
             name: "127.0.0.1".into(),
             host: "127.0.0.1".into(),
             port: Some(3306),
@@ -573,7 +571,7 @@ mod tests {
             database: Some("test".into()),
         };
         let target = DatasourceInfo {
-            driver: crate::database::cores::Driver::Mysql,
+            driver: Driver::Mysql,
             name: "127.0.0.1".into(),
             host: "127.0.0.1".into(),
             port: Some(3306),

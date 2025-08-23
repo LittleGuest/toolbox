@@ -116,7 +116,6 @@ $external-badge-bg: #f15b2a;
         }
       }
 
-      // 炫酷的背景动画效果
       &::before {
         content: "";
         position: absolute;

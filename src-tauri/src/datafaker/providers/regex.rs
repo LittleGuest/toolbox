@@ -36,8 +36,8 @@ impl<R: Rng> Regex<R> {
         let hir = parser
             .parse(&self.pattern)
             .map_err(|_| Error::RegexSyntax)?;
-        let reg = rand_regex::Regex::with_hir(hir, self.max_repeat)
-            .map_err(|_| Error::RegexGenerator)?;
+        let reg =
+            rand_regex::Regex::with_hir(hir, self.max_repeat).map_err(|_| Error::RegexGenerator)?;
         let samples = (&mut self.rng)
             .sample_iter(&reg)
             .take(count)

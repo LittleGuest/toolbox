@@ -1,14 +1,14 @@
 use std::{collections::HashMap, sync::LazyLock};
 
 use dashmap::{DashMap, DashSet};
+use database::{
+    ColumnType,
+    error::{Error, Result},
+};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use crate::database::{
-    DatasourceInfo,
-    cores::{ColumnType, Error, Result},
-    diff::IndexBo,
-};
+use crate::database::{DatasourceInfo, diff::IndexBo};
 
 static MYSQL_RESERVED_KEY_WORDS: [&str; 235] = [
     "accessible",

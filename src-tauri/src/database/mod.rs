@@ -1,16 +1,15 @@
 use std::collections::HashMap;
 
-use cores::{Column, DatabaseMetadata, Driver, Error, MysqlMetadata, Result, Schema};
+use database::{
+    Column, DatabaseMetadata, Driver, Schema, Table, database_metadata,
+    error::{Error, Result},
+};
 use diff::DiffReport;
 use serde::{Deserialize, Serialize};
 use sqlx::{AnyPool, Connection, MySqlConnection};
 
-use crate::database::{
-    cores::{PostgresMetadata, SqliteMetadata, Table},
-    diff::CheckReportBo,
-};
+use crate::database::diff::CheckReportBo;
 
-mod cores;
 mod diff;
 mod generator;
 
@@ -60,15 +59,6 @@ impl DatasourceInfo {
             Driver::Sqlite => format!("sqlite://{}", self.database.clone().unwrap_or_default()),
         }
     }
-
-    pub async fn database_metadata(&self) -> Box<dyn DatabaseMetadata> {
-        let pool = AnyPool::connect(&self.url()).await.unwrap();
-        match self.driver {
-            Driver::Mysql => Box::new(MysqlMetadata::new(pool)),
-            Driver::Postgres => Box::new(PostgresMetadata::new(pool)),
-            Driver::Sqlite => Box::new(SqliteMetadata::new(pool)),
-        }
-    }
 }
 
 #[tauri::command]
@@ -76,7 +66,7 @@ pub async fn database_ping(datasource_info: DatasourceInfo) -> Result<()> {
     match datasource_info.driver {
         Driver::Mysql => {
             let mut conn = MySqlConnection::connect(&datasource_info.url()).await?;
-            conn.ping().await.map_err(Error::SqlxErr)
+            conn.ping().await.map_err(Error::Sql)
         }
         Driver::Postgres => todo!(),
         Driver::Sqlite => todo!(),
@@ -85,13 +75,15 @@ pub async fn database_ping(datasource_info: DatasourceInfo) -> Result<()> {
 
 #[tauri::command]
 pub async fn database_schemas(datasource_info: DatasourceInfo) -> Result<Vec<Schema>> {
-    datasource_info.database_metadata().await.schemas().await
+    database_metadata(&datasource_info.url())
+        .await
+        .schemas()
+        .await
 }
 
 #[tauri::command]
 pub async fn database_tables(datasource_info: DatasourceInfo) -> Result<Vec<Table>> {
-    datasource_info
-        .database_metadata()
+    database_metadata(&datasource_info.url())
         .await
         .tables(&datasource_info.database.unwrap_or_default())
         .await
@@ -112,7 +104,7 @@ pub async fn database_table_tree(datasource_info: DatasourceInfo) -> Result<Vec<
     let Some(database) = &datasource_info.database else {
         return Err(Error::E("choose database"));
     };
-    let meta = datasource_info.database_metadata().await;
+    let meta = database_metadata(&datasource_info.url()).await;
     let tables = meta.tables(database).await?;
     let mut data = Vec::with_capacity(tables.len());
     for table in tables.into_iter() {

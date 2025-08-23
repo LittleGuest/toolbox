@@ -20,6 +20,8 @@ import {
 import { Binary, File, Hash, Markdown } from "@vicons/tabler";
 import { TransformFilled } from "@vicons/material";
 
+import TodoIcon from '@/assets/todo.svg';
+
 const renderMenuIcon = (icon) => {
   // 如果是字符串路径，则渲染为SVG图像
   if (typeof icon === "string") {
@@ -50,7 +52,7 @@ export const menus = [
   {
     label: "待办事项",
     key: "/todo",
-    icon: renderMenuIcon("src/assets/todo.svg"),
+    icon: renderMenuIcon(TodoIcon),
   },
   {
     label: "转换",
