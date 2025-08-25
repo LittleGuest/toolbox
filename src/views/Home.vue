@@ -13,17 +13,9 @@ const toMenu = navigateToMenu(router);
   <div class="home-container">
     <!-- 菜单卡片区域 -->
     <div class="menu-grid">
-      <n-card
-        v-for="menu in menuAll"
-        :key="menu.key"
-        :class="['menu-card', hoveredCard === menu.key ? 'hovered' : '']"
-        :bordered="false"
-        :shadow="hoveredCard === menu.key ? 'deep' : 'hover'"
-        @mouseenter="hoveredCard = menu.key"
-        @mouseleave="hoveredCard = null"
-        @click="toMenu(menu.key, menu)"
-        style="width: 240px"
-      >
+      <n-card v-for="menu in menuAll" :key="menu.key" :class="['menu-card', hoveredCard === menu.key ? 'hovered' : '']"
+        :bordered="false" :shadow="hoveredCard === menu.key ? 'deep' : 'hover'" @mouseenter="hoveredCard = menu.key"
+        @mouseleave="hoveredCard = null" @click="toMenu(menu.key, menu)" style="width: 240px">
         <div class="card-content">
           <span class="menu-title">{{ menu.label }}</span>
         </div>
@@ -32,7 +24,12 @@ const toMenu = navigateToMenu(router);
 
     <!-- 版权信息 -->
     <footer class="footer">
-      <span class="copyright">© 2025 ToolBox 工具箱 | by 蒲建全</span>
+      <span class="copyright">
+        © 2025
+        <a href="https://github.com/LittleGuest/toolbox" target="_blank">ToolBox</a>
+        |
+        <a href="https://github.com/LittleGuest" target="_blank">蒲建全</a>
+      </span>
     </footer>
   </div>
 </template>
@@ -69,8 +66,10 @@ $external-badge-bg: #f15b2a;
 
     .menu-card {
       height: 100%;
-      width: 240px; /* 固定宽度 */
-      min-width: 240px; /* 最小宽度确保不会缩小 */
+      width: 240px;
+      /* 固定宽度 */
+      min-width: 240px;
+      /* 最小宽度确保不会缩小 */
       cursor: pointer;
       transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       background: $card-bg; // 使用乳白色
@@ -123,12 +122,10 @@ $external-badge-bg: #f15b2a;
         left: -100%;
         width: 100%;
         height: 100%;
-        background: linear-gradient(
-          90deg,
-          transparent,
-          rgba(255, 255, 255, 0.2),
-          transparent
-        );
+        background: linear-gradient(90deg,
+            transparent,
+            rgba(255, 255, 255, 0.2),
+            transparent);
         transition: left 0.6s ease;
         z-index: 0;
       }
