@@ -149,27 +149,18 @@ pub fn cffc(indent: u8, ft: &str, tt: &str, input: Option<&str>) -> Result<Strin
 #[tauri::command]
 pub fn timestamp(time: Option<&str>) -> Result<HashMap<String, String>> {
     let mut map = HashMap::with_capacity(5);
+    let Some(time) = time else {
+        return Ok(map);
+    };
 
-    if let Some(time) = time {
-        if let Ok(_time) = time.parse::<i64>() {
-            todo!()
-        }
+    if let Ok(time) = time.parse::<i64>() {
+        map.insert("format".to_string(), datetime::timestamp_to_str(time)?);
     } else {
-        let now = datetime::now();
-
-        map.insert("current".to_string(), now.unix_timestamp().to_string());
-        map.insert("timestamp".to_string(), now.unix_timestamp().to_string());
         map.insert(
-            "timestamp_mill".to_string(),
-            now.unix_timestamp().to_string(),
-        );
-        map.insert("utc".to_string(), String::new());
-        map.insert(
-            "datetime_utc8".to_string(),
-            datetime::unix_to_datetime(now.unix_timestamp())?,
+            "format".to_string(),
+            datetime::str_to_timestamp(time)?.to_string(),
         );
     }
-
     Ok(map)
 }
 
