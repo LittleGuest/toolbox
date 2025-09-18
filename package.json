@@ -11,7 +11,6 @@
   },
   "dependencies": {
     "@codemirror/lang-sql": "^6.9.0",
-    "@excalidraw/excalidraw": "^0.18.0",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-clipboard-manager": "~2",
     "@tauri-apps/plugin-dialog": "~2",
@@ -32,8 +31,6 @@
     "json-editor-vue": "^0.18.1",
     "md-editor-v3": "^5.6.0",
     "naive-ui": "^2.42.0",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
     "sql-formatter": "^15.6.2",
     "vditor": "^3.11.0",
     "vue": "^3.5.13",
