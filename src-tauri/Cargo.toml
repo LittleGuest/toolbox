@@ -22,7 +22,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 database = { git = "https://github.com/LittleGuest/database", package = "database", branch = "main" }
 tauri = { version = "2", features = [] }
-tauri-plugin-opener = "2"
+tauri-plugin-opener = "2.5.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 base64 = "0.22.1"

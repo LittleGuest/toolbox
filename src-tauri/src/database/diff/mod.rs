@@ -22,12 +22,12 @@ pub async fn table_struct(datasource_info: &DatasourceInfo) -> Result<HashMap<St
         return Err(Error::E("choose database"));
     };
 
-    let tables = meta.tables(database).await?;
+    let tables = meta.tables(database, "").await?;
     let mut data = HashMap::with_capacity(tables.len());
     for table in tables.into_iter() {
         // 表字段
         let columns = meta
-            .columns(database, &table.name)
+            .columns(database, "", &table.name)
             .await?
             .into_iter()
             .map(|c| (c.name.clone(), c.into()))
@@ -36,7 +36,7 @@ pub async fn table_struct(datasource_info: &DatasourceInfo) -> Result<HashMap<St
         let indexs: HashMap<String, IndexBo> = {
             // 根据索引名称分组（将组合索引合并在一起）
             let indexs = meta
-                .indexs(database, &table.name)
+                .indexs(database, "", &table.name)
                 .await?
                 .into_iter()
                 .map(IndexBo::from)
@@ -98,6 +98,7 @@ pub async fn create_table_sql(
     let sql = meta
         .create_table_sql(
             &datasource_info.database.clone().unwrap_or_default(),
+            "",
             table_name,
         )
         .await?;
