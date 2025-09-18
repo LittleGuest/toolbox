@@ -1,14 +1,15 @@
 <script setup>
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { useMessage } from "naive-ui";
-import { Copy, Paste, Close } from "@vicons/carbon";
+import { Copy } from "@vicons/carbon";
 
 const message = useMessage();
 
 const hyphens = ref();
 const uppercase = ref(false);
+const removeConnector = ref(false);
 const uuidVersion = ref(4);
 const number = ref(5);
 const uuids = ref("");
@@ -47,6 +48,7 @@ const api = async () => {
   return await invoke("uuid", {
     hyphens: hyphens.value,
     uppercase: uppercase.value,
+    removeConnector: removeConnector.value,
     version: uuidVersion.value,
     number: number.value,
   }).then((res) => {
@@ -65,15 +67,18 @@ const copy = () => {
 </script>
 
 <template>
-  <n-form label-placement="left" label-width="80">
+  <n-form label-placement="left" label-width="85">
     <n-form-item label="大写">
       <n-switch v-model:value="uppercase" checked="Y" unchecked="N" />
+    </n-form-item>
+     <n-form-item label="去掉连接符">
+      <n-switch v-model:value="removeConnector" checked="Y" unchecked="N" />
     </n-form-item>
     <n-form-item label="UUID版本">
       <n-select placeholder="请选择版本" :options="versionOptions" v-model:value="uuidVersion" />
     </n-form-item>
     <n-form-item label="生成数量">
-      <span>Generate UUID(s) x</span>
+      <span>Generate UUID(s) x &nbsp;</span>
       <n-input-number placeholder="请输入生成数量" v-model:value="number" min="5" max="999999" />
       <n-button @click="generate">生成</n-button>
     </n-form-item>

@@ -72,6 +72,7 @@ pub async fn checksum(r#type: &str, file_path: &str) -> Result<String> {
 pub fn uuid(
     hyphens: Option<&str>,
     uppercase: bool,
+    remove_connector: bool,
     version: u8,
     number: u16,
 ) -> Result<Vec<String>> {
@@ -102,6 +103,9 @@ pub fn uuid(
 
     if uppercase {
         uuids = uuids.iter().map(|u| u.to_uppercase()).collect::<Vec<_>>();
+    }
+    if remove_connector {
+        uuids = uuids.iter().map(|u| u.replace("-", "")).collect::<Vec<_>>();
     }
     Ok(uuids)
 }
