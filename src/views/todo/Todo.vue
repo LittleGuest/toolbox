@@ -1,15 +1,14 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import { Delete } from "@vicons/carbon";
+import { Delete, Edit } from "@vicons/carbon";
 import { useMessage } from "naive-ui";
 
 const message = useMessage();
 const newTodoText = ref("");
 const todos = ref([]);
 const filter = ref("all");
-const showEditModal = ref(false);
-const editingTodoId = ref(null);
-const editingTodoText = ref("");
+const editingTodoId = ref(null); // 当前正在编辑的待办事项ID
+const editingTodoText = ref(""); // 编辑中的文本
 
 // 从本地存储加载待办事项
 const loadTodos = () => {
@@ -45,15 +44,6 @@ const addTodo = () => {
   saveTodos();
 };
 
-// 切换待办事项的完成状态
-const toggleTodo = (id) => {
-  const todo = todos.value.find((t) => t.id === id);
-  if (todo) {
-    todo.completed = !todo.completed;
-    saveTodos();
-  }
-};
-
 // 删除待办事项
 const deleteTodo = (id) => {
   todos.value = todos.value.filter((t) => t.id !== id);
@@ -74,7 +64,6 @@ const editTodo = (id) => {
   if (todo) {
     editingTodoId.value = id;
     editingTodoText.value = todo.text;
-    showEditModal.value = true;
   }
 };
 
@@ -89,9 +78,16 @@ const saveEdit = () => {
   if (todo) {
     todo.text = editingTodoText.value.trim();
     saveTodos();
-    showEditModal.value = false;
+    editingTodoId.value = null;
+    editingTodoText.value = "";
     message.success("待办事项已更新");
   }
+};
+
+// 取消编辑
+const cancelEdit = () => {
+  editingTodoId.value = null;
+  editingTodoText.value = "";
 };
 
 // 筛选待办事项
@@ -128,7 +124,6 @@ const completedCount = computed(() => {
 onMounted(() => {
   loadTodos();
 });
-// 移除toggleTodo函数
 
 // 添加watch监听todos变化并保存
 import { watch } from "vue";
@@ -146,15 +141,8 @@ watch(
   <div class="todo-container">
     <!-- 添加待办事项 -->
     <div class="add-todo">
-      <n-input
-        v-model:value="newTodoText"
-        placeholder="输入新的待办事项..."
-        clearable
-        @keyup.enter="addTodo"
-      />
-      <n-button type="primary" @click="addTodo" :disabled="!newTodoText.trim()"
-        >添加</n-button
-      >
+      <n-input v-model:value="newTodoText" placeholder="输入新的待办事项..." clearable @keyup.enter="addTodo" />
+      <n-button type="primary" @click="addTodo" :disabled="!newTodoText.trim()">添加</n-button>
     </div>
 
     <!-- 筛选器 -->
@@ -180,52 +168,58 @@ watch(
                 filter === "all"
                   ? "暂无待办事项"
                   : filter === "active"
-                  ? "暂无未完成的待办事项"
-                  : "暂无已完成的待办事项"
+                    ? "暂无未完成的待办事项"
+                    : "暂无已完成的待办事项"
               }}
             </template>
           </n-empty>
-          <n-list-item
-            v-else
-            v-for="todo in filteredTodos"
-            :key="todo.id"
-            class="todo-item"
-          >
-            <n-checkbox v-model:checked="todo.completed" />
-            <span
-              :class="{ completed: todo.completed }"
-              @dblclick="editTodo(todo.id)"
-              >{{ todo.text }}</span
-            >
-            <n-popconfirm
-              positive-text="确认"
-              negative-text="取消"
-              @positive-click="deleteTodo(todo.id)"
-            >
-              <template #trigger>
-                <n-button class="delete-button">
-                  <n-icon><Delete /></n-icon>
-                </n-button>
-              </template>
-              是否确认删除？
-            </n-popconfirm>
+          <n-list-item v-else v-for="todo in filteredTodos" :key="todo.id" class="todo-item">
+            <div class="todo-item-content">
+              <n-checkbox v-model:checked="todo.completed" />
+              <!-- 编辑模式 -->
+              <div v-if="editingTodoId === todo.id" class="edit-mode">
+                <n-input 
+                  v-model:value="editingTodoText" 
+                  placeholder="编辑待办事项..." 
+                  @keyup.enter="saveEdit"
+                  @keyup.esc="cancelEdit"
+                  autofocus
+                />
+                <n-button-group size="small">
+                  <n-button type="primary" @click="saveEdit">保存</n-button>
+                  <n-button @click="cancelEdit">取消</n-button>
+                </n-button-group>
+              </div>
+              <!-- 显示模式 -->
+              <div v-else class="display-mode">
+                <div class="todo-text" :class="{ completed: todo.completed }">{{ todo.text }}</div>
+                <n-button-group size="small">
+                  <n-button class="edit-button" @click="editTodo(todo.id)">
+                    <template #icon>
+                      <n-icon>
+                        <Edit />
+                      </n-icon>
+                    </template>
+                  </n-button>
+                  <n-popconfirm positive-text="确认" negative-text="取消" @positive-click="deleteTodo(todo.id)">
+                    <template #trigger>
+                      <n-button class="delete-button" type="error">
+                        <template #icon>
+                          <n-icon>
+                            <Delete />
+                          </n-icon>
+                        </template>
+                      </n-button>
+                    </template>
+                    是否确认删除？
+                  </n-popconfirm>
+                </n-button-group>
+              </div>
+            </div>
           </n-list-item>
         </n-list>
       </n-scrollbar>
     </div>
-
-    <!-- 编辑弹窗 -->
-    <n-modal v-model:show="showEditModal" :title="'编辑待办事项'" :width="400">
-      <n-input
-        v-model:value="editingTodoText"
-        placeholder="编辑待办事项..."
-        @keyup.enter="saveEdit"
-      />
-      <template #footer>
-        <n-button @click="showEditModal = false">取消</n-button>
-        <n-button type="primary" @click="saveEdit">保存</n-button>
-      </template>
-    </n-modal>
   </div>
 </template>
 
@@ -253,33 +247,52 @@ watch(
       .todo-item {
         display: flex;
         align-items: center;
-        padding: 12px 16px;
 
         .n-checkbox {
           margin-right: 12px;
         }
 
-        span {
-          flex: 1;
-          cursor: pointer;
-          transition: all 0.2s;
+        .todo-item-content {
+          display: flex;
+          align-items: center;
+          width: 100%;
 
-          &.completed {
-            text-decoration: line-through;
-            color: #888;
+          .edit-mode, .display-mode {
+            display: flex;
+            align-items: center;
+            flex: 1;
+            margin-left: 12px;
+          }
+
+          .edit-mode {
+            .n-input {
+              flex: 1;
+              margin-right: 10px;
+            }
+          }
+
+          .display-mode {
+            .todo-text {
+              flex: 1;
+              cursor: pointer;
+              transition: all 0.2s;
+
+              &.completed {
+                text-decoration: line-through;
+                color: #888;
+              }
+            }
           }
         }
 
-        .delete-button {
+        .delete-button,
+        .edit-button {
           opacity: 0;
           transition: opacity 0.2s;
-
-          &:hover {
-            color: #f56c6c;
-          }
         }
 
-        &:hover .delete-button {
+        &:hover .delete-button,
+        &:hover .edit-button {
           opacity: 1;
         }
       }
