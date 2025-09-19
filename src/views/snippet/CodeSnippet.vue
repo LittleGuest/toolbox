@@ -10,9 +10,13 @@ import {
   deleteCodeSnippetApi,
 } from "@/store/codeSnippet.js";
 import { Delete, Edit } from "@vicons/carbon";
+import { useMessage } from "naive-ui";
 
 // 引入消息提示
 const message = useMessage();
+
+// 表单引用
+const formRef = ref(null);
 
 // 搜索词
 const search = ref("");
@@ -73,6 +77,13 @@ const resetSelectedTags = () => {
 const showAddDialog = ref(false);
 // 添加片段
 const addSnippets = () => {
+  form.value = {
+    id: null,
+    language: "",
+    title: "",
+    tags: [],
+    code: "",
+  };
   showAddDialog.value = true;
 };
 const form = ref({
@@ -83,47 +94,55 @@ const form = ref({
   code: "",
 });
 const rules = {
-  language: [
-    {
-      required: true,
-      message: "请选择类型",
-    },
-  ],
   title: [
     {
       required: true,
-      message: "请输入连接名称",
+      message: "请一句话描述",
     },
   ],
   tags: [
     {
       required: true,
-      message: "请输入主机地址",
+      message: "请选择或输入标签",
     },
   ],
   code: [
     {
       required: true,
-      message: "请输入主机地址",
+      message: "请输入内容",
     },
   ],
 };
 
 // 提交表单
 const saveSnippet = async () => {
-  let params = { ...form.value };
-  params.tags = params.tags.join(",");
+  try {
+    // 验证表单
+    await formRef.value?.validate();
 
-  if (form.value.id) {
-    await updateCodeSnippetApi(params);
-  } else {
-    await saveCodeSnippetApi(params);
+    let params = { ...form.value };
+    params.tags = params.tags.join(",");
+
+    if (form.value.id) {
+      await updateCodeSnippetApi(params);
+    } else {
+      await saveCodeSnippetApi(params);
+    }
+    message.success("保存成功");
+    form.value = {
+      id: null,
+      language: "",
+      title: "",
+      tags: [],
+      code: "",
+    };
+    showAddDialog.value = false;
+    await getCodeSnippets();
+    await getTags();
+  } catch (error) {
+    // 验证失败，不执行保存操作
+    console.error("表单验证失败:", error);
   }
-  message.success("保存成功");
-  form.value = {};
-  showAddDialog.value = false;
-  await getCodeSnippets();
-  await getTags();
 };
 
 const editSnippets = (snippet) => {
@@ -132,7 +151,13 @@ const editSnippets = (snippet) => {
 };
 
 const handleClose = () => {
-  form.value = {};
+  form.value = {
+    id: null,
+    language: "",
+    title: "",
+    tags: [],
+    code: "",
+  };
 };
 
 // 获取代码片段
@@ -178,135 +203,92 @@ onMounted(() => {
 
 <template>
   <div class="code-snippet-container">
-    <!-- 左侧边栏 -->
-    <div class="sidebar">
-      <!-- 片段列表 -->
-      <div class="snippet-list-container">
-        <n-scrollbar>
-          <n-list class="snippet-list">
-            <n-list-item
-              v-for="snippet in filteredSnippets"
-              :key="snippet.id"
-              :class="{ active: selectedSnippetId === snippet.id }"
-              @click="selectSnippet(snippet)"
-            >
-              <template #suffix>
-                <n-button-group>
-                  <n-button @click="editSnippets(snippet)">
-                    <template #icon>
-                      <n-icon>
-                        <Edit />
-                      </n-icon>
-                    </template>
-                  </n-button>
-                  <n-popconfirm
-                    positive-text="确认"
-                    negative-text="取消"
-                    @positive-click="deleteSnippet(snippet.id)"
-                  >
-                    <template #trigger>
-                      <n-button>
-                        <template #icon>
-                          <n-icon><Delete /></n-icon> </template
-                      ></n-button>
-                    </template>
-                    是否确认删除？
-                  </n-popconfirm>
-                </n-button-group>
-              </template>
-              <n-thing :title="snippet.title" />
-            </n-list-item>
-          </n-list>
-        </n-scrollbar>
-      </div>
+    <!-- 顶部工具栏 -->
+    <div class="toolbar">
+      <n-button type="primary" @click="addSnippets">新建</n-button>
+      <n-button @click="importSnippets">导入</n-button>
+      <n-button @click="exportSnippets">导出</n-button>
+      <n-input v-model:value="search" placeholder="搜索片段..." />
+      <n-button>搜索</n-button>
+    </div>
 
-      <!-- 分割线 -->
-      <n-divider />
-
-      <!-- 标签列表 -->
-      <div class="tag-list-container" v-if="tags.length > 0">
+    <!-- 主内容区域 -->
+    <div class="main-content">
+      <!-- 左侧标签栏 -->
+      <div class="tag-sidebar" v-if="tags.length > 0">
         <n-scrollbar>
           <n-card title="标签" size="small">
             <template #header-extra v-if="selectedTags.length > 0">
-              <n-button type="text" size="small" @click="resetSelectedTags"
-                >重置选择</n-button
-              >
+              <n-button type="text" size="small" @click="resetSelectedTags">重置选择</n-button>
             </template>
             <div class="tag-list">
-              <n-tag
-                v-for="tag in tags"
-                :key="tag"
-                :class="{ active: selectedTags.includes(tag) }"
-                :bordered="!selectedTags.includes(tag)"
-                @click="toggleTag(tag)"
-                class="tag-item"
-              >
+              <n-tag v-for="tag in tags" :key="tag" :class="{ active: selectedTags.includes(tag) }"
+                :bordered="!selectedTags.includes(tag)" @click="toggleTag(tag)" class="tag-item">
                 {{ tag }}
               </n-tag>
             </div>
           </n-card>
         </n-scrollbar>
       </div>
-    </div>
 
-    <!-- 主内容区域 -->
-    <div class="main-content">
-      <!-- 顶部工具栏 -->
-      <div class="toolbar">
-        <div class="search-container" v-if="snippets.length > 0">
-          <n-input v-model:value="search" placeholder="搜索片段..." />
-          <n-button>搜索</n-button>
+      <!-- 中间代码片段列表 -->
+      <div class="snippet-content">
+        <div class="snippet-list-container">
+          <n-scrollbar>
+            <n-list class="snippet-list" v-if="filteredSnippets.length > 0">
+              <n-list-item v-for="snippet in filteredSnippets" :key="snippet.id"
+                :class="{ active: selectedSnippetId === snippet.id }">
+                <template #suffix>
+                  <n-button-group>
+                    <n-button size="small" @click="editSnippets(snippet)">
+                      <template #icon>
+                        <n-icon>
+                          <Edit />
+                        </n-icon>
+                      </template>
+                    </n-button>
+                    <n-popconfirm positive-text="确认" negative-text="取消" @positive-click="deleteSnippet(snippet.id)">
+                      <template #trigger>
+                        <n-button size="small">
+                          <template #icon>
+                            <n-icon>
+                              <Delete />
+                            </n-icon>
+                          </template>
+                        </n-button>
+                      </template>
+                      是否确认删除？
+                    </n-popconfirm>
+                  </n-button-group>
+                </template>
+                <n-thing :title="snippet.title" />
+              </n-list-item>
+            </n-list>
+            <n-empty v-else description="无数据" style="margin-top: 50px;" />
+          </n-scrollbar>
         </div>
-        <div class="action-buttons">
-          <n-button type="primary" @click="addSnippets">新建</n-button>
-          <n-button @click="importSnippets">导入</n-button>
-          <n-button @click="exportSnippets">导出</n-button>
-        </div>
-      </div>
-
-      <!-- 代码编辑区域 -->
-      <div class="code-editor" v-if="snippets.length > 0">
-        <MdEditor v-model="currentSnippet.code" />
       </div>
     </div>
   </div>
 
-  <n-drawer
-    v-model:show="showAddDialog"
-    placement="bottom"
-    resizable
-    :default-width="502"
-    default-height="80%"
-    @update:show="handleClose"
-  >
+  <!-- 添加/编辑代码片段弹窗 -->
+  <n-drawer v-model:show="showAddDialog" placement="bottom" resizable :default-width="502" :default-height="'100%'"
+    :height="'100%'" @update:show="handleClose">
     <n-drawer-content :title="form.id ? '编辑' : '添加'" closable>
-      <n-form
-        ref="formRef"
-        :model="model"
-        :rules="rules"
-        label-placement="left"
-        label-width="auto"
-        require-mark-placement="right-hanging"
-      >
+      <n-form ref="formRef" :model="form" :rules="rules" label-placement="left" label-width="auto"
+        require-mark-placement="right-hanging" style="display: flex; flex-direction: column; flex: 1;">
         <n-form-item path="title" label="一句话">
-          <n-input
-            placeholder="一句话描述"
-            v-model:value="form.title"
-            clearable
-          />
+          <n-input placeholder="一句话描述" v-model:value="form.title" clearable />
         </n-form-item>
-        <n-form-item path="language" label="语言">
-          <n-input
-            placeholder="请输入语言"
-            v-model:value="form.language"
-            clearable
-          />
-        </n-form-item>
+        <!-- <n-form-item path="language" label="语言" v-if="false">
+          <n-input placeholder="请输入语言" v-model:value="form.language" clearable />
+        </n-form-item> -->
         <n-form-item path="tags" label="标签">
-          <n-dynamic-tags v-model:value="form.tags" />
+          <n-select v-model:value="form.tags" multiple filterable tag
+            :options="tags.map(tag => ({ label: tag, value: tag }))" placeholder="输入或选择标签" />
         </n-form-item>
-        <n-form-item path="tags" :show-labels="false">
-          <MdEditor v-model="form.code" />
+        <n-form-item path="code" :show-labels="false">
+          <MdEditor v-model="form.code" style="height: calc(100vh - 290px);" />
         </n-form-item>
       </n-form>
       <template #footer>
@@ -315,43 +297,49 @@ onMounted(() => {
       </template>
     </n-drawer-content>
   </n-drawer>
+
+
 </template>
 
 <style lang="scss" scoped>
 .code-snippet-container {
   display: flex;
+  flex-direction: column;
   height: 100%;
   overflow: hidden;
 
-  .sidebar {
-    width: 280px;
-    height: 100%;
+  .toolbar {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    padding: 10px;
 
-    .snippet-list-container,
-    .tag-list-container {
-      padding-top: 10px;
-      overflow-y: auto;
+    .search-container {
+      display: inline-flex;
+      gap: 10px;
+      width: 50%;
+    }
 
-      &.snippet-list-container {
-        // height: 400px;
-        flex: 2;
-      }
+    .action-buttons {
+      display: flex;
+      gap: 10px;
+    }
+  }
 
-      &.tag-list-container {
-        // max-height: 300px;
-        flex: 1;
-      }
+  .main-content {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
 
-      // .snippet-list {
-      //   height: calc(100% - 24px);
-      // }
+    .tag-sidebar {
+      width: 200px;
+      height: 100%;
+      border-right: 1px solid #eee;
+      padding: 10px;
 
       .tag-list {
         display: flex;
         flex-wrap: wrap;
-        gap: 10px;
+        gap: 8px;
 
         .tag-item {
           cursor: pointer;
@@ -363,49 +351,47 @@ onMounted(() => {
         }
       }
     }
-  }
 
-  .main-content {
-    width: calc(100% - 280px);
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-
-    .toolbar {
+    .snippet-content {
+      flex: 1;
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px;
-
-      .search-container {
-        display: inline-flex;
-        gap: 10px;
-        width: 50%;
-      }
-
-      .action-buttons {
-        display: flex;
-        gap: 10px;
-      }
-    }
-
-    .code-editor {
-      height: 100%;
-      padding: 10px;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 20px;
       overflow-y: auto;
 
-      .md-editor {
-        height: calc(100% - 10px);
+      .snippet-list-container {
+        width: 100%;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 16px;
+
+        .snippet-list {
+          .n-list-item {
+            cursor: pointer;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+
+            &:hover {
+              background-color: #f9f9f9;
+            }
+
+            &.active {
+              background-color: #f0f7ff;
+              border-left: 3px solid #1890ff;
+            }
+          }
+        }
       }
     }
   }
 
-  .n-list-item {
-    cursor: pointer;
-
-    &.active {
-      background-color: #f5f7fa;
-    }
+  .code-preview {
+    margin-top: 16px;
+    max-height: 400px;
+    overflow-y: auto;
   }
 }
 </style>
