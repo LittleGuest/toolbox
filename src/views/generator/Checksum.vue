@@ -26,19 +26,19 @@ const checksumOptions = ref([
     value: "sha1sum",
   },
   {
-    label: "sha2_224sum",
+    label: "sha224sum",
     value: "sha2_224sum",
   },
   {
-    label: "sha2_256sum",
+    label: "sha256sum",
     value: "sha2_256sum",
   },
   {
-    label: "sha2_384sum",
+    label: "sha384sum",
     value: "sha2_384sum",
   },
   {
-    label: "sha2_512sum",
+    label: "sha512sum",
     value: "sha2_512sum",
   },
   {
@@ -125,7 +125,7 @@ const paste = async () => {
     <n-form-item label=" ">
       <n-flex align="center">
         <n-button size="large" type="success" @click="handleUpload"
-          >上传</n-button
+          >选择</n-button
         >
         <span>{{ filePath }}</span>
       </n-flex>

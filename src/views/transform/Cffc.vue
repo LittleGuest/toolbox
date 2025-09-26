@@ -75,87 +75,89 @@ const clear = () => {
 </script>
 
 <template>
-  <n-form label-placement="left" label-width="100">
-    <n-form-item label="缩进">
-      <n-select placeholder="请缩进字符" :options="indentOptions" v-model:value="indent" />
-    </n-form-item>
-    <n-form-item label="输入文件类型">
-      <n-select placeholder="请选择文件类型" :options="typeOptions" v-model:value="ft" />
-    </n-form-item>
-    <n-form-item label="操作">
-      <n-button-group>
-        <n-button @click="pasteInput">
+  <n-scrollbar>
+    <n-form label-placement="left" label-width="100">
+      <n-form-item label="缩进">
+        <n-select placeholder="请缩进字符" :options="indentOptions" v-model:value="indent" />
+      </n-form-item>
+      <n-form-item label="输入文件类型">
+        <n-select placeholder="请选择文件类型" :options="typeOptions" v-model:value="ft" />
+      </n-form-item>
+      <n-form-item label="操作">
+        <n-button-group>
+          <n-button @click="pasteInput">
+            <template #icon>
+              <n-icon>
+                <Paste />
+              </n-icon>
+            </template>
+          </n-button>
+          <n-button @click="copy(input)">
+            <template #icon>
+              <n-icon>
+                <Copy />
+              </n-icon>
+            </template>
+          </n-button>
+          <n-button @click="clear">
+            <template #icon>
+              <n-icon>
+                <Close />
+              </n-icon>
+            </template>
+          </n-button>
+        </n-button-group>
+      </n-form-item>
+      <n-form-item label="输入">
+        <n-input placeholder="" v-model:value="input" :rows="6" type="textarea" />
+      </n-form-item>
+      <n-form-item label="转换">
+        <n-button @click="itt">
           <template #icon>
             <n-icon>
-              <Paste />
+              <ArrowDown />
             </n-icon>
           </template>
         </n-button>
-        <n-button @click="copy(input)">
+        <n-button @click="tti">
           <template #icon>
             <n-icon>
-              <Copy />
+              <ArrowUp />
             </n-icon>
           </template>
         </n-button>
-        <n-button @click="clear">
-          <template #icon>
-            <n-icon>
-              <Close />
-            </n-icon>
-          </template>
-        </n-button>
-      </n-button-group>
-    </n-form-item>
-    <n-form-item label="输入">
-      <n-input placeholder="" v-model:value="input" :rows="10" type="textarea" />
-    </n-form-item>
-    <n-form-item label="转换">
-      <n-button @click="itt">
-        <template #icon>
-          <n-icon>
-            <ArrowDown />
-          </n-icon>
-        </template>
-      </n-button>
-      <n-button @click="tti">
-        <template #icon>
-          <n-icon>
-            <ArrowUp />
-          </n-icon>
-        </template>
-      </n-button>
-    </n-form-item>
-    <n-form-item label="输出文件类型">
-      <n-select placeholder="请选择文件类型" :options="typeOptions" v-model:value="tt" />
-    </n-form-item>
-    <n-form-item label="操作">
-      <n-button-group>
-        <n-button @click="pasteOutput()">
-          <template #icon>
-            <n-icon>
-              <Paste />
-            </n-icon>
-          </template>
-        </n-button>
-        <n-button @click="copy(output)">
-          <template #icon>
-            <n-icon>
-              <Copy />
-            </n-icon>
-          </template>
-        </n-button>
-        <n-button @click="clear">
-          <template #icon>
-            <n-icon>
-              <Close />
-            </n-icon>
-          </template>
-        </n-button>
-      </n-button-group>
-    </n-form-item>
-    <n-form-item label="输出">
-      <n-input placeholder="" v-model:value="output" :rows="10" type="textarea" />
-    </n-form-item>
-  </n-form>
+      </n-form-item>
+      <n-form-item label="输出文件类型">
+        <n-select placeholder="请选择文件类型" :options="typeOptions" v-model:value="tt" />
+      </n-form-item>
+      <n-form-item label="操作">
+        <n-button-group>
+          <n-button @click="pasteOutput()">
+            <template #icon>
+              <n-icon>
+                <Paste />
+              </n-icon>
+            </template>
+          </n-button>
+          <n-button @click="copy(output)">
+            <template #icon>
+              <n-icon>
+                <Copy />
+              </n-icon>
+            </template>
+          </n-button>
+          <n-button @click="clear">
+            <template #icon>
+              <n-icon>
+                <Close />
+              </n-icon>
+            </template>
+          </n-button>
+        </n-button-group>
+      </n-form-item>
+      <n-form-item label="输出">
+        <n-input placeholder="" v-model:value="output" :rows="6" type="textarea" />
+      </n-form-item>
+    </n-form>
+  </n-scrollbar>
 </template>

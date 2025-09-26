@@ -13,7 +13,7 @@ const toMenu = navigateToMenu(router);
   <n-layout has-sider position="absolute">
     <n-layout-sider
       collapse-mode="width"
-      :collapsed-width="120"
+      :collapsed-width="55"
       :width="260"
       show-trigger="arrow-circle"
       bordered
