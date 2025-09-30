@@ -6,6 +6,7 @@ mod datafaker;
 mod libs;
 mod migrations;
 mod openapi;
+mod monitor;
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -82,6 +83,11 @@ pub fn run() {
             datafaker::datafaker_providers,
             datafaker::datafaker_adapter_columns,
             datafaker::preview_regex,
+            monitor::monitor_battery_info,
+            monitor::monitor_cpu_info,
+            monitor::monitor_memory_info,
+            monitor::monitor_process_info,
+            monitor::monitor_system_info,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

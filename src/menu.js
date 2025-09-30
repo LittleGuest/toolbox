@@ -16,6 +16,7 @@ import {
   DataStructured,
   CdCreateExchange,
   Code,
+  CloudMonitoring
 } from "@vicons/carbon";
 import { Binary, File, Hash, Markdown } from "@vicons/tabler";
 import { TransformFilled } from "@vicons/material";
@@ -43,6 +44,11 @@ export const menus = [
     key: "/home",
     icon: renderMenuIcon(Home),
     closable: true,
+  },
+  {
+    label: "系统监控",
+    key: "/systemMonitor",
+    icon: renderMenuIcon(CloudMonitoring),
   },
   {
     label: "代码片段",

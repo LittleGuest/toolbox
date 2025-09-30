@@ -81,6 +81,8 @@ rand_regex = "0.18.1"
 regex-syntax = "0.8.5"
 indexmap = "2.10.0"
 tauri-plugin-dialog = "2"
+sysinfo = "0.37.1"
+battery = "0.7.8"
 
 [dev-dependencies]
 dotenv = "0.15.0"

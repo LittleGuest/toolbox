@@ -1,0 +1,61 @@
+<script setup>
+import { ref, reactive, onMounted, provide } from "vue";
+import { invoke } from "@tauri-apps/api/core";
+import 'echarts';
+import 'echarts/theme/blue'
+import VChart, { THEME_KEY } from 'vue-echarts';
+import { gaugeOption } from "./options/options.js";
+import { setSpecialGuage } from "./options/gaugeOption.js";
+provide(THEME_KEY, 'blue')
+
+const socSensorChart = ref(null);
+
+const flushSensorData = () => {
+    invoke("monitor_system_info", {}).then(sysMonitor => {
+        const socTemp = sysMonitor.sensors['SOC MTR Temp Sensor0'];
+        setSpecialGuage(socSensorChart.value, '温度', socTemp==null?0:socTemp.toFixed(2),);
+    })
+    return flushSensorData;
+}
+
+onMounted(async () => {
+    socSensorChart.value?.setOption(gaugeOption);
+    setInterval(flushSensorData(), 5000);
+
+})
+</script>
+
+<template>
+    <n-card>
+        <template #header>
+            <div class="card-header">
+                <span>SOC温度</span>
+            </div>
+        </template>
+        <v-chart class="chart" ref="socSensorChart" :manual-update="true" autoresize />
+    </n-card>
+</template>
+
+<style lang="scss" scoped>
+.chart {
+    height: 100px;
+    width: 100%;
+}
+
+.n-row:last-child {
+    margin-bottom: 0;
+}
+
+.n-card {
+    --n-padding: 8px;
+}
+
+.card-header {
+    font-size: smaller;
+    /* font-weight: bold; */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--n-text-color);
+}
+</style>
