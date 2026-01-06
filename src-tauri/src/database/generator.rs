@@ -126,7 +126,10 @@ impl Generator {
     async fn prepare(&self) -> Result<(Vec<Table>, Vec<Column>)> {
         let meta = database_metadata(&self.datasource_info.url()).await;
         let tables = meta
-            .tables(&self.datasource_info.database.clone().unwrap_or_default(), "")
+            .tables(
+                &self.datasource_info.database.clone().unwrap_or_default(),
+                "",
+            )
             .await?;
         let mut table_names = vec![];
         if self.table_names.is_empty() {
@@ -138,7 +141,7 @@ impl Generator {
                 meta.columns(
                     &self.datasource_info.database.clone().unwrap_or_default(),
                     "",
-                    &t
+                    &t,
                 )
                 .await?,
             );

@@ -1,4 +1,5 @@
 import { NIcon } from "naive-ui";
+import { h } from "vue";
 import {
   Home,
   LetterUu,
@@ -101,6 +102,16 @@ export const menus = [
         label: "URL",
         key: "/encodedecode/url",
         icon: renderMenuIcon(Link),
+      },
+      {
+        label: "字符编码",
+        key: "/encodedecode/charset",
+        icon: renderMenuIcon(TextUnderline),
+      },
+      {
+        label: "乱码恢复",
+        key: "/encodedecode/messycode",
+        icon: renderMenuIcon(TextUnderline),
       },
     ],
   },

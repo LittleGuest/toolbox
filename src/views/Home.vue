@@ -22,14 +22,8 @@ const toMenu = navigateToMenu(router);
       </n-card>
     </div>
 
-    <!-- 版权信息 -->
     <footer class="footer">
-      <span class="copyright">
-        © 2025
-        <a href="https://github.com/LittleGuest/toolbox" target="_blank">ToolBox</a>
-        |
-        <a href="https://github.com/LittleGuest" target="_blank">蒲建全</a>
-      </span>
+      <a href="https://github.com/LittleGuest/toolbox" target="_blank">ToolBox</a>
     </footer>
   </div>
 </template>

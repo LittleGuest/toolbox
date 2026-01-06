@@ -5,8 +5,8 @@ mod database;
 mod datafaker;
 mod libs;
 mod migrations;
-mod openapi;
 mod monitor;
+mod openapi;
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -70,6 +70,9 @@ pub fn run() {
             libs::qrcode,
             libs::check_ip,
             libs::ip_to_number,
+            libs::charset_encode,
+            libs::auto_detect_charset,
+            libs::recover_garbled_code,
             openapi::fetch_api_data,
             openapi::download,
             database::database_ping,

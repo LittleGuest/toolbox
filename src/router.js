@@ -40,6 +40,14 @@ const routes = [
     path: "/encodedecode/jwt",
     component: () => import("@/views/encodedecode/JWT.vue"),
   },
+  {
+    path: "/encodedecode/charset",
+    component: () => import("@/views/encodedecode/CharsetEncoder.vue"),
+  },
+  {
+    path: "/encodedecode/messycode",
+    component: () => import("@/views/encodedecode/MessyCodeRecover.vue"),
+  },
 
   {
     path: "/formatter/jsoneditor",

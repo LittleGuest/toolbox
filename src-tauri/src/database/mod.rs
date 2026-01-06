@@ -85,7 +85,7 @@ pub async fn database_schemas(datasource_info: DatasourceInfo) -> Result<Vec<Sch
 pub async fn database_tables(datasource_info: DatasourceInfo) -> Result<Vec<Table>> {
     database_metadata(&datasource_info.url())
         .await
-        .tables(&datasource_info.database.unwrap_or_default(),"")
+        .tables(&datasource_info.database.unwrap_or_default(), "")
         .await
 }
 
@@ -105,10 +105,10 @@ pub async fn database_table_tree(datasource_info: DatasourceInfo) -> Result<Vec<
         return Err(Error::E("choose database"));
     };
     let meta = database_metadata(&datasource_info.url()).await;
-    let tables = meta.tables(database,"").await?;
+    let tables = meta.tables(database, "").await?;
     let mut data = Vec::with_capacity(tables.len());
     for table in tables.into_iter() {
-        let columns = meta.columns(database,"", &table.name).await?;
+        let columns = meta.columns(database, "", &table.name).await?;
         data.push(TableColumnTree {
             schema: table.schema,
             table_name: table.name,

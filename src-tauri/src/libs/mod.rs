@@ -7,10 +7,14 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Error, Result, libs::checksum::Checksum};
+use crate::{
+    Error, Result,
+    libs::{charset::RecoverGarbledCode, checksum::Checksum},
+};
 
 mod base64;
 mod cffc;
+mod charset;
 mod checksum;
 mod datetime;
 mod hash;
@@ -326,4 +330,81 @@ pub fn ip_to_number(t: &str, ip: Option<String>) -> Result<HashMap<String, Strin
     }
 
     Ok(map)
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CharsetEncodeResult {
+    pub output: String,
+    pub byte_count: usize,
+    pub char_count: usize,
+}
+
+#[tauri::command]
+pub fn charset_encode(
+    input: &str,
+    input_type: &str,
+    target_charset: &str,
+    output_type: &str,
+    delimiter: &str,
+    base_format: &str,
+    show_unicode: bool,
+    show_escape: bool,
+    show_c_array: bool,
+    show_assembly: bool,
+    show_auto: bool,
+    invert_non_printable: bool,
+    append_null: bool,
+) -> Result<CharsetEncodeResult> {
+    // 解析输入
+    let mut bytes = charset::parse_bytes_from_string(input, input_type)?;
+
+    // 如果是文本输入，先转换为目标字符集
+    if input_type == "text" {
+        let decoded = charset::decode_bytes(&bytes, "UTF-8")?;
+        bytes = charset::encode_string(&decoded, target_charset)?;
+    }
+
+    // 处理不可打印字符
+    if invert_non_printable {
+        bytes = charset::invert_non_printable(&bytes);
+    }
+
+    // 追加NUL结尾
+    if append_null {
+        bytes.push(0);
+    }
+
+    // 格式化输出
+    let mut output = if show_c_array {
+        charset::format_as_c_array(&bytes)
+    } else if show_assembly {
+        charset::format_as_assembly(&bytes)
+    } else {
+        charset::format_bytes_to_string(&bytes, output_type, delimiter, base_format)?
+    };
+
+    // 计算统计信息
+    let byte_count = bytes.len();
+    let char_count = match charset::decode_bytes(&bytes, target_charset) {
+        Ok(s) => s.chars().count(),
+        Err(_) => 0,
+    };
+
+    Ok(CharsetEncodeResult {
+        output,
+        byte_count,
+        char_count,
+    })
+}
+
+#[tauri::command]
+pub fn auto_detect_charset(input: &str) -> Result<String> {
+    let charset = charset::auto_detect_charset(input)?;
+    Ok(charset)
+}
+
+#[tauri::command]
+pub fn recover_garbled_code(input: &str) -> Result<Vec<RecoverGarbledCode>> {
+    Ok(charset::recover_garbled_code(input))
 }
