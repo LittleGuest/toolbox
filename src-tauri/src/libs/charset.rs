@@ -535,12 +535,13 @@ fn calculate_text_score(text: &str) -> f64 {
     }
 
     let (readable_count, total_count) = text.chars().fold((0, 0), |(readable, total), c| {
-        let is_readable = c.is_ascii_graphic() || c == ' '
+        let is_readable = c.is_ascii_graphic()
+            || c == ' '
             || (c >= '\u{4e00}' && c <= '\u{9fa5}')
             || (c >= '\u{3040}' && c <= '\u{309f}')
             || (c >= '\u{30a0}' && c <= '\u{30ff}')
             || r#"，。！？、；：''""（）》《》【】「」『』·…—￥$€£%&=+-*/|～<>{}"#.contains(c);
-        
+
         (readable + is_readable as usize, total + 1)
     });
 
