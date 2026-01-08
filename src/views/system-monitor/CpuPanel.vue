@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, onMounted, computed, watch, h, render } from "vue";
+import { ref, reactive, onMounted, computed, watch, h, render, inject } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import * as echarts from 'echarts';
 import 'echarts/theme/blue'
@@ -8,6 +8,8 @@ import { CpuData } from "./options/monitor.js";
 import { getCpuUsageDatas } from "./options/cpuOption.js";
 import { cpuOption } from "./options/options.js";
 import { NCard, NRow, NCol } from "naive-ui";
+
+const isMonitoring = inject('isMonitoring');
 
 const cpuBrand = ref("");
 const cpuUsageCharts = ref([]);
@@ -38,6 +40,7 @@ const fitSize = computed(() => {
 });
 const cpuUsageData = [];
 const globalCpuUsageData = [];
+let cpuInterval = null;
 
 
 const updateCpuUsage = (cpu) => {
@@ -62,17 +65,36 @@ const updateCpuUsage = (cpu) => {
 }
 
 const flushCpuData = () => {
+    if (!isMonitoring.value) return;
     invoke("monitor_cpu_info", {}).then(cpu => {
         cpuBrand.value = cpu.chip_name;
         updateCpuUsage(cpu);
     });
-    return flushCpuData;
 }
 
+const startCpuMonitoring = () => {
+    if (cpuInterval) return;
+    flushCpuData();
+    cpuInterval = setInterval(flushCpuData, 10 * 1000);
+}
+
+const stopCpuMonitoring = () => {
+    if (cpuInterval) {
+        clearInterval(cpuInterval);
+        cpuInterval = null;
+    }
+}
+
+watch(isMonitoring, (newValue) => {
+    if (newValue) {
+        startCpuMonitoring();
+    } else {
+        stopCpuMonitoring();
+    }
+})
+
 onMounted(async () => {
-    // 获取机器cpu核心数
     cpuCores.value = (await invoke("monitor_cpu_info", {})).cores.length;
-    // 创建虚拟节点
     const cpuRowElems = [];
     for (var i = 0; i < cpuGraphRows.value; i++) {
         const cpuColsElems = [];
@@ -85,9 +107,7 @@ onMounted(async () => {
         cpuRowElems.push(h(NRow, { gutter: 2 },()=> cpuColsElems));
     }
     const cpuRoot = h('div', cpuRowElems);
-    // 渲染节点
     render(cpuRoot, document.getElementById('cpuRoot'));
-    // 初始化echarts。
     for (var i = 0; i < cpuCores.value; i++) {
         const chartInstance = echarts.init(document.getElementById(`cpuUsage${i}`),'blue')
         cpuUsageCharts.value.push(chartInstance);
@@ -115,7 +135,9 @@ onMounted(async () => {
             }
         }]
     })
-    setInterval(flushCpuData(), 2000);
+    if (isMonitoring.value) {
+        startCpuMonitoring();
+    }
 })
 </script>
 
@@ -125,7 +147,6 @@ onMounted(async () => {
             <n-card>
                 <template #header>
                     <div class="card-header">
-                        <span>Cpu核心负载</span>
                         <span style="max-width: 200px;" class="multi-text">{{ cpuBrand }}</span>
                         <v-chart style="height: 24px; width: 100px;" ref="cpuTotalChart" :manual-update="true"
                             autoresize />

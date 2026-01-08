@@ -1,8 +1,8 @@
 const barWidth = 16;
 
-export const memoryOption = {
+export const swapOption = {
     dataset: {
-        source:[['memory', 0, 16]]
+        source:[['swap', 0, 8]]
     },
     grid: {
         left: 8,
@@ -12,19 +12,19 @@ export const memoryOption = {
         containLabel: true
     },
     xAxis: {
-        max: 18,
+        max: 10,
         splitLine: {
             show: false,
         },
         axisLabel: {
-            show: true,
+            show: false,
         },
         axisLine: { show: false },
         axisTick: { show: false },
         interval: 4,
     },
     yAxis: {
-        data: ['memory'],
+        data: ['swap'],
         splitLine: {
             show: false
         },
@@ -38,13 +38,18 @@ export const memoryOption = {
         {
             label: {
                 show: true,
-                formatter: '{@[1]}GB'
+                formatter: function(params) {
+                    const used = params.data[1];
+                    const free = params.data[2];
+                    const total = used + free;
+                    return used + '/' + total + 'GB';
+                }
             },
             name: 'fill',
             type: 'bar',
             barWidth: barWidth,
             itemStyle: {
-                
+                color: '#e6b600',
                 borderRadius: 2,
             },
             encode:{
@@ -67,23 +72,6 @@ export const memoryOption = {
             },
             encode:{
                 x: 2,
-                y: 0
-            },
-        },
-
-        {
-            name: 'swap',
-            type: 'bar',
-            barWidth: barWidth,
-            stack: 'total',
-            barGap: '-100%',
-            itemStyle: {
-                color: '#e6b600',
-                opacity:1,
-                borderRadius: [0,2,2,0],
-            },
-            encode:{
-                x: 3,
                 y: 0
             },
         },

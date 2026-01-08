@@ -7,6 +7,20 @@ const normalSpliteLine = {
 };
 
 export const cpuOption = {
+    dataZoom: [
+        {
+            show: false,
+            type: 'inside',
+            xAxisIndex: 0,
+            filterMode: 'none'
+        },
+        {
+            show: false,
+            type: 'slider',
+            xAxisIndex: 0,
+            filterMode: 'none'
+        }
+    ],
     grid: {
         left: '4',
         right: '4',

@@ -3,7 +3,7 @@ export const processOption = {
         source:[]
     },
     grid: {
-        left: 0,
+        left: 150,
         right: 50,
         bottom: 0,
         top: 0,
@@ -37,14 +37,16 @@ export const processOption = {
         {
             label: {
                 show: true,
-                formatter: '{@[1]}',
-                position: 'insideLeft',
-                color: '#E5EAF3',
+                formatter: function(param) {
+                    return `${param.value[1]} (${param.value[0]})`;
+                },
+                position: 'left',
+                color: 'inherit',
                 opacity: 1,
+                fontSize: 12,
             },
             name: 'fill',
             type: 'bar',
-            // barWidth: barWidth,
             itemStyle: {
                 opacity: .2,
                 borderRadius: 4,
@@ -73,7 +75,7 @@ export const processOption = {
                 },
                 position: 'right',
                 opacity: 1,
-                color: '#E5EAF3'
+                color: 'inherit'
     
             },
             name: 'fill',

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, onMounted, provide } from "vue";
+import { ref, reactive, onMounted, provide, inject, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import 'echarts';
 import 'echarts/theme/blue'
@@ -8,20 +8,45 @@ import { gaugeOption } from "./options/options.js";
 import { setSpecialGuage } from "./options/gaugeOption.js";
 provide(THEME_KEY, 'blue')
 
+const isMonitoring = inject('isMonitoring');
+
 const socSensorChart = ref(null);
+let sensorInterval = null;
 
 const flushSensorData = () => {
+    if (!isMonitoring.value) return;
     invoke("monitor_system_info", {}).then(sysMonitor => {
         const socTemp = sysMonitor.sensors['SOC MTR Temp Sensor0'];
         setSpecialGuage(socSensorChart.value, '温度', socTemp==null?0:socTemp.toFixed(2),);
     })
-    return flushSensorData;
 }
+
+const startSensorMonitoring = () => {
+    if (sensorInterval) return;
+    flushSensorData();
+    sensorInterval = setInterval(flushSensorData, 10 * 1000);
+}
+
+const stopSensorMonitoring = () => {
+    if (sensorInterval) {
+        clearInterval(sensorInterval);
+        sensorInterval = null;
+    }
+}
+
+watch(isMonitoring, (newValue) => {
+    if (newValue) {
+        startSensorMonitoring();
+    } else {
+        stopSensorMonitoring();
+    }
+})
 
 onMounted(async () => {
     socSensorChart.value?.setOption(gaugeOption);
-    setInterval(flushSensorData(), 5000);
-
+    if (isMonitoring.value) {
+        startSensorMonitoring();
+    }
 })
 </script>
 

@@ -3,6 +3,7 @@ import { batteryOption } from "./batteryOption.js";
 import { memoryOption } from "./memoryOption.js";
 import { processOption } from "./processOption.js";
 import { gaugeOption } from "./gaugeOption.js";
+import { swapOption } from "./swapOption.js";
 
 export {
     cpuOption,
@@ -10,4 +11,5 @@ export {
     memoryOption,
     processOption,
     gaugeOption,
+    swapOption,
 }

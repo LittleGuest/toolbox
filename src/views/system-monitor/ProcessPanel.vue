@@ -1,12 +1,16 @@
 <script setup>
-import { ref, onMounted, provide } from "vue";
+import { ref, onMounted, provide, inject, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import 'echarts';
 import 'echarts/theme/blue'
 import VChart, { THEME_KEY } from 'vue-echarts';
 import { processOption } from "./options/options.js";
 provide(THEME_KEY, 'blue')
+
+const isMonitoring = inject('isMonitoring');
+
 const processChart = ref(null);
+let processInterval = null;
 
 const updateProcessMem = (processes) => {
     const source = []
@@ -21,15 +25,38 @@ const updateProcessMem = (processes) => {
 }
 
 const flushProcessData = () => {
+    if (!isMonitoring.value) return;
     invoke("monitor_process_info", {}).then(processes => {
         updateProcessMem(processes.slice(0, 10).reverse())
     })
-    return flushProcessData
 }
+
+const startProcessMonitoring = () => {
+    if (processInterval) return;
+    flushProcessData();
+    processInterval = setInterval(flushProcessData, 10 * 1000);
+}
+
+const stopProcessMonitoring = () => {
+    if (processInterval) {
+        clearInterval(processInterval);
+        processInterval = null;
+    }
+}
+
+watch(isMonitoring, (newValue) => {
+    if (newValue) {
+        startProcessMonitoring();
+    } else {
+        stopProcessMonitoring();
+    }
+})
 
 onMounted(async () => {
     processChart.value?.setOption(processOption);
-    setInterval(flushProcessData(), 1000);
+    if (isMonitoring.value) {
+        startProcessMonitoring();
+    }
 })
 </script>
 
@@ -41,7 +68,6 @@ onMounted(async () => {
             </n-card>
         </n-col>
     </n-row>
-
 </template>
 
 <style lang="scss" scoped>

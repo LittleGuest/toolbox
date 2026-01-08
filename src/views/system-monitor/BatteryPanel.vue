@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, onMounted, provide } from "vue";
+import { ref, reactive, onMounted, provide, inject, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import 'echarts';
 import 'echarts/theme/blue'
@@ -9,9 +9,12 @@ import { batteryOption } from "./options/options.js";
 import { NGrid, NGridItem, NCard, NDescriptions, NDescriptionsItem } from 'naive-ui';
 provide(THEME_KEY, 'blue')
 
+const isMonitoring = inject('isMonitoring');
+
 const battery = ref(null);
 
 const batteryChart = ref(null);
+let batteryInterval = null;
 
 const updateBattery = (batteryData) => {
     batteryChart.value.setOption({
@@ -24,15 +27,38 @@ const updateBattery = (batteryData) => {
 }
 
 const flushBattery = () => {
+    if (!isMonitoring.value) return;
     invoke("monitor_battery_info", {}).then(battery => {
         updateBattery(battery);
     })
-    return flushBattery;
 }
+
+const startBatteryMonitoring = () => {
+    if (batteryInterval) return;
+    flushBattery();
+    batteryInterval = setInterval(flushBattery, 10 * 1000);
+}
+
+const stopBatteryMonitoring = () => {
+    if (batteryInterval) {
+        clearInterval(batteryInterval);
+        batteryInterval = null;
+    }
+}
+
+watch(isMonitoring, (newValue) => {
+    if (newValue) {
+        startBatteryMonitoring();
+    } else {
+        stopBatteryMonitoring();
+    }
+})
 
 onMounted(async () => {
     batteryChart.value.setOption(batteryOption);
-    setInterval(flushBattery(), 30 * 1000);
+    if (isMonitoring.value) {
+        startBatteryMonitoring();
+    }
 })
 </script>
 
