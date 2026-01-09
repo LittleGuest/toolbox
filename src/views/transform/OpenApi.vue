@@ -4,7 +4,8 @@ import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
 import { invoke } from "@tauri-apps/api/core";
 import { useMessage } from "naive-ui";
 import { Copy, Paste, Close, Download } from "@vicons/carbon";
-import JsonEditorVue from 'json-editor-vue';
+import VueJsonPretty from 'vue-json-pretty';
+import 'vue-json-pretty/lib/styles.css';
 
 const message = useMessage();
 
@@ -103,5 +104,5 @@ const clear = () => {
     </n-button>
   </n-button-group>
 
-  <JsonEditorVue v-model="apiData" />
+  <VueJsonPretty :data="apiData" />
 </template>
