@@ -6,7 +6,7 @@ use std::{
 use battery::{Battery, Manager};
 use serde::Serialize;
 use sysinfo::{
-    Component, Components, Disk, Process, ProcessRefreshKind, ProcessesToUpdate, System,
+    Component, Components, Disk, Disks, Process, ProcessRefreshKind, ProcessesToUpdate, System,
 };
 
 #[derive(Serialize, Default)]
@@ -97,8 +97,8 @@ impl DiskData {
     pub fn new(disk: &Disk) -> Self {
         Self {
             name: format!("{:?}", disk),
-            file_system: format!("{:?}", disk.file_system()),
-            mount_point: format!("{:?}", disk.mount_point()),
+            file_system: disk.file_system().to_string_lossy().to_string(),
+            mount_point: disk.mount_point().display().to_string(),
             total_space: disk.total_space(),
             available_space: disk.available_space(),
             usage: DiskUsage {
@@ -207,6 +207,7 @@ pub fn monitor_system_info() -> SysMonitorData {
             component.temperature().unwrap_or_default(),
         );
     }
+
     return SysMonitorData {
         host: HostData::default(),
         disks: vec![],
@@ -233,6 +234,16 @@ pub fn monitor_cpu_info() -> CpuData {
     }
     let cpu = CpuData::new(&sys, cpu_cores);
     return cpu;
+}
+
+#[tauri::command]
+pub fn monitor_disk_info() -> Vec<DiskData> {
+    let disks = Disks::new_with_refreshed_list();
+    let mut disk_data = vec![];
+    for disk in disks.list() {
+        disk_data.push(DiskData::new(disk));
+    }
+    return disk_data;
 }
 
 #[tauri::command]
@@ -264,5 +275,21 @@ pub fn monitor_battery_info() -> BatteryData {
         return BatteryData::default();
     } else {
         return batteries.pop().unwrap();
+    }
+}
+
+#[tauri::command]
+pub fn kill_process(pid: u32) -> Result<(), String> {
+    let mut sys = get_system().lock().unwrap();
+    sys.refresh_processes(ProcessesToUpdate::All, true);
+
+    if let Some(process) = sys.process(sysinfo::Pid::from_u32(pid)) {
+        if process.kill() {
+            Ok(())
+        } else {
+            Err(format!("Failed to kill process {}", pid))
+        }
+    } else {
+        Err(format!("Process {} not found", pid))
     }
 }

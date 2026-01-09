@@ -88,9 +88,11 @@ pub fn run() {
             datafaker::preview_regex,
             monitor::monitor_battery_info,
             monitor::monitor_cpu_info,
+            monitor::monitor_disk_info,
             monitor::monitor_memory_info,
             monitor::monitor_process_info,
             monitor::monitor_system_info,
+            monitor::kill_process,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
