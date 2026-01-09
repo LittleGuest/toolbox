@@ -2,9 +2,10 @@
 import { ref } from "vue";
 import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
 import { Copy, Paste } from "@vicons/carbon";
-import JsonEditorVue from 'json-editor-vue';
+import VueJsonPretty from 'vue-json-pretty';
+import 'vue-json-pretty/lib/styles.css';
 
-const input = ref();
+const input = ref({});
 
 const paste = async () => {
   const clip = await readText();
@@ -34,11 +35,5 @@ const copy = (value) => {
     </n-button>
   </n-button-group>
 
-  <JsonEditorVue v-model="input" />
+  <VueJsonPretty :data="input" showLength showLineNumber showIcon showSelectController editable />
 </template>
-
-<style scoped>
-:v-deep .jsoneditor-menu {
-  background-color: rgb(255, 251, 240) !important;
-}
-</style>
