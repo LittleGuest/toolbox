@@ -1,0 +1,81 @@
+
+[workspace]
+resolver = "2"
+members = [
+  "crates/database",
+  "crates/openapi",
+  "crates/datafaker",
+  "crates/base",
+  "crates/monitor",
+  "src-tauri",
+]
+
+[workspace.package]
+edition = "2024"
+
+[workspace.dependencies]
+database = { git = "https://github.com/LittleGuest/database", package = "database", branch = "main" }
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2.5.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.22.1"
+data-encoding = "2.9.0"
+encoding_rs = "0.8.32"
+heck = "0.5.0"
+hex = "0.4.3"
+image_hasher = "3.0.0"
+jsonwebtoken = "9.3.1"
+md-5 = "0.10.6"
+qrcode-generator = "5.0.0"
+quick-xml = { version = "0.38.2", features = ["serialize"] }
+serde_yaml = "0.9.33"
+sha1 = "0.10.6"
+sha2 = "0.10.9"
+sha3 = "0.10.8"
+thiserror = "2.0.12"
+toml = "0.9.5"
+urlencoding = "2.1.3"
+uuid = { version = "1.17.0", features = [
+  "v1",
+  "v3",
+  "v4",
+  "v5",
+  "v6",
+  "v7",
+  "v8",
+] }
+image = { version = "0.25.6" }
+time = { version = "0.3.41", features = ["formatting"] }
+base-converter = "2.0.0"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-notification = "2"
+reqwest = "0.12.15"
+tokio = { version = "1.45.0", features = ["full"] }
+utoipa = "5.3.1"
+tera = { version = "1.20.0", default-features = false }
+rust-embed = "8.7.2"
+async-trait = "0.1.68"
+regex = "1.8.4"
+sqlx = { version = "0.8.6", features = [
+  "runtime-tokio-native-tls",
+  "any",
+  "all-databases",
+] }
+tauri-plugin-store = "2"
+tauri-plugin-sql = { version = "2.2.0", features = ["sqlite"] }
+fastrand = "2.3.0"
+anyhow = "1.0.98"
+Inflector = "0.11.4"
+dashmap = "6.1.0"
+symspell = "0.4.5"
+rand = "0.9.1"
+rand_regex = "0.18.1"
+regex-syntax = "0.8.5"
+indexmap = "2.10.0"
+tauri-plugin-dialog = "2"
+sysinfo = "0.37.1"
+battery = "0.7.8"
+dotenv = "0.15.0"
+serde-transcode = "1.1.1"
+

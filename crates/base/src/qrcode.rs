@@ -1,0 +1,11 @@
+use anyhow::{Error, Result};
+
+pub fn qrcode(d: &str) -> Result<String> {
+    qrcode_generator::to_svg_to_string(
+        d.as_bytes(),
+        qrcode_generator::QrCodeEcc::Medium,
+        40,
+        Some(""),
+    )
+    .map_err(|e| Error::msg(e.to_string()))
+}
