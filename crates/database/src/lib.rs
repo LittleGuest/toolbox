@@ -7,8 +7,11 @@ use sqlx::{AnyPool, Connection, MySqlConnection};
 mod diff;
 mod generator;
 
+pub use database::{
+    Column, DatabaseMetadata, Driver, Schema, Table, database_metadata,
+    error::{Error, Result},
+};
 pub use diff::{CheckReportBo, DiffReport, StandardCheck, diff_report, diff_sql, standard_check};
-pub use database::{Column, DatabaseMetadata, Driver, Schema, Table, database_metadata, error::{Error, Result}};
 
 #[derive(Embed)]
 #[folder = "templates/"]

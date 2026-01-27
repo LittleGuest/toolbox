@@ -7,11 +7,14 @@ members = [
   "crates/datafaker",
   "crates/base",
   "crates/monitor",
-  "src-tauri",
+  "src-tauri", "crates/ui",  
 ]
 
 [workspace.package]
 edition = "2024"
+version = "0.1.0"
+authors = ["LittleGuest <2190975784@qq.com>"]
+
 
 [workspace.dependencies]
 database = { git = "https://github.com/LittleGuest/database", package = "database", branch = "main" }
@@ -78,4 +81,5 @@ sysinfo = "0.37.1"
 battery = "0.7.8"
 dotenv = "0.15.0"
 serde-transcode = "1.1.1"
-
+gpui = "0.2.2"
+gpui-component = "0.5.0"
