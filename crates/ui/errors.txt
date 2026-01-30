@@ -1,0 +1,154 @@
+﻿cargo : warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+At line:1 char:38
++ cd "E:\workspace\toolbox\crates\ui"; cargo check 2>&1 | Out-File -Enc ...
++                                      ~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (warning: profil...workspace root::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+package:   E:\workspace\toolbox\src-tauri\Cargo.toml
+workspace: E:\workspace\toolbox\Cargo.toml
+    Checking ui v0.1.0 (E:\workspace\toolbox\crates\ui)
+error: prefix `com` is unknown
+  --> crates\ui\src\views\fake_data_generator.rs:62:20
+   |
+62 |             "gmail.com", "qq.com", "163.com", "126.com", "hotmail.com",
+   |                    ^^^ unknown prefix
+   |
+   = note: prefixed identifiers and literals are reserved since Rust 2021
+help: consider inserting whitespace here
+   |
+62 |             "gmail.com ", "qq.com", "163.com", "126.com", "hotmail.com",
+   |                       +
+
+error: prefix `com` is unknown
+  --> crates\ui\src\views\fake_data_generator.rs:62:30
+   |
+62 |             "gmail.com", "qq.com", "163.com", "126.com", "hotmail.com",
+   |                              ^^^ unknown prefix
+   |
+   = note: prefixed identifiers and literals are reserved since Rust 2021
+help: consider inserting whitespace here
+   |
+62 |             "gmail.com", "qq.com ", "163.com", "126.com", "hotmail.com",
+   |                                 +
+
+error: prefix `com` is unknown
+  --> crates\ui\src\views\fake_data_generator.rs:62:41
+   |
+62 |             "gmail.com", "qq.com", "163.com", "126.com", "hotmail.com",
+   |                                         ^^^ unknown prefix
+   |
+   = note: prefixed identifiers and literals are reserved since Rust 2021
+help: consider inserting whitespace here
+   |
+62 |             "gmail.com", "qq.com", "163.com ", "126.com", "hotmail.com",
+   |                                            +
+
+error: prefix `com` is unknown
+  --> crates\ui\src\views\fake_data_generator.rs:62:52
+   |
+62 |             "gmail.com", "qq.com", "163.com", "126.com", "hotmail.com",
+   |                                                    ^^^ unknown prefix
+   |
+   = note: prefixed identifiers and literals are reserved since Rust 2021
+help: consider inserting whitespace here
+   |
+62 |             "gmail.com", "qq.com", "163.com", "126.com ", "hotmail.com",
+   |                                                       +
+
+error: prefix `com` is unknown
+  --> crates\ui\src\views\fake_data_generator.rs:62:67
+   |
+62 |             "gmail.com", "qq.com", "163.com", "126.com", "hotmail.com",
+   |                                                                   ^^^ unknown prefix
+   |
+   = note: prefixed identifiers and literals are reserved since Rust 2021
+help: consider inserting whitespace here
+   |
+62 |             "gmail.com", "qq.com", "163.com", "126.com", "hotmail.com ",
+   |                                                                      +
+
+error: prefix `com` is unknown
+  --> crates\ui\src\views\fake_data_generator.rs:63:22
+   |
+63 |             "outlook.com", "yahoo.com", "sina.com", "sohu.com", "aliyun.com",
+   |                      ^^^ unknown prefix
+   |
+   = note: prefixed identifiers and literals are reserved since Rust 2021
+help: consider inserting whitespace here
+   |
+63 |             "outlook.com ", "yahoo.com", "sina.com", "sohu.com", "aliyun.com",
+   |                         +
+
+error: prefix `com` is unknown
+  --> crates\ui\src\views\fake_data_generator.rs:63:35
+   |
+63 |             "outlook.com", "yahoo.com", "sina.com", "sohu.com", "aliyun.com",
+   |                                   ^^^ unknown prefix
+   |
+   = note: prefixed identifiers and literals are reserved since Rust 2021
+help: consider inserting whitespace here
+   |
+63 |             "outlook.com", "yahoo.com ", "sina.com", "sohu.com", "aliyun.com",
+   |                                      +
+
+error: prefix `com` is unknown
+  --> crates\ui\src\views\fake_data_generator.rs:63:47
+   |
+63 |             "outlook.com", "yahoo.com", "sina.com", "sohu.com", "aliyun.com",
+   |                                               ^^^ unknown prefix
+   |
+   = note: prefixed identifiers and literals are reserved since Rust 2021
+help: consider inserting whitespace here
+   |
+63 |             "outlook.com", "yahoo.com", "sina.com ", "sohu.com", "aliyun.com",
+   |                                                  +
+
+error: prefix `com` is unknown
+  --> crates\ui\src\views\fake_data_generator.rs:63:59
+   |
+63 |             "outlook.com", "yahoo.com", "sina.com", "sohu.com", "aliyun.com",
+   |                                                           ^^^ unknown prefix
+   |
+   = note: prefixed identifiers and literals are reserved since Rust 2021
+help: consider inserting whitespace here
+   |
+63 |             "outlook.com", "yahoo.com", "sina.com", "sohu.com ", "aliyun.com",
+   |                                                              +
+
+error: prefix `com` is unknown
+  --> crates\ui\src\views\fake_data_generator.rs:63:73
+   |
+63 |             "outlook.com", "yahoo.com", "sina.com", "sohu.com", "aliyun.com",
+   |                                                                         ^^^ unknown prefix
+   |
+   = note: prefixed identifiers and literals are reserved since Rust 2021
+help: consider inserting whitespace here
+   |
+63 |             "outlook.com", "yahoo.com", "sina.com", "sohu.com", "aliyun.com ",
+   |                                                                            +
+
+error: unexpected closing delimiter: `}`
+   --> crates\ui\src\views\fake_data_generator.rs:279:1
+    |
+ 43 |     fn generate_name(&self, rng: &mut rand::rngs::ThreadRng) -> String {
+    |                                                                        - the nearest open delimiter
+...
+105 |         format!("{}{}{}{}?, city, district, street, number)
+    |                - the nearest open delimiter
+...
+116 |         ];
+    |         - missing open `[` for this delimiter
+117 |         
+118 |         let names = vec![
+    |                         - the nearest open delimiter
+...
+190 |                     .child("假数据生?)
+    |                                      - missing open `(` for this delimiter
+191 |             )
+    |             - missing open `(` for this delimiter
+...
+279 | }
+    | ^ unexpected closing delimiter
+
+error: could not compile `ui` (bin "ui") due to 11 previous errors

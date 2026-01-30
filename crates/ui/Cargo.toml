@@ -1,0 +1,19 @@
+[package]
+name = "ui"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+gpui = {workspace = true}
+gpui-component = {workspace = true}
+anyhow = {workspace = true}
+uuid = {workspace = true}
+base = {path = "../base"}
+md-5 = {workspace = true}
+sha1 = {workspace = true}
+sha2 = {workspace = true}
+sha3 = {workspace = true}
+serde_json = {workspace = true}
+rand = {workspace = true}
+time = {workspace = true, features = ["parsing"]}

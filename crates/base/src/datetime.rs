@@ -7,9 +7,9 @@ pub fn now() -> OffsetDateTime {
 
 /// 时间字符串转时间戳（毫秒）
 pub fn str_to_timestamp(t: &str) -> Result<i64> {
-    let format = time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]")
+    use time::format_description::well_known::Iso8601;
+    let offset = OffsetDateTime::parse(t, &Iso8601::DEFAULT)
         .map_err(|e| Error::msg(e.to_string()))?;
-    let offset = OffsetDateTime::parse(t, &format).map_err(|e| Error::msg(e.to_string()))?;
     Ok(offset.unix_timestamp())
 }
 
