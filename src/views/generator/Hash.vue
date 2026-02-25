@@ -13,19 +13,32 @@ const hmacMode = ref(false);
 const input = ref("");
 const hash = ref({});
 
-const api = async () => {
+let debounceTimer = null;
+let requestId = 0;
+
+const api = async (id) => {
   return await invoke("hash", {
     uppercase: uppercase.value,
     outputType: outputType.value,
     hmacMode: hmacMode.value,
     input: input.value,
   }).then((res) => {
+    if (id === requestId) {
+      hash.value = res;
+    }
     return res;
   }).catch((error) => message.error(error));
 };
 
 const change = async (value) => {
-  hash.value = await api();
+  if (debounceTimer) {
+    clearTimeout(debounceTimer);
+  }
+  requestId++;
+  const currentRequestId = requestId;
+  debounceTimer = setTimeout(() => {
+    api(currentRequestId);
+  }, 300);
 };
 
 const paste = async () => {

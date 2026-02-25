@@ -1,5 +1,9 @@
 use gpui::*;
-use gpui_component::{button::*, scroll::ScrollableElement, *};
+use gpui_component::{
+    button::*,
+    input::{Input, InputEvent, InputState},
+    *,
+};
 
 pub struct HashCalculator {
     input: String,
@@ -9,10 +13,28 @@ pub struct HashCalculator {
     sha512: String,
     sha3_256: String,
     sha3_512: String,
+    input_state: Entity<InputState>,
+    _subscriptions: Vec<Subscription>,
 }
 
 impl HashCalculator {
-    pub fn new() -> Self {
+    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let input_state = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder("请输入文本...")
+                .multi_line(true)
+        });
+
+        let _subscriptions = vec![cx.subscribe_in(&input_state, window, {
+            let input_state = input_state.clone();
+            move |this, _, _ev: &InputEvent, _window, cx| {
+                let value = input_state.read(cx).value();
+                this.input = value.to_string();
+                this.calculate();
+                cx.notify();
+            }
+        })];
+
         Self {
             input: String::new(),
             md5: String::new(),
@@ -21,6 +43,8 @@ impl HashCalculator {
             sha512: String::new(),
             sha3_256: String::new(),
             sha3_512: String::new(),
+            input_state,
+            _subscriptions,
         }
     }
 
@@ -35,66 +59,17 @@ impl HashCalculator {
             return;
         }
 
-        let data = self.input.as_bytes();
-        
-        self.md5 = self.calculate_md5(data);
-        self.sha1 = self.calculate_sha1(data);
-        self.sha256 = self.calculate_sha256(data);
-        self.sha512 = self.calculate_sha512(data);
-        self.sha3_256 = self.calculate_sha3_256(data);
-        self.sha3_512 = self.calculate_sha3_512(data);
-    }
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let result = rt
+            .block_on(base::hash(false, None, false, Some(&self.input)))
+            .unwrap_or_default();
 
-    fn clear(&mut self) {
-        self.input.clear();
-        self.md5.clear();
-        self.sha1.clear();
-        self.sha256.clear();
-        self.sha512.clear();
-        self.sha3_256.clear();
-        self.sha3_512.clear();
-    }
-
-    fn calculate_md5(&self, data: &[u8]) -> String {
-        use md5::Digest;
-        let mut hasher = md5::Md5::new();
-        hasher.update(data);
-        format!("{:x}", hasher.finalize())
-    }
-
-    fn calculate_sha1(&self, data: &[u8]) -> String {
-        use sha1::Digest;
-        let mut hasher = sha1::Sha1::new();
-        hasher.update(data);
-        format!("{:x}", hasher.finalize())
-    }
-
-    fn calculate_sha256(&self, data: &[u8]) -> String {
-        use sha2::Digest;
-        let mut hasher = sha2::Sha256::new();
-        hasher.update(data);
-        format!("{:x}", hasher.finalize())
-    }
-
-    fn calculate_sha512(&self, data: &[u8]) -> String {
-        use sha2::Digest;
-        let mut hasher = sha2::Sha512::new();
-        hasher.update(data);
-        format!("{:x}", hasher.finalize())
-    }
-
-    fn calculate_sha3_256(&self, data: &[u8]) -> String {
-        use sha3::Digest;
-        let mut hasher = sha3::Sha3_256::new();
-        hasher.update(data);
-        format!("{:x}", hasher.finalize())
-    }
-
-    fn calculate_sha3_512(&self, data: &[u8]) -> String {
-        use sha3::Digest;
-        let mut hasher = sha3::Sha3_512::new();
-        hasher.update(data);
-        format!("{:x}", hasher.finalize())
+        self.md5 = result.get("md5").cloned().unwrap_or_default();
+        self.sha1 = result.get("sha1").cloned().unwrap_or_default();
+        self.sha256 = result.get("sha256").cloned().unwrap_or_default();
+        self.sha512 = result.get("sha512").cloned().unwrap_or_default();
+        self.sha3_256 = result.get("sha3_256").cloned().unwrap_or_default();
+        self.sha3_512 = result.get("sha3_512").cloned().unwrap_or_default();
     }
 }
 
@@ -106,16 +81,10 @@ impl Render for HashCalculator {
         let sha512 = self.sha512.clone();
         let sha3_256 = self.sha3_256.clone();
         let sha3_512 = self.sha3_512.clone();
-        
+
         div()
             .p_4()
-            .child(
-                div()
-                    .text_xl()
-                    .font_semibold()
-                    .mb_4()
-                    .child("文本Hash")
-            )
+            .child(div().text_xl().font_semibold().mb_4().child("文本Hash"))
             .child(
                 div()
                     .flex()
@@ -126,58 +95,80 @@ impl Render for HashCalculator {
                             .flex()
                             .flex_col()
                             .gap_2()
-                            .child(
-                                div()
-                                    .text_sm()
-                                    .child("输入")
-                            )
-                            .child(
-                                div()
-                                    .min_h(px(100.0))
-                                    .max_h(px(100.0))
-                                    .border_1()
-                                    .border_color(cx.theme().border)
-                                    .rounded_lg()
-                                    .p_2()
-                                    .overflow_y_scrollbar()
-                                    .text_sm()
-                                    .font_family("monospace")
-                                    .child(if self.input.is_empty() { "请输入文本...".to_string() } else { self.input.clone() })
-                            )
+                            .child(div().child(Input::new(&self.input_state).h(px(100.0)))),
                     )
                     .child(
                         div()
                             .flex()
                             .items_center()
-                            .gap_4()
+                            .gap_2()
+                            .child(div().text_sm().w_24().child("MD5"))
                             .child(
-                                Button::new("calculate")
-                                    .primary()
-                                    .label("计算")
+                                div()
+                                    .flex_1()
+                                    .border_1()
+                                    .border_color(cx.theme().border)
+                                    .rounded_md()
+                                    .px_2()
+                                    .py_1()
+                                    .text_sm()
+                                    .font_family("monospace")
+                                    .child(if md5.is_empty() {
+                                        "-".to_string()
+                                    } else {
+                                        md5.clone()
+                                    }),
+                            )
+                            .child(
+                                Button::new("copy_md5")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制")
                                     .on_click(cx.listener(|this, _, _, cx| {
-                                        this.calculate();
-                                        cx.notify();
-                                    }))
+                                        cx.write_to_clipboard(ClipboardItem::new_string(
+                                            this.md5.clone(),
+                                        ));
+                                    })),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(div().text_sm().w_24().child("SHA1"))
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .border_1()
+                                    .border_color(cx.theme().border)
+                                    .rounded_md()
+                                    .px_2()
+                                    .py_1()
+                                    .text_sm()
+                                    .font_family("monospace")
+                                    .child(if sha1.is_empty() {
+                                        "-".to_string()
+                                    } else {
+                                        sha1.clone()
+                                    }),
                             )
                             .child(
-                                Button::new("clear")
-                                    .label("清空")
+                                Button::new("copy_sha1")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制")
                                     .on_click(cx.listener(|this, _, _, cx| {
-                                        this.clear();
-                                        cx.notify();
-                                    }))
-                            )
+                                        cx.write_to_clipboard(ClipboardItem::new_string(
+                                            this.sha1.clone(),
+                                        ));
+                                    })),
+                            ),
                     )
                     .child(
                         div()
                             .flex()
                             .items_center()
-                            .gap_4()
-                            .child(
-                                div()
-                                    .text_sm()
-                                    .child("MD5")
-                            )
+                            .gap_2()
+                            .child(div().text_sm().w_24().child("SHA256"))
                             .child(
                                 div()
                                     .flex_1()
@@ -188,19 +179,29 @@ impl Render for HashCalculator {
                                     .py_1()
                                     .text_sm()
                                     .font_family("monospace")
-                                    .child(if md5.is_empty() { "-".to_string() } else { md5.clone() })
+                                    .child(if sha256.is_empty() {
+                                        "-".to_string()
+                                    } else {
+                                        sha256.clone()
+                                    }),
                             )
+                            .child(
+                                Button::new("copy_sha256")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        cx.write_to_clipboard(ClipboardItem::new_string(
+                                            this.sha256.clone(),
+                                        ));
+                                    })),
+                            ),
                     )
                     .child(
                         div()
                             .flex()
                             .items_center()
-                            .gap_4()
-                            .child(
-                                div()
-                                    .text_sm()
-                                    .child("SHA1")
-                            )
+                            .gap_2()
+                            .child(div().text_sm().w_24().child("SHA512"))
                             .child(
                                 div()
                                     .flex_1()
@@ -211,19 +212,29 @@ impl Render for HashCalculator {
                                     .py_1()
                                     .text_sm()
                                     .font_family("monospace")
-                                    .child(if sha1.is_empty() { "-".to_string() } else { sha1.clone() })
+                                    .child(if sha512.is_empty() {
+                                        "-".to_string()
+                                    } else {
+                                        sha512.clone()
+                                    }),
                             )
+                            .child(
+                                Button::new("copy_sha512")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        cx.write_to_clipboard(ClipboardItem::new_string(
+                                            this.sha512.clone(),
+                                        ));
+                                    })),
+                            ),
                     )
                     .child(
                         div()
                             .flex()
                             .items_center()
-                            .gap_4()
-                            .child(
-                                div()
-                                    .text_sm()
-                                    .child("SHA256")
-                            )
+                            .gap_2()
+                            .child(div().text_sm().w_24().child("SHA3 256"))
                             .child(
                                 div()
                                     .flex_1()
@@ -234,19 +245,29 @@ impl Render for HashCalculator {
                                     .py_1()
                                     .text_sm()
                                     .font_family("monospace")
-                                    .child(if sha256.is_empty() { "-".to_string() } else { sha256.clone() })
+                                    .child(if sha3_256.is_empty() {
+                                        "-".to_string()
+                                    } else {
+                                        sha3_256.clone()
+                                    }),
                             )
+                            .child(
+                                Button::new("copy_sha3_256")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        cx.write_to_clipboard(ClipboardItem::new_string(
+                                            this.sha3_256.clone(),
+                                        ));
+                                    })),
+                            ),
                     )
                     .child(
                         div()
                             .flex()
                             .items_center()
-                            .gap_4()
-                            .child(
-                                div()
-                                    .text_sm()
-                                    .child("SHA512")
-                            )
+                            .gap_2()
+                            .child(div().text_sm().w_24().child("SHA3 512"))
                             .child(
                                 div()
                                     .flex_1()
@@ -257,55 +278,23 @@ impl Render for HashCalculator {
                                     .py_1()
                                     .text_sm()
                                     .font_family("monospace")
-                                    .child(if sha512.is_empty() { "-".to_string() } else { sha512.clone() })
-                            )
-                    )
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_4()
-                            .child(
-                                div()
-                                    .text_sm()
-                                    .child("SHA3 256")
+                                    .child(if sha3_512.is_empty() {
+                                        "-".to_string()
+                                    } else {
+                                        sha3_512.clone()
+                                    }),
                             )
                             .child(
-                                div()
-                                    .flex_1()
-                                    .border_1()
-                                    .border_color(cx.theme().border)
-                                    .rounded_md()
-                                    .px_2()
-                                    .py_1()
-                                    .text_sm()
-                                    .font_family("monospace")
-                                    .child(if sha3_256.is_empty() { "-".to_string() } else { sha3_256.clone() })
-                            )
-                    )
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_4()
-                            .child(
-                                div()
-                                    .text_sm()
-                                    .child("SHA3 512")
-                            )
-                            .child(
-                                div()
-                                    .flex_1()
-                                    .border_1()
-                                    .border_color(cx.theme().border)
-                                    .rounded_md()
-                                    .px_2()
-                                    .py_1()
-                                    .text_sm()
-                                    .font_family("monospace")
-                                    .child(if sha3_512.is_empty() { "-".to_string() } else { sha3_512.clone() })
-                            )
-                    )
+                                Button::new("copy_sha3_512")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        cx.write_to_clipboard(ClipboardItem::new_string(
+                                            this.sha3_512.clone(),
+                                        ));
+                                    })),
+                            ),
+                    ),
             )
     }
 }

@@ -24,7 +24,7 @@ mod qrcode;
 mod string;
 mod url;
 mod url_params;
-mod uuid;
+pub mod uuid;
 
 pub async fn hash(
     uppercase: bool,

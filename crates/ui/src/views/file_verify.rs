@@ -1,107 +1,103 @@
-﻿use gpui::*;
-use gpui_component::{scroll::ScrollableElement, *};
-use md5;
-use sha1::Sha1;
-use sha2::{Sha256, Sha512, Digest};
-
-#[derive(Clone, Debug)]
-pub struct HashResult {
-    algorithm: String,
-    hash: String,
-}
+use gpui::*;
+use gpui_component::{button::*, scroll::ScrollableElement, *};
 
 pub struct FileVerify {
-    input_text: String,
-    results: Vec<HashResult>,
+    file_path: String,
+    md5: String,
+    sha1: String,
+    sha256: String,
+    sha512: String,
+    is_calculating: bool,
 }
 
 impl FileVerify {
     pub fn new() -> Self {
         Self {
-            input_text: String::new(),
-            results: Vec::new(),
+            file_path: String::new(),
+            md5: String::new(),
+            sha1: String::new(),
+            sha256: String::new(),
+            sha512: String::new(),
+            is_calculating: false,
         }
     }
 
-    fn calculate_hashes(&mut self) {
-        if self.input_text.trim().is_empty() {
-            self.results.clear();
+    fn select_file(&mut self, cx: &mut Context<Self>) {
+        let task = cx.background_executor().spawn(async move {
+            rfd::AsyncFileDialog::new()
+                .set_title("选择文件")
+                .pick_file()
+                .await
+        });
+
+        cx.spawn(async move |this: WeakEntity<Self>, cx| {
+            if let Some(file) = task.await {
+                let path = file.path().to_string_lossy().to_string();
+                let _ = this.update(cx, |this, cx| {
+                    this.file_path = path;
+                    cx.notify();
+                });
+            }
+        })
+        .detach();
+    }
+
+    fn calculate(&mut self, cx: &mut Context<Self>) {
+        if self.file_path.is_empty() {
             return;
         }
 
-        let text = self.input_text.as_bytes();
-        let mut results = Vec::new();
+        self.is_calculating = true;
+        self.md5.clear();
+        self.sha1.clear();
+        self.sha256.clear();
+        self.sha512.clear();
+        cx.notify();
 
-        let md5_hash = {
-            use md5::Digest;
-            let mut hasher = md5::Md5::new();
-            md5::Digest::update(&mut hasher, text);
-            format!("{:x}", md5::Digest::finalize(hasher))
-        };
-        results.push(HashResult {
-            algorithm: "MD5".to_string(),
-            hash: md5_hash,
-        });
+        let file_path = self.file_path.clone();
 
-        let sha1_hash = {
-            use sha1::Digest;
-            let mut hasher = sha1::Sha1::new();
-            sha1::Digest::update(&mut hasher, text);
-            format!("{:x}", sha1::Digest::finalize(hasher))
-        };
-        results.push(HashResult {
-            algorithm: "SHA1".to_string(),
-            hash: sha1_hash,
-        });
+        cx.spawn(async move |this: WeakEntity<Self>, cx| {
+            let rt = tokio::runtime::Runtime::new().unwrap();
 
-        let sha256_hash = {
-            use sha2::Digest;
-            let mut hasher = sha2::Sha256::new();
-            sha2::Digest::update(&mut hasher, text);
-            format!("{:x}", sha2::Digest::finalize(hasher))
-        };
-        results.push(HashResult {
-            algorithm: "SHA256".to_string(),
-            hash: sha256_hash,
-        });
+            let md5_result = rt.block_on(base::checksum("md5sum", &file_path));
+            let sha1_result = rt.block_on(base::checksum("sha1sum", &file_path));
+            let sha256_result = rt.block_on(base::checksum("sha2_256sum", &file_path));
+            let sha512_result = rt.block_on(base::checksum("sha2_512sum", &file_path));
 
-        let sha512_hash = {
-            use sha2::Digest;
-            let mut hasher = sha2::Sha512::new();
-            sha2::Digest::update(&mut hasher, text);
-            format!("{:x}", sha2::Digest::finalize(hasher))
-        };
-        results.push(HashResult {
-            algorithm: "SHA512".to_string(),
-            hash: sha512_hash,
-        });
-
-        self.results = results;
+            let _ = this.update(cx, |this, cx| {
+                this.md5 = md5_result.unwrap_or_default();
+                this.sha1 = sha1_result.unwrap_or_default();
+                this.sha256 = sha256_result.unwrap_or_default();
+                this.sha512 = sha512_result.unwrap_or_default();
+                this.is_calculating = false;
+                cx.notify();
+            });
+        })
+        .detach();
     }
 
-    fn clear(&mut self) {
-        self.input_text.clear();
-        self.results.clear();
+    fn clear(&mut self, cx: &mut Context<Self>) {
+        self.file_path.clear();
+        self.md5.clear();
+        self.sha1.clear();
+        self.sha256.clear();
+        self.sha512.clear();
+        self.is_calculating = false;
+        cx.notify();
     }
 }
 
 impl Render for FileVerify {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let input_text = if self.input_text.is_empty() {
-            "输入文本或文件内制..".to_string()
-        } else {
-            self.input_text.clone()
-        };
-        
+        let md5 = self.md5.clone();
+        let sha1 = self.sha1.clone();
+        let sha256 = self.sha256.clone();
+        let sha512 = self.sha512.clone();
+        let is_calculating = self.is_calculating;
+
         div()
             .p_4()
-            .child(
-                div()
-                    .text_xl()
-                    .font_semibold()
-                    .mb_4()
-                    .child("文件校验")
-            )
+            .child(div().text_xl().font_semibold().mb_4().child("文件校验"))
             .child(
                 div()
                     .flex()
@@ -110,112 +106,204 @@ impl Render for FileVerify {
                     .child(
                         div()
                             .flex()
-                            .flex_col()
+                            .items_center()
                             .gap_2()
                             .child(
-                                div()
-                                    .text_sm()
-                                    .child("输入")
+                                Button::new("select_file")
+                                    .primary()
+                                    .icon(Icon::new(IconName::File))
+                                    .tooltip("选择文件")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.select_file(cx);
+                                    })),
                             )
                             .child(
                                 div()
                                     .flex_1()
-                                    .min_h(px(100.0))
-                                    .max_h(px(100.0))
                                     .border_1()
                                     .border_color(cx.theme().border)
-                                    .rounded_lg()
-                                    .p_2()
-                                    .overflow_y_scrollbar()
+                                    .rounded_md()
+                                    .px_3()
+                                    .py_2()
                                     .text_sm()
                                     .font_family("monospace")
-                                    .child(input_text)
-                            )
+                                    .overflow_x_scrollbar()
+                                    .child(if self.file_path.is_empty() {
+                                        "请选择文件...".to_string()
+                                    } else {
+                                        self.file_path.clone()
+                                    }),
+                            ),
                     )
                     .child(
                         div()
                             .flex()
                             .items_center()
-                            .gap_4()
-                            .child(
-                                div()
-                                    .px_4()
-                                    .py_2()
-                                    .bg(cx.theme().primary)
-                                    .text_color(cx.theme().primary_foreground)
-                                    .rounded_md()
-                                    .cursor_pointer()
-                                    .child("计算哈希")
-                            )
-                            .child(
-                                div()
-                                    .px_4()
-                                    .py_2()
-                                    .border_1()
-                                    .border_color(cx.theme().border)
-                                    .rounded_md()
-                                    .cursor_pointer()
-                                    .child("清空")
-                            )
-                    )
-                    .child(if !self.results.is_empty() {
-                        div()
-                            .flex()
-                            .flex_col()
                             .gap_2()
                             .child(
-                                div()
-                                    .text_sm()
-                                    .font_semibold()
-                                    .child("哈希结果")
+                                Button::new("calculate")
+                                    .primary()
+                                    .icon(Icon::new(IconName::Asterisk))
+                                    .tooltip("计算哈希")
+                                    .disabled(is_calculating || self.file_path.is_empty())
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.calculate(cx);
+                                    })),
                             )
+                            .child(
+                                Button::new("clear")
+                                    .icon(Icon::new(IconName::Delete))
+                                    .tooltip("清空")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.clear(cx);
+                                    })),
+                            )
+                            .child(if is_calculating {
+                                div().text_sm().text_color(cx.theme().muted_foreground).child("计算中...")
+                            } else {
+                                div()
+                            }),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(div().text_sm().w_24().child("MD5"))
                             .child(
                                 div()
                                     .flex_1()
-                                    .min_h(px(200.0))
-                                    .max_h(px(200.0))
                                     .border_1()
                                     .border_color(cx.theme().border)
-                                    .rounded_lg()
-                                    .p_4()
-                                    .overflow_y_scrollbar()
-                                    .child(
-                                        div()
-                                            .flex()
-                                            .flex_col()
-                                            .gap_2()
-                                            .children(
-                                                self.results.iter().map(|result| {
-                                                    div()
-                                                        .p_3()
-                                                        .border_1()
-                                                        .border_color(cx.theme().border)
-                                                        .rounded_md()
-                                                        .child(
-                                                            div()
-                                                                .flex()
-                                                                .flex_col()
-                                                                .gap_2()
-                                                                .child(
-                                                                    div()
-                                                                        .text_sm()
-                                                                        .font_semibold()
-                                                                        .child(result.algorithm.clone())
-                                                                )
-                                                                .child(
-                                                                    div()
-                                                                        .text_sm()
-                                                                        .font_family("monospace")
-                                                                        .child(result.hash.clone())
-                                                                )
-                                                        )
-                                                })
-                                            )
-                                    )
+                                    .rounded_md()
+                                    .px_2()
+                                    .py_1()
+                                    .text_sm()
+                                    .font_family("monospace")
+                                    .overflow_x_scrollbar()
+                                    .child(if md5.is_empty() {
+                                        "-".to_string()
+                                    } else {
+                                        md5.clone()
+                                    }),
                             )
-                    } else {
+                            .child(
+                                Button::new("copy_md5")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制")
+                                    .disabled(md5.is_empty())
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        cx.write_to_clipboard(ClipboardItem::new_string(
+                                            this.md5.clone(),
+                                        ));
+                                    })),
+                            ),
+                    )
+                    .child(
                         div()
-                    })
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(div().text_sm().w_24().child("SHA1"))
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .border_1()
+                                    .border_color(cx.theme().border)
+                                    .rounded_md()
+                                    .px_2()
+                                    .py_1()
+                                    .text_sm()
+                                    .font_family("monospace")
+                                    .overflow_x_scrollbar()
+                                    .child(if sha1.is_empty() {
+                                        "-".to_string()
+                                    } else {
+                                        sha1.clone()
+                                    }),
+                            )
+                            .child(
+                                Button::new("copy_sha1")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制")
+                                    .disabled(sha1.is_empty())
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        cx.write_to_clipboard(ClipboardItem::new_string(
+                                            this.sha1.clone(),
+                                        ));
+                                    })),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(div().text_sm().w_24().child("SHA256"))
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .border_1()
+                                    .border_color(cx.theme().border)
+                                    .rounded_md()
+                                    .px_2()
+                                    .py_1()
+                                    .text_sm()
+                                    .font_family("monospace")
+                                    .overflow_x_scrollbar()
+                                    .child(if sha256.is_empty() {
+                                        "-".to_string()
+                                    } else {
+                                        sha256.clone()
+                                    }),
+                            )
+                            .child(
+                                Button::new("copy_sha256")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制")
+                                    .disabled(sha256.is_empty())
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        cx.write_to_clipboard(ClipboardItem::new_string(
+                                            this.sha256.clone(),
+                                        ));
+                                    })),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(div().text_sm().w_24().child("SHA512"))
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .border_1()
+                                    .border_color(cx.theme().border)
+                                    .rounded_md()
+                                    .px_2()
+                                    .py_1()
+                                    .text_sm()
+                                    .font_family("monospace")
+                                    .overflow_x_scrollbar()
+                                    .child(if sha512.is_empty() {
+                                        "-".to_string()
+                                    } else {
+                                        sha512.clone()
+                                    }),
+                            )
+                            .child(
+                                Button::new("copy_sha512")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制")
+                                    .disabled(sha512.is_empty())
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        cx.write_to_clipboard(ClipboardItem::new_string(
+                                            this.sha512.clone(),
+                                        ));
+                                    })),
+                            ),
+                    ),
             )
     }
 }

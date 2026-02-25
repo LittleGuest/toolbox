@@ -393,7 +393,7 @@ const CHARSETS: [&str; 9] = [
     "ISO-8859-1",
 ];
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecoverGarbledCode {
     pub source_charset: String,

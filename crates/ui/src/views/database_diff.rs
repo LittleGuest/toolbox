@@ -1,5 +1,5 @@
-﻿use gpui::*;
-use gpui_component::{scroll::ScrollableElement, *};
+use gpui::*;
+use gpui_component::{button::*, scroll::ScrollableElement, *};
 
 #[derive(Clone, Debug)]
 pub struct DiffItem {
@@ -30,13 +30,9 @@ impl DatabaseDiff {
 
         let mut results = Vec::new();
 
-        let source_tables = vec![
-            "users", "orders", "products", "customers", "categories",
-        ];
+        let source_tables = vec!["users", "orders", "products", "customers", "categories"];
 
-        let target_tables = vec![
-            "users", "orders", "products", "customers", "payments",
-        ];
+        let target_tables = vec!["users", "orders", "products", "customers", "payments"];
 
         for table in &source_tables {
             if !target_tables.contains(table) {
@@ -85,13 +81,13 @@ impl Render for DatabaseDiff {
         } else {
             self.source_db.clone()
         };
-        
+
         let target_text = if self.target_db.is_empty() {
             "目标数据库连制..".to_string()
         } else {
             self.target_db.clone()
         };
-        
+
         div()
             .p_4()
             .child(
@@ -99,7 +95,7 @@ impl Render for DatabaseDiff {
                     .text_xl()
                     .font_semibold()
                     .mb_4()
-                    .child("数据库差异对比")
+                    .child("数据库差异对比"),
             )
             .child(
                 div()
@@ -116,11 +112,7 @@ impl Render for DatabaseDiff {
                                     .flex()
                                     .flex_col()
                                     .gap_2()
-                                    .child(
-                                        div()
-                                            .text_sm()
-                                            .child("源数据库")
-                                    )
+                                    .child(div().text_sm().child("源数据库"))
                                     .child(
                                         div()
                                             .flex_1()
@@ -133,19 +125,15 @@ impl Render for DatabaseDiff {
                                             .py_2()
                                             .text_sm()
                                             .font_family("monospace")
-                                            .child(source_text)
-                                    )
+                                            .child(source_text),
+                                    ),
                             )
                             .child(
                                 div()
                                     .flex()
                                     .flex_col()
                                     .gap_2()
-                                    .child(
-                                        div()
-                                            .text_sm()
-                                            .child("目标数据库")
-                                    )
+                                    .child(div().text_sm().child("目标数据库"))
                                     .child(
                                         div()
                                             .flex_1()
@@ -158,47 +146,41 @@ impl Render for DatabaseDiff {
                                             .py_2()
                                             .text_sm()
                                             .font_family("monospace")
-                                            .child(target_text)
-                                    )
-                            )
+                                            .child(target_text),
+                                    ),
+                            ),
                     )
                     .child(
                         div()
                             .flex()
                             .items_center()
-                            .gap_4()
+                            .gap_2()
                             .child(
-                                div()
-                                    .px_4()
-                                    .py_2()
-                                    .bg(cx.theme().primary)
-                                    .text_color(cx.theme().primary_foreground)
-                                    .rounded_md()
-                                    .cursor_pointer()
-                                    .child("比较")
+                                Button::new("compare")
+                                    .primary()
+                                    .icon(Icon::new(IconName::Asterisk))
+                                    .tooltip("比较")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.compare();
+                                        cx.notify();
+                                    })),
                             )
                             .child(
-                                div()
-                                    .px_4()
-                                    .py_2()
-                                    .border_1()
-                                    .border_color(cx.theme().border)
-                                    .rounded_md()
-                                    .cursor_pointer()
-                                    .child("清空")
-                            )
+                                Button::new("clear")
+                                    .icon(Icon::new(IconName::Delete))
+                                    .tooltip("清空")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.clear();
+                                        cx.notify();
+                                    })),
+                            ),
                     )
                     .child(if !self.results.is_empty() {
                         div()
                             .flex()
                             .flex_col()
                             .gap_2()
-                            .child(
-                                div()
-                                    .text_sm()
-                                    .font_semibold()
-                                    .child("差异结果")
-                            )
+                            .child(div().text_sm().font_semibold().child("差异结果"))
                             .child(
                                 div()
                                     .flex_1()
@@ -209,56 +191,59 @@ impl Render for DatabaseDiff {
                                     .rounded_lg()
                                     .p_4()
                                     .overflow_y_scrollbar()
-                                    .child(
-                                        div()
-                                            .flex()
-                                            .flex_col()
-                                            .gap_2()
-                                            .children(
-                                                self.results.iter().map(|item| {
+                                    .child(div().flex().flex_col().gap_2().children(
+                                        self.results.iter().map(|item| {
+                                            div()
+                                                .p_3()
+                                                .border_1()
+                                                .border_color(cx.theme().border)
+                                                .rounded_md()
+                                                .child(
                                                     div()
-                                                        .p_3()
-                                                        .border_1()
-                                                        .border_color(cx.theme().border)
-                                                        .rounded_md()
+                                                        .flex()
+                                                        .flex_col()
+                                                        .gap_2()
                                                         .child(
                                                             div()
                                                                 .flex()
-                                                                .flex_col()
+                                                                .items_center()
                                                                 .gap_2()
                                                                 .child(
                                                                     div()
-                                                                        .flex()
-                                                                        .items_center()
-                                                                        .gap_2()
+                                                                        .text_sm()
+                                                                        .font_semibold()
                                                                         .child(
-                                                                            div()
-                                                                                .text_sm()
-                                                                                .font_semibold()
-                                                                                .child(item.table_name.clone())
-                                                                        )
-                                                                        .child(
-                                                                            div()
-                                                                                .text_xs()
-                                                                                .text_color(cx.theme().muted_foreground)
-                                                                                .child(item.diff_type.clone())
-                                                                        )
+                                                                            item.table_name.clone(),
+                                                                        ),
                                                                 )
                                                                 .child(
                                                                     div()
-                                                                        .text_sm()
-                                                                        .font_family("monospace")
-                                                                        .text_color(cx.theme().muted_foreground)
-                                                                        .child(item.sql.clone())
-                                                                )
+                                                                        .text_xs()
+                                                                        .text_color(
+                                                                            cx.theme()
+                                                                                .muted_foreground,
+                                                                        )
+                                                                        .child(
+                                                                            item.diff_type.clone(),
+                                                                        ),
+                                                                ),
                                                         )
-                                                })
-                                            )
-                                    )
+                                                        .child(
+                                                            div()
+                                                                .text_sm()
+                                                                .font_family("monospace")
+                                                                .text_color(
+                                                                    cx.theme().muted_foreground,
+                                                                )
+                                                                .child(item.sql.clone()),
+                                                        ),
+                                                )
+                                        }),
+                                    )),
                             )
                     } else {
                         div()
-                    })
+                    }),
             )
     }
 }

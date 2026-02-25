@@ -1,74 +1,101 @@
 use gpui::*;
-use gpui_component::{button::*, scroll::ScrollableElement, *};
+use gpui_component::{
+    button::*,
+    input::{Input, InputEvent, InputState},
+    *,
+};
 
 pub struct UrlEncoder {
     input: String,
-    encoded: String,
-    decoded: String,
+    output: String,
+    input_state: Entity<InputState>,
+    output_state: Entity<InputState>,
+    _subscriptions: Vec<Subscription>,
 }
 
 impl UrlEncoder {
-    pub fn new() -> Self {
+    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let input_state = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder("请输入URL...")
+                .multi_line(true)
+        });
+        let output_state = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder("输出结果...")
+                .multi_line(true)
+        });
+
+        let _subscriptions = vec![cx.subscribe_in(&input_state, window, {
+            let input_state = input_state.clone();
+            move |this, _, ev: &InputEvent, _, cx| {
+                if let InputEvent::Change = ev {
+                    let value = input_state.read(cx).value();
+                    this.input = value.to_string();
+                    cx.notify();
+                }
+            }
+        })];
+
         Self {
             input: String::new(),
-            encoded: String::new(),
-            decoded: String::new(),
+            output: String::new(),
+            input_state,
+            output_state,
+            _subscriptions,
         }
     }
 
-    fn encode(&mut self) {
+    fn encode(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.input.is_empty() {
-            self.encoded.clear();
-            self.decoded.clear();
             return;
         }
-        self.encoded = base::encode_url(&self.input).unwrap_or_default();
-        self.decoded.clear();
+        self.output = base::encode_url(&self.input).unwrap_or_default();
+        self.output_state.update(cx, |state, cx| {
+            state.set_value(self.output.clone(), window, cx);
+        });
     }
 
-    fn decode(&mut self) {
-        if self.input.is_empty() {
-            self.encoded.clear();
-            self.decoded.clear();
+    fn decode(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.output.is_empty() {
             return;
         }
-        self.decoded = base::decode_url(&self.input).unwrap_or_default();
-        self.encoded.clear();
+        let decoded = base::decode_url(&self.output).unwrap_or_default();
+        self.input = decoded.clone();
+        self.input_state.update(cx, |state, cx| {
+            state.set_value(decoded, window, cx);
+        });
     }
 
-    fn clear(&mut self) {
+    fn clear(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.input.clear();
-        self.encoded.clear();
-        self.decoded.clear();
+        self.output.clear();
+        self.input_state.update(cx, |state, cx| {
+            state.set_value("".to_string(), window, cx);
+        });
+        self.output_state.update(cx, |state, cx| {
+            state.set_value("".to_string(), window, cx);
+        });
+    }
+
+    fn copy_input(&mut self, cx: &mut Context<Self>) {
+        if !self.input.is_empty() {
+            cx.write_to_clipboard(ClipboardItem::new_string(self.input.clone()));
+        }
+    }
+
+    fn copy_output(&mut self, cx: &mut Context<Self>) {
+        if !self.output.is_empty() {
+            cx.write_to_clipboard(ClipboardItem::new_string(self.output.clone()));
+        }
     }
 }
 
 impl Render for UrlEncoder {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let encoded = self.encoded.clone();
-        let decoded = self.decoded.clone();
-        
-        let encoded_text = if encoded.is_empty() {
-            "-".to_string()
-        } else {
-            encoded.clone()
-        };
-        
-        let decoded_text = if decoded.is_empty() {
-            "-".to_string()
-        } else {
-            decoded.clone()
-        };
-        
         div()
             .p_4()
-            .child(
-                div()
-                    .text_xl()
-                    .font_semibold()
-                    .mb_4()
-                    .child("URL 编解码")
-            )
+            .child(div().text_xl().font_semibold().mb_4().child("URL 编解码"))
             .child(
                 div()
                     .flex()
@@ -81,54 +108,63 @@ impl Render for UrlEncoder {
                             .gap_2()
                             .child(
                                 div()
-                                    .text_sm()
-                                    .child("输入")
+                                    .flex()
+                                    .items_center()
+                                    .justify_between()
+                                    .child(div().text_sm().child("输入"))
+                                    .child(
+                                        ButtonGroup::new("input-buttons")
+                                            .child(
+                                                Button::new("copy-input")
+                                                    .icon(Icon::new(IconName::Copy))
+                                                    .tooltip("复制")
+                                                    .on_click(cx.listener(
+                                                        |this, _, _, cx| {
+                                                            this.copy_input(cx);
+                                                        },
+                                                    )),
+                                            )
+                                            .child(
+                                                Button::new("clear-input")
+                                                    .icon(Icon::new(IconName::Delete))
+                                                    .tooltip("清空")
+                                                    .on_click(cx.listener(
+                                                        |this, _, window, cx| {
+                                                            this.clear(window, cx);
+                                                        },
+                                                    )),
+                                            ),
+                                    ),
                             )
-                            .child(
-                                div()
-                                    .min_h(px(100.0))
-                                    .max_h(px(100.0))
-                                    .border_1()
-                                    .border_color(cx.theme().border)
-                                    .rounded_lg()
-                                    .p_2()
-                                    .overflow_y_scrollbar()
-                                    .text_sm()
-                                    .font_family("monospace")
-                                    .child(if self.input.is_empty() { "请输入URL...".to_string() } else { self.input.clone() })
-                            )
+                            .child(Input::new(&self.input_state).h(px(150.0))),
                     )
                     .child(
                         div()
                             .flex()
                             .items_center()
-                            .gap_4()
+                            .justify_center()
+                            .gap_2()
                             .child(
-                                Button::new("encode")
-                                    .primary()
-                                    .label("编码")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.encode();
-                                        cx.notify();
-                                    }))
-                            )
-                            .child(
-                                Button::new("decode")
-                                    .primary()
-                                    .label("解码")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.decode();
-                                        cx.notify();
-                                    }))
-                            )
-                            .child(
-                                Button::new("clear")
-                                    .label("清空")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.clear();
-                                        cx.notify();
-                                    }))
-                            )
+                                ButtonGroup::new("encode-decode")
+                                    .child(
+                                        Button::new("encode")
+                                            .primary()
+                                            .icon(Icon::new(IconName::ArrowDown))
+                                            .tooltip("编码")
+                                            .on_click(cx.listener(|this, _, window, cx| {
+                                                this.encode(window, cx);
+                                            })),
+                                    )
+                                    .child(
+                                        Button::new("decode")
+                                            .primary()
+                                            .icon(Icon::new(IconName::ArrowUp))
+                                            .tooltip("解码")
+                                            .on_click(cx.listener(|this, _, window, cx| {
+                                                this.decode(window, cx);
+                                            })),
+                                    ),
+                            ),
                     )
                     .child(
                         div()
@@ -137,47 +173,36 @@ impl Render for UrlEncoder {
                             .gap_2()
                             .child(
                                 div()
-                                    .text_sm()
-                                    .child("编码结果")
+                                    .flex()
+                                    .items_center()
+                                    .justify_between()
+                                    .child(div().text_sm().child("输出"))
+                                    .child(
+                                        ButtonGroup::new("output-buttons")
+                                            .child(
+                                                Button::new("copy-output")
+                                                    .icon(Icon::new(IconName::Copy))
+                                                    .tooltip("复制")
+                                                    .on_click(cx.listener(
+                                                        |this, _, _, cx| {
+                                                            this.copy_output(cx);
+                                                        },
+                                                    )),
+                                            )
+                                            .child(
+                                                Button::new("clear-output")
+                                                    .icon(Icon::new(IconName::Delete))
+                                                    .tooltip("清空")
+                                                    .on_click(cx.listener(
+                                                        |this, _, window, cx| {
+                                                            this.clear(window, cx);
+                                                        },
+                                                    )),
+                                            ),
+                                    ),
                             )
-                            .child(
-                                div()
-                                    .min_h(px(80.0))
-                                    .max_h(px(80.0))
-                                    .border_1()
-                                    .border_color(cx.theme().border)
-                                    .rounded_lg()
-                                    .p_2()
-                                    .overflow_y_scrollbar()
-                                    .text_sm()
-                                    .font_family("monospace")
-                                    .child(encoded_text)
-                            )
-                    )
-                    .child(
-                        div()
-                            .flex()
-                            .flex_col()
-                            .gap_2()
-                            .child(
-                                div()
-                                    .text_sm()
-                                    .child("解码结果")
-                            )
-                            .child(
-                                div()
-                                    .min_h(px(80.0))
-                                    .max_h(px(80.0))
-                                    .border_1()
-                                    .border_color(cx.theme().border)
-                                    .rounded_lg()
-                                    .p_2()
-                                    .overflow_y_scrollbar()
-                                    .text_sm()
-                                    .font_family("monospace")
-                                    .child(decoded_text)
-                            )
-                    )
+                            .child(Input::new(&self.output_state).h(px(150.0))),
+                    ),
             )
     }
 }
