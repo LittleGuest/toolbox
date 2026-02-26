@@ -89,6 +89,9 @@ impl App {
 impl Render for App {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let current_view = self.current_view;
+        let sheet_layer = Root::render_sheet_layer(window, cx);
+        let dialog_layer = Root::render_dialog_layer(window, cx);
+        let notification_layer = Root::render_notification_layer(window, cx);
 
         div()
             .size_full()
@@ -216,7 +219,7 @@ impl Render for App {
                     .overflow_y_scrollbar()
                     .child(match current_view {
                         ViewType::Home => render_home_view(cx),
-                        ViewType::SystemMonitor => render_system_monitor_view(self, cx),
+                        ViewType::SystemMonitor => render_system_monitor_view(self, window, cx),
                         ViewType::CodeSnippet => render_code_snippet_view(self, cx),
                         ViewType::Todo => render_todo_view(self, cx),
                         ViewType::TransformFiletype => render_transform_filetype_view(self, window, cx),
@@ -238,12 +241,15 @@ impl Render for App {
                         ViewType::FormatterXml => render_formatter_xml_view(self, window, cx),
                         ViewType::GeneratorUuid => render_uuid_generator_view(self, window, cx),
                         ViewType::GeneratorHash => render_hash_calculator_view(self, window, cx),
-                        ViewType::GeneratorChecksum => render_generator_checksum_view(cx),
+                        ViewType::GeneratorChecksum => render_generator_checksum_view(self, window, cx),
                         ViewType::DatabaseDatafaker => render_database_datafaker_view(self, window, cx),
                         ViewType::DatabaseDiff => render_database_diff_view(self, cx),
                         ViewType::TextMarkdown => render_markdown_editor_view(self, window, cx),
                     }),
             )
+            .children(sheet_layer)
+            .children(dialog_layer)
+            .children(notification_layer)
     }
 }
 
@@ -299,9 +305,9 @@ fn create_menu_card(title: &'static str, description: &'static str, cx: &mut Con
         )
 }
 
-fn render_system_monitor_view(app: &mut App, cx: &mut Context<App>) -> Div {
+fn render_system_monitor_view(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {
     if app.system_monitor.is_none() {
-        app.system_monitor = Some(cx.new(|_| SystemMonitor::new()));
+        app.system_monitor = Some(cx.new(|cx| SystemMonitor::new(window, cx)));
     }
 
     if let Some(ref sys_monitor) = app.system_monitor {
@@ -408,18 +414,16 @@ fn render_formatter_xml_view(app: &mut App, window: &mut Window, cx: &mut Contex
     }
 }
 
-fn render_generator_checksum_view(cx: &mut Context<App>) -> Div {
-    div()
-        .p_4()
-        .child(div().text_xl().font_semibold().mb_4().child("文件校验"))
-        .child(
-            div()
-                .p_4()
-                .border_1()
-                .border_color(cx.theme().border)
-                .rounded_lg()
-                .child("文件校验功能开发中..."),
-        )
+fn render_generator_checksum_view(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {
+    if app.file_verify.is_none() {
+        app.file_verify = Some(cx.new(|cx| FileVerify::new(window, cx)));
+    }
+
+    if let Some(ref file_verify) = app.file_verify {
+        div().p_4().child(file_verify.clone())
+    } else {
+        div().p_4().child("Loading...")
+    }
 }
 
 fn render_database_datafaker_view(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {

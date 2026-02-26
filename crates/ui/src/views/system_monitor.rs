@@ -1,7 +1,13 @@
 use gpui::*;
-use gpui_component::{button::*, *};
+use gpui_component::{
+    button::*,
+    input::{Input, InputEvent, InputState},
+    scroll::ScrollableElement,
+    WindowExt,
+    *,
+};
 use std::sync::{LazyLock, Mutex};
-use sysinfo::{Disks, MemoryRefreshKind, System, Networks};
+use sysinfo::{Disks, MemoryRefreshKind, System, Networks, ProcessesToUpdate};
 
 static SYS: LazyLock<Mutex<System>> = LazyLock::new(|| Mutex::new(System::new_all()));
 static DISKS: LazyLock<Mutex<Disks>> = LazyLock::new(|| Mutex::new(Disks::new_with_refreshed_list()));
@@ -16,30 +22,44 @@ pub struct SystemMonitor {
     used_swap: u64,
     swap_usage_percent: f32,
     disks: Vec<DiskInfo>,
-    networks: Vec<NetworkInfo>,
-    system_name: String,
-    kernel_version: String,
-    os_version: String,
+    processes: Vec<ProcessInfo>,
+    search_text: String,
+    input_state: Entity<InputState>,
+    _subscriptions: Vec<Subscription>,
 }
 
 #[derive(Clone)]
 struct DiskInfo {
     name: String,
     total: u64,
+    available: u64,
     used: u64,
     usage_percent: f32,
     mount_point: String,
+    file_system: String,
 }
 
 #[derive(Clone)]
-struct NetworkInfo {
+struct ProcessInfo {
     name: String,
-    received: u64,
-    transmitted: u64,
+    pid: u32,
+    memory: u64,
+    cpu: f32,
 }
 
 impl SystemMonitor {
-    pub fn new() -> Self {
+    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let input_state = cx.new(|cx| InputState::new(window, cx).placeholder("搜索进程名称..."));
+
+        let _subscriptions = vec![cx.subscribe_in(&input_state, window, {
+            let input_state = input_state.clone();
+            move |this, _, _ev: &InputEvent, _window, cx| {
+                let value = input_state.read(cx).value();
+                this.search_text = value.to_string();
+                cx.notify();
+            }
+        })];
+
         let mut monitor = Self {
             cpu_usage: Vec::new(),
             total_memory: 0,
@@ -49,10 +69,10 @@ impl SystemMonitor {
             used_swap: 0,
             swap_usage_percent: 0.0,
             disks: Vec::new(),
-            networks: Vec::new(),
-            system_name: String::new(),
-            kernel_version: String::new(),
-            os_version: String::new(),
+            processes: Vec::new(),
+            search_text: String::new(),
+            input_state,
+            _subscriptions,
         };
         monitor.refresh();
         monitor
@@ -63,7 +83,8 @@ impl SystemMonitor {
             let mut sys = SYS.lock().unwrap();
             sys.refresh_all();
             sys.refresh_memory_specifics(MemoryRefreshKind::everything());
-            
+            sys.refresh_processes(ProcessesToUpdate::All, true);
+
             self.cpu_usage = sys.cpus().iter().map(|cpu| cpu.cpu_usage()).collect();
             self.total_memory = sys.total_memory();
             self.used_memory = sys.used_memory();
@@ -79,6 +100,18 @@ impl SystemMonitor {
             } else {
                 0.0
             };
+
+            self.processes = sys
+                .processes()
+                .iter()
+                .map(|(pid, process)| ProcessInfo {
+                    name: process.name().to_string_lossy().to_string(),
+                    pid: pid.as_u32(),
+                    memory: process.memory(),
+                    cpu: process.cpu_usage(),
+                })
+                .collect();
+            self.processes.sort_by(|a, b| b.memory.cmp(&a.memory));
         }
 
         {
@@ -98,30 +131,15 @@ impl SystemMonitor {
                     DiskInfo {
                         name: disk.name().to_string_lossy().to_string(),
                         total,
+                        available,
                         used,
                         usage_percent,
                         mount_point: disk.mount_point().to_string_lossy().to_string(),
+                        file_system: disk.file_system().to_string_lossy().to_string(),
                     }
                 })
                 .collect();
         }
-
-        {
-            let mut networks = NETWORKS.lock().unwrap();
-            networks.refresh(true);
-            self.networks = networks
-                .iter()
-                .map(|(name, data)| NetworkInfo {
-                    name: name.clone(),
-                    received: data.received(),
-                    transmitted: data.transmitted(),
-                })
-                .collect();
-        }
-
-        self.system_name = System::name().unwrap_or_default();
-        self.kernel_version = System::kernel_version().unwrap_or_default();
-        self.os_version = System::os_version().unwrap_or_default();
     }
 
     fn format_bytes(bytes: u64) -> String {
@@ -143,7 +161,7 @@ impl SystemMonitor {
         }
     }
 
-    fn render_progress_bar(&self, percent: f32, cx: &mut Context<Self>) -> Div {
+    fn render_progress_bar(percent: f32, cx: &App) -> Div {
         let bar_color = if percent < 50.0 {
             cx.theme().accent
         } else if percent < 80.0 {
@@ -165,22 +183,204 @@ impl SystemMonitor {
                     .bg(bar_color),
             )
     }
+
+    fn filtered_processes(&self) -> Vec<&ProcessInfo> {
+        if self.search_text.is_empty() {
+            return self.processes.iter().collect();
+        }
+        self.processes
+            .iter()
+            .filter(|p| p.name.to_lowercase().contains(&self.search_text.to_lowercase()))
+            .collect()
+    }
+
+    fn kill_process(&mut self, pid: u32, cx: &mut Context<Self>) {
+        {
+            let sys = SYS.lock().unwrap();
+            if let Some(process) = sys.process(sysinfo::Pid::from_u32(pid)) {
+                process.kill();
+            }
+        }
+        self.refresh();
+        cx.notify();
+    }
+
+    fn open_disk_drawer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let disks = self.disks.clone();
+        window.open_sheet_at(Placement::Right, cx, move |this, _, cx| {
+            this.overlay(true)
+                .overlay_closable(true)
+                .size(px(500.))
+                .title("磁盘详情")
+                .child(
+                    div()
+                        .size_full()
+                        .overflow_y_scrollbar()
+                        .gap_3()
+                        .children(disks.iter().map(|disk| {
+                            div()
+                                .p_3()
+                                .border_1()
+                                .border_color(cx.theme().border)
+                                .rounded_lg()
+                                .child(
+                                    div()
+                                        .font_semibold()
+                                        .mb_2()
+                                        .child(disk.mount_point.clone()),
+                                )
+                                .child(
+                                    div()
+                                        .flex()
+                                        .justify_between()
+                                        .text_sm()
+                                        .py_1()
+                                        .child(div().text_color(cx.theme().muted_foreground).child("文件系统:"))
+                                        .child(disk.file_system.clone()),
+                                )
+                                .child(
+                                    div()
+                                        .flex()
+                                        .justify_between()
+                                        .text_sm()
+                                        .py_1()
+                                        .child(div().text_color(cx.theme().muted_foreground).child("总空间:"))
+                                        .child(Self::format_bytes(disk.total)),
+                                )
+                                .child(
+                                    div()
+                                        .flex()
+                                        .justify_between()
+                                        .text_sm()
+                                        .py_1()
+                                        .child(div().text_color(cx.theme().muted_foreground).child("可用空间:"))
+                                        .child(Self::format_bytes(disk.available)),
+                                )
+                                .child(
+                                    div()
+                                        .flex()
+                                        .justify_between()
+                                        .text_sm()
+                                        .py_1()
+                                        .child(div().text_color(cx.theme().muted_foreground).child("已用空间:"))
+                                        .child(Self::format_bytes(disk.used)),
+                                )
+                                .child(
+                                    div()
+                                        .flex()
+                                        .justify_between()
+                                        .text_sm()
+                                        .py_1()
+                                        .child(div().text_color(cx.theme().muted_foreground).child("使用率:"))
+                                        .child(format!("{:.1}%", disk.usage_percent)),
+                                )
+                                .child(
+                                    div()
+                                        .mt_2()
+                                        .child(Self::render_progress_bar(disk.usage_percent, cx)),
+                                )
+                        })),
+                )
+        });
+    }
+
+    fn open_cpu_drawer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let cpu_usage = self.cpu_usage.clone();
+        let global_usage = if cpu_usage.is_empty() {
+            0.0
+        } else {
+            cpu_usage.iter().sum::<f32>() / cpu_usage.len() as f32
+        };
+        let system_name = System::name().unwrap_or_default();
+        let physical_core_count = System::physical_core_count().unwrap_or(0);
+
+        window.open_sheet_at(Placement::Right, cx, move |this, _, cx| {
+            this.overlay(true)
+                .overlay_closable(true)
+                .size(px(500.))
+                .title("CPU详情")
+                .child(
+                    div()
+                        .size_full()
+                        .overflow_y_scrollbar()
+                        .gap_3()
+                        .child(
+                            div()
+                                .p_3()
+                                .border_1()
+                                .border_color(cx.theme().border)
+                                .rounded_lg()
+                                .child(
+                                    div()
+                                        .flex()
+                                        .justify_between()
+                                        .text_sm()
+                                        .py_1()
+                                        .child(div().text_color(cx.theme().muted_foreground).child("芯片名称:"))
+                                        .child(system_name.clone()),
+                                )
+                                .child(
+                                    div()
+                                        .flex()
+                                        .justify_between()
+                                        .text_sm()
+                                        .py_1()
+                                        .child(div().text_color(cx.theme().muted_foreground).child("物理核心数:"))
+                                        .child(format!("{}", physical_core_count)),
+                                )
+                                .child(
+                                    div()
+                                        .flex()
+                                        .justify_between()
+                                        .text_sm()
+                                        .py_1()
+                                        .child(div().text_color(cx.theme().muted_foreground).child("全局使用率:"))
+                                        .child(format!("{:.1}%", global_usage)),
+                                ),
+                        )
+                        .child(div().font_semibold().mb_2().child("核心详情"))
+                        .children(cpu_usage.iter().enumerate().map(|(i, usage)| {
+                            div()
+                                .p_2()
+                                .border_1()
+                                .border_color(cx.theme().border)
+                                .rounded_lg()
+                                .mb_2()
+                                .child(
+                                    div()
+                                        .flex()
+                                        .justify_between()
+                                        .text_sm()
+                                        .mb_1()
+                                        .child(div().text_color(cx.theme().muted_foreground).child(format!("核心 {}:", i + 1)))
+                                        .child(format!("{:.1}%", usage)),
+                                )
+                                .child(Self::render_progress_bar(*usage, cx))
+                        })),
+                )
+        });
+    }
 }
 
 impl Render for SystemMonitor {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let cpu_usage = self.cpu_usage.clone();
-        let total_memory = self.total_memory;
-        let used_memory = self.used_memory;
+        let global_cpu_usage = if cpu_usage.is_empty() {
+            0.0
+        } else {
+            cpu_usage.iter().sum::<f32>() / cpu_usage.len() as f32
+        };
         let memory_usage_percent = self.memory_usage_percent;
-        let total_swap = self.total_swap;
-        let used_swap = self.used_swap;
         let swap_usage_percent = self.swap_usage_percent;
         let disks = self.disks.clone();
-        let networks = self.networks.clone();
-        let system_name = self.system_name.clone();
-        let kernel_version = self.kernel_version.clone();
-        let os_version = self.os_version.clone();
+        let filtered_processes = self.filtered_processes();
+        let total_disk_used: u64 = disks.iter().map(|d| d.used).sum();
+        let total_disk: u64 = disks.iter().map(|d| d.total).sum();
+        let disk_usage_percent = if total_disk > 0 {
+            (total_disk_used as f64 / total_disk as f64 * 100.0) as f32
+        } else {
+            0.0
+        };
 
         div()
             .p_4()
@@ -191,387 +391,209 @@ impl Render for SystemMonitor {
                     .flex_col()
                     .gap_4()
                     .child(
-                        Button::new("refresh")
-                            .primary()
-                            .icon(Icon::new(IconName::Asterisk))
-                            .tooltip("刷新")
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.refresh();
-                                cx.notify();
-                            })),
-                    )
-                    .child(
                         div()
-                            .p_4()
-                            .border_1()
-                            .border_color(cx.theme().border)
-                            .rounded_lg()
+                            .flex()
+                            .gap_4()
                             .child(
                                 div()
-                                    .flex()
-                                    .flex_col()
-                                    .gap_2()
-                                    .child(div().font_semibold().mb_2().child("系统信息"))
+                                    .flex_1()
+                                    .p_4()
+                                    .border_1()
+                                    .border_color(cx.theme().border)
+                                    .rounded_lg()
                                     .child(
                                         div()
                                             .flex()
-                                            .items_center()
-                                            .gap_2()
-                                            .child(div().text_sm().w_24().child("系统名称"))
+                                            .flex_col()
+                                            .gap_3()
                                             .child(
-                                                div()
-                                                    .flex_1()
-                                                    .text_sm()
-                                                    .font_family("monospace")
-                                                    .child(if system_name.is_empty() {
-                                                        "-".to_string()
-                                                    } else {
-                                                        system_name.clone()
-                                                    }),
-                                            ),
-                                    )
-                                    .child(
-                                        div()
-                                            .flex()
-                                            .items_center()
-                                            .gap_2()
-                                            .child(div().text_sm().w_24().child("内核版本"))
-                                            .child(
-                                                div()
-                                                    .flex_1()
-                                                    .text_sm()
-                                                    .font_family("monospace")
-                                                    .child(if kernel_version.is_empty() {
-                                                        "-".to_string()
-                                                    } else {
-                                                        kernel_version.clone()
-                                                    }),
-                                            ),
-                                    )
-                                    .child(
-                                        div()
-                                            .flex()
-                                            .items_center()
-                                            .gap_2()
-                                            .child(div().text_sm().w_24().child("系统版本"))
-                                            .child(
-                                                div()
-                                                    .flex_1()
-                                                    .text_sm()
-                                                    .font_family("monospace")
-                                                    .child(if os_version.is_empty() {
-                                                        "-".to_string()
-                                                    } else {
-                                                        os_version.clone()
-                                                    }),
-                                            ),
-                                    ),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .p_4()
-                            .border_1()
-                            .border_color(cx.theme().border)
-                            .rounded_lg()
-                            .child(
-                                div()
-                                    .flex()
-                                    .flex_col()
-                                    .gap_2()
-                                    .child(div().font_semibold().mb_2().child("CPU 使用率"))
-                                    .child(
-                                        div()
-                                            .flex()
-                                            .items_center()
-                                            .gap_2()
-                                            .child(div().text_sm().w_24().child("总体"))
-                                            .child(self.render_progress_bar(
-                                                if cpu_usage.is_empty() {
-                                                    0.0
-                                                } else {
-                                                    cpu_usage.iter().sum::<f32>() / cpu_usage.len() as f32
-                                                },
-                                                cx,
-                                            ))
-                                            .child(
-                                                div()
-                                                    .w(px(80.0))
-                                                    .text_sm()
-                                                    .text_right()
-                                                    .font_family("monospace")
-                                                    .child(format!(
-                                                        "{:.1}%",
-                                                        if cpu_usage.is_empty() {
-                                                            0.0
-                                                        } else {
-                                                            cpu_usage.iter().sum::<f32>() / cpu_usage.len() as f32
-                                                        }
-                                                    )),
-                                            ),
-                                    )
-                                    .child(
-                                        div()
-                                            .flex()
-                                            .flex_wrap()
-                                            .gap_2()
-                                            .children(
-                                                cpu_usage
-                                                    .iter()
-                                                    .enumerate()
-                                                    .map(|(i, usage)| {
-                                                        div()
-                                                            .flex()
-                                                            .items_center()
-                                                            .gap_1()
-                                                            .w(px(150.0))
-                                                            .child(
-                                                                div()
-                                                                    .text_xs()
-                                                                    .w(px(40.0))
-                                                                    .child(format!("核心 {}:", i)),
-                                                            )
-                                                            .child(
-                                                                div()
-                                                                    .flex_1()
-                                                                    .h_1()
-                                                                    .rounded_sm()
-                                                                    .bg(cx.theme().border)
-                                                                    .child(
-                                                                        div()
-                                                                            .h_full()
-                                                                            .w(relative(*usage / 100.0))
-                                                                            .rounded_sm()
-                                                                            .bg(if *usage < 50.0 {
-                                                                                cx.theme().accent
-                                                                            } else if *usage < 80.0 {
-                                                                                gpui::rgb(0xf59e0b).into()
-                                                                            } else {
-                                                                                gpui::rgb(0xef4444).into()
-                                                                            }),
-                                                                    ),
-                                                            )
-                                                            .child(
-                                                                div()
-                                                                    .w(px(50.0))
-                                                                    .text_xs()
-                                                                    .text_right()
-                                                                    .font_family("monospace")
-                                                                    .child(format!("{:.1}%", usage)),
-                                                            )
-                                                    })
-                                                    .collect::<Vec<_>>(),
-                                            ),
-                                    ),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .p_4()
-                            .border_1()
-                            .border_color(cx.theme().border)
-                            .rounded_lg()
-                            .child(
-                                div()
-                                    .flex()
-                                    .flex_col()
-                                    .gap_2()
-                                    .child(div().font_semibold().mb_2().child("内存使用"))
-                                    .child(
-                                        div()
-                                            .flex()
-                                            .items_center()
-                                            .gap_2()
-                                            .child(div().text_sm().w_24().child("内存"))
-                                            .child(self.render_progress_bar(memory_usage_percent, cx))
-                                            .child(
-                                                div()
-                                                    .w(px(150.0))
-                                                    .text_sm()
-                                                    .text_right()
-                                                    .font_family("monospace")
-                                                    .child(format!(
-                                                        "{} / {}",
-                                                        Self::format_bytes(used_memory),
-                                                        Self::format_bytes(total_memory)
-                                                    )),
-                                            ),
-                                    )
-                                    .child(
-                                        div()
-                                            .flex()
-                                            .items_center()
-                                            .gap_2()
-                                            .child(div().text_sm().w_24().child("使用率"))
-                                            .child(
-                                                div()
-                                                    .flex_1()
-                                                    .text_sm()
-                                                    .font_family("monospace")
-                                                    .child(format!("{:.1}%", memory_usage_percent)),
-                                            ),
-                                    )
-                                    .child(
-                                        div()
-                                            .flex()
-                                            .items_center()
-                                            .gap_2()
-                                            .child(div().text_sm().w_24().child("交换分区"))
-                                            .child(self.render_progress_bar(swap_usage_percent, cx))
-                                            .child(
-                                                div()
-                                                    .w(px(150.0))
-                                                    .text_sm()
-                                                    .text_right()
-                                                    .font_family("monospace")
-                                                    .child(format!(
-                                                        "{} / {}",
-                                                        Self::format_bytes(used_swap),
-                                                        Self::format_bytes(total_swap)
-                                                    )),
-                                            ),
-                                    ),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .p_4()
-                            .border_1()
-                            .border_color(cx.theme().border)
-                            .rounded_lg()
-                            .child(
-                                div()
-                                    .flex()
-                                    .flex_col()
-                                    .gap_2()
-                                    .child(div().font_semibold().mb_2().child("磁盘使用"))
-                                    .children(
-                                        disks
-                                            .iter()
-                                            .map(|disk| {
                                                 div()
                                                     .flex()
-                                                    .flex_col()
-                                                    .gap_1()
-                                                    .pb_2()
-                                                    .border_b_1()
-                                                    .border_color(cx.theme().border)
+                                                    .justify_between()
+                                                    .items_center()
+                                                    .child(div().font_semibold().child("CPU使用率"))
                                                     .child(
-                                                        div()
-                                                            .flex()
-                                                            .items_center()
-                                                            .gap_2()
-                                                            .child(
-                                                                div()
-                                                                    .text_sm()
-                                                                    .font_semibold()
-                                                                    .child(disk.name.clone()),
-                                                            )
-                                                            .child(
-                                                                div()
-                                                                    .text_xs()
-                                                                    .text_color(cx.theme().muted_foreground)
-                                                                    .child(disk.mount_point.clone()),
-                                                            ),
-                                                    )
-                                                    .child(
-                                                        div()
-                                                            .flex()
-                                                            .items_center()
-                                                            .gap_2()
-                                                            .child(self.render_progress_bar(disk.usage_percent, cx))
-                                                            .child(
-                                                                div()
-                                                                    .w(px(150.0))
-                                                                    .text_sm()
-                                                                    .text_right()
-                                                                    .font_family("monospace")
-                                                                    .child(format!(
-                                                                        "{} / {}",
-                                                                        Self::format_bytes(disk.used),
-                                                                        Self::format_bytes(disk.total)
-                                                                    )),
-                                                            ),
-                                                    )
-                                                    .child(
-                                                        div()
-                                                            .text_xs()
-                                                            .text_color(cx.theme().muted_foreground)
-                                                            .child(format!("使用率: {:.1}%", disk.usage_percent)),
-                                                    )
-                                            })
-                                            .collect::<Vec<_>>(),
-                                    ),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .p_4()
-                            .border_1()
-                            .border_color(cx.theme().border)
-                            .rounded_lg()
-                            .child(
-                                div()
-                                    .flex()
-                                    .flex_col()
-                                    .gap_2()
-                                    .child(div().font_semibold().mb_2().child("网络信息"))
-                                    .children(
-                                        networks
-                                            .iter()
-                                            .map(|net| {
+                                                        Button::new("cpu_detail")
+                                                            .icon(Icon::new(IconName::ChevronRight))
+                                                            .tooltip("查看详情")
+                                                            .on_click(cx.listener(|this, _, window, cx| {
+                                                                this.open_cpu_drawer(window, cx);
+                                                            })),
+                                                    ),
+                                            )
+                                            .child(
                                                 div()
                                                     .flex()
                                                     .items_center()
-                                                    .gap_4()
+                                                    .gap_2()
+                                                    .child(Self::render_progress_bar(global_cpu_usage, cx))
+                                                    .child(
+                                                        div()
+                                                            .w(px(60.0))
+                                                            .text_sm()
+                                                            .text_right()
+                                                            .font_family("monospace")
+                                                            .child(format!("{:.1}%", global_cpu_usage)),
+                                                    ),
+                                            )
+                                            .child(
+                                                div()
+                                                    .flex()
+                                                    .justify_between()
+                                                    .items_center()
+                                                    .child(div().font_semibold().child("磁盘使用率"))
+                                                    .child(
+                                                        Button::new("disk_detail")
+                                                            .icon(Icon::new(IconName::ChevronRight))
+                                                            .tooltip("查看详情")
+                                                            .on_click(cx.listener(|this, _, window, cx| {
+                                                                this.open_disk_drawer(window, cx);
+                                                            })),
+                                                    ),
+                                            )
+                                            .child(
+                                                div()
+                                                    .flex()
+                                                    .items_center()
+                                                    .gap_2()
+                                                    .child(Self::render_progress_bar(disk_usage_percent, cx))
+                                                    .child(
+                                                        div()
+                                                            .w(px(60.0))
+                                                            .text_sm()
+                                                            .text_right()
+                                                            .font_family("monospace")
+                                                            .child(format!("{:.1}%", disk_usage_percent)),
+                                                    ),
+                                            ),
+                                    ),
+                            )
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .p_4()
+                                    .border_1()
+                                    .border_color(cx.theme().border)
+                                    .rounded_lg()
+                                    .child(
+                                        div()
+                                            .flex()
+                                            .flex_col()
+                                            .gap_3()
+                                            .child(div().font_semibold().child("物理内存"))
+                                            .child(
+                                                div()
+                                                    .flex()
+                                                    .items_center()
+                                                    .gap_2()
+                                                    .child(Self::render_progress_bar(memory_usage_percent, cx))
+                                                    .child(
+                                                        div()
+                                                            .w(px(100.0))
+                                                            .text_sm()
+                                                            .text_right()
+                                                            .font_family("monospace")
+                                                            .child(format!("{:.1}%", memory_usage_percent)),
+                                                    ),
+                                            )
+                                            .child(div().font_semibold().child("交换内存"))
+                                            .child(
+                                                div()
+                                                    .flex()
+                                                    .items_center()
+                                                    .gap_2()
+                                                    .child(Self::render_progress_bar(swap_usage_percent, cx))
+                                                    .child(
+                                                        div()
+                                                            .w(px(100.0))
+                                                            .text_sm()
+                                                            .text_right()
+                                                            .font_family("monospace")
+                                                            .child(format!("{:.1}%", swap_usage_percent)),
+                                                    ),
+                                            ),
+                                    ),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .p_4()
+                            .border_1()
+                            .border_color(cx.theme().border)
+                            .rounded_lg()
+                            .child(
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .gap_3()
+                                    .child(
+                                        div()
+                                            .flex()
+                                            .justify_between()
+                                            .items_center()
+                                            .child(div().font_semibold().child("进程列表"))
+                                            .child(
+                                                div()
+                                                    .flex()
+                                                    .gap_2()
+                                                    .child(Input::new(&self.input_state).w(px(200.0)))
+                                                    .child(
+                                                        Button::new("refresh")
+                                                            .icon(Icon::new(IconName::Asterisk))
+                                                            .tooltip("刷新")
+                                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                                this.refresh();
+                                                                cx.notify();
+                                                            })),
+                                                    ),
+                                            ),
+                                    )
+                                    .child(
+                                        div()
+                                            .flex()
+                                            .text_sm()
+                                            .font_semibold()
+                                            .py_2()
+                                            .border_b_1()
+                                            .border_color(cx.theme().border)
+                                            .child(div().w(px(300.0)).child("名称"))
+                                            .child(div().w(px(80.0)).child("PID"))
+                                            .child(div().w(px(120.0)).child("内存"))
+                                            .child(div().w(px(80.0)).child("CPU(%)"))
+                                            .child(div().w(px(80.0)).child("操作")),
+                                    )
+                                    .child(
+                                        div()
+                                            .max_h(px(400.0))
+                                            .overflow_y_scrollbar()
+                                            .children(filtered_processes.iter().map(|process| {
+                                                let pid = process.pid;
+                                                div()
+                                                    .flex()
+                                                    .text_sm()
                                                     .py_1()
                                                     .border_b_1()
                                                     .border_color(cx.theme().border)
                                                     .child(
                                                         div()
-                                                            .text_sm()
-                                                            .font_semibold()
-                                                            .w(px(100.0))
-                                                            .child(net.name.clone()),
+                                                            .w(px(300.0))
+                                                            .overflow_x_hidden()
+                                                            .child(process.name.clone()),
                                                     )
+                                                    .child(div().w(px(80.0)).child(format!("{}", pid)))
+                                                    .child(div().w(px(120.0)).child(Self::format_bytes(process.memory)))
+                                                    .child(div().w(px(80.0)).child(format!("{:.2}", process.cpu)))
                                                     .child(
-                                                        div()
-                                                            .flex()
-                                                            .items_center()
-                                                            .gap_2()
-                                                            .child(
-                                                                div()
-                                                                    .text_xs()
-                                                                    .text_color(cx.theme().muted_foreground)
-                                                                    .child("接收:"),
-                                                            )
-                                                            .child(
-                                                                div()
-                                                                    .text_sm()
-                                                                    .font_family("monospace")
-                                                                    .child(Self::format_bytes(net.received)),
-                                                            ),
+                                                        div().w(px(80.0)).child(
+                                                            Button::new(("kill", pid))
+                                                                .with_variant(ButtonVariant::Danger)
+                                                                .child("终止")
+                                                                .on_click(cx.listener(move |this, _, _, cx| {
+                                                                    this.kill_process(pid, cx);
+                                                                })),
+                                                        ),
                                                     )
-                                                    .child(
-                                                        div()
-                                                            .flex()
-                                                            .items_center()
-                                                            .gap_2()
-                                                            .child(
-                                                                div()
-                                                                    .text_xs()
-                                                                    .text_color(cx.theme().muted_foreground)
-                                                                    .child("发送:"),
-                                                            )
-                                                            .child(
-                                                                div()
-                                                                    .text_sm()
-                                                                    .font_family("monospace")
-                                                                    .child(Self::format_bytes(net.transmitted)),
-                                                            ),
-                                                    )
-                                            })
-                                            .collect::<Vec<_>>(),
+                                            })),
                                     ),
                             ),
                     ),

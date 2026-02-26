@@ -84,6 +84,17 @@ impl Base64Encoder {
         }
     }
 
+    fn paste_input(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(item) = cx.read_from_clipboard() {
+            if let Some(text) = item.text() {
+                self.input = text.to_string();
+                self.input_state.update(cx, |state, cx| {
+                    state.set_value(self.input.clone(), window, cx);
+                });
+            }
+        }
+    }
+
     fn copy_output(&mut self, cx: &mut Context<Self>) {
         if !self.output.is_empty() {
             cx.write_to_clipboard(ClipboardItem::new_string(self.output.clone()));
@@ -114,6 +125,16 @@ impl Render for Base64Encoder {
                                     .child(div().text_sm().child("输入"))
                                     .child(
                                         ButtonGroup::new("input-buttons")
+                                            .child(
+                                                Button::new("paste-input")
+                                                    .icon(Icon::new(IconName::File))
+                                                    .tooltip("粘贴")
+                                                    .on_click(cx.listener(
+                                                        |this, _, window, cx| {
+                                                            this.paste_input(window, cx);
+                                                        },
+                                                    )),
+                                            )
                                             .child(
                                                 Button::new("copy-input")
                                                     .icon(Icon::new(IconName::Copy))
@@ -176,6 +197,16 @@ impl Render for Base64Encoder {
                                     .child(div().text_sm().child("输出"))
                                     .child(
                                         ButtonGroup::new("output-buttons")
+                                         .child(
+                                                Button::new("paste-input")
+                                                    .icon(Icon::new(IconName::File))
+                                                    .tooltip("粘贴")
+                                                    .on_click(cx.listener(
+                                                        |this, _, window, cx| {
+                                                            this.paste_input(window, cx);
+                                                        },
+                                                    )),
+                                            )
                                             .child(
                                                 Button::new("copy-output")
                                                     .icon(Icon::new(IconName::Copy))
