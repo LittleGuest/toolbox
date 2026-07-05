@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { invoke } from "@tauri-apps/api/core";
 import { ref } from "vue";
 import { QuestionCircleOutlined } from "@vicons/antd";
@@ -59,6 +59,10 @@ const preview = async () => {
     rawDataMode: form.rawDataMode,
   });
 };
+defineExpose({
+  getConfig: () => ({ ...form }),
+  setConfig: (config = {}) => Object.assign(form, config),
+});
 </script>
 
 <template>

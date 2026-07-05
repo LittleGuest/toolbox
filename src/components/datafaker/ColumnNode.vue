@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { Handle, Position, useVueFlow } from "@vue-flow/core";
 
 const props = defineProps({
@@ -10,7 +10,7 @@ const props = defineProps({
 </script>
 
 <template>
-  <n-card>
+  <n-card class="column-node">
     <!-- 提示 -->
     <n-tooltip
       placement="right"
@@ -45,4 +45,16 @@ const props = defineProps({
   </n-card>
 </template>
 
-<style lang="scss" scoped></style>
+<style lang="scss" scoped>
+.column-node {
+  height: 48px;
+  box-sizing: border-box;
+
+  :deep(.n-card__content) {
+    height: 100%;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+  }
+}
+</style>

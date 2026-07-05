@@ -1,8 +1,8 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { NButton, NButtonGroup, useMessage } from "naive-ui";
-import { datasourceInfosApi, saveDatasourceInfoApi, updateDatasourceInfoApi, deleteDatasourceInfoApi } from '@/store/db.js';
+import { datasourceInfosApi, saveDatasourceInfoApi, updateDatasourceInfoApi, deleteDatasourceInfoApi } from '@/store/db';
 import DataGenerator from './DataGenerator.vue';
 import { useRoute, useRouter } from "vue-router";
 
@@ -116,8 +116,8 @@ const rules = {
 };
 const driverOptions = [
   {
-    label: "PostgreSql",
-    value: "postgresql"
+    label: "PostgreSQL",
+    value: "postgres"
   },
   {
     label: "MySQL",
@@ -140,7 +140,7 @@ const pingApi = async (info) => {
   await invoke("database_ping", { datasourceInfo: info }).then(res => {
     message.success("连接成功")
   }).catch(err => {
-    message.error("连接失败")
+    message.error(`连接失败: ${err}`)
   });
 };
 

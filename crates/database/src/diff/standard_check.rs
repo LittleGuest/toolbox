@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::LazyLock};
 
 use dashmap::{DashMap, DashSet};
-use database::{
+use database_core::{
     ColumnType,
     error::{Error, Result},
 };
@@ -256,28 +256,6 @@ macro_rules! standard_check {
             $($name = $code),*
         }
 
-        // FIXME: 怎样动态 format desc
-        //
-        // macro_rules! format_vec_items {
-        //     ($fmt:expr, $vec:expr) => {{
-        //         match $vec.len(){
-        //             0=> format!($fmt),
-        //             1=> format!($fmt,$vec[0]),
-        //             2=> format!($fmt,$vec[0],$vec[1]),
-        //             3=> format!($fmt,$vec[0],$vec[1], $vec[2]),
-        //             4=> format!($fmt,$vec[0],$vec[1], $vec[2], $vec[3]),
-        //             5=> format!($fmt,$vec[0],$vec[1], $vec[2], $vec[3], $vec[4]),
-        //             _=> format!("{} {}", $fmt, $vec.join(","))
-        //         }
-        //     }};
-        // }
-
-        // macro_rules! format_desc {
-        //     ($fmt:expr, $arg:expr) => {
-        //         format!($fmt, $arg);
-        //     };
-        // }
-
         impl StandardCheck {
             pub fn code(&self) -> i32 {
                 *self as i32
@@ -457,9 +435,9 @@ pub async fn standard_check(
         }
         // 表缺少必备三字段
         if check_codes.contains(&StandardCheck::TableMissField.code())
-            && cnames
+            && ["id", "created_at", "updated_at"]
                 .iter()
-                .any(|&n| !(n.eq("id") && n.eq("created_at") && n.eq("updated_at")))
+                .any(|required| !cnames.iter().any(|name| name.eq(required)))
         {
             add_to_map(&mut map, sname, StandardCheck::TableMissField, vec![]);
         }
@@ -636,46 +614,10 @@ async fn check_index(
     Ok(())
 }
 
-/// TODO: 单词拼写检查
 async fn check_spelling(
-    word: DashMap<String, DashSet<String>>,
-    map: &mut DashMap<String, Vec<Suggest>>,
+    _word: DashMap<String, DashSet<String>>,
+    _map: &mut DashMap<String, Vec<Suggest>>,
 ) -> Result<()> {
-    // let mut temp_map = HashMap::new();
-    // for (key, ws) in word.into_iter().filter(|(_, ws)| !ws.is_empty()) {
-    //     let mut symspell: SymSpell<AsciiStringStrategy> = SymSpell::default();
-    //     symspell.load_dictionary("./database/diff/word_checker", 0, 1, ",");
-    //     for w in ws.iter().filter(|w| !IGNORE_SPELLING_WORD.contains(w)) {
-    //         let suggests = SPELLING_MAP.get_mut(w.key());
-    //         let mut suggestions = vec![];
-    //
-    //         if suggests.is_none_or(|s| s.value().is_empty()) {
-    //             let w2 = REG_NUMBER.replace_all(w.key(), "");
-    //             suggestions = if w2.len() > 1 {
-    //                 let suggestions = symspell.lookup(&w2, Verbosity::Top, 2);
-    //                 suggestions
-    //                     .iter()
-    //                     .map(|s| s.term.clone())
-    //                     .collect::<Vec<_>>()
-    //             } else {
-    //                 vec![w.key().into()]
-    //             };
-    //         }
-    //         SPELLING_MAP.entry(w.key().into()).insert(suggestions);
-    //         let suggests = SPELLING_MAP.get(w.key());
-    //         if let Some(sgs) = suggests {
-    //             if !sgs.value().is_empty() {
-    //                 let args = vec![w.key().into()];
-    //                 let args = args
-    //                     .into_iter()
-    //                     .chain(sgs.value().clone())
-    //                     .collect::<Vec<_>>();
-    //                 add_to_map(map, &key, StandardCheck::NameErrorSpell, args);
-    //             }
-    //         }
-    //         // SPELLING_MAP.entry(w.key().into()).insert(sgs);
-    //     }
-    // }
     Ok(())
 }
 

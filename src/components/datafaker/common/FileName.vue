@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { invoke } from "@tauri-apps/api/core";
 import { ref } from "vue";
 import { useMessage } from "naive-ui";
@@ -78,6 +78,10 @@ const preview = async () => {
     fileExtension: form.fileExtension,
   });
 };
+defineExpose({
+  getConfig: () => ({ ...form }),
+  setConfig: (config = {}) => Object.assign(form, config),
+});
 </script>
 
 <template>

@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { Handle, Position, useVueFlow } from "@vue-flow/core";
 
 const props = defineProps({
@@ -10,19 +10,29 @@ const props = defineProps({
 </script>
 
 <template>
-  <n-card>
+  <n-card class="datafaker-node">
     <Handle :id="data.id" type="source" :position="Position.Left" />
-    {{ data.datafakerName }}
+    <span class="datafaker-node__name">{{ data.datafakerName }}</span>
     <!-- <span>{{ data.columnType }} - {{ data.datafaker }}</span> -->
   </n-card>
 </template>
 
 <style lang="scss" scoped>
-// .container {
-//   width: 100%;
-//   display: flex;
-//   justify-content: space-around;
-//   border: 1px solid #000;
-//   border-radius: 3px;
-// }
+.datafaker-node {
+  height: 48px;
+  box-sizing: border-box;
+
+  :deep(.n-card__content) {
+    height: 100%;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+  }
+
+  &__name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
 </style>

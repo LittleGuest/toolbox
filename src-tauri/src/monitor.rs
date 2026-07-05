@@ -39,3 +39,8 @@ pub fn monitor_battery_info() -> impl Serialize {
 pub fn monitor_kill_process(pid: u32) -> Result<(), String> {
     monitor::kill_process(pid)
 }
+
+#[tauri::command]
+pub fn kill_process(pid: u32) -> Result<(), String> {
+    monitor_kill_process(pid)
+}

@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { NButton, NButtonGroup, useMessage } from "naive-ui";
@@ -67,7 +67,6 @@ const onClose = () => {
 };
 
 onMounted(async () => {
-  console.log('props', props.checkCodes);
   checkReports.value = await databaseStandardCheckApi();
 });
 </script>

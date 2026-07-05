@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { MdEditor } from "md-editor-v3";
 import "md-editor-v3/lib/style.css";
@@ -8,7 +8,7 @@ import {
   saveCodeSnippetApi,
   fetchTagsApi,
   deleteCodeSnippetApi,
-} from "@/store/codeSnippet.js";
+} from "@/store/codeSnippet";
 import { Delete, Edit } from "@vicons/carbon";
 import { useMessage } from "naive-ui";
 
@@ -28,6 +28,7 @@ const selectedTags = ref([]);
 const snippets = ref([]);
 // 标签列表
 const tags = ref([]);
+const importInputRef = ref(null);
 
 // 当前片段
 const currentSnippet = ref({});
@@ -183,16 +184,87 @@ const deleteSnippet = async (id) => {
   await getTags();
 };
 
-// 导入功能
+const normalizeTags = (value) => {
+  if (Array.isArray(value)) {
+    return value.filter(Boolean).join(",");
+  }
+  return String(value || "")
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+    .join(",");
+};
+
 const importSnippets = () => {
   // 实现导入逻辑
-  alert("导入功能待实现");
+  importInputRef.value?.click();
+};
+
+const handleImportFile = async (event) => {
+  const input = event.target;
+  const file = input.files?.[0];
+  if (!file) {
+    return;
+  }
+
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    const list = Array.isArray(data) ? data : data.snippets;
+    if (!Array.isArray(list)) {
+      message.error("导入文件格式不正确");
+      return;
+    }
+
+    let count = 0;
+    for (const item of list) {
+      if (!item?.title || !item?.code) {
+        continue;
+      }
+      await saveCodeSnippetApi({
+        language: item.language || "",
+        title: item.title,
+        tags: normalizeTags(item.tags),
+        code: item.code,
+      });
+      count += 1;
+    }
+
+    await getCodeSnippets();
+    await getTags();
+    message.success(`导入完成，共导入 ${count} 条`);
+  } catch (error) {
+    message.error(`导入失败: ${error}`);
+  } finally {
+    input.value = "";
+  }
 };
 
 // 导出功能
 const exportSnippets = () => {
-  // 实现导出逻辑
-  alert("导出功能待实现");
+  const data = filteredSnippets.value.map((snippet) => ({
+    language: snippet.language || "",
+    title: snippet.title,
+    tags: snippet.tags || [],
+    code: snippet.code,
+  }));
+  if (data.length === 0) {
+    message.warning("没有可导出的代码片段");
+    return;
+  }
+
+  const blob = new Blob([JSON.stringify({ version: 1, snippets: data }, null, 2)], {
+    type: "application/json;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `code-snippets-${Date.now()}.json`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  message.success(`已导出 ${data.length} 条代码片段`);
 };
 
 onMounted(() => {
@@ -210,6 +282,8 @@ onMounted(() => {
       <n-button @click="exportSnippets">导出</n-button>
       <n-input v-model:value="search" placeholder="搜索片段..." />
       <n-button>搜索</n-button>
+      <input ref="importInputRef" type="file" accept="application/json,.json" style="display: none"
+        @change="handleImportFile" />
     </div>
 
     <!-- 主内容区域 -->

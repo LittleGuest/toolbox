@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { NButton, NButtonGroup, useMessage } from "naive-ui";
@@ -7,7 +7,7 @@ import {
   saveDatasourceInfoApi,
   updateDatasourceInfoApi,
   deleteDatasourceInfoApi,
-} from "@/store/db.js";
+} from "@/store/db";
 import DatabaseDiffReport from "./DatabaseDiffReport.vue";
 import { QuestionCircleOutlined } from "@vicons/antd";
 import DatabaseDiffSql from "./DatabaseDiffSql.vue";
@@ -18,23 +18,28 @@ const message = useMessage();
 
 const connects = ref([]);
 
-onMounted(async () => {
+const datasourceSelectLabel = (datasource) => {
+  const database = datasource.database ? `${datasource.database} / ` : "";
+  const host = datasource.host ? `（${datasource.host}${datasource.port ? `:${datasource.port}` : ""}）` : "";
+  return `${database}${datasource.name || "未命名数据源"}${host}`;
+};
+
+const refreshDatasourceOptions = () => {
+  const options = connects.value.map((datasource) => ({
+    label: datasourceSelectLabel(datasource),
+    value: datasource.id,
+  }));
+  sourceTables.value = options;
+  targetTables.value = options;
+};
+
+const loadDatasourceInfos = async () => {
   connects.value = await datasourceInfosApi();
+  refreshDatasourceOptions();
+};
 
-  sourceTables.value = connects.value.map((c) => {
-    return {
-      label: c.database + "#" + c.name,
-      value: c.database + "#" + c.name,
-    };
-  });
-
-  targetTables.value = connects.value.map((c) => {
-    return {
-      label: c.database + "#" + c.name,
-      value: c.database + "#" + c.name,
-    };
-  });
-
+onMounted(async () => {
+  await loadDatasourceInfos();
   standardCheckCodeList.value = await databaseStandardCheckApi();
 });
 
@@ -88,7 +93,7 @@ const columns = [
             onClick: async () => {
               await deleteDatasourceInfoApi(row.id);
               message.success("删除成功");
-              connects.value = await datasourceInfosApi();
+              await loadDatasourceInfos();
             },
           },
           { default: () => "删除" },
@@ -141,8 +146,8 @@ const rules = {
 };
 const driverOptions = [
   {
-    label: "PostgreSql",
-    value: "postgresql",
+    label: "PostgreSQL",
+    value: "postgres",
   },
   {
     label: "MySQL",
@@ -166,7 +171,7 @@ const pingApi = async (info) => {
       message.success("连接成功");
     })
     .catch((err) => {
-      message.error("连接失败");
+      message.error(`连接失败: ${err}`);
     });
 };
 
@@ -196,7 +201,7 @@ const saveConnect = (e) => {
       }
       addDrawer.value = false;
       showAddaDrawer.value = false;
-      connects.value = await datasourceInfosApi();
+      await loadDatasourceInfos();
     }
   });
 };
@@ -225,11 +230,15 @@ const generateReport = () => {
     return;
   }
   sourceDatasourceInfo.value = connects.value.find(
-    (info) => info.database + "#" + info.name === reportSourceTable.value,
+    (info) => info.id === reportSourceTable.value,
   );
   targetDatasourceInfo.value = connects.value.find(
-    (info) => info.database + "#" + info.name === reportTargetTable.value,
+    (info) => info.id === reportTargetTable.value,
   );
+  if (!sourceDatasourceInfo.value || !targetDatasourceInfo.value) {
+    message.error("选择的数据源不存在，请刷新后重试");
+    return;
+  }
   showDiffReportDrawer.value = true;
 };
 
@@ -238,6 +247,7 @@ const closeDrawer = () => {
   showDiffSqlDrawer.value = false;
   showStandardCheckDrawer.value = false;
   showCustomCheckDrawer.value = false;
+  showGeneratorCodeDrawer.value = false;
 };
 
 const generateSql = (type) => {
@@ -246,11 +256,15 @@ const generateSql = (type) => {
     return;
   }
   sourceDatasourceInfo.value = connects.value.find(
-    (info) => info.database + "#" + info.name === sqlSourceTable.value,
+    (info) => info.id === sqlSourceTable.value,
   );
   targetDatasourceInfo.value = connects.value.find(
-    (info) => info.database + "#" + info.name === sqlTargetTable.value,
+    (info) => info.id === sqlTargetTable.value,
   );
+  if (!sourceDatasourceInfo.value || !targetDatasourceInfo.value) {
+    message.error("选择的数据源不存在，请刷新后重试");
+    return;
+  }
   showDiffSqlDrawer.value = true;
 };
 
@@ -260,8 +274,12 @@ const generateCheck = (custom) => {
     return;
   }
   sourceDatasourceInfo.value = connects.value.find(
-    (info) => info.database + "#" + info.name === standardCheckTable.value,
+    (info) => info.id === standardCheckTable.value,
   );
+  if (!sourceDatasourceInfo.value) {
+    message.error("选择的数据源不存在，请刷新后重试");
+    return;
+  }
   if (custom) {
     standardCheckCodes.value = customStandardChecked.value;
   } else {
@@ -281,8 +299,12 @@ const showCheck = () => {
     return;
   }
   sourceDatasourceInfo.value = connects.value.find(
-    (info) => info.database + "#" + info.name === standardCheckTable.value,
+    (info) => info.id === standardCheckTable.value,
   );
+  if (!sourceDatasourceInfo.value) {
+    message.error("选择的数据源不存在，请刷新后重试");
+    return;
+  }
   showCustomCheckDrawer.value = true;
 };
 </script>
@@ -300,11 +322,11 @@ const showCheck = () => {
         对比两个数据库之间的差异变化，用于评审检查数据库的变动
       </n-tooltip>
     </n-form-item>
-    <n-form-item label="基准表">
-      <n-select placeholder="请选择基准表" v-model:value="reportSourceTable" :options="sourceTables" />
+    <n-form-item label="基准库">
+      <n-select placeholder="请选择基准库" v-model:value="reportSourceTable" :options="sourceTables" />
     </n-form-item>
-    <n-form-item label="变动表">
-      <n-select placeholder="请选择目标表" v-model:value="reportTargetTable" :options="targetTables" />
+    <n-form-item label="变动库">
+      <n-select placeholder="请选择变动库" v-model:value="reportTargetTable" :options="targetTables" />
     </n-form-item>
     <n-form-item>
       <n-button @click="generateReport">生成</n-button>
@@ -323,11 +345,11 @@ const showCheck = () => {
         （注意：sql语句仅供参考，执行前应当检查一下sql，出现数据丢失一概不负责）
       </n-tooltip>
     </n-form-item>
-    <n-form-item label="基准表">
-      <n-select placeholder="请选择基准表" v-model:value="sqlSourceTable" :options="sourceTables" />
+    <n-form-item label="基准库">
+      <n-select placeholder="请选择基准库" v-model:value="sqlSourceTable" :options="sourceTables" />
     </n-form-item>
-    <n-form-item label="变动表">
-      <n-select placeholder="请选择目标表" v-model:value="sqlTargetTable" :options="targetTables" />
+    <n-form-item label="变动库">
+      <n-select placeholder="请选择变动库" v-model:value="sqlTargetTable" :options="targetTables" />
     </n-form-item>
     <n-form-item>
       <n-button @click="generateSql('struct')">结构差异</n-button>
@@ -346,8 +368,8 @@ const showCheck = () => {
         对基准库的数据库设计进行规范检查
       </n-tooltip>
     </n-form-item>
-    <n-form-item label="基准表">
-      <n-select placeholder="请选择基准表" v-model:value="standardCheckTable" :options="sourceTables" />
+    <n-form-item label="基准库">
+      <n-select placeholder="请选择基准库" v-model:value="standardCheckTable" :options="sourceTables" />
     </n-form-item>
     <n-form-item>
       <n-button @click="generateCheck(false)">检查</n-button>
@@ -433,7 +455,7 @@ const showCheck = () => {
     :showDrawer="showDiffSqlDrawer" @closeDrawer="closeDrawer" />
   <DatabaseStandardCheck v-if="showStandardCheckDrawer" :source="sourceDatasourceInfo" :checkCodes="standardCheckCodes"
     :showDrawer="showStandardCheckDrawer" @closeDrawer="closeDrawer" />
-  <DatabaseGeneratorCode v-if="showGeneratorCodeDrawer" :datasource="connects" :showDrawer="showStandardCheckDrawer"
+  <DatabaseGeneratorCode v-if="showGeneratorCodeDrawer" :datasource="connects" :showDrawer="showGeneratorCodeDrawer"
     @closeDrawer="closeDrawer" />
 </template>
 

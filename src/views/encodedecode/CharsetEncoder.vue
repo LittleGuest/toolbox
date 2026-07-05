@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";

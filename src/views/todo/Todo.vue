@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { Delete, Edit, ChevronDown, ChevronRight, Add } from "@vicons/carbon";
 import { useMessage } from "naive-ui";

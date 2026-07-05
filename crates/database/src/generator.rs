@@ -5,7 +5,7 @@ use std::{
     path::Path,
 };
 
-use database::{
+use database_core::{
     Column, Driver, Table, database_metadata,
     error::{Error, Result},
 };
@@ -175,7 +175,6 @@ impl Generator {
             tables.into_iter().map(|t| (t.name.to_owned(), t)).collect();
 
         // 组装表信息和表列信息，K：表名，V：表列信息
-        // FIXME：有没有办法直接将Vec分组，类似Java的Collectors.groupby
         let table_column_map =
             table_map
                 .keys()
@@ -352,7 +351,16 @@ impl Generator {
                 }
             }
             Language::Java => {
-                todo!()
+                for (key, value) in data {
+                    for (file_name, code) in value {
+                        Self::write_file(
+                            &format!("{path}{key}/{file_name}"),
+                            &code,
+                            self.r#override,
+                        )
+                        .await?;
+                    }
+                }
             }
         }
         Ok(())

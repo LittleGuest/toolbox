@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { NButton, NButtonGroup, useMessage } from "naive-ui";

@@ -5,7 +5,7 @@ edition.workspace = true
 authors.workspace = true
 
 [dependencies]
-database = { workspace = true }
+database-core = { workspace = true }
 sqlx = { workspace = true }
 serde = { workspace = true }
 heck = { workspace = true }
@@ -16,3 +16,4 @@ Inflector = { workspace = true }
 rust-embed={ workspace = true }
 tokio={ workspace = true }
 serde_json = { workspace = true }
+urlencoding = { workspace = true }

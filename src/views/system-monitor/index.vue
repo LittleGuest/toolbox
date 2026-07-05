@@ -1,10 +1,7 @@
-<script setup>
-import { ref, reactive, computed, onMounted, onUnmounted, inject, h } from 'vue';
+<script setup lang="ts">
+import { ref, computed, onUnmounted, h } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
-import { NProgress, NCard, NDataTable, NInput, NButton, NPopconfirm, useMessage, NDrawer, NDrawerContent } from 'naive-ui';
-
-// 注入主题设置
-const theme = inject('theme');
+import { NProgress, NCard, NDataTable, NInput, NButton, NPopconfirm, NSwitch, useMessage, NDrawer, NDrawerContent } from 'naive-ui';
 
 // 消息提示
 const message = useMessage();
@@ -43,6 +40,7 @@ const networkData = ref({
 
 const processes = ref([]);
 const searchValue = ref('');
+const monitoringEnabled = ref(false);
 
 const diskDrawerVisible = ref(false);
 const diskDetails = ref([]);
@@ -104,8 +102,81 @@ let cpuMemoryTimer = null;
 let diskTimer = null;
 let processTimer = null;
 
+const resetMonitorData = () => {
+  cpuData.value = {
+    usage: 0,
+    temperature: 0
+  };
+  gpuData.value = {
+    usage: 0,
+    temperature: 0,
+    memory: 0
+  };
+  memoryData.value = {
+    usage: 0,
+    total: 0,
+    used: 0,
+    swapUsage: 0,
+    swapTotal: 0,
+    swapUsed: 0
+  };
+  diskData.value = {
+    usage: 0,
+    total: 0,
+    used: 0
+  };
+  networkData.value = {
+    upload: 0,
+    download: 0
+  };
+  processes.value = [];
+  diskDetails.value = [];
+  cpuDetails.value = {};
+  searchValue.value = '';
+}
+
+const stopMonitoring = () => {
+  if (cpuMemoryTimer) {
+    clearInterval(cpuMemoryTimer);
+    cpuMemoryTimer = null;
+  }
+  if (diskTimer) {
+    clearInterval(diskTimer);
+    diskTimer = null;
+  }
+  if (processTimer) {
+    clearInterval(processTimer);
+    processTimer = null;
+  }
+  diskDrawerVisible.value = false;
+  cpuDrawerVisible.value = false;
+  resetMonitorData();
+}
+
+const startMonitoring = () => {
+  fetchCpuMemoryData();
+  fetchDiskData();
+  fetchProcessData();
+
+  cpuMemoryTimer = setInterval(fetchCpuMemoryData, 2000);
+  diskTimer = setInterval(fetchDiskData, 30000);
+  processTimer = setInterval(fetchProcessData, 10000);
+}
+
+const handleMonitoringChange = (enabled) => {
+  monitoringEnabled.value = enabled;
+  if (enabled) {
+    startMonitoring();
+  } else {
+    stopMonitoring();
+  }
+}
+
 // 获取CPU和内存信息
 const fetchCpuMemoryData = async () => {
+  if (!monitoringEnabled.value) {
+    return;
+  }
   try {
     // 获取CPU信息
     const cpuInfo = await invoke('monitor_cpu_info');
@@ -139,6 +210,10 @@ const fetchCpuMemoryData = async () => {
       memoryData.value.swapUsed = memoryInfo.used_swap;
     }
 
+    if (!monitoringEnabled.value) {
+      return;
+    }
+
     // 注意：GPU、磁盘读写和网络数据在当前后端实现中可能不可用
     // 这里使用模拟数据
     gpuData.value.usage = Math.random() * 100;
@@ -155,8 +230,14 @@ const fetchCpuMemoryData = async () => {
 
 // 获取磁盘信息
 const fetchDiskData = async () => {
+  if (!monitoringEnabled.value) {
+    return;
+  }
   try {
     const diskInfo = await invoke('monitor_disk_info');
+    if (!monitoringEnabled.value) {
+      return;
+    }
     if (diskInfo && diskInfo.length > 0) {
       let totalSpace = 0;
       let totalUsedSpace = 0;
@@ -187,8 +268,14 @@ const openCpuDrawer = () => {
 
 // 获取进程信息
 const fetchProcessData = async () => {
+  if (!monitoringEnabled.value) {
+    return;
+  }
   try {
     const processInfo = await invoke('monitor_process_info');
+    if (!monitoringEnabled.value) {
+      return;
+    }
     processes.value = processInfo;
   } catch (error) {
     console.error('获取进程数据失败:', error);
@@ -224,89 +311,80 @@ const killProcess = async (pid) => {
     await invoke('kill_process', { pid: parseInt(pid) });
     message.success(`进程 ${pid} 已终止`);
     // 刷新进程列表
-    const processInfo = await invoke('monitor_process_info');
-    processes.value = processInfo;
+    if (monitoringEnabled.value) {
+      const processInfo = await invoke('monitor_process_info');
+      processes.value = processInfo;
+    }
   } catch (error) {
     message.error(`终止进程失败: ${error}`);
   }
 }
 
-// 组件挂载时开始定时获取数据
-onMounted(() => {
-  // 立即获取一次数据
-  fetchCpuMemoryData();
-  fetchDiskData();
-  fetchProcessData();
-
-  // 设置定时器，分别以不同频率更新数据
-  cpuMemoryTimer = setInterval(fetchCpuMemoryData, 2000);
-  diskTimer = setInterval(fetchDiskData, 30000);
-  processTimer = setInterval(fetchProcessData, 10000);
-});
-
 // 组件卸载时清除定时器
 onUnmounted(() => {
-  if (cpuMemoryTimer) {
-    clearInterval(cpuMemoryTimer);
-  }
-  if (diskTimer) {
-    clearInterval(diskTimer);
-  }
-  if (processTimer) {
-    clearInterval(processTimer);
-  }
+  stopMonitoring();
 });
 </script>
 
 <template>
   <div class="system-monitor-container">
-    <!-- CPU和内存监控 - 同一行 -->
-    <div class="monitor-row">
-      <!-- CPU监控 -->
-      <n-card class="monitor-card" :bordered="true">
-        <div class="item-content">
-          <div class="metric" style="cursor: pointer;" @click="openCpuDrawer">
-            <span class="metric-label">CPU使用率</span>
-            <span class="metric-value">{{ formatNumber(cpuData.usage) }}%</span>
-          </div>
-          <n-progress type="line" :percentage="cpuData.usage" :color="'#4caf50'" :show-indicator="false" clickable
-            @click="openCpuDrawer" :height="12" />
-          <div class="metric" style="cursor: pointer;" @click="openDiskDrawer">
-            <span class="metric-label">磁盘使用率</span>
-            <span class="metric-value">{{ formatNumber(diskData.usage) }}%</span>
-          </div>
-          <n-progress type="line" :percentage="diskData.usage" :color="'#9c27b0'" :show-indicator="false" clickable
-            @click="openDiskDrawer" :height="12" />
-        </div>
-      </n-card>
-
-      <!-- 内存监控 -->
-      <n-card class="monitor-card" :bordered="true">
-        <div class="item-content">
-          <div class="metric">
-            <span class="metric-label">物理内存</span>
-            <span class="metric-value">{{ formatNumber(memoryData.usage) }}%</span>
-          </div>
-          <n-progress type="line" :percentage="memoryData.usage" :color="'#2196f3'" :show-indicator="false" />
-          <div class="metric">
-            <span class="metric-label">交换内存</span>
-            <span class="metric-value">{{ formatNumber(memoryData.swapUsage) }}%</span>
-          </div>
-          <n-progress type="line" :percentage="memoryData.swapUsage" :color="'#ff9800'" :show-indicator="false" />
-        </div>
-      </n-card>
+    <div v-if="!monitoringEnabled" class="monitor-switch-empty">
+      <div class="monitor-switch-panel">
+        <n-switch :value="monitoringEnabled" size="large" @update:value="handleMonitoringChange" />
+        <div class="monitor-switch-title">系统监控已关闭</div>
+        <div class="monitor-switch-desc">打开开关后开始采集 CPU、内存、磁盘和进程信息</div>
+      </div>
     </div>
 
-    <!-- 进程列表 -->
-    <n-card class="monitor-card process-list-card" :bordered="true">
-      <template #header>
-        <div class="item-header" style="display: flex; justify-content: end; align-items: center;">
-          <n-input v-model:value="searchValue" placeholder="搜索进程名称" clearable style="width: 200px;" />
-        </div>
-      </template>
-      <n-data-table :columns="processColumns" :data="filteredProcesses" :pagination="{ pageSize: 20 }" :bordered="false"
-        size="small" :row-key="(row) => row.pid" max-height="calc(100vh - 420px)" />
-    </n-card>
+    <template v-else>
+      <!-- CPU和内存监控 - 同一行 -->
+      <div class="monitor-row">
+        <!-- CPU监控 -->
+        <n-card class="monitor-card" :bordered="true">
+          <div class="item-content">
+            <div class="metric" style="cursor: pointer;" @click="openCpuDrawer">
+              <span class="metric-label">CPU使用率</span>
+              <span class="metric-value">{{ formatNumber(cpuData.usage) }}%</span>
+            </div>
+            <n-progress type="line" :percentage="cpuData.usage" :color="'#4caf50'" :show-indicator="false" clickable
+              @click="openCpuDrawer" :height="12" />
+            <div class="metric" style="cursor: pointer;" @click="openDiskDrawer">
+              <span class="metric-label">磁盘使用率</span>
+              <span class="metric-value">{{ formatNumber(diskData.usage) }}%</span>
+            </div>
+            <n-progress type="line" :percentage="diskData.usage" :color="'#9c27b0'" :show-indicator="false" clickable
+              @click="openDiskDrawer" :height="12" />
+          </div>
+        </n-card>
+
+        <!-- 内存监控 -->
+        <n-card class="monitor-card" :bordered="true">
+          <div class="item-content">
+            <div class="metric">
+              <span class="metric-label">物理内存</span>
+              <span class="metric-value">{{ formatNumber(memoryData.usage) }}%</span>
+            </div>
+            <n-progress type="line" :percentage="memoryData.usage" :color="'#2196f3'" :show-indicator="false" />
+            <div class="metric">
+              <span class="metric-label">交换内存</span>
+              <span class="metric-value">{{ formatNumber(memoryData.swapUsage) }}%</span>
+            </div>
+            <n-progress type="line" :percentage="memoryData.swapUsage" :color="'#ff9800'" :show-indicator="false" />
+          </div>
+        </n-card>
+      </div>
+
+      <!-- 进程列表 -->
+      <n-card class="monitor-card process-list-card" :bordered="true">
+        <template #header>
+          <div class="item-header" style="display: flex; justify-content: end; align-items: center;">
+            <n-input v-model:value="searchValue" placeholder="搜索进程名称" clearable style="width: 200px;" />
+          </div>
+        </template>
+        <n-data-table :columns="processColumns" :data="filteredProcesses" :pagination="{ pageSize: 20 }" :bordered="false"
+          size="small" :row-key="(row) => row.pid" max-height="calc(100vh - 420px)" />
+      </n-card>
+    </template>
 
     <!-- 磁盘监控 -->
     <!-- <div class="monitor-item">
@@ -443,6 +521,50 @@ onUnmounted(() => {
   .monitor-card {
     margin-bottom: 20px;
     border-radius: 12px;
+  }
+
+  .monitor-switch-empty {
+    flex: 1;
+    min-height: calc(100vh - 160px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .monitor-switch-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 32px 40px;
+    border: 1px solid var(--n-border-color);
+    border-radius: 16px;
+    background: var(--n-color);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  }
+
+  .monitor-switch-title {
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .monitor-switch-desc {
+    font-size: 13px;
+    color: var(--n-secondary-text-color);
+  }
+
+  .monitor-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    flex-shrink: 0;
+  }
+
+  .monitor-toolbar-label {
+    font-size: 13px;
+    color: var(--n-secondary-text-color);
   }
 
   .process-list-card {

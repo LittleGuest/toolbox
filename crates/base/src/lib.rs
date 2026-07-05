@@ -126,6 +126,10 @@ pub fn decode_url(data: &str) -> Result<String> {
     url::decode(data)
 }
 
+pub fn decode_jwt(data: &str) -> Result<String> {
+    jwt::decode(data)
+}
+
 pub fn cffc(indent: u8, ft: &str, tt: &str, input: &str) -> Result<String> {
     cffc::Data::new(cffc::Ft::from(ft), cffc::Ft::from(tt), input, indent).transform()
 }
@@ -291,10 +295,21 @@ pub fn ip_to_number(t: &str, ip: Option<String>) -> Result<HashMap<String, Strin
         }
         "v6" => {
             if Ipv6Addr::from_str(&ip).is_ok() {
-                map.insert("binary".to_string(), ip::ipv6_to_num(&ip)?.to_string());
-                map.insert("octal".to_string(), ip::ipv6_to_num(&ip)?.to_string());
-                map.insert("decimal".to_string(), ip::ipv6_to_num(&ip)?.to_string());
-                map.insert("hex".to_string(), ip::ipv6_to_num(&ip)?.to_string());
+                let decimal = ip::ipv6_to_num(&ip)?.to_string();
+                let bn = number_base(Some(Base::Decimal), decimal.to_string())?;
+                map.insert(
+                    "binary".to_string(),
+                    bn.get("binary").unwrap_or(&String::new()).to_owned(),
+                );
+                map.insert(
+                    "octal".to_string(),
+                    bn.get("octal").unwrap_or(&String::new()).to_owned(),
+                );
+                map.insert("decimal".to_string(), decimal);
+                map.insert(
+                    "hex".to_string(),
+                    bn.get("hex").unwrap_or(&String::new()).to_owned(),
+                );
             }
         }
         _ => {}

@@ -1,7 +1,14 @@
-use crate::{Error, Result};
+use crate::Result;
 
-pub fn sentence_case(_data: &str) -> Result<String> {
-    todo!()
+pub fn sentence_case(data: &str) -> Result<String> {
+    let mut chars = data.trim().chars();
+    let Some(first) = chars.next() else {
+        return Ok(String::new());
+    };
+    Ok(first
+        .to_uppercase()
+        .chain(chars.flat_map(char::to_lowercase))
+        .collect())
 }
 
 // /// lower case
@@ -35,8 +42,8 @@ pub fn snake_case(data: &str) -> Result<String> {
 }
 
 /// CONSTANT_CASE
-pub fn constant_case(_data: &str) -> Result<String> {
-    todo!()
+pub fn constant_case(data: &str) -> Result<String> {
+    Ok(format!("{}", heck::AsShoutySnakeCase(data)))
 }
 
 /// kebab-case
@@ -45,8 +52,8 @@ pub fn kebab_case(data: &str) -> Result<String> {
 }
 
 /// COBOL-CASE
-pub fn cobol_case(_data: &str) -> Result<String> {
-    Ok(todo!())
+pub fn cobol_case(data: &str) -> Result<String> {
+    Ok(format!("{}", heck::AsShoutyKebabCase(data)))
 }
 
 /// Train-Case
@@ -55,13 +62,39 @@ pub fn train_case(data: &str) -> Result<String> {
 }
 
 /// aLtErNaTiNg cAsE
-pub fn alternating_case(_data: &str) -> Result<String> {
-    todo!()
+pub fn alternating_case(data: &str) -> Result<String> {
+    let mut uppercase = false;
+    Ok(data
+        .chars()
+        .map(|c| {
+            if c.is_alphabetic() {
+                uppercase = !uppercase;
+                if uppercase {
+                    c.to_uppercase().collect::<String>()
+                } else {
+                    c.to_lowercase().collect::<String>()
+                }
+            } else {
+                c.to_string()
+            }
+        })
+        .collect())
 }
 
 /// InVeRsE CaSe
-pub fn inverse_case(_data: &str) -> Result<String> {
-    todo!()
+pub fn inverse_case(data: &str) -> Result<String> {
+    Ok(data
+        .chars()
+        .flat_map(|c| {
+            if c.is_lowercase() {
+                c.to_uppercase().collect::<Vec<_>>()
+            } else if c.is_uppercase() {
+                c.to_lowercase().collect::<Vec<_>>()
+            } else {
+                vec![c]
+            }
+        })
+        .collect())
 }
 
 #[cfg(test)]

@@ -21,10 +21,6 @@ pub fn uuid_v5(namespace: &str, name: &str) -> Result<String> {
 }
 
 pub fn uuid_v6() -> Result<String> {
-    // FIXME: slice_as_array unstable
-    // fastrand::choose_multiple(0..u8::MAX, 6)
-    //     .as_array::<16>()
-    //     .unwrap();
     Ok(Uuid::now_v6(&[
         fastrand::u8(..),
         fastrand::u8(..),
@@ -41,10 +37,6 @@ pub fn uuid_v7() -> Result<String> {
 }
 
 pub fn uuid_v8() -> Result<String> {
-    // FIXME: slice_as_array unstable
-    // fastrand::choose_multiple(0..u8::MAX, 16)
-    //     .as_array::<16>()
-    //     .unwrap();
     Ok(Uuid::new_v8([
         fastrand::u8(..),
         fastrand::u8(..),

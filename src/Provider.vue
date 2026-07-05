@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, provide } from "vue";
 import App from "./App.vue";
 import { NConfigProvider, darkTheme } from "naive-ui";

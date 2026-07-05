@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { invoke } from "@tauri-apps/api/core";
 import { ref, reactive } from "vue";
 import { useMessage } from "naive-ui";
@@ -10,6 +10,7 @@ const message = useMessage();
 const defaultValue = {
   minLength: 100, // 最小字符数
   maxLength: 10000, // 最大字符数
+  locale: "zh_cn", // 语言
 
   includeDefault: false, // 包含默认值
   defaultValue: "", // 默认值
@@ -28,6 +29,7 @@ const form = reactive({
 const reset = () => {
   form.minLength = defaultValue.minLength;
   form.maxLength = defaultValue.maxLength;
+  form.locale = defaultValue.locale;
   form.includeDefault = defaultValue.includeDefault;
   form.defaultValue = defaultValue.defaultValue;
   form.defaultPercentage = defaultValue.defaultPercentage;
@@ -55,8 +57,20 @@ const preview = async () => {
   previewValue.value = await previewApi({
     minLength: form.minLength,
     maxLength: form.maxLength,
+    locale: form.locale,
   });
 };
+
+const localeOptions = [
+  { label: "简体中文", value: "zh_cn" },
+  { label: "繁体中文", value: "zh_traditional" },
+  { label: "中文拼音", value: "zh_pinyin" },
+  { label: "English", value: "en_us" },
+];
+defineExpose({
+  getConfig: () => ({ ...form }),
+  setConfig: (config = {}) => Object.assign(form, config),
+});
 </script>
 
 <template>
@@ -78,6 +92,14 @@ const preview = async () => {
           placeholder="最大值"
         />
       </div>
+    </n-form-item>
+
+    <n-form-item label="语言">
+      <n-select
+        v-model:value="form.locale"
+        :options="localeOptions"
+        placeholder="选择语言"
+      />
     </n-form-item>
 
     <!-- 预览 -->

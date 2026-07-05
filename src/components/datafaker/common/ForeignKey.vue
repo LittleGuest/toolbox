@@ -1,21 +1,19 @@
-<script setup>
-import { invoke } from "@tauri-apps/api/core";
-import { ref, reactive } from "vue";
-import { useMessage } from "naive-ui";
+<script setup lang="ts">
+import { reactive } from "vue";
 
-// 消息提示
-const message = useMessage();
+const props = defineProps({
+  referenceOptions: {
+    type: Array,
+    default: () => [],
+  },
+});
 
 // 生成器默认值
 const defaultValue = {
-  // 库选择
-  database: null,
-  // 模式
-  schema: null,
-  // 表选择
-  table: null,
-  // 字段选择
-  column: null,
+  referenceKey: null,
+  referenceSchema: null,
+  referenceTable: null,
+  referenceColumn: null,
   // 生成模式（random/unique/repeat）
   generateMode: "random",
   // 重复范围
@@ -38,10 +36,10 @@ const form = reactive({
 
 // 重置属性
 const reset = () => {
-  form.database = defaultValue.database;
-  form.schema = defaultValue.schema;
-  form.table = defaultValue.table;
-  form.column = defaultValue.column;
+  form.referenceKey = defaultValue.referenceKey;
+  form.referenceSchema = defaultValue.referenceSchema;
+  form.referenceTable = defaultValue.referenceTable;
+  form.referenceColumn = defaultValue.referenceColumn;
   form.generateMode = defaultValue.generateMode;
   form.repeatFrom = defaultValue.repeatFrom;
   form.repeatTo = defaultValue.repeatTo;
@@ -52,87 +50,40 @@ const reset = () => {
   form.nullPercentage = defaultValue.nullPercentage;
   form.unique = defaultValue.unique;
   form.forbiddenLinks = defaultValue.forbiddenLinks;
-  previewValue.value = "";
 };
 
-// 库
-const databases = ref([]);
-// 模式
-const schemas = ref([]);
-// 表
-const tables = ref([]);
-// 字段
-const columns = ref([]);
-
-// 获取库列表
-const getDatabases = async () => {
-  databases.value = await invoke("database_databases");
-};
-// 获取模式列表
-const getSchemas = async () => {
-  schemas.value = await invoke("database_schemas", { database: form.database });
-};
-// 获取表列表
-const getTables = async () => {
-  tables.value = await invoke("database_tables", {
-    database: form.database,
-    schema: form.schema,
-  });
-};
-// 获取字段列表
-const getColumns = async () => {
-  columns.value = await invoke("database_columns", {
-    database: form.database,
-    schema: form.schema,
-    table: form.table,
-  });
+const syncReference = () => {
+  const option = props.referenceOptions.find(
+    (item) => item.value === form.referenceKey
+  );
+  form.referenceSchema = option?.schema || null;
+  form.referenceTable = option?.tableName || null;
+  form.referenceColumn = option?.column || null;
 };
 
-onMounted(() => {
-  getDatabases();
+defineExpose({
+  getConfig: () => {
+    syncReference();
+    return { ...form };
+  },
+  setConfig: (config = {}) => {
+    Object.assign(form, config);
+    if (!form.referenceKey && form.referenceSchema && form.referenceTable && form.referenceColumn) {
+      form.referenceKey = `${form.referenceSchema}#${form.referenceTable}#${form.referenceColumn}`;
+    }
+    syncReference();
+  },
 });
 </script>
 
 <template>
   <n-form :model="form" label-placement="left" label-width="180">
-    <!-- 库选择 -->
-    <n-form-item path="database" label="库">
+    <n-form-item path="referenceKey" label="引用字段">
       <n-select
-        placeholder="选择库"
-        v-model:value="form.database"
-        :options="databases"
-        clearable
-        filterable
-      />
-    </n-form-item>
-    <!-- 模式选择 -->
-    <n-form-item path="schema" label="模式">
-      <n-select
-        placeholder="选择模式"
-        v-model:value="form.schema"
-        :options="schemas"
-        clearable
-        filterable
-      />
-    </n-form-item>
-
-    <!-- 表选择 -->
-    <n-form-item path="table" label="表">
-      <n-select
-        placeholder="选择表"
-        v-model:value="form.table"
-        :options="tables"
-        clearable
-        filterable
-      />
-    </n-form-item>
-
-    <!-- 字段选择 -->
-    <n-form-item path="column" label="字段">
-      <n-select
-        placeholder="选择字段"
-        v-model:value="form.column"
-        :options="columns"
+        placeholder="选择画布中已配置的字段"
+        v-model:value="form.referenceKey"
+        :options="referenceOptions"
+        @update:value="syncReference"
         clearable
         filterable
       />

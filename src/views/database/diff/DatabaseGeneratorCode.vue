@@ -1,9 +1,8 @@
-<script setup>
-import { ref, onMounted } from "vue";
+<script setup lang="ts">
+import { computed, ref, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { NButton, NButtonGroup, useMessage } from "naive-ui";
-import { Download } from "@vicons/carbon";
-import html2canvas from "html2canvas";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+import { useMessage } from "naive-ui";
 
 const message = useMessage();
 
@@ -13,241 +12,306 @@ const props = defineProps({
     required: true,
   },
   showDrawer: {
-    type: Object,
+    type: Boolean,
     required: true,
   },
 });
 const emits = defineEmits(["closeDrawer"]);
 
+const show = computed({
+  get: () => props.showDrawer,
+  set: (value) => {
+    if (!value) {
+      emits("closeDrawer");
+    }
+  },
+});
+
 const form = ref({
-  datasourceInfo: null,
-  language: '',
-  path: '',
-  tableNames: '',
-  ignoreTables: '',
-  ignoreTablePrefix: '',
-  genEntity: true,
-  genMapper: true,
-  genMapperXml: true,
-  genService: true,
-  genServiceImpl: true,
-  genController: true,
-  entityPackageName: '',
-  mapperPackageName: '',
-  mapperXmlPackageName: '',
-  servicePackageName: '',
-  serviceImplPackageName: '',
-  controllerPackageName: '',
-});
-const datasourceOptions = ref([]);
-const tableOptions = ref([]);
-
-const databaseStandardCheckApi = async () => {
-  return await invoke("database_standard_check", {
-    source: props.source,
-    checkCodes: props.checkCodes.map((c) => Number(c)),
-  })
-    .then((res) => {
-      return res;
-    })
-    .catch((error) => message.error(error));
-};
-
-// const postImg = ref(null);
-// const downloadImg = () => {
-//   html2canvas(postImg.value, {
-//     allowTaint: true,
-//     taintTest: false,
-//     useCORS: true,
-//     scrollY: 0,
-//     scrollX: 0,
-//     width: postImg.value.clientWidth,
-//     height: postImg.value.clientHeight,
-//     scale: 2.5,
-//   }).then((canvas) => {
-//     // 转成图片，生成图片地址
-//     let imgUrl = canvas.toDataURL("image/png");
-//     const eleLink = document.createElement("a");
-//     eleLink.href = imgUrl; // 转换后的图片地址
-//     eleLink.download = "数据库差异报告";
-//     // 触发点击
-//     document.body.appendChild(eleLink);
-//     eleLink.click();
-//     // 然后移除
-//     document.body.removeChild(eleLink);
-//   });
-// };
-
-const onClose = () => {
-  emits("closeDrawer");
-};
-
-onMounted(async () => {
-  console.log('props', props);
-  // checkReports.value = await databaseStandardCheckApi();
-
-  datasourceOptions.value = props.datasource.map((c) => {
-    return {
-      label: c.database + "#" + c.name,
-      value: c.database + "#" + c.name,
-    };
-  });
+  datasourceKey: "",
+  language: "java",
+  tableNames: [] as string[],
+  fileTypes: [
+    "entity.java",
+    "mapper.java",
+    "mapper.xml",
+    "service.java",
+    "serviceImpl.java",
+    "controller.java",
+  ],
+  packageNames: {
+    "entity.java": "com.example.entity",
+    "mapper.java": "com.example.mapper",
+    "service.java": "com.example.service",
+    "serviceImpl.java": "com.example.service.impl",
+    "controller.java": "com.example.controller",
+  },
 });
 
+const tableOptions = ref<{ label: string; value: string; key: string }[]>([]);
+const loadingTables = ref(false);
+const generating = ref(false);
+const generatedCodes = ref<Record<string, string>>({});
+const activeTab = ref("");
+const tableLoadMessage = ref("");
+const tableLoadSeq = ref(0);
 
+const datasourceKey = (item, index) =>
+  item.id !== null && item.id !== undefined
+    ? `id:${item.id}`
+    : `fallback:${index}:${item.driver || ""}:${item.host || ""}:${item.database || ""}:${item.name || ""}`;
 
-// 数据库选项
-const databaseOptions = ref([
-  { value: 'mysql', label: 'MySQL' },
-  { value: 'oracle', label: 'Oracle' },
-  { value: 'postgresql', label: 'PostgreSQL' },
-  { value: 'sqlserver', label: 'SQL Server' }
-])
+const datasourceOptions = computed(() =>
+  props.datasource.map((item, index) => ({
+    label: `${item.database || ""}#${item.name || ""}`,
+    value: datasourceKey(item, index),
+  })),
+);
 
-// 表单状态
-const formState = reactive({
-  database: '',
-  tableNames: '',
-  selectedFiles: [],
-  packageNames: {}
-})
+const languageOptions = [
+  { label: "Java", value: "java" },
+  { label: "Rust", value: "rust" },
+];
 
-// 生成的代码
-const generatedCodes = ref({})
-// 当前激活的标签页
-const activeTab = ref('')
-// 代码展示区域引用
-const postImg = ref(null)
+const javaFileOptions = [
+  { label: "Entity", value: "entity.java" },
+  { label: "Mapper", value: "mapper.java" },
+  { label: "Mapper XML", value: "mapper.xml" },
+  { label: "Service", value: "service.java" },
+  { label: "Service Impl", value: "serviceImpl.java" },
+  { label: "Controller", value: "controller.java" },
+];
 
-// 格式化文件名用于显示
-const formatFileName = (file) => {
-  return file.split('.')[0].charAt(0).toUpperCase() + file.split('.')[0].slice(1) + `.${file.split('.')[1]}`
-}
+const rustFileOptions = [{ label: "Model", value: "model.rs" }];
 
-// 根据文件类型获取代码语言
+const fileOptions = computed(() =>
+  form.value.language === "rust" ? rustFileOptions : javaFileOptions,
+);
+
 const getFileLanguage = (file) => {
-  if (file.endsWith('.java')) return 'java'
-  if (file.endsWith('.xml')) return 'xml'
-  return 'text'
-}
+  if (file.endsWith(".java")) return "java";
+  if (file.endsWith(".xml")) return "xml";
+  if (file.endsWith(".rs")) return "rust";
+  return "text";
+};
 
-// 监听选中文件变化，初始化包名
-watch(() => formState.selectedFiles, (newFiles) => {
-  newFiles.forEach(file => {
-    if (!formState.packageNames[file]) {
-      formState.packageNames[file] = ''
+const selectedDatasource = computed(() =>
+  props.datasource.find((item, index) => datasourceKey(item, index) === form.value.datasourceKey),
+);
+
+const packageFileTypes = computed(() =>
+  form.value.fileTypes.filter((file) => file.endsWith(".java")),
+);
+
+const ensureDatasourceSelected = () => {
+  const list = props.datasource;
+  if (!list.length) {
+    form.value.datasourceKey = "";
+    tableOptions.value = [];
+    tableLoadMessage.value = "暂无数据源，请先新建连接";
+    return false;
+  }
+
+  const currentExists = list.some(
+    (item, index) => datasourceKey(item, index) === form.value.datasourceKey,
+  );
+  if (!currentExists) {
+    form.value.datasourceKey = datasourceKey(list[0], 0);
+  }
+  return true;
+};
+
+const reloadTables = async () => {
+  if (!props.showDrawer || !ensureDatasourceSelected()) {
+    return;
+  }
+  form.value.tableNames = [];
+  generatedCodes.value = {};
+  await loadTables();
+};
+
+watch(
+  () => props.datasource,
+  async () => {
+    await reloadTables();
+  },
+  { immediate: true, deep: true },
+);
+
+watch(
+  () => form.value.datasourceKey,
+  async () => {
+    await reloadTables();
+  },
+);
+
+watch(
+  () => props.showDrawer,
+  async (visible) => {
+    if (visible) {
+      ensureDatasourceSelected();
+      await loadTables();
     }
-  })
+  },
+);
 
-  // 移除未选中文件的包名
-  Object.keys(formState.packageNames).forEach(file => {
-    if (!newFiles.includes(file)) {
-      delete formState.packageNames[file]
-    }
-  })
-}, { deep: true })
+watch(
+  () => form.value.language,
+  (language) => {
+    form.value.fileTypes =
+      language === "rust"
+        ? ["model.rs"]
+        : [
+            "entity.java",
+            "mapper.java",
+            "mapper.xml",
+            "service.java",
+            "serviceImpl.java",
+            "controller.java",
+          ];
+    generatedCodes.value = {};
+  },
+);
 
-// 处理代码生成
-const handleGenerate = async () => {
+const loadTables = async () => {
+  const seq = tableLoadSeq.value + 1;
+  tableLoadSeq.value = seq;
+  const datasourceInfo = selectedDatasource.value;
+  if (!datasourceInfo) {
+    tableOptions.value = [];
+    tableLoadMessage.value = "请先选择数据源";
+    return;
+  }
+
+  loadingTables.value = true;
+  tableLoadMessage.value = "";
   try {
-    if (!formState.database) {
-      message.warning('请选择数据库类型')
-      return
+    const tables = await invoke("database_table_tree", {
+      datasourceInfo,
+    });
+    if (seq !== tableLoadSeq.value) {
+      return;
     }
-    if (!formState.tableNames) {
-      message.warning('请输入表名')
-      return
+    tableOptions.value = tables.map((table) => {
+      const value = table.schema ? `${table.schema}.${table.tableName}` : table.tableName;
+      const comment = table.tableComment ? `（${table.tableComment}）` : "";
+      return {
+        label: `${value}${comment}`,
+        key: value,
+        value,
+      };
+    });
+    tableLoadMessage.value = tableOptions.value.length
+      ? ""
+      : "当前数据源未读取到表，请检查连接和数据库权限";
+  } catch (error) {
+    if (seq !== tableLoadSeq.value) {
+      return;
     }
-    if (formState.selectedFiles.length === 0) {
-      message.warning('请选择要生成的文件类型')
-      return
+    tableOptions.value = [];
+    tableLoadMessage.value = `加载表失败: ${error}`;
+    message.error(`加载表失败: ${error}`);
+  } finally {
+    if (seq === tableLoadSeq.value) {
+      loadingTables.value = false;
     }
-    if (Object.values(formState.packageNames).some(pkg => !pkg)) {
-      message.warning('请为每个选中的文件输入包名')
-      return
-    }
+  }
+};
 
-    const res = await invoke('generate_code_from_db', {
-      database: formState.database,
-      tableNames: formState.tableNames.split(',').map(t => t.trim()).filter(t => t),
-      fileTypes: formState.selectedFiles,
-      packageNames: formState.packageNames
-    })
+const handleGenerate = async () => {
+  const datasourceInfo = selectedDatasource.value;
+  if (!datasourceInfo) {
+    message.warning("请选择数据源");
+    return;
+  }
+  if (form.value.fileTypes.length === 0) {
+    message.warning("请选择要生成的文件");
+    return;
+  }
 
+  generating.value = true;
+  try {
+    const res = await invoke("generate_code_from_db", {
+      request: {
+        datasourceInfo,
+        language: form.value.language,
+        tableNames: form.value.tableNames,
+        fileTypes: form.value.fileTypes,
+        packageNames: form.value.packageNames,
+      },
+    });
     if (res.success) {
-      generatedCodes.value = res.data
-      if (formState.selectedFiles.length > 0) {
-        activeTab.value = formState.selectedFiles[0]
-      }
-      message.success('代码生成成功')
+      generatedCodes.value = res.data;
+      activeTab.value = Object.keys(res.data)[0] || "";
+      message.success("代码生成成功");
     } else {
-      message.error(res.message || '代码生成失败')
+      message.error(res.message || "代码生成失败");
     }
   } catch (error) {
-    console.error('代码生成出错:', error)
-    message.error('代码生成出错，请检查控制台日志')
+    message.error(`代码生成出错: ${error}`);
+  } finally {
+    generating.value = false;
   }
-}
+};
+
+const copyCode = async (code) => {
+  await writeText(code);
+  message.success("已复制");
+};
 </script>
 
 <template>
-  <n-drawer v-model:show="props.showDrawer" placement="right" resizable default-width="50%" :default-height="600"
-    @update:show="onClose()">
+  <n-drawer v-model:show="show" placement="right" resizable default-width="70%" :default-height="600">
     <n-drawer-content title="数据库代码生成" closable>
-      <n-form label-placement="left" label-width="auto" require-mark-placement="right-hanging">
-        <n-form @submit.prevent="handleGenerate">
-          <n-form-item label="数据源" path="datasourceInfo">
-            <n-select placeholder="请选择数据源" v-model:value="form.datasourceInfo" :options="datasourceOptions" />
+      <n-form label-placement="left" label-width="90" require-mark-placement="right-hanging">
+        <n-form-item label="数据源">
+          <n-select placeholder="请选择数据源" v-model:value="form.datasourceKey" :options="datasourceOptions" />
+        </n-form-item>
+        <n-form-item label="语言">
+          <n-radio-group v-model:value="form.language">
+            <n-radio-button v-for="item in languageOptions" :key="item.value" :value="item.value">
+              {{ item.label }}
+            </n-radio-button>
+          </n-radio-group>
+        </n-form-item>
+        <n-form-item label="表">
+          <n-select v-model:value="form.tableNames" multiple filterable clearable
+            placeholder="请选择表，不选择则生成全部表" :loading="loadingTables" :options="tableOptions"
+            :disabled="!selectedDatasource || loadingTables" />
+          <n-text v-if="tableLoadMessage" class="table-load-message" depth="3">
+            {{ tableLoadMessage }}
+          </n-text>
+        </n-form-item>
+        <n-form-item label="生成文件">
+          <n-checkbox-group v-model:value="form.fileTypes">
+            <n-space>
+              <n-checkbox v-for="item in fileOptions" :key="item.value" :value="item.value">
+                {{ item.label }}
+              </n-checkbox>
+            </n-space>
+          </n-checkbox-group>
+        </n-form-item>
+        <template v-for="file in packageFileTypes" :key="file">
+          <n-form-item :label="`${file} 包名`">
+            <n-input v-model:value="form.packageNames[file]" placeholder="请输入包名，例如 com.example.demo" />
           </n-form-item>
-
-          <n-form-item label="输入表名" path="tableNames">
-            <n-select placeholder="请选择要生成的表名，不选择则生成所有表" v-model:value="form.tableNames" :options="tableOptions" />
-          </n-form-item>
-
-          <!-- 文件类型选择 -->
-          <n-form-item label="选择生成文件" path="selectedFiles">
-            <n-checkbox-group v-model:value="formState.selectedFiles">
-              <n-checkbox value="entity.java">Entity.java</n-checkbox>
-              <n-checkbox value="mapp.java">Mapp.java</n-checkbox>
-              <n-checkbox value="mapper.xml">Mapper.xml</n-checkbox>
-              <n-checkbox value="service.java">Service.java</n-checkbox>
-              <n-checkbox value="serviceimpl.java">ServiceImpl.java</n-checkbox>
-              <n-checkbox value="controller.java">Controller.java</n-checkbox>
-            </n-checkbox-group>
-          </n-form-item>
-
-          <!-- 每个文件的包名输入 -->
-          <template v-for="file in formState.selectedFiles" :key="file">
-            <n-form-item :label="`${formatFileName(file)} 包名`" :path="`packageNames.${file}`">
-              <n-input v-model:value="formState.packageNames[file]" placeholder="请输入包名（例如：com.example.demo）" />
-            </n-form-item>
-          </template>
-
-        </n-form>
-
-        <!-- 代码展示区域 -->
-        <div ref="postImg" class="code-display" v-if="Object.keys(generatedCodes).length">
-          <n-tabs v-model:active-key="activeTab">
-            <n-tab-pane v-for="(code, file) in generatedCodes" :key="file" :name="file" :title="formatFileName(file)">
-              <!-- <n-code-block :language="getFileLanguage(file)" :code="code" show-line-number copyable /> -->
-            </n-tab-pane>
-          </n-tabs>
-        </div>
+        </template>
       </n-form>
 
+      <n-empty v-if="Object.keys(generatedCodes).length === 0" description="暂无生成结果" />
+      <n-tabs v-else v-model:value="activeTab" type="line" animated>
+        <n-tab-pane v-for="(code, file) in generatedCodes" :key="file" :name="file" :tab="file">
+          <div class="code-actions">
+            <n-tag size="small">{{ getFileLanguage(file) }}</n-tag>
+            <n-button size="small" @click="copyCode(code)">复制</n-button>
+          </div>
+          <pre class="code-block"><code>{{ code }}</code></pre>
+        </n-tab-pane>
+      </n-tabs>
+
       <template #footer>
-        <n-button-group>
-          <n-button @click="downloadImg()">
-            <template #icon>
-              <n-icon>
-                <Download />
-              </n-icon>
-            </template>
-          </n-button>
-          <n-button native-type="submit">
-            生成代码
-          </n-button>
-        </n-button-group>
+        <n-button @click="emits('closeDrawer')">取消</n-button>
+        <n-button type="primary" :loading="generating" @click="handleGenerate">生成代码</n-button>
       </template>
     </n-drawer-content>
   </n-drawer>
@@ -313,5 +377,28 @@ h3 .mark2 {
   color: #17233d;
   box-sizing: border-box;
   padding-right: 5px;
+}
+
+.code-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.code-block {
+  max-height: calc(100vh - 360px);
+  overflow: auto;
+  padding: 16px;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.table-load-message {
+  margin-left: 12px;
+  white-space: nowrap;
 }
 </style>

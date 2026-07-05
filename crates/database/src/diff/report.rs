@@ -1,4 +1,4 @@
-use database::{ColumnType, Driver, error::Result};
+use database_core::{ColumnType, Driver, error::Result};
 use serde::{Deserialize, Serialize};
 
 use super::{FieldBo, IndexBo, TableBo};
@@ -78,7 +78,9 @@ async fn handle_column_change(
         let mut field_info = FieldInfo::new(tname.clone());
         let mut change = false;
 
-        if !tf.r#type.eq(&sf.r#type) {
+        if !tf.r#type.eq(&sf.r#type)
+            || ((!tf.db_type.is_empty() || !sf.db_type.is_empty()) && !tf.db_type.eq(&sf.db_type))
+        {
             change = true;
             field_info.field_type_change = true;
             field_info.source_field_type = sf.r#type;
@@ -258,13 +260,17 @@ async fn diff_table(
             continue;
         }
 
-        fix_sql.push(diff_column(sf, tf, last_column).await);
+        fix_sql.push(diff_column(sf, tf, last_column, source_di.driver).await);
         last_column = sname;
     }
 
     for (iname, si) in source.indexs.iter() {
         let ti = target.indexs.get(iname);
-        let fix_index_sql = diff_index(si, ti).await;
+        let fix_index_sql = if source_di.driver == Driver::Postgres {
+            diff_index_postgres(si, ti).await
+        } else {
+            diff_index(si, ti).await
+        };
         if !fix_index_sql.is_empty() {
             fix_sql.push(fix_index_sql);
         }
@@ -273,7 +279,16 @@ async fn diff_table(
     Ok(fix_sql)
 }
 
-async fn diff_column(sf: &FieldBo, tf: Option<&FieldBo>, last_column: &str) -> String {
+async fn diff_column(
+    sf: &FieldBo,
+    tf: Option<&FieldBo>,
+    last_column: &str,
+    driver: Driver,
+) -> String {
+    if driver == Driver::Postgres {
+        return diff_column_postgres(sf, tf).await;
+    }
+
     let mut fix_sql = String::new();
     if tf.is_none() {
         fix_sql.push_str(&format!(
@@ -353,6 +368,74 @@ async fn diff_column(sf: &FieldBo, tf: Option<&FieldBo>, last_column: &str) -> S
     fix_sql
 }
 
+async fn diff_column_postgres(sf: &FieldBo, tf: Option<&FieldBo>) -> String {
+    let (schema, table) = super::split_pg_table_name(&sf.table_name);
+    let table_name = super::quote_pg_table(schema, table);
+    let column_name = super::quote_pg_ident(&sf.name);
+
+    if tf.is_none() {
+        let mut sql = format!(
+            "ALTER TABLE {} ADD COLUMN {}",
+            table_name,
+            super::pg_column_definition(sf)
+        );
+        if !sf.comment.is_empty() {
+            sql.push_str(&format!(
+                ";\nCOMMENT ON COLUMN {}.{} IS '{}'",
+                table_name,
+                column_name,
+                super::escape_sql_string(&sf.comment)
+            ));
+        }
+        sql.push(';');
+        return sql;
+    }
+
+    let mut statements = vec![format!(
+        "ALTER TABLE {} ALTER COLUMN {} TYPE {}",
+        table_name,
+        column_name,
+        super::pg_column_db_type(sf)
+    )];
+
+    if sf.is_null {
+        statements.push(format!(
+            "ALTER TABLE {} ALTER COLUMN {} DROP NOT NULL",
+            table_name, column_name
+        ));
+    } else {
+        statements.push(format!(
+            "ALTER TABLE {} ALTER COLUMN {} SET NOT NULL",
+            table_name, column_name
+        ));
+    }
+
+    if let Some(default) = &sf.default {
+        statements.push(format!(
+            "ALTER TABLE {} ALTER COLUMN {} SET DEFAULT {}",
+            table_name, column_name, default
+        ));
+    } else {
+        statements.push(format!(
+            "ALTER TABLE {} ALTER COLUMN {} DROP DEFAULT",
+            table_name, column_name
+        ));
+    }
+
+    statements.push(format!(
+        "COMMENT ON COLUMN {}.{} IS '{}'",
+        table_name,
+        column_name,
+        super::escape_sql_string(&sf.comment)
+    ));
+
+    statements
+        .into_iter()
+        .map(|sql| format!("{sql};"))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 async fn diff_index(si: &IndexBo, ti: Option<&IndexBo>) -> String {
     let mut fix_index_sql = String::from(" add ");
     if "FULLTEXT".eq(&si.index_type) {
@@ -392,6 +475,30 @@ async fn diff_index(si: &IndexBo, ti: Option<&IndexBo>) -> String {
         }
     } else {
         format!("alter table `{}` {fix_index_sql}", si.table_name)
+    }
+}
+
+async fn diff_index_postgres(si: &IndexBo, ti: Option<&IndexBo>) -> String {
+    let (schema, _) = super::split_pg_table_name(&si.table_name);
+
+    if si.key_name == "PRIMARY" {
+        return String::new();
+    }
+
+    let create_index_sql = super::pg_create_index_sql(si);
+    if let Some(ti) = ti {
+        if ti.eq(si) {
+            String::new()
+        } else {
+            format!(
+                "DROP INDEX IF EXISTS {}.{};\n{};",
+                super::quote_pg_ident(schema),
+                super::quote_pg_ident(&si.key_name),
+                create_index_sql
+            )
+        }
+    } else {
+        format!("{create_index_sql};")
     }
 }
 

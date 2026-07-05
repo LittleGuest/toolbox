@@ -22,10 +22,6 @@ impl Uuid {
     }
 
     pub fn uuid_v6(&self) -> String {
-        // FIXME: slice_as_array unstable
-        // fastrand::choose_multiple(0..u8::MAX, 6)
-        //     .as_array::<16>()
-        //     .unwrap();
         UUID::now_v6(&[
             fastrand::u8(..),
             fastrand::u8(..),
@@ -42,10 +38,6 @@ impl Uuid {
     }
 
     pub fn uuid_v8(&self) -> String {
-        // FIXME: slice_as_array unstable
-        // fastrand::choose_multiple(0..u8::MAX, 16)
-        //     .as_array::<16>()
-        //     .unwrap();
         UUID::new_v8([
             fastrand::u8(..),
             fastrand::u8(..),

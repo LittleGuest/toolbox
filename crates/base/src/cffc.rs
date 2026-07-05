@@ -51,7 +51,6 @@ impl Data {
         }
     }
 
-    /// FIXME: Optimize and determine file format
     fn auto(text: &str) -> Option<Ft> {
         if serde_json::from_str::<serde_json::Value>(text).is_ok() {
             return Some(Ft::Json);

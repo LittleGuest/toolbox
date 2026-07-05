@@ -1,6 +1,15 @@
-use rand::Rng;
+use rand::{Rng, prelude::IndexedRandom};
 
-use crate::{DefaultComponent, Error, NullComponent, Result, providers::Name};
+use crate::{DefaultComponent, Error, NullComponent, Result};
+
+static CHINESE_TEXT_CHARS: [&str; 96] = [
+    "数", "据", "服", "务", "平", "台", "系", "统", "用", "户", "订", "单", "产", "品", "接", "口",
+    "配", "置", "日", "志", "任", "务", "审", "核", "状", "态", "消", "息", "通", "知", "统", "计",
+    "报", "表", "资", "源", "权", "限", "角", "色", "组", "织", "部", "门", "项", "目", "节", "点",
+    "流", "程", "规", "则", "模", "板", "标", "签", "分", "类", "内", "容", "描", "述", "备", "注",
+    "测", "试", "示", "例", "文", "本", "信", "息", "详", "情", "中", "心", "管", "理", "云", "智",
+    "能", "安", "全", "监", "控", "开", "发", "运", "维", "财", "务", "客", "户", "营", "销", "网",
+];
 
 /// 文本生成器
 pub struct Text<R: Rng> {
@@ -18,19 +27,11 @@ impl<R: Rng> Text<R> {
         let min = min.unwrap_or(10);
         let max = max.unwrap_or(255);
         let length = self.rng.random_range(min..=max);
-        let mut text = String::with_capacity(length);
-        let mut name = Name::new(rand::rng());
+        let mut text = String::with_capacity(length * 3);
         for _ in 0..length {
-            if text.trim().len() > length {
-                text = text.trim().to_string();
-                text.truncate(length);
-                break;
-            }
-            let word = name.full_name();
-            text.push_str(&word);
-            text.push(' ');
+            text.push_str(CHINESE_TEXT_CHARS.choose(&mut self.rng).unwrap());
         }
-        text.trim().to_string()
+        text
     }
 }
 
@@ -131,8 +132,8 @@ mod tests {
     fn test_text() {
         let mut text = Text::new(rand::rng());
         let s = text.random_text(None, None);
-        assert!(s.len() >= 10 && s.len() <= 255);
+        assert!(s.chars().count() >= 10 && s.chars().count() <= 255);
         let s = text.random_text(Some(100), Some(100));
-        assert!(s.len() <= 100);
+        assert_eq!(s.chars().count(), 100);
     }
 }

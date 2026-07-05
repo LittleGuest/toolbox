@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { invoke } from "@tauri-apps/api/core";
 import { ref, reactive } from "vue";
 import { useMessage } from "naive-ui";
@@ -68,6 +68,10 @@ const preview = async () => {
     customWeeks: form.customWeeks,
   });
 };
+defineExpose({
+  getConfig: () => ({ ...form }),
+  setConfig: (config = {}) => Object.assign(form, config),
+});
 </script>
 
 <template>

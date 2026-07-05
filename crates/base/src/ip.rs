@@ -21,8 +21,8 @@ pub fn num_to_ipv4(ip: u32) -> Result<String> {
 }
 
 pub fn ipv6_to_num(ip: &str) -> Result<u128> {
-    let _ip = Ipv6Addr::from_str(ip).map_err(|e| Error::msg(e.to_string()))?;
-    todo!()
+    let ip = Ipv6Addr::from_str(ip).map_err(|e| Error::msg(e.to_string()))?;
+    Ok(u128::from(ip))
 }
 
 pub fn num_to_ipv6(ip: u128) -> Result<String> {
@@ -31,11 +31,15 @@ pub fn num_to_ipv6(ip: u128) -> Result<String> {
 }
 
 pub fn ipv4_ipv6(ip: &str) -> Result<String> {
-    todo!()
+    let ip = Ipv4Addr::from_str(ip).map_err(|e| Error::msg(e.to_string()))?;
+    Ok(ip.to_ipv6_mapped().to_string())
 }
 
 pub fn ipv6_ipv4(ip: &str) -> Result<String> {
-    todo!()
+    let ip = Ipv6Addr::from_str(ip).map_err(|e| Error::msg(e.to_string()))?;
+    ip.to_ipv4_mapped()
+        .map(|ip| ip.to_string())
+        .ok_or_else(|| Error::msg("not an IPv4-mapped IPv6 address"))
 }
 
 #[cfg(test)]

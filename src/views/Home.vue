@@ -1,7 +1,7 @@
-<script setup>
+<script setup lang="ts">
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-import { menuAll, navigateToMenu } from "@/menu.js";
+import { menuAll, navigateToMenu } from "@/menu";
 
 const router = useRouter();
 // 定义一个变量来跟踪当前悬停的卡片
@@ -40,7 +40,6 @@ $secondary-text-color: #666;
 $border-color: rgba(0, 0, 0, 0.1); // 调整边框颜色以适应白色背景
 $footer-border-color: rgba(0, 0, 0, 0.1);
 $card-bg: #f8f8f8; // 乳白色
-$external-badge-bg: #f15b2a;
 
 .home-container {
   margin: 0 auto;
@@ -134,19 +133,6 @@ $external-badge-bg: #f15b2a;
         &::before {
           left: 100%;
         }
-      }
-
-      // 为外部链接添加特殊标识
-      &:has(.external-link)::after {
-        content: "外部链接";
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        background: $external-badge-bg;
-        color: white;
-        font-size: 12px;
-        padding: 2px 8px;
-        border-radius: 12px;
       }
     }
   }

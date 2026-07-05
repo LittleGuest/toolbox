@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref } from "vue";
 import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
 import { Copy, Paste } from "@vicons/carbon";

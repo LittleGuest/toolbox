@@ -71,6 +71,14 @@ pub fn decode_url(input: Option<&str>) -> Result<String> {
 }
 
 #[tauri::command]
+pub fn decode_jwt(input: Option<&str>) -> Result<String> {
+    let Some(data) = input else {
+        return Err("input empty".to_string());
+    };
+    base::decode_jwt(data).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub fn cffc(indent: u8, ft: &str, tt: &str, input: Option<&str>) -> Result<String> {
     let Some(input) = input else {
         return Err("input empty".to_string());

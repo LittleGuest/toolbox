@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed } from "vue";
 import { useMessage } from "naive-ui";
 
@@ -56,6 +56,10 @@ const preview = async () => {
     cycle: form.cycle,
   });
 };
+defineExpose({
+  getConfig: () => ({ ...form }),
+  setConfig: (config = {}) => Object.assign(form, config),
+});
 </script>
 
 <template>

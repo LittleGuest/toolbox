@@ -1,32 +1,45 @@
-<script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
+<script setup lang="ts">
+import { onMounted, onUnmounted, ref } from "vue";
+import React from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { Excalidraw } from "@excalidraw/excalidraw";
+import "@excalidraw/excalidraw/index.css";
 
-// window.EXCALIDRAW_ASSET_PATH = "https://esm.sh/@excalidraw/excalidraw@0.18.0/dist/prod/"
+const containerRef = ref<HTMLDivElement | null>(null);
+let root: Root | null = null;
 
-const excalidraw = ref(null);
-
-let root;
 onMounted(() => {
-  // root = createRoot(excalidraw.value);
-  // root.render(React.createElement(Excalidraw, {}));
-})
+  if (!containerRef.value) {
+    return;
+  }
+  root = createRoot(containerRef.value);
+  root.render(React.createElement(Excalidraw));
+});
 
 onUnmounted(() => {
-  if (root) {
-    root.unmount();
-  }
+  root?.unmount();
+  root = null;
 });
 </script>
 
 <template>
-  <div ref="excalidraw" classe="excalidraw">Loading...</div>
+  <div class="excalidraw-page">
+    <div ref="containerRef" class="excalidraw-container" />
+  </div>
 </template>
 
-<style>
-/* @import 'https://esm.sh/@excalidraw/excalidraw@0.18.0/dist/dev/index.css'; */
-
-.excalidraw {
-  height: 100%;
+<style scoped>
+.excalidraw-page {
   width: 100%;
+  height: calc(100vh - 120px);
+  min-height: 600px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.excalidraw-container {
+  width: 100%;
+  height: 100%;
 }
 </style>

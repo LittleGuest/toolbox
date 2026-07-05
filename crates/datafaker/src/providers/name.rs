@@ -37,6 +37,26 @@ static NAME_PREFIX: [&str; 5] = ["Mr.", "Mrs.", "Ms.", "Miss", "Dr."];
 static NAME_SUFFIX: [&str; 11] = [
     "Jr.", "Sr.", "I", "II", "III", "IV", "V", "MD", "DDS", "PhD", "DVM",
 ];
+static CN_LAST_NAME: [&str; 40] = [
+    "赵", "钱", "孙", "李", "周", "吴", "郑", "王", "冯", "陈", "褚", "卫", "蒋", "沈", "韩", "杨",
+    "朱", "秦", "尤", "许", "何", "吕", "施", "张", "孔", "曹", "严", "华", "金", "魏", "陶", "姜",
+    "谢", "邹", "喻", "柏", "水", "窦", "章", "云",
+];
+static CN_FIRST_NAME_CHARS: [&str; 64] = [
+    "伟", "刚", "勇", "毅", "俊", "峰", "强", "军", "平", "保", "东", "文", "辉", "力", "明", "永",
+    "健", "世", "广", "志", "义", "兴", "良", "海", "山", "仁", "波", "宁", "贵", "福", "生", "龙",
+    "元", "全", "国", "胜", "学", "祥", "才", "发", "武", "新", "利", "清", "飞", "彬", "富", "顺",
+    "信", "子", "杰", "涛", "昌", "成", "康", "星", "光", "天", "达", "安", "岩", "中", "茜", "琳",
+];
+static PINYIN_LAST_NAME: [&str; 20] = [
+    "Zhao", "Qian", "Sun", "Li", "Zhou", "Wu", "Zheng", "Wang", "Feng", "Chen", "Jiang", "Shen",
+    "Han", "Yang", "Zhu", "Qin", "Xu", "He", "Lu", "Zhang",
+];
+static PINYIN_FIRST_NAME: [&str; 32] = [
+    "Wei", "Gang", "Yong", "Jun", "Feng", "Qiang", "Ming", "Jian", "Wen", "Hui", "Li", "Hai", "Bo",
+    "Ning", "Long", "Xiang", "Xue", "Xin", "Qing", "Fei", "Bin", "Jie", "Tao", "Kang", "Xing",
+    "An", "Lin", "Qian", "Na", "Min", "Lei", "Hao",
+];
 /// 头衔描述
 static TITLE_DESCRIPTOR: [&str; 22] = [
     "Lead",
@@ -163,6 +183,12 @@ impl<R: Rng> Name<R> {
 
     /// 生成包含可选前缀、名和姓的全名
     pub fn name(&mut self) -> String {
+        if matches!(self.locale, Locale::ZhCn | Locale::ZhTw) {
+            return format!("{}{}", self.last_name(), self.first_name());
+        }
+        if matches!(self.locale, Locale::ZhPinyin) {
+            return format!("{} {}", self.first_name(), self.last_name());
+        }
         // 随机决定是否包含前缀和后缀
         // 20%概率包含前缀
         let include_prefix = self.rng.random_bool(0.2);
@@ -185,6 +211,9 @@ impl<R: Rng> Name<R> {
 
     /// 生成包含中间名的全名
     pub fn name_with_middle(&mut self) -> String {
+        if matches!(self.locale, Locale::ZhCn | Locale::ZhTw | Locale::ZhPinyin) {
+            return self.name();
+        }
         // 随机决定是否包含前缀和后缀
         // 20%概率包含前缀
         let include_prefix = self.rng.random_bool(0.2);
@@ -213,6 +242,21 @@ impl<R: Rng> Name<R> {
 
     /// 返回随机名（如Aaliyah, Aaron, Abagail）
     pub fn first_name(&mut self) -> String {
+        if matches!(self.locale, Locale::ZhCn | Locale::ZhTw) {
+            let len = self.rng.random_range(1..=2);
+            return (0..len)
+                .map(|_| {
+                    CN_FIRST_NAME_CHARS
+                        .choose(&mut self.rng)
+                        .unwrap()
+                        .to_string()
+                })
+                .collect::<Vec<_>>()
+                .join("");
+        }
+        if matches!(self.locale, Locale::ZhPinyin) {
+            return PINYIN_FIRST_NAME.choose(&mut self.rng).unwrap().to_string();
+        }
         MALE_FIRST_NAME_DATA
             .choose(&mut self.rng)
             .unwrap()
@@ -221,6 +265,9 @@ impl<R: Rng> Name<R> {
 
     /// 返回随机女性名
     pub fn female_first_name(&mut self) -> String {
+        if matches!(self.locale, Locale::ZhCn | Locale::ZhTw | Locale::ZhPinyin) {
+            return self.first_name();
+        }
         FEMALE_FIRST_NAME_DATA
             .choose(&mut self.rng)
             .unwrap()
@@ -229,6 +276,9 @@ impl<R: Rng> Name<R> {
 
     /// 返回随机男性名
     pub fn male_first_name(&mut self) -> String {
+        if matches!(self.locale, Locale::ZhCn | Locale::ZhTw | Locale::ZhPinyin) {
+            return self.first_name();
+        }
         MALE_FIRST_NAME_DATA
             .choose(&mut self.rng)
             .unwrap()
@@ -237,6 +287,12 @@ impl<R: Rng> Name<R> {
 
     /// 返回随机姓（如Smith, Jones, Baldwin）
     pub fn last_name(&mut self) -> String {
+        if matches!(self.locale, Locale::ZhCn | Locale::ZhTw) {
+            return CN_LAST_NAME.choose(&mut self.rng).unwrap().to_string();
+        }
+        if matches!(self.locale, Locale::ZhPinyin) {
+            return PINYIN_LAST_NAME.choose(&mut self.rng).unwrap().to_string();
+        }
         LAST_NAME_DATA.choose(&mut self.rng).unwrap().to_string()
     }
 
@@ -461,10 +517,14 @@ mod tests {
             let res = res.unwrap();
             assert_eq!(res.len(), 10);
             assert!(res.iter().all(|v| v.is_some()));
-            assert!(
-                res.into_iter()
-                    .all(|v| MALE_FIRST_NAME_DATA.contains(&v.unwrap()))
-            );
+            assert!(res.into_iter().all(|v| {
+                let name = v.unwrap();
+                !name.is_empty()
+                    && name.chars().all(|item| {
+                        let item = item.to_string();
+                        CN_FIRST_NAME_CHARS.contains(&item.as_str())
+                    })
+            }));
 
             let generator = NameGenerator::new(NameFormat::Last, vec![Locale::ZhCn]);
             assert!(generator.is_ok());
@@ -476,7 +536,7 @@ mod tests {
             assert!(res.iter().all(|v| v.is_some()));
             assert!(
                 res.into_iter()
-                    .all(|v| LAST_NAME_DATA.contains(&v.unwrap()))
+                    .all(|v| CN_LAST_NAME.contains(&v.unwrap().as_str()))
             );
 
             let generator = NameGenerator::new(NameFormat::Full, vec![Locale::ZhCn]);

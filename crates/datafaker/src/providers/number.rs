@@ -86,10 +86,10 @@ impl<R: Rng> Number<R> {
     /// number_of_decimals - 小数位数
     /// min - 最小值
     /// max - 最大值
-    pub fn random_double(&mut self, _number_of_decimals: u32, min: i64, max: i64) -> f64 {
+    pub fn random_double(&mut self, number_of_decimals: u32, min: i64, max: i64) -> f64 {
         let decimal = self.number_between_f64(min as f64, max as f64);
-        // FIXME: 小数位数 number_of_decimals
-        decimal.round()
+        let factor = 10_f64.powi(number_of_decimals.min(10) as i32);
+        (decimal * factor).round() / factor
     }
 
     /// 生成指定count长度的随机数字字符串

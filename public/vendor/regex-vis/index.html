@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta
+      name="description"
+      content="Regex visualizer & editor, make the regular expression easier."
+    />
+    <meta name="keywords" content="editor,regex,regexp,visualizer" />
+    <link rel="icon" href="./favicon.png" />
+    <title>Regex Vis</title>
+    <script type="module" crossorigin src="./assets/index-uMd4h5F_.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-BChK14_K.css" />
+    <style>
+      .regex-vis-side-tabs {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        align-items: center;
+        border-radius: calc(var(--radius) - 2px);
+        background: hsl(var(--muted));
+        padding: 0.25rem;
+      }
+
+      .regex-vis-side-tabs > button {
+        min-width: 0;
+        padding-left: 0.25rem;
+        padding-right: 0.25rem;
+      }
+
+      .regex-vis-sample-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .regex-vis-sample-item {
+        display: block;
+        overflow: hidden;
+        border: 1px solid hsl(var(--border));
+        border-radius: calc(var(--radius) - 2px);
+        padding: 0.75rem;
+        text-align: left;
+        color: hsl(var(--foreground));
+        text-decoration: none;
+      }
+
+      .regex-vis-sample-item:hover {
+        background: hsl(var(--accent));
+      }
+
+      .regex-vis-sample-title,
+      .regex-vis-sample-regex {
+        display: block;
+        min-width: 0;
+      }
+
+      .regex-vis-sample-title {
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+        font-weight: 500;
+      }
+
+      .regex-vis-sample-regex {
+        margin-top: 0.25rem;
+        overflow-wrap: anywhere;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+        font-size: 0.75rem;
+        line-height: 1rem;
+        color: rgb(45 212 191);
+      }
+    </style>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <div id="portal"></div>
+  </body>
+</html>

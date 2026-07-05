@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref } from "vue";
 import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
 import CodeMirror from "vue-codemirror6";

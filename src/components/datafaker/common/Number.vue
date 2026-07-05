@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { invoke } from "@tauri-apps/api/core";
 import { ref, reactive, watch } from "vue";
 import { useMessage } from "naive-ui";
@@ -74,6 +74,10 @@ watch(
     }
   }
 );
+defineExpose({
+  getConfig: () => ({ ...form }),
+  setConfig: (config = {}) => Object.assign(form, config),
+});
 </script>
 
 <template>

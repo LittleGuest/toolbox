@@ -1,7 +1,7 @@
-<script setup>
+<script setup lang="ts">
 import { inject } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { menus, navigateToMenu } from "./menu.js";
+import { menus, navigateToMenu } from "./menu";
 import { NButton } from "naive-ui";
 import { Moon, Sun } from "@vicons/carbon";
 
@@ -18,7 +18,7 @@ const toMenu = navigateToMenu(router);
   <n-layout has-sider position="absolute">
     <n-layout-sider collapse-mode="width" :collapsed-width="55" :width="260" show-trigger="arrow-circle" bordered
       :native-scrollbar="false">
-      <n-menu :options="menus" default-expand-all="true" @update:value="toMenu" />
+      <n-menu :options="menus" :default-expand-all="false" @update:value="toMenu" />
     </n-layout-sider>
     <n-layout>
       <!-- <n-layout-header style="height: 30px; padding: 0 24px; display: flex; align-items: center; justify-content: flex-end; border-bottom: 1px solid #e0e0e0">

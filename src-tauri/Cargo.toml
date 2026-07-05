@@ -17,14 +17,13 @@ name = "toolbox_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { workspace = true }
 
 [dependencies]
-database = { path = "../crates/database/" }
-base = { path = "../crates/base/" }
-openapi = { path = "../crates/openapi/" }
-monitor = { path = "../crates/monitor/" }
-datafaker = { path = "../crates/datafaker/" }
+database = { workspace = true }
+base = { workspace = true }
+monitor = { workspace = true }
+datafaker = { workspace = true }
 indexmap = { workspace = true }
 
 

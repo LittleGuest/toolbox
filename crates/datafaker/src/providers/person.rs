@@ -16,6 +16,12 @@ static SPECIAL_CHARS: [&str; 16] = [
 ];
 
 static MOBILE_PREFIX: [&str; 7] = ["13", "147", "15", "16", "17", "18", "19"];
+static ID_CARD_AREA_CODES: [&str; 12] = [
+    "110101", "120101", "310101", "440103", "440305", "500101", "510104", "320102", "330102",
+    "350102", "420102", "610102",
+];
+static ID_CARD_WEIGHTS: [u32; 17] = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2];
+static ID_CARD_CHECK_CODES: [char; 11] = ['1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2'];
 
 pub enum Sex {
     Female,
@@ -96,14 +102,39 @@ impl Person {
         let mut mobile = String::with_capacity(11);
         mobile.push_str(prefix);
         (0..mobile.capacity() - prefix.len()).for_each(|_| {
-            mobile.push(fastrand::u8(0..10).into());
+            mobile.push(char::from(b'0' + fastrand::u8(0..10)));
         });
         mobile
     }
 
     pub fn id_card(&self) -> String {
-        todo!()
+        let area = ID_CARD_AREA_CODES[fastrand::usize(0..ID_CARD_AREA_CODES.len())];
+        let year = fastrand::u16(1960..=2005);
+        let month = fastrand::u8(1..=12);
+        let day = fastrand::u8(1..=days_in_month(year, month));
+        let sequence = fastrand::u16(1..=999);
+        let body = format!("{area}{year:04}{month:02}{day:02}{sequence:03}");
+        let sum = body
+            .chars()
+            .zip(ID_CARD_WEIGHTS)
+            .map(|(c, weight)| c.to_digit(10).unwrap_or_default() * weight)
+            .sum::<u32>();
+        format!("{body}{}", ID_CARD_CHECK_CODES[(sum % 11) as usize])
     }
+}
+
+fn days_in_month(year: u16, month: u8) -> u8 {
+    match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if is_leap_year(year) => 29,
+        2 => 28,
+        _ => 30,
+    }
+}
+
+fn is_leap_year(year: u16) -> bool {
+    (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
 }
 
 pub enum CreditCardType {
