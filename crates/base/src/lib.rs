@@ -30,37 +30,63 @@ pub async fn hash(
     uppercase: bool,
     output_type: Option<&str>,
     hmac_mode: bool,
+    secret: Option<&str>,
     input: Option<&str>,
 ) -> Result<HashMap<String, String>> {
     let mut map = HashMap::with_capacity(6);
 
     if let Some(input) = input {
-        let (md5, sha1, sha256, sha512, sha3_256, sha3_512) = tokio::join!(
-            hash::md5(input),
-            hash::sha1(input),
-            hash::sha256(input),
-            hash::sha512(input),
-            hash::sha3_256(input),
-            hash::sha3_512(input),
-        );
-        let (mut md5, mut sha1, mut sha256, mut sha512, mut sha3_256, mut sha3_512) =
-            (md5?, sha1?, sha256?, sha512?, sha3_256?, sha3_512?);
+        let (md5, sha1, sha256, sha512, sha3_256, sha3_512) = if hmac_mode {
+            let secret = secret.unwrap_or("");
+            let (md5, sha1, sha256, sha512, sha3_256, sha3_512) = tokio::join!(
+                hash::hmac_md5(secret, input),
+                hash::hmac_sha1(secret, input),
+                hash::hmac_sha256(secret, input),
+                hash::hmac_sha512(secret, input),
+                hash::hmac_sha3_256(secret, input),
+                hash::hmac_sha3_512(secret, input),
+            );
+            (md5?, sha1?, sha256?, sha512?, sha3_256?, sha3_512?)
+        } else {
+            let (md5, sha1, sha256, sha512, sha3_256, sha3_512) = tokio::join!(
+                hash::md5(input),
+                hash::sha1(input),
+                hash::sha256(input),
+                hash::sha512(input),
+                hash::sha3_256(input),
+                hash::sha3_512(input),
+            );
+            (md5?, sha1?, sha256?, sha512?, sha3_256?, sha3_512?)
+        };
 
-        if uppercase {
-            md5 = md5.to_uppercase();
-            sha1 = sha1.to_uppercase();
-            sha256 = sha256.to_uppercase();
-            sha512 = sha512.to_uppercase();
-            sha3_256 = sha3_256.to_uppercase();
-            sha3_512 = sha3_512.to_uppercase();
+        let mut values = [
+            ("md5", md5),
+            ("sha1", sha1),
+            ("sha256", sha256),
+            ("sha512", sha512),
+            ("sha3_256", sha3_256),
+            ("sha3_512", sha3_512),
+        ];
+
+        // 输出编码：base64 时把十六进制解码为字节再 base64 编码
+        if output_type == Some("base64") {
+            use ::base64::Engine as _;
+            for (_, val) in values.iter_mut() {
+                if let Ok(bytes) = hex::decode(val.as_str()) {
+                    *val = ::base64::engine::general_purpose::STANDARD.encode(&bytes);
+                }
+            }
         }
 
-        map.insert("md5".into(), md5);
-        map.insert("sha1".into(), sha1);
-        map.insert("sha256".into(), sha256);
-        map.insert("sha512".into(), sha512);
-        map.insert("sha3_256".into(), sha3_256);
-        map.insert("sha3_512".into(), sha3_512);
+        if uppercase {
+            for (_, val) in values.iter_mut() {
+                *val = val.to_uppercase();
+            }
+        }
+
+        for (key, val) in values {
+            map.insert(key.into(), val);
+        }
     }
     Ok(map)
 }

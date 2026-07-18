@@ -13,9 +13,10 @@ pub async fn hash(
     uppercase: bool,
     output_type: Option<&str>,
     hmac_mode: bool,
+    secret: Option<&str>,
     input: Option<&str>,
 ) -> Result<impl Serialize> {
-    base::hash(uppercase, output_type, hmac_mode, input)
+    base::hash(uppercase, output_type, hmac_mode, secret, input)
         .await
         .map_err(|e| e.to_string())
 }

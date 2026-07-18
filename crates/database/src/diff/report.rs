@@ -503,44 +503,44 @@ async fn diff_index_postgres(si: &IndexBo, ti: Option<&IndexBo>) -> String {
 }
 
 /// 差异报告
-#[derive(Debug, Default, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiffReport {
     /// 增加的表
-    incres: Vec<String>,
+    pub incres: Vec<String>,
     /// 缺少的表
-    misses: Vec<String>,
+    pub misses: Vec<String>,
     /// 变化的表
-    changes: Vec<TableInfo>,
+    pub changes: Vec<TableInfo>,
 }
 
 /// 表信息变化
-#[derive(Debug, Default, Hash, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Default, Hash, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "camelCase")]
 pub struct TableInfo {
     /// 表名
-    table_name: String,
+    pub table_name: String,
     /// 增加的字段
-    incre_columns: Vec<String>,
+    pub incre_columns: Vec<String>,
     /// 缺少的字段
-    miss_columns: Vec<String>,
+    pub miss_columns: Vec<String>,
     /// 增加的索引
-    incre_indexs: Vec<String>,
+    pub incre_indexs: Vec<String>,
     /// 缺少的索引
-    miss_indexs: Vec<String>,
+    pub miss_indexs: Vec<String>,
     /// 是否改过表的描述
-    comment_change: bool,
+    pub comment_change: bool,
     /// 原表表描述
-    source_comment: String,
+    pub source_comment: String,
     /// 目标表表描述
-    target_comment: String,
+    pub target_comment: String,
     /// 有改动的列
-    columns: Vec<FieldInfo>,
+    pub columns: Vec<FieldInfo>,
     /// 有改动的索引
-    indexs: Vec<IndexInfo>,
+    pub indexs: Vec<IndexInfo>,
 
     /// 前端是否展开
-    close: bool,
+    pub close: bool,
 }
 
 impl TableInfo {
@@ -553,39 +553,39 @@ impl TableInfo {
 }
 
 /// 列信息变化
-#[derive(Debug, Default, Hash, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Default, Hash, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "camelCase")]
 pub struct FieldInfo {
     /// 列名称
-    name: String,
+    pub name: String,
     /// 类型是否改变
-    field_type_change: bool,
-    source_field_type: Option<ColumnType>,
-    target_field_type: Option<ColumnType>,
+    pub field_type_change: bool,
+    pub source_field_type: Option<ColumnType>,
+    pub target_field_type: Option<ColumnType>,
     /// 数据长度是否改变
-    length_change: bool,
-    source_length: Option<i32>,
-    target_length: Option<i32>,
+    pub length_change: bool,
+    pub source_length: Option<i32>,
+    pub target_length: Option<i32>,
     /// 小数位数是否改变
-    scale_change: bool,
-    source_scale: Option<i32>,
-    target_scale: Option<i32>,
+    pub scale_change: bool,
+    pub source_scale: Option<i32>,
+    pub target_scale: Option<i32>,
     /// 默认值是否改变
-    default_change: bool,
-    source_default: Option<String>,
-    target_default: Option<String>,
+    pub default_change: bool,
+    pub source_default: Option<String>,
+    pub target_default: Option<String>,
     /// 注释是否改变
-    comment_change: bool,
-    source_comment: String,
-    target_comment: String,
+    pub comment_change: bool,
+    pub source_comment: String,
+    pub target_comment: String,
     /// 非空是否改变
-    null_change: bool,
-    source_null: bool,
-    target_null: bool,
+    pub null_change: bool,
+    pub source_null: bool,
+    pub target_null: bool,
     /// 无符号是否改变
-    unsigned_change: bool,
-    source_unsigned: bool,
-    target_unsigned: bool,
+    pub unsigned_change: bool,
+    pub source_unsigned: bool,
+    pub target_unsigned: bool,
 }
 
 impl FieldInfo {
@@ -598,27 +598,27 @@ impl FieldInfo {
 }
 
 /// 索引信息变化
-#[derive(Debug, Default, Hash, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Default, Hash, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "camelCase")]
 pub struct IndexInfo {
     /// 索引名称
-    name: String,
+    pub name: String,
     /// 索引唯一性 是否改变
-    non_unique_change: bool,
-    source_non_unique: i32,
-    target_non_unique: i32,
+    pub non_unique_change: bool,
+    pub source_non_unique: i32,
+    pub target_non_unique: i32,
     /// 作用于列名称 是否改变
-    column_name_change: bool,
-    target_column_name: String,
-    source_column_name: String,
+    pub column_name_change: bool,
+    pub target_column_name: String,
+    pub source_column_name: String,
     /// 索引类型 是否改变
-    index_type_change: bool,
-    source_index_type: String,
-    target_index_type: String,
+    pub index_type_change: bool,
+    pub source_index_type: String,
+    pub target_index_type: String,
     /// 索引注释 是否改变
-    index_comment_change: bool,
-    source_index_comment: String,
-    target_index_comment: String,
+    pub index_comment_change: bool,
+    pub source_index_comment: String,
+    pub target_index_comment: String,
 }
 
 impl IndexInfo {

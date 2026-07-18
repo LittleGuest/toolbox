@@ -12,8 +12,8 @@ use super::DatasourceInfo;
 mod report;
 mod standard_check;
 
-pub use report::{DiffReport, diff_report, diff_sql};
-pub use standard_check::{CheckReportBo, StandardCheck, standard_check};
+pub use report::{DiffReport, FieldInfo, IndexInfo, TableInfo, diff_report, diff_sql};
+pub use standard_check::{CheckReportBo, StandardCheck, Suggest, standard_check};
 
 /// 所有表结构信息
 pub async fn table_struct(datasource_info: &DatasourceInfo) -> Result<HashMap<String, TableBo>> {

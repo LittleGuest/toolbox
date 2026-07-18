@@ -646,28 +646,28 @@ fn add_to_map(
     }
 }
 
-#[derive(Debug, Default, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CheckReportBo {
     /// 表名或字段名
-    name: String,
+    pub name: String,
     /// 建议列表
-    suggests: Vec<Suggest>,
+    pub suggests: Vec<Suggest>,
     /// 字段列表
-    children: Vec<CheckReportBo>,
+    pub children: Vec<CheckReportBo>,
 }
 
 #[derive(Debug, Clone, Default, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Suggest {
     /// 规范检查类型code
-    code: i32,
+    pub code: i32,
     /// 检查建议
-    desc: String,
+    pub desc: String,
     /// 原词
-    origin_word: String,
+    pub origin_word: String,
     /// 是否展示
-    show: u8,
+    pub show: u8,
 }
 
 impl From<StandardCheck> for Suggest {

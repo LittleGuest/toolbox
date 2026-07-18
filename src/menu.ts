@@ -226,6 +226,11 @@ export const menus = [
         key: "/other/qrcode",
         icon: renderMenuIcon(QrCode),
       },
+      {
+        label: "剪贴板管理",
+        key: "/other/clipboard",
+        icon: renderMenuIcon(ToolKit),
+      },
     ],
   },
   {

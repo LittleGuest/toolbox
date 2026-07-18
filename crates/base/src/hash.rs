@@ -63,6 +63,55 @@ pub async fn sha3_512(data: impl AsRef<[u8]>) -> Result<String> {
     Ok(format!("{:x}", hasher.finalize()))
 }
 
+// HMAC variants —— 使用 secret 对输入做 HMAC，返回十六进制字符串
+pub async fn hmac_md5(secret: impl AsRef<[u8]>, data: impl AsRef<[u8]>) -> Result<String> {
+    use hmac::Mac;
+    type HmacMd5 = hmac::Hmac<md5::Md5>;
+    let mut mac = HmacMd5::new_from_slice(secret.as_ref()).map_err(Error::from)?;
+    mac.update(data.as_ref());
+    Ok(format!("{:x}", mac.finalize().into_bytes()))
+}
+
+pub async fn hmac_sha1(secret: impl AsRef<[u8]>, data: impl AsRef<[u8]>) -> Result<String> {
+    use hmac::Mac;
+    type HmacSha1 = hmac::Hmac<sha1::Sha1>;
+    let mut mac = HmacSha1::new_from_slice(secret.as_ref()).map_err(Error::from)?;
+    mac.update(data.as_ref());
+    Ok(format!("{:x}", mac.finalize().into_bytes()))
+}
+
+pub async fn hmac_sha256(secret: impl AsRef<[u8]>, data: impl AsRef<[u8]>) -> Result<String> {
+    use hmac::Mac;
+    type HmacSha256 = hmac::Hmac<sha2::Sha256>;
+    let mut mac = HmacSha256::new_from_slice(secret.as_ref()).map_err(Error::from)?;
+    mac.update(data.as_ref());
+    Ok(format!("{:x}", mac.finalize().into_bytes()))
+}
+
+pub async fn hmac_sha512(secret: impl AsRef<[u8]>, data: impl AsRef<[u8]>) -> Result<String> {
+    use hmac::Mac;
+    type HmacSha512 = hmac::Hmac<sha2::Sha512>;
+    let mut mac = HmacSha512::new_from_slice(secret.as_ref()).map_err(Error::from)?;
+    mac.update(data.as_ref());
+    Ok(format!("{:x}", mac.finalize().into_bytes()))
+}
+
+pub async fn hmac_sha3_256(secret: impl AsRef<[u8]>, data: impl AsRef<[u8]>) -> Result<String> {
+    use hmac::Mac;
+    type HmacSha3_256 = hmac::Hmac<sha3::Sha3_256>;
+    let mut mac = HmacSha3_256::new_from_slice(secret.as_ref()).map_err(Error::from)?;
+    mac.update(data.as_ref());
+    Ok(format!("{:x}", mac.finalize().into_bytes()))
+}
+
+pub async fn hmac_sha3_512(secret: impl AsRef<[u8]>, data: impl AsRef<[u8]>) -> Result<String> {
+    use hmac::Mac;
+    type HmacSha3_512 = hmac::Hmac<sha3::Sha3_512>;
+    let mut mac = HmacSha3_512::new_from_slice(secret.as_ref()).map_err(Error::from)?;
+    mac.update(data.as_ref());
+    Ok(format!("{:x}", mac.finalize().into_bytes()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

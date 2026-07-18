@@ -11,13 +11,16 @@ pub use database_core::{
     Column, ColumnType, DatabaseMetadata, Driver, Schema, Table, database_metadata,
     error::{Error, Result},
 };
-pub use diff::{CheckReportBo, DiffReport, StandardCheck, diff_report, diff_sql, standard_check};
+pub use diff::{
+    CheckReportBo, DiffReport, FieldInfo, IndexInfo, Suggest, StandardCheck, TableInfo,
+    diff_report, diff_sql, standard_check,
+};
 
 #[derive(Embed)]
 #[folder = "templates/"]
 struct Templates;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DatasourceInfo {
     /// 数据库驱动
@@ -129,10 +132,10 @@ pub async fn database_tables(datasource_info: DatasourceInfo) -> Result<Vec<Tabl
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TableColumnTree {
-    schema: String,
-    table_name: String,
-    table_comment: String,
-    children: Vec<Column>,
+    pub schema: String,
+    pub table_name: String,
+    pub table_comment: String,
+    pub children: Vec<Column>,
 }
 
 pub async fn database_table_tree(datasource_info: DatasourceInfo) -> Result<Vec<TableColumnTree>> {

@@ -1,0 +1,30 @@
+[package]
+name = "ui"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+gpui = {workspace = true}
+gpui-component = {workspace = true}
+gpui-component-assets = {workspace = true}
+anyhow = {workspace = true}
+uuid = {workspace = true}
+base = {workspace = true}
+datafaker = {workspace = true}
+database = {workspace = true}
+md-5 = {workspace = true}
+sha1 = {workspace = true}
+sha2 = {workspace = true}
+sha3 = {workspace = true}
+serde = {workspace = true}
+serde_json = {workspace = true}
+rand = {workspace = true}
+regex = {workspace = true}
+time = {workspace = true, features = ["parsing", "local-offset"]}
+tokio = {workspace = true}
+rfd = {workspace = true}
+sysinfo = {workspace = true}
+sqlx = {workspace = true}
+dirs = {workspace = true}
+qrcode-generator = {workspace = true}

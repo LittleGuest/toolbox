@@ -107,6 +107,10 @@ const routes = [
     path: "/other/qrcode",
     component: () => import("@/views/other/QRCode.vue"),
   },
+  {
+    path: "/other/clipboard",
+    component: () => import("@/views/other/ClipboardManager.vue"),
+  },
 ];
 
 const router = createRouter({
