@@ -3,8 +3,9 @@ use std::{
     time::Duration,
 };
 
-use gpui::{prelude::FluentBuilder, *};
-use gpui_component::{
+use crate::design;
+use gpui_kit::{prelude::FluentBuilder, *};
+use gpui_kit::component::{
     WindowExt,
     button::*,
     input::{Input, InputEvent, InputState},
@@ -204,9 +205,9 @@ impl SystemMonitor {
         let bar_color = if percent < 50.0 {
             cx.theme().accent
         } else if percent < 80.0 {
-            gpui::rgb(0xf59e0b).into()
+            gpui_kit::rgb(0xf59e0b).into()
         } else {
-            gpui::rgb(0xef4444).into()
+            gpui_kit::rgb(0xef4444).into()
         };
 
         div()
@@ -279,12 +280,12 @@ impl SystemMonitor {
         cx: &mut Context<Self>,
     ) {
         let weak = cx.weak_entity();
-        window.open_dialog(cx, move |dialog, _, _cx| {
+        window.open_alert_dialog(cx, move |alert, _, _cx| {
             let weak = weak.clone();
             let name = name.clone();
-            dialog
+            alert
                 .title("确认终止进程")
-                .child(div().child(format!("确定要终止进程 {} (PID: {}) 吗？", name, pid)))
+                .description(div().child(format!("确定要终止进程 {} (PID: {}) 吗？", name, pid)))
                 .confirm()
                 .on_ok(move |_, _, cx| {
                     let _ = weak.update(cx, |this, cx| {
@@ -549,22 +550,18 @@ impl Render for SystemMonitor {
 
         // 未开启监控时的空状态
         if !monitoring_enabled {
-            return div()
-                .flex()
-                .flex_col()
-                .items_center()
-                .justify_center()
-                .h_full()
+            return design::page()
+                .child(design::page_header("系统监控", "实时监控 CPU、内存与磁盘", cx))
                 .child(
-                    div()
-                        .flex()
-                        .flex_col()
+                    design::card(cx)
                         .items_center()
-                        .gap_3()
-                        .p_8()
-                        .border_1()
-                        .border_color(cx.theme().border)
-                        .rounded_lg()
+                        .child(
+                            div()
+                                .flex()
+                                .flex_col()
+                                .items_center()
+                                .gap_3()
+                                .p_8()
                         .child(
                             Switch::new("monitor-toggle")
                                 .checked(false)
@@ -578,6 +575,7 @@ impl Render for SystemMonitor {
                                 .text_sm()
                                 .text_color(cx.theme().muted_foreground)
                                 .child("打开开关后开始采集 CPU、内存、磁盘和进程信息"),
+                        ),
                         ),
                 )
                 .into_any_element();
@@ -605,23 +603,16 @@ impl Render for SystemMonitor {
         let total_pages = self.total_pages();
         let total_filtered = self.filtered_processes().len();
 
-        div()
+        design::page()
+            .child(design::page_header("系统监控", "实时监控 CPU、内存与磁盘", cx))
             .child(
-                div()
-                    .flex()
-                    .flex_col()
+                h_flex()
                     .gap_4()
-                    // CPU 和 内存 卡片
                     .child(
-                        h_flex()
-                            .gap_4()
+                        div()
+                            .flex_1()
                             .child(
-                                div()
-                                    .flex_1()
-                                    .p_4()
-                                    .border_1()
-                                    .border_color(cx.theme().border)
-                                    .rounded_lg()
+                                design::card(cx)
                                     .child(
                                         v_flex()
                                             .gap_3()
@@ -722,17 +713,16 @@ impl Render for SystemMonitor {
                                             ),
                                     ),
                             )
+                            )
                             .child(
                                 div()
                                     .flex_1()
-                                    .p_4()
-                                    .border_1()
-                                    .border_color(cx.theme().border)
-                                    .rounded_lg()
                                     .child(
-                                        v_flex()
-                                            .gap_3()
-                                            .child(div().font_semibold().child("物理内存"))
+                                        design::card(cx)
+                                            .child(
+                                                v_flex()
+                                                    .gap_3()
+                                                    .child(div().font_semibold().child("物理内存"))
                                             .child(
                                                 h_flex()
                                                     .items_center()
@@ -785,15 +775,12 @@ impl Render for SystemMonitor {
                                                     ),
                                             ),
                                     ),
+                            )
                             ),
                     )
                     // 进程列表
                     .child(
-                        div()
-                            .p_4()
-                            .border_1()
-                            .border_color(cx.theme().border)
-                            .rounded_lg()
+                        design::card(cx)
                             .child(
                                 v_flex()
                                     .gap_3()
@@ -931,8 +918,7 @@ impl Render for SystemMonitor {
                                             ),
                                     ),
                             ),
-                    ),
-            )
+                    )
             .into_any_element()
     }
 }

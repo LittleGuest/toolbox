@@ -31,15 +31,19 @@ onUnmounted(() => {
 <style scoped>
 .excalidraw-page {
   width: 100%;
-  height: calc(100vh - 120px);
+  height: calc(100vh - 80px);
   min-height: 600px;
-  overflow: hidden;
-  border-radius: 8px;
-  background: #fff;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 12px 12px;
 }
 
 .excalidraw-container {
   width: 100%;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--tb-bg-elevated);
 }
 </style>

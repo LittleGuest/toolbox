@@ -3,7 +3,7 @@ import { ref, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
 import { useMessage } from "naive-ui";
-import { ArrowDown, Copy, Paste, Close } from "@vicons/carbon";
+import { ArrowDown, Copy, Paste, Close, Scan } from "@vicons/carbon";
 
 const message = useMessage();
 
@@ -150,116 +150,142 @@ const clear = () => {
 </script>
 
 <template>
-  <n-scrollbar>
-    <n-form label-placement="left" label-width="120">
-      <n-form-item label="输入类型">
-        <n-select placeholder="请选择输入类型" :options="inputTypeOptions" v-model:value="inputType" />
-      </n-form-item>
-      <n-form-item label="目标编码">
-        <n-select placeholder="请选择目标编码" :options="charsetOptions" v-model:value="targetCharset" />
-      </n-form-item>
-      <n-form-item label="操作">
-        <n-button-group>
-          <n-button @click="pasteInput">
-            <template #icon>
-              <n-icon>
-                <Paste />
-              </n-icon>
-            </template>
-          </n-button>
-          <n-button @click="copy(input)">
-            <template #icon>
-              <n-icon>
-                <Copy />
-              </n-icon>
-            </template>
-          </n-button>
-          <n-button @click="autoDetect">
-            自动检测
-          </n-button>
-          <n-button @click="clear">
-            <template #icon>
-              <n-icon>
-                <Close />
-              </n-icon>
-            </template>
-          </n-button>
-        </n-button-group>
-      </n-form-item>
-      <n-form-item label="输入">
-        <n-input placeholder="请输入文本或编码数据" v-model:value="input" :rows="6" type="textarea" />
-      </n-form-item>
-      <n-form-item label="转换">
-        <n-button @click="convert">
-          <template #icon>
-            <n-icon>
-              <ArrowDown />
-            </n-icon>
-          </template>
-        </n-button>
-      </n-form-item>
-      <n-form-item label="输出类型">
-        <n-select placeholder="请选择输出类型" :options="outputTypeOptions" v-model:value="outputType" />
-      </n-form-item>
-      <n-form-item label="分隔符">
-        <n-select placeholder="请选择分隔符" :options="delimiterOptions" v-model:value="delimiterType" />
-      </n-form-item>
-      <n-form-item label="自定义分隔符" v-if="delimiterType === 'custom'">
-        <n-input placeholder="输入自定义分隔符" v-model:value="customDelimiter" style="width: 200px" />
-      </n-form-item>
-      <n-form-item label="进制格式">
-        <n-select placeholder="请选择进制格式" :options="baseFormatOptions" v-model:value="baseFormat" />
-      </n-form-item>
-      <n-form-item label="显示选项">
-        <div class="option-group">
-          <n-checkbox v-model:checked="showUnicode">Unicode码点</n-checkbox>
-          <n-checkbox v-model:checked="showEscape">转义序列</n-checkbox>
-          <n-checkbox v-model:checked="showCArray">C/C++数组</n-checkbox>
-          <n-checkbox v-model:checked="showAssembly">汇编数据</n-checkbox>
-          <n-checkbox v-model:checked="showAuto">自动</n-checkbox>
-          <n-checkbox v-model:checked="invertNonPrintable">反转不可打印字符</n-checkbox>
-          <n-checkbox v-model:checked="appendNull">追加NUL结尾</n-checkbox>
+  <div>
+      <!-- 配置行 -->
+      <div class="tb-config-row">
+        <div class="tb-config-item">
+          <span class="tb-config-label">输入类型</span>
+          <n-select placeholder="请选择输入类型" :options="inputTypeOptions" v-model:value="inputType" style="width: 160px" />
         </div>
-      </n-form-item>
-      <n-form-item label="操作">
-        <n-button-group>
-          <n-button @click="pasteOutput">
-            <template #icon>
-              <n-icon>
-                <Paste />
-              </n-icon>
+        <div class="tb-config-item">
+          <span class="tb-config-label">目标编码</span>
+          <n-select placeholder="请选择目标编码" :options="charsetOptions" v-model:value="targetCharset" style="width: 160px" />
+        </div>
+        <div class="tb-config-item">
+          <span class="tb-config-label">输出类型</span>
+          <n-select placeholder="请选择输出类型" :options="outputTypeOptions" v-model:value="outputType" style="width: 160px" />
+        </div>
+        <div class="tb-config-item">
+          <span class="tb-config-label">分隔符</span>
+          <n-select placeholder="请选择分隔符" :options="delimiterOptions" v-model:value="delimiterType" style="width: 120px" />
+        </div>
+        <div class="tb-config-item" v-if="delimiterType === 'custom'">
+          <span class="tb-config-label">自定义分隔符</span>
+          <n-input placeholder="输入自定义分隔符" v-model:value="customDelimiter" style="width: 160px" />
+        </div>
+        <div class="tb-config-item">
+          <span class="tb-config-label">进制格式</span>
+          <n-select placeholder="请选择进制格式" :options="baseFormatOptions" v-model:value="baseFormat" style="width: 140px" />
+        </div>
+      </div>
+
+      <div class="tb-config-row">
+        <div class="tb-config-item">
+          <span class="tb-config-label">显示选项</span>
+          <div class="option-group">
+            <n-checkbox v-model:checked="showUnicode">Unicode码点</n-checkbox>
+            <n-checkbox v-model:checked="showEscape">转义序列</n-checkbox>
+            <n-checkbox v-model:checked="showCArray">C/C++数组</n-checkbox>
+            <n-checkbox v-model:checked="showAssembly">汇编数据</n-checkbox>
+            <n-checkbox v-model:checked="showAuto">自动</n-checkbox>
+            <n-checkbox v-model:checked="invertNonPrintable">反转不可打印字符</n-checkbox>
+            <n-checkbox v-model:checked="appendNull">追加NUL结尾</n-checkbox>
+          </div>
+        </div>
+      </div>
+
+      <!-- 输入区 -->
+      <div class="tb-editor tb-mono">
+        <span class="tb-editor-label">输入</span>
+        <n-input placeholder="请输入文本或编码数据" v-model:value="input" :rows="6" type="textarea" />
+        <div class="tb-toolbar">
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="pasteInput">
+                <template #icon><n-icon><Paste /></n-icon></template>
+              </n-button>
             </template>
-          </n-button>
-          <n-button @click="copy(output)">
-            <template #icon>
-              <n-icon>
-                <Copy />
-              </n-icon>
+            粘贴
+          </n-tooltip>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="copy(input)">
+                <template #icon><n-icon><Copy /></n-icon></template>
+              </n-button>
             </template>
-          </n-button>
-          <n-button @click="clear">
-            <template #icon>
-              <n-icon>
-                <Close />
-              </n-icon>
+            复制
+          </n-tooltip>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="autoDetect">
+                <template #icon><n-icon><Scan /></n-icon></template>
+              </n-button>
             </template>
-          </n-button>
-        </n-button-group>
-      </n-form-item>
-      <n-form-item label="输出">
+            自动检测
+          </n-tooltip>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="clear">
+                <template #icon><n-icon><Close /></n-icon></template>
+              </n-button>
+            </template>
+            清除
+          </n-tooltip>
+        </div>
+      </div>
+
+      <!-- 主操作行 -->
+      <div class="tb-action-row">
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <n-button type="primary" @click="convert">
+              <template #icon><n-icon><ArrowDown /></n-icon></template>
+            </n-button>
+          </template>
+          转换
+        </n-tooltip>
+      </div>
+
+      <!-- 输出区 -->
+      <div class="tb-editor tb-mono">
+        <span class="tb-editor-label">输出</span>
         <n-input placeholder="转换结果" v-model:value="output" :rows="6" type="textarea" />
-      </n-form-item>
-      <n-form-item label="统计信息">
-        <span>字节: {{ byteCount }} 字符: {{ charCount }}</span>
-      </n-form-item>
-    </n-form>
-  </n-scrollbar>
+        <div class="tb-toolbar">
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="pasteOutput">
+                <template #icon><n-icon><Paste /></n-icon></template>
+              </n-button>
+            </template>
+            粘贴
+          </n-tooltip>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="copy(output)">
+                <template #icon><n-icon><Copy /></n-icon></template>
+              </n-button>
+            </template>
+            复制
+          </n-tooltip>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="clear">
+                <template #icon><n-icon><Close /></n-icon></template>
+              </n-button>
+            </template>
+            清除
+          </n-tooltip>
+        </div>
+        <p class="tb-hint">统计信息：字节 {{ byteCount }} · 字符 {{ charCount }}</p>
+      </div>
+  </div>
 </template>
 
 <style scoped>
 .option-group {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 4px 16px;
+  align-items: center;
 }
 </style>

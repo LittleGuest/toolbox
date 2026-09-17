@@ -1,7 +1,8 @@
-use gpui::{prelude::FluentBuilder as _, *};
-use gpui_component::{
+use crate::design;
+use gpui_kit::{prelude::FluentBuilder as _, *};
+use gpui_kit::component::{
     button::*,
-    input::{Input, InputEvent, InputState},
+    input::{Input, InputEvent, InputState, Textarea, TextareaState },
     scroll::ScrollableElement,
     select::{Select, SelectEvent, SelectState},
     *,
@@ -12,7 +13,7 @@ use crate::views::syntax_highlight::{self, HighlightPalette};
 pub struct XmlFormatter {
     input: String,
     indent: String,
-    input_state: Entity<InputState>,
+    input_state: Entity<TextareaState>,
     indent_state: Entity<SelectState<Vec<String>>>,
     _subscriptions: Vec<Subscription>,
 }
@@ -20,9 +21,9 @@ pub struct XmlFormatter {
 impl XmlFormatter {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let input_state = cx.new(|cx| {
-            InputState::new(window, cx)
+            TextareaState::new(window, cx)
                 .placeholder("请输入XML...")
-                .multi_line(true)
+                
         });
 
         let indent_state = cx.new(|cx| {
@@ -247,54 +248,52 @@ impl XmlFormatter {
 
 impl Render for XmlFormatter {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        div().child(
-            div()
-                .flex()
-                .flex_col()
-                .gap_3()
-                // 缩进 → Select（匹配 Tauri n-select）
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().text_sm().child("缩进"))
-                        .child(Select::new(&self.indent_state)),
-                )
-                // 操作 → Paste + Copy + 格式化（匹配 Tauri n-button-group，三个按钮在同一组内）
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().text_sm().child(""))
-                        .child(
-                            ButtonGroup::new("action-buttons")
-                                .child(
-                                    Button::new("paste-input")
-                                        .icon(Icon::new(IconName::File))
-                                        .tooltip("粘贴")
-                                        .on_click(cx.listener(|this, _, window, cx| {
-                                            this.paste(window, cx);
-                                        })),
-                                )
-                                .child(
-                                    Button::new("copy-input")
-                                        .icon(Icon::new(IconName::Copy))
-                                        .tooltip("复制")
-                                        .on_click(cx.listener(|this, _, _, cx| {
-                                            this.copy_input(cx);
-                                        })),
-                                )
-                                .child(Button::new("format").child("格式化").on_click(
-                                    cx.listener(|this, _, window, cx| {
-                                        this.format(window, cx);
-                                    }),
-                                )),
-                        ),
-                )
-                // 单编辑器（匹配 Tauri CodeMirror，格式化后替换内容）
-                .child(Input::new(&self.input_state).h(px(400.0))),
-        )
+        design::page()
+            .child(design::page_header("XML 格式化", "格式化 XML 文本", cx))
+            .child(
+                // 输入卡片（含缩进配置）
+                design::card(cx)
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(div().text_sm().child("缩进"))
+                            .child(Select::new(&self.indent_state)),
+                    )
+                    .child(
+                        design::toolbar()
+                            .child(
+                                Button::new("paste-input")
+                                    .icon(Icon::new(IconName::File))
+                                    .tooltip("粘贴")
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.paste(window, cx);
+                                    })),
+                            )
+                            .child(
+                                Button::new("copy-input")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.copy_input(cx);
+                                    })),
+                            )
+                            .child(div().flex_1()),
+                    )
+                    .child(Textarea::new(&self.input_state).h(px(400.0))),
+            )
+            .child(
+                // 格式化操作行
+                design::action_row()
+                    .child(
+                        Button::new("format")
+                            .label("格式化")
+                            .primary()
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.format(window, cx);
+                            })),
+                    ),
+            )
     }
 }

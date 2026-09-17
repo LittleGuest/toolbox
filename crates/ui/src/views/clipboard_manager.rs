@@ -1,19 +1,20 @@
-use gpui::*;
-use gpui_component::{
+use gpui_kit::*;
+use gpui_kit::component::{
     button::*,
-    input::{Input, InputEvent, InputState},
+    input::{Input, InputEvent, InputState, Textarea, TextareaState },
     scroll::ScrollableElement,
     *,
 };
 
 use crate::config_store::{self, ClipboardHistoryItem};
+use crate::design;
 
 pub struct ClipboardManager {
     input: String,
     keyword: String,
     history: Vec<ClipboardHistoryItem>,
     status: String,
-    input_state: Entity<InputState>,
+    input_state: Entity<TextareaState>,
     keyword_state: Entity<InputState>,
     _subscriptions: Vec<Subscription>,
 }
@@ -21,9 +22,9 @@ pub struct ClipboardManager {
 impl ClipboardManager {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let input_state = cx.new(|cx| {
-            InputState::new(window, cx)
+            TextareaState::new(window, cx)
                 .placeholder("输入内容后复制并记录，或读取当前剪贴板加入历史")
-                .multi_line(true)
+                
         });
         let keyword_state = cx.new(|cx| InputState::new(window, cx).placeholder("搜索历史内容"));
 
@@ -170,12 +171,12 @@ impl ClipboardManager {
 
     fn clear_history(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let this = cx.entity().downgrade();
-        window.open_dialog(cx, move |dialog, _, _cx| {
+        window.open_alert_dialog(cx, move |alert, _, _cx| {
             let this = this.clone();
-            dialog
+            alert
                 .title(div().text_lg().font_semibold().child("确认清空"))
                 .width(px(420.))
-                .child(
+                .description(
                     div()
                         .py_4()
                         .text_sm()
@@ -240,57 +241,57 @@ impl Render for ClipboardManager {
             }
         }
 
-        div().child(
-            div()
-                .flex()
-                .flex_col()
-                .gap_4()
-                .child(Input::new(&self.input_state).h(px(140.0)))
-                .child(
-                    ButtonGroup::new("clipboard-actions")
-                        .child(
-                            Button::new("clipboard-copy-input")
-                                .primary()
-                                .icon(Icon::new(IconName::Copy))
-                                .tooltip("复制并记录")
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.copy_input(cx);
-                                })),
-                        )
-                        .child(
-                            Button::new("clipboard-read-current")
-                                .icon(Icon::new(IconName::File))
-                                .tooltip("读取当前剪贴板")
-                                .on_click(cx.listener(|this, _, window, cx| {
-                                    this.read_current_clipboard(window, cx);
-                                })),
-                        )
-                        .child(
-                            Button::new("clipboard-refresh")
-                                .icon(Icon::new(IconName::Search))
-                                .tooltip("刷新历史")
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.refresh_history(cx);
-                                })),
-                        )
-                        .child(
-                            Button::new("clipboard-clear")
-                                .icon(Icon::new(IconName::Delete))
-                                .tooltip("清空历史")
-                                .on_click(cx.listener(|this, _, window, cx| {
-                                    this.clear_history(window, cx);
-                                })),
-                        ),
-                )
-                .child(Input::new(&self.keyword_state))
-                .child(
-                    div()
-                        .text_sm()
-                        .text_color(cx.theme().muted_foreground)
-                        .child(self.status.clone()),
-                )
-                .child(history_list),
-        )
+        design::page()
+            .child(design::page_header("剪贴板管理", "剪贴板历史记录", cx))
+            .child(
+                design::card(cx)
+                    .child(Textarea::new(&self.input_state).h(px(140.0)))
+                    .child(
+                        design::toolbar()
+                            .child(
+                                Button::new("clipboard-copy-input")
+                                    .primary()
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制并记录")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.copy_input(cx);
+                                    })),
+                            )
+                            .child(
+                                Button::new("clipboard-read-current")
+                                    .icon(Icon::new(IconName::File))
+                                    .tooltip("读取当前剪贴板")
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.read_current_clipboard(window, cx);
+                                    })),
+                            )
+                            .child(
+                                Button::new("clipboard-refresh")
+                                    .icon(Icon::new(IconName::Search))
+                                    .tooltip("刷新历史")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.refresh_history(cx);
+                                    })),
+                            )
+                            .child(
+                                Button::new("clipboard-clear")
+                                    .icon(Icon::new(IconName::Delete))
+                                    .tooltip("清空历史")
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.clear_history(window, cx);
+                                    })),
+                            )
+                            .child(div().flex_1()),
+                    )
+                    .child(Input::new(&self.keyword_state))
+                    .child(
+                        div()
+                            .text_sm()
+                            .text_color(cx.theme().muted_foreground)
+                            .child(self.status.clone()),
+                    )
+                    .child(history_list),
+            )
     }
 }
 

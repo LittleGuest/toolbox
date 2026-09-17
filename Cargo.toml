@@ -6,7 +6,7 @@ members = [
   "crates/datafaker",
   "crates/base",
   "crates/monitor",
-  "crates/ui",
+  # "crates/ui",
   "src-tauri",
 ]
 
@@ -57,6 +57,7 @@ uuid = { version = "1.17.0", features = [
 image = { version = "0.25.6" }
 time = { version = "0.3.41", features = ["formatting"] }
 base-converter = "2.0.0"
+chrono = { version = "0.4", features = ["clock"] }
 tauri-plugin-clipboard-manager = "2"
 tauri-plugin-notification = "2"
 tokio = { version = "1.45.0", features = ["full"] }
@@ -86,7 +87,11 @@ sysinfo = "0.37.1"
 battery = "0.7.8"
 dotenv = "0.15.0"
 serde-transcode = "1.1.1"
-gpui = "0.2.2"
-gpui-component = "0.5.0"
-gpui-component-assets = "0.5.0"
+gpui-kit = "0.6"
 rfd = "0.15"
+bs58 = "0.5"
+similar = "2"
+aes = "0.8"
+des = "0.8"
+ecb = { version = "0.1", features = ["alloc"] }
+cbc = { version = "0.1", features = ["alloc"] }

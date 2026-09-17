@@ -1,7 +1,8 @@
-use gpui::*;
-use gpui_component::{
+use crate::design;
+use gpui_kit::*;
+use gpui_kit::component::{
     button::*,
-    input::{Input, InputEvent, InputState, NumberInput, NumberInputEvent, StepAction},
+    input::{Input, InputEvent, InputState, NumberInput, NumberInputEvent, StepAction, Textarea, TextareaState },
     radio::{Radio, RadioGroup},
     slider::{Slider, SliderEvent, SliderState},
     *,
@@ -54,7 +55,7 @@ pub struct QrCodeGenerator {
     svg: String,
     png_data: Option<Vec<u8>>,
     error: String,
-    input_state: Entity<InputState>,
+    input_state: Entity<TextareaState>,
     size_slider: Entity<SliderState>,
     margin_state: Entity<InputState>,
     dark_color_state: Entity<InputState>,
@@ -65,10 +66,10 @@ pub struct QrCodeGenerator {
 impl QrCodeGenerator {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let input_state = cx.new(|cx| {
-            InputState::new(window, cx)
+            TextareaState::new(window, cx)
                 .placeholder("输入文本、链接或其它需要编码的内容...")
                 .default_value("https://github.com/")
-                .multi_line(true)
+                
         });
 
         let size_slider = cx.new(|_| {
@@ -361,8 +362,8 @@ impl Render for QrCodeGenerator {
         } else {
             // 使用 canvas 绘制 SVG 内容
             let svg = self.svg.clone();
-            let dark_color = hex_to_hsla(&self.dark_color).unwrap_or(gpui::black());
-            let light_color = hex_to_hsla(&self.light_color).unwrap_or(gpui::white());
+            let dark_color = hex_to_hsla(&self.dark_color).unwrap_or(gpui_kit::black());
+            let light_color = hex_to_hsla(&self.light_color).unwrap_or(gpui_kit::white());
             let qr_size = self.size;
 
             div()
@@ -435,166 +436,172 @@ impl Render for QrCodeGenerator {
             )
         };
 
-        div()
+        design::page()
+            .child(design::page_header("二维码", "生成二维码", cx))
             .child(
-                div()
-                    .grid()
-                    .grid_cols(2)
-                    .gap_4()
-                    // 左栏：参数表单
+                // 整体卡片：参数表单 + 画布预览保持原样
+                design::card(cx)
                     .child(
                         div()
-                            .flex()
-                            .flex_col()
-                            .gap_3()
-                            .min_w(px(320.))
-                            // 内容
+                            .grid()
+                            .grid_cols(2)
+                            .gap_4()
+                            // 左栏：参数表单
                             .child(
                                 div()
                                     .flex()
-                                    .items_start()
-                                    .gap_2()
-                                    .child(div().w(px(110.0)).text_sm().child("内容"))
+                                    .flex_col()
+                                    .gap_3()
+                                    .min_w(px(320.))
+                                    // 内容
                                     .child(
                                         div()
-                                            .flex_1()
-                                            .child(Input::new(&self.input_state).h(px(180.0))),
-                                    ),
-                            )
-                            // 尺寸
-                            .child(
-                                div()
-                                    .flex()
-                                    .items_center()
-                                    .gap_2()
-                                    .child(div().w(px(110.0)).text_sm().child("尺寸"))
-                                    .child(div().flex_1().child(Slider::new(&self.size_slider))),
-                            )
-                            // 边距 → NumberInput（匹配 Tauri n-input-number）
-                            .child(
-                                div()
-                                    .flex()
-                                    .items_center()
-                                    .gap_2()
-                                    .child(div().w(px(110.0)).text_sm().child("边距"))
-                                    .child(
-                                        div().flex_1().child(NumberInput::new(&self.margin_state)),
-                                    ),
-                            )
-                            // 纠错级别
-                            .child(
-                                div()
-                                    .flex()
-                                    .items_center()
-                                    .gap_2()
-                                    .child(div().w(px(110.0)).text_sm().child("纠错级别"))
-                                    .child(
-                                        RadioGroup::horizontal("ecc-group")
-                                            .selected_index(ecc_index)
-                                            .on_click(cx.listener(|this, idx: &usize, _, cx| {
-                                                if let Some(level) = ECC_LEVELS.get(*idx) {
-                                                    this.set_ecc_level(*level, cx);
-                                                }
-                                            }))
-                                            .children(
-                                                ECC_LEVELS.iter().map(|l| Radio::new(l.label())),
+                                            .flex()
+                                            .items_start()
+                                            .gap_2()
+                                            .child(design::caption("内容", cx).w(px(110.0)))
+                                            .child(
+                                                div()
+                                                    .flex_1()
+                                                    .child(
+                                                        Textarea::new(&self.input_state)
+                                                            .h(design::CODE_BOX_HEIGHT)
+                                                            .font_family("monospace"),
+                                                    ),
                                             ),
-                                    ),
-                            )
-                            // 前景色
-                            .child(
-                                div()
-                                    .flex()
-                                    .items_center()
-                                    .gap_2()
-                                    .child(div().w(px(110.0)).text_sm().child("前景色"))
+                                    )
+                                    // 尺寸
                                     .child(
                                         div()
-                                            .w(px(20.0))
-                                            .h(px(20.0))
-                                            .rounded_md()
-                                            .border_1()
-                                            .border_color(cx.theme().border)
-                                            .bg(hex_to_hsla(&self.dark_color)
-                                                .unwrap_or(gpui::black())),
+                                            .flex()
+                                            .items_center()
+                                            .gap_2()
+                                            .child(design::caption("尺寸", cx).w(px(110.0)))
+                                            .child(div().flex_1().child(Slider::new(&self.size_slider))),
                                     )
-                                    .child(
-                                        div().flex_1().child(Input::new(&self.dark_color_state)),
-                                    ),
-                            )
-                            // 背景色
-                            .child(
-                                div()
-                                    .flex()
-                                    .items_center()
-                                    .gap_2()
-                                    .child(div().w(px(110.0)).text_sm().child("背景色"))
+                                    // 边距 → NumberInput（匹配 Tauri n-input-number）
                                     .child(
                                         div()
-                                            .w(px(20.0))
-                                            .h(px(20.0))
-                                            .rounded_md()
-                                            .border_1()
-                                            .border_color(cx.theme().border)
-                                            .bg(hex_to_hsla(&self.light_color)
-                                                .unwrap_or(gpui::white())),
+                                            .flex()
+                                            .items_center()
+                                            .gap_2()
+                                            .child(design::caption("边距", cx).w(px(110.0)))
+                                            .child(
+                                                div().flex_1().child(NumberInput::new(&self.margin_state)),
+                                            ),
                                     )
+                                    // 纠错级别
                                     .child(
-                                        div().flex_1().child(Input::new(&self.light_color_state)),
-                                    ),
+                                        div()
+                                            .flex()
+                                            .items_center()
+                                            .gap_2()
+                                            .child(design::caption("纠错级别", cx).w(px(110.0)))
+                                            .child(
+                                                RadioGroup::horizontal("ecc-group")
+                                                    .selected_index(ecc_index)
+                                                    .on_click(cx.listener(|this, idx: &usize, _, cx| {
+                                                        if let Some(level) = ECC_LEVELS.get(*idx) {
+                                                            this.set_ecc_level(*level, cx);
+                                                        }
+                                                    }))
+                                                    .children(
+                                                        ECC_LEVELS.iter().map(|l| Radio::new(l.label())),
+                                                    ),
+                                            ),
+                                    )
+                                    // 前景色
+                                    .child(
+                                        div()
+                                            .flex()
+                                            .items_center()
+                                            .gap_2()
+                                            .child(design::caption("前景色", cx).w(px(110.0)))
+                                            .child(
+                                                div()
+                                                    .w(px(20.0))
+                                                    .h(px(20.0))
+                                                    .rounded_md()
+                                                    .border_1()
+                                                    .border_color(cx.theme().border)
+                                                    .bg(hex_to_hsla(&self.dark_color)
+                                                        .unwrap_or(gpui_kit::black())),
+                                            )
+                                            .child(
+                                                div().flex_1().child(Input::new(&self.dark_color_state)),
+                                            ),
+                                    )
+                                    // 背景色
+                                    .child(
+                                        div()
+                                            .flex()
+                                            .items_center()
+                                            .gap_2()
+                                            .child(design::caption("背景色", cx).w(px(110.0)))
+                                            .child(
+                                                div()
+                                                    .w(px(20.0))
+                                                    .h(px(20.0))
+                                                    .rounded_md()
+                                                    .border_1()
+                                                    .border_color(cx.theme().border)
+                                                    .bg(hex_to_hsla(&self.light_color)
+                                                        .unwrap_or(gpui_kit::white())),
+                                            )
+                                            .child(
+                                                div().flex_1().child(Input::new(&self.light_color_state)),
+                                            ),
+                                    )
+                                    // 操作按钮
+                                    .child(
+                                        design::toolbar()
+                                            .child(
+                                                Button::new("generate")
+                                                    .label("生成")
+                                                    .primary()
+                                                    .icon(Icon::new(IconName::Plus))
+                                                    .on_click(cx.listener(|this, _, _, cx| {
+                                                        this.generate();
+                                                        cx.notify();
+                                                    })),
+                                            )
+                                            .child(
+                                                Button::new("paste")
+                                                    .icon(Icon::new(IconName::File))
+                                                    .tooltip("粘贴内容")
+                                                    .on_click(cx.listener(|this, _, window, cx| {
+                                                        this.paste(window, cx);
+                                                    })),
+                                            )
+                                            .child(
+                                                Button::new("copy-data-url")
+                                                    .icon(Icon::new(IconName::Copy))
+                                                    .tooltip("复制 Data URL")
+                                                    .on_click(cx.listener(|this, _, _, cx| {
+                                                        this.copy_data_url(cx);
+                                                    })),
+                                            )
+                                            .child(
+                                                Button::new("download-png")
+                                                    .icon(Icon::new(IconName::ArrowDown))
+                                                    .tooltip("下载 PNG")
+                                                    .on_click(cx.listener(|this, _, _, cx| {
+                                                        this.download_png(cx);
+                                                    })),
+                                            ),
+                                    )
+                                    .children(error_msg),
                             )
-                            // 操作按钮（匹配 Tauri n-space: 生成 + 粘贴内容 + 复制 Data URL + 下载 PNG）
+                            // 右栏：图形化预览
                             .child(
                                 div()
-                                    .flex()
-                                    .items_center()
-                                    .gap_2()
-                                    .child(
-                                        Button::new("generate")
-                                            .primary()
-                                            .icon(Icon::new(IconName::Plus))
-                                            .tooltip("生成")
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.generate();
-                                                cx.notify();
-                                            })),
-                                    )
-                                    .child(
-                                        Button::new("paste")
-                                            .icon(Icon::new(IconName::File))
-                                            .tooltip("粘贴内容")
-                                            .on_click(cx.listener(|this, _, window, cx| {
-                                                this.paste(window, cx);
-                                            })),
-                                    )
-                                    .child(
-                                        Button::new("copy-data-url")
-                                            .icon(Icon::new(IconName::Copy))
-                                            .tooltip("复制 Data URL")
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.copy_data_url(cx);
-                                            })),
-                                    )
-                                    .child(
-                                        Button::new("download-png")
-                                            .icon(Icon::new(IconName::ArrowDown))
-                                            .tooltip("下载 PNG")
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.download_png(cx);
-                                            })),
-                                    ),
-                            )
-                            .children(error_msg),
-                    )
-                    // 右栏：图形化预览
-                    .child(
-                        div()
-                            .border_1()
-                            .border_color(cx.theme().border)
-                            .rounded_lg()
-                            .p_3()
-                            .h(px(360.0))
-                            .child(preview),
+                                    .border_1()
+                                    .border_color(cx.theme().border)
+                                    .rounded_lg()
+                                    .p_3()
+                                    .h(px(360.0))
+                                    .child(preview),
+                            ),
                     ),
             )
     }

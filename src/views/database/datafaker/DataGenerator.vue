@@ -3,6 +3,7 @@ import { nextTick, onUnmounted, ref, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useMessage } from "naive-ui";
+import { ArrowLeft, Erase, Play, Save, Close } from "@vicons/carbon";
 import type { LogInst } from "naive-ui";
 import { useRouter } from "vue-router";
 import { VueFlow, useVueFlow, MarkerType } from "@vue-flow/core";
@@ -583,7 +584,16 @@ onUnmounted(() => {
     <n-list class="sidebar" hoverable clickable :show-divider="false">
       <template #header>
         <div class="sidebar-header">
-          <n-button secondary block @click="goBack">返回上一页</n-button>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button secondary block @click="goBack">
+                <template #icon>
+                  <n-icon><ArrowLeft /></n-icon>
+                </template>
+              </n-button>
+            </template>
+            返回上一页
+          </n-tooltip>
           <n-input v-model:value="searchTable" placeholder="搜索表..." />
         </div>
       </template>
@@ -620,16 +630,41 @@ onUnmounted(() => {
             <span>每张表生成</span>
             <n-input-number v-model:value="rowCount" :min="1" :max="100000" />
             <span>行</span>
-            <n-button @click="saveConfig">保存配置</n-button>
+            <n-tooltip trigger="hover">
+              <template #trigger>
+                <n-button @click="saveConfig">
+                  <template #icon>
+                    <n-icon><Save /></n-icon>
+                  </template>
+                </n-button>
+              </template>
+              保存配置
+            </n-tooltip>
             <n-popconfirm @positive-click="clearCanvas">
               <template #trigger>
-                <n-button secondary type="warning">清空画布</n-button>
+                <n-tooltip trigger="hover">
+                  <template #trigger>
+                    <n-button secondary type="warning">
+                      <template #icon>
+                        <n-icon><Erase /></n-icon>
+                      </template>
+                    </n-button>
+                  </template>
+                  清空画布
+                </n-tooltip>
               </template>
               清空后会移除所有表、字段、生成器和连线，确定继续？
             </n-popconfirm>
-            <n-button type="primary" :loading="running" @click="runConfig">
+            <n-tooltip trigger="hover">
+              <template #trigger>
+                <n-button type="primary" :loading="running" @click="runConfig">
+                  <template #icon>
+                    <n-icon><Play /></n-icon>
+                  </template>
+                </n-button>
+              </template>
               运行配置
-            </n-button>
+            </n-tooltip>
             <n-button
               v-if="runLogs.length && !runLogVisible"
               secondary
@@ -646,7 +681,16 @@ onUnmounted(() => {
           title="运行日志"
         >
           <template #header-extra>
-            <n-button text size="small" @click="closeRunLog">关闭</n-button>
+            <n-tooltip trigger="hover">
+              <template #trigger>
+                <n-button text size="small" @click="closeRunLog">
+                  <template #icon>
+                    <n-icon><Close /></n-icon>
+                  </template>
+                </n-button>
+              </template>
+              关闭
+            </n-tooltip>
           </template>
           <n-log
             ref="runLogRef"

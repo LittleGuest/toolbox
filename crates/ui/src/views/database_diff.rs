@@ -1,3 +1,4 @@
+use crate::design;
 use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
@@ -5,8 +6,8 @@ use std::{
 };
 
 use database::{CheckReportBo, DatasourceInfo, DiffReport, Driver};
-use gpui::{prelude::FluentBuilder as _, *};
-use gpui_component::{
+use gpui_kit::{prelude::FluentBuilder as _, *};
+use gpui_kit::component::{
     WindowExt,
     button::*,
     checkbox::Checkbox,
@@ -1675,23 +1676,25 @@ impl DatabaseDiff {
 
 impl Render for DatabaseDiff {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        div()
-
+        design::page()
+            .child(design::page_header("数据库差异", "对比两个数据库结构", cx))
             .child(
-                div()
-                    .flex()
-                    .flex_col()
-                    .gap_4()
-                    // 差异报告行
+                design::card(cx)
                     .child(
                         div()
                             .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(title_with_tooltip(
-                                "差异报告",
-                                "对比两个数据库之间的差异变化，用于评审检查数据库的变动",
-                            ))
+                            .flex_col()
+                            .gap_4()
+                            // 差异报告行
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap_2()
+                                    .child(title_with_tooltip(
+                                        "差异报告",
+                                        "对比两个数据库之间的差异变化，用于评审检查数据库的变动",
+                                    ))
                             .child(div().text_sm().child("基准库"))
                             .child(
                                 div()
@@ -1812,6 +1815,7 @@ impl Render for DatabaseDiff {
                         )
                     }),
             )
+    )
     }
 }
 

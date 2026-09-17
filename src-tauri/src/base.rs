@@ -56,6 +56,32 @@ pub fn decode_base64_text(input: Option<&str>) -> Result<String> {
 }
 
 #[tauri::command]
+pub fn encode_base64_image(file_path: &str) -> Result<HashMap<String, String>> {
+    base::encode_base64_image(file_path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn decode_base64_image(input: Option<&str>) -> Result<HashMap<String, String>> {
+    let Some(data) = input else {
+        return Err("input empty".to_string());
+    };
+    base::decode_base64_image(data).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn save_base64_image(input: Option<&str>, file_path: &str) -> Result<()> {
+    let Some(data) = input else {
+        return Err("input empty".to_string());
+    };
+    base::save_base64_image(data, file_path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn cron_parse(expression: &str, count: u32, cron_type: &str) -> Result<base::CronParseResult> {
+    base::cron_parse(expression, count, cron_type).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub fn encode_url(input: Option<&str>) -> Result<String> {
     let Some(data) = input else {
         return Err("input empty".to_string());
@@ -108,11 +134,6 @@ pub fn check_ip(t: &str, ip: Option<String>) -> Result<bool> {
 }
 
 #[tauri::command]
-pub fn ip_to_number(t: &str, ip: Option<String>) -> Result<HashMap<String, String>> {
-    base::ip_to_number(t, ip).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
 pub fn charset_encode(
     input: &str,
     input_type: &str,
@@ -154,4 +175,69 @@ pub fn auto_detect_charset(input: &str) -> Result<String> {
 #[tauri::command]
 pub fn recover_garbled_code(input: &str) -> Result<Vec<base::RecoverGarbledCode>> {
     base::recover_garbled_code(input).map_err(|e| e.to_string())
+}
+
+// ---------- 新增：时间戳批量转换 ----------
+
+#[tauri::command]
+pub fn timestamp_convert(
+    mode: &str,
+    unit: &str,
+    tz_offset_secs: i32,
+    values: Vec<String>,
+) -> Result<Vec<base::TimestampRow>> {
+    base::timestamp_convert(mode, unit, tz_offset_secs, &values).map_err(|e| e.to_string())
+}
+
+// ---------- 新增：图片格式转换 ----------
+
+#[tauri::command]
+pub fn image_convert(
+    inputs: Vec<String>,
+    output_format: &str,
+    output_dir: &str,
+    quality: Option<u16>,
+) -> Result<Vec<String>> {
+    base::image_convert(&inputs, output_format, output_dir, quality).map_err(|e| e.to_string())
+}
+
+// ---------- 新增：PDF ----------
+
+#[tauri::command]
+pub fn images_to_pdf(inputs: Vec<String>, output_path: &str) -> Result<()> {
+    base::images_to_pdf(&inputs, output_path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn pdf_merge(inputs: Vec<String>, output_path: &str) -> Result<()> {
+    base::pdf_merge(&inputs, output_path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn pdf_edit(
+    input: &str,
+    output_path: &str,
+    delete: Vec<u32>,
+    rotate: Vec<(u32, f32)>,
+    order: Vec<u32>,
+) -> Result<()> {
+    base::pdf_edit(input, output_path, &delete, &rotate, &order).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn pdf_split(input: &str, output_dir: &str, ranges: &str) -> Result<Vec<String>> {
+    base::pdf_split(input, output_dir, ranges).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn pdf_add_page_numbers(
+    input: &str,
+    output_path: &str,
+    position: &str,
+    font_size: f32,
+    format_pattern: &str,
+    start_at: i32,
+) -> Result<()> {
+    base::pdf_add_page_numbers(input, output_path, position, font_size, format_pattern, start_at)
+        .map_err(|e| e.to_string())
 }

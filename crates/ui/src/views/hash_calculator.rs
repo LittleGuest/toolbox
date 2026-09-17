@@ -1,7 +1,8 @@
-use gpui::*;
-use gpui_component::{
+use crate::design;
+use gpui_kit::*;
+use gpui_kit::component::{
     button::*,
-    input::{Input, InputEvent, InputState},
+    input::{Input, InputEvent, InputState, Textarea, TextareaState },
     select::{SelectEvent, SelectState},
     *,
 };
@@ -19,7 +20,7 @@ pub struct HashCalculator {
     uppercase: bool,
     output_type: String,
     hmac_mode: bool,
-    input_state: Entity<InputState>,
+    input_state: Entity<TextareaState>,
     secret_state: Entity<InputState>,
     output_type_state: Entity<SelectState<Vec<String>>>,
     _subscriptions: Vec<Subscription>,
@@ -28,9 +29,9 @@ pub struct HashCalculator {
 impl HashCalculator {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let input_state = cx.new(|cx| {
-            InputState::new(window, cx)
+            TextareaState::new(window, cx)
                 .placeholder("请输入文本...")
-                .multi_line(true)
+                
         });
         let secret_state = cx.new(|cx| InputState::new(window, cx).placeholder("HMAC 密钥..."));
 
@@ -111,7 +112,7 @@ impl HashCalculator {
         cx.notify();
 
         cx.spawn(async move |this: WeakEntity<Self>, cx| {
-            let result = base::hash(
+            let result = ::base::hash(
                 uppercase,
                 if output_type == "base64" {
                     Some("base64")
@@ -198,83 +199,71 @@ impl Render for HashCalculator {
         let sha3_256 = self.sha3_256.clone();
         let sha3_512 = self.sha3_512.clone();
 
-        div().child(
-            div()
-                .flex()
-                .flex_col()
-                .gap_2()
-                // label "操作" → ButtonGroup (Paste+Copy)
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(px(80.0)).text_sm().child("操作"))
-                        .child(
-                            ButtonGroup::new("input-buttons")
-                                .child(
-                                    Button::new("paste-input")
-                                        .icon(Icon::new(IconName::File))
-                                        .tooltip("粘贴")
-                                        .on_click(cx.listener(|this, _, window, cx| {
-                                            this.paste_input(window, cx);
-                                        })),
-                                )
-                                .child(
-                                    Button::new("copy-input")
-                                        .icon(Icon::new(IconName::Copy))
-                                        .tooltip("复制")
-                                        .on_click(cx.listener(|this, _, _, cx| {
-                                            this.copy_input(cx);
-                                        })),
-                                ),
-                        ),
-                )
-                // label "输入" → textarea
-                .child(
-                    div()
-                        .flex()
-                        .items_start()
-                        .gap_2()
-                        .child(div().w(px(80.0)).text_sm().mt_1().child("输入"))
-                        .child(
-                            div()
-                                .flex_1()
-                                .child(Input::new(&self.input_state).h(px(100.0))),
-                        ),
-                )
-                // hash result rows
-                .child(hash_row(cx, "MD5", md5, "copy_md5", |this, cx| {
-                    cx.write_to_clipboard(ClipboardItem::new_string(this.md5.clone()));
-                }))
-                .child(hash_row(cx, "SHA1", sha1, "copy_sha1", |this, cx| {
-                    cx.write_to_clipboard(ClipboardItem::new_string(this.sha1.clone()));
-                }))
-                .child(hash_row(cx, "SHA256", sha256, "copy_sha256", |this, cx| {
-                    cx.write_to_clipboard(ClipboardItem::new_string(this.sha256.clone()));
-                }))
-                .child(hash_row(cx, "SHA512", sha512, "copy_sha512", |this, cx| {
-                    cx.write_to_clipboard(ClipboardItem::new_string(this.sha512.clone()));
-                }))
-                .child(hash_row(
-                    cx,
-                    "SHA3 256",
-                    sha3_256,
-                    "copy_sha3_256",
-                    |this, cx| {
-                        cx.write_to_clipboard(ClipboardItem::new_string(this.sha3_256.clone()));
-                    },
-                ))
-                .child(hash_row(
-                    cx,
-                    "SHA3 512",
-                    sha3_512,
-                    "copy_sha3_512",
-                    |this, cx| {
-                        cx.write_to_clipboard(ClipboardItem::new_string(this.sha3_512.clone()));
-                    },
-                )),
-        )
+        design::page()
+            .child(design::page_header("文本 Hash", "计算文本散列值", cx))
+            .child(
+                // 输入卡片
+                design::card(cx)
+                    .child(
+                        design::toolbar()
+                            .child(
+                                Button::new("paste-input")
+                                    .icon(Icon::new(IconName::File))
+                                    .tooltip("粘贴")
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.paste_input(window, cx);
+                                    })),
+                            )
+                            .child(
+                                Button::new("copy-input")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.copy_input(cx);
+                                    })),
+                            )
+                            .child(div().flex_1()),
+                    )
+                    .child(
+                        Textarea::new(&self.input_state)
+                            .h(px(100.0))
+                            .font_family("monospace"),
+                    ),
+            )
+            .child(
+                // 结果卡片
+                design::card(cx)
+                    .child(hash_row(cx, "MD5", md5, "copy_md5", |this, cx| {
+                        cx.write_to_clipboard(ClipboardItem::new_string(this.md5.clone()));
+                    }))
+                    .child(hash_row(cx, "SHA1", sha1, "copy_sha1", |this, cx| {
+                        cx.write_to_clipboard(ClipboardItem::new_string(this.sha1.clone()));
+                    }))
+                    .child(hash_row(cx, "SHA256", sha256, "copy_sha256", |this, cx| {
+                        cx.write_to_clipboard(ClipboardItem::new_string(this.sha256.clone()));
+                    }))
+                    .child(hash_row(cx, "SHA512", sha512, "copy_sha512", |this, cx| {
+                        cx.write_to_clipboard(ClipboardItem::new_string(this.sha512.clone()));
+                    }))
+                    .child(hash_row(
+                        cx,
+                        "SHA3 256",
+                        sha3_256,
+                        "copy_sha3_256",
+                        |this, cx| {
+                            cx.write_to_clipboard(ClipboardItem::new_string(this.sha3_256.clone()));
+                        },
+                    ))
+                    .child(hash_row(
+                        cx,
+                        "SHA3 512",
+                        sha3_512,
+                        "copy_sha3_512",
+                        |this, cx| {
+                            cx.write_to_clipboard(ClipboardItem::new_string(this.sha3_512.clone()));
+                        },
+                    )),
+            )
     }
 }
 

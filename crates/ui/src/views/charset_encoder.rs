@@ -1,8 +1,9 @@
-use gpui::{prelude::FluentBuilder as _, *};
-use gpui_component::{
+use crate::design;
+use gpui_kit::{prelude::FluentBuilder as _, *};
+use gpui_kit::component::{
     button::*,
     checkbox::Checkbox,
-    input::{Input, InputEvent, InputState},
+    input::{Input, InputEvent, InputState, Textarea, TextareaState },
     select::{Select, SelectEvent, SelectState},
     *,
 };
@@ -26,8 +27,8 @@ pub struct CharsetEncoder {
     invert_non_printable: bool,
     append_null: bool,
     detected_charset: String,
-    input_state: Entity<InputState>,
-    output_state: Entity<InputState>,
+    input_state: Entity<TextareaState>,
+    output_state: Entity<TextareaState>,
     custom_delimiter_state: Entity<InputState>,
     input_type_state: Entity<SelectState<Vec<String>>>,
     target_charset_state: Entity<SelectState<Vec<String>>>,
@@ -40,14 +41,14 @@ pub struct CharsetEncoder {
 impl CharsetEncoder {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let input_state = cx.new(|cx| {
-            InputState::new(window, cx)
+            TextareaState::new(window, cx)
                 .placeholder("请输入文本或编码数据...")
-                .multi_line(true)
+                
         });
         let output_state = cx.new(|cx| {
-            InputState::new(window, cx)
+            TextareaState::new(window, cx)
                 .placeholder("转换结果...")
-                .multi_line(true)
+                
         });
         let custom_delimiter_state =
             cx.new(|cx| InputState::new(window, cx).placeholder("自定义分隔符..."));
@@ -255,7 +256,7 @@ impl CharsetEncoder {
             cx.notify();
             return;
         }
-        match base::auto_detect_charset(&self.input) {
+        match ::base::auto_detect_charset(&self.input) {
             Ok(charset) => {
                 self.detected_charset = format!("检测结果: {charset}");
                 self.target_charset = charset.clone();
@@ -283,7 +284,7 @@ impl CharsetEncoder {
 
         self.sync_custom_delimiter(cx);
         let delimiter = self.get_delimiter();
-        let result = base::charset_encode(
+        let result = ::base::charset_encode(
             &self.input,
             &self.input_type,
             &self.target_charset,
@@ -369,288 +370,268 @@ impl Render for CharsetEncoder {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let label_w = px(120.0);
 
-        div().child(
-            div()
-                .flex()
-                .flex_col()
-                .gap_3()
-                // 1. 输入类型
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(label_w).text_sm().child("输入类型"))
-                        .child(Select::new(&self.input_type_state)),
-                )
-                // 2. 目标编码
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(label_w).text_sm().child("目标编码"))
-                        .child(Select::new(&self.target_charset_state))
-                        .child(
-                            div()
-                                .text_xs()
-                                .text_color(cx.theme().muted_foreground)
-                                .child(self.detected_charset.clone()),
-                        ),
-                )
-                // 3. 操作 (Paste + Copy + 自动检测文字按钮 + Close) — 匹配 Tauri
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(label_w).text_sm().child("操作"))
-                        .child(
-                            ButtonGroup::new("input-buttons")
-                                .child(
-                                    Button::new("paste-input")
-                                        .icon(Icon::new(IconName::File))
-                                        .tooltip("粘贴")
-                                        .on_click(cx.listener(|this, _, window, cx| {
-                                            this.paste(window, cx);
-                                        })),
-                                )
-                                .child(
-                                    Button::new("copy-input")
-                                        .icon(Icon::new(IconName::Copy))
-                                        .tooltip("复制")
-                                        .on_click(cx.listener(|this, _, _, cx| {
-                                            this.copy_input(cx);
-                                        })),
-                                )
-                                .child(Button::new("auto-detect").child("自动检测").on_click(
-                                    cx.listener(|this, _, window, cx| {
-                                        this.auto_detect(window, cx);
-                                    }),
-                                ))
-                                .child(
-                                    Button::new("clear-input")
-                                        .icon(Icon::new(IconName::Close))
-                                        .tooltip("清空")
-                                        .on_click(cx.listener(|this, _, window, cx| {
-                                            this.clear(window, cx);
-                                        })),
-                                ),
-                        ),
-                )
-                // 4. 输入
-                .child(
-                    div()
-                        .flex()
-                        .items_start()
-                        .gap_2()
-                        .child(div().w(label_w).text_sm().mt_1().child("输入"))
-                        .child(Input::new(&self.input_state).h(px(150.0)).flex_1()),
-                )
-                // 5. 转换 → 普通按钮（匹配 Tauri 非primary）
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(label_w).text_sm().child("转换"))
-                        .child(
-                            Button::new("convert")
-                                .icon(Icon::new(IconName::ArrowDown))
-                                .tooltip("转换")
-                                .on_click(cx.listener(|this, _, window, cx| {
-                                    this.convert(window, cx);
-                                })),
-                        ),
-                )
-                // 6. 输出类型
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(label_w).text_sm().child("输出类型"))
-                        .child(Select::new(&self.output_type_state)),
-                )
-                // 7. 分隔符
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(label_w).text_sm().child("分隔符"))
-                        .child(Select::new(&self.delimiter_state)),
-                )
-                // 8. 自定义分隔符 (only when delimiterType=custom)
-                .when(self.delimiter_type == "自定义", |this| {
-                    this.child(
+        design::page()
+            .child(design::page_header("字符编码", "字符集编码转换", cx))
+            .child(
+                // 配置卡片
+                design::card(cx)
+                    // 1. 输入类型
+                    .child(
                         div()
                             .flex()
                             .items_center()
                             .gap_2()
-                            .child(div().w(label_w).text_sm().child("自定义分隔符"))
+                            .child(design::caption("输入类型", cx).w(label_w))
+                            .child(Select::new(&self.input_type_state)),
+                    )
+                    // 2. 目标编码
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(design::caption("目标编码", cx).w(label_w))
+                            .child(Select::new(&self.target_charset_state))
                             .child(
                                 div()
-                                    .flex_1()
-                                    .child(Input::new(&self.custom_delimiter_state)),
+                                    .text_xs()
+                                    .text_color(cx.theme().muted_foreground)
+                                    .child(self.detected_charset.clone()),
                             ),
                     )
-                })
-                // 9. 进制格式
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(label_w).text_sm().child("进制格式"))
-                        .child(Select::new(&self.base_format_state)),
-                )
-                // 10. 显示选项 → Checkbox（匹配 Tauri n-checkbox）
-                .child(
-                    div()
-                        .flex()
-                        .items_start()
-                        .gap_2()
-                        .child(div().w(label_w).text_sm().mt_1().child("显示选项"))
-                        .child(
+                    // 6. 输出类型
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(design::caption("输出类型", cx).w(label_w))
+                            .child(Select::new(&self.output_type_state)),
+                    )
+                    // 7. 分隔符
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(design::caption("分隔符", cx).w(label_w))
+                            .child(Select::new(&self.delimiter_state)),
+                    )
+                    // 8. 自定义分隔符 (only when delimiterType=custom)
+                    .when(self.delimiter_type == "自定义", |this| {
+                        this.child(
                             div()
                                 .flex()
-                                .flex_wrap()
-                                .gap_4()
-                                .child(
-                                    Checkbox::new("opt-unicode")
-                                        .label("Unicode码点")
-                                        .checked(self.show_unicode)
-                                        .on_click(cx.listener(|this, v: &bool, _, cx| {
-                                            this.show_unicode = *v;
-                                            cx.notify();
-                                        })),
-                                )
-                                .child(
-                                    Checkbox::new("opt-escape")
-                                        .label("转义序列")
-                                        .checked(self.show_escape)
-                                        .on_click(cx.listener(|this, v: &bool, _, cx| {
-                                            this.show_escape = *v;
-                                            cx.notify();
-                                        })),
-                                )
-                                .child(
-                                    Checkbox::new("opt-carray")
-                                        .label("C/C++数组")
-                                        .checked(self.show_c_array)
-                                        .on_click(cx.listener(|this, v: &bool, _, cx| {
-                                            this.show_c_array = *v;
-                                            cx.notify();
-                                        })),
-                                )
-                                .child(
-                                    Checkbox::new("opt-asm")
-                                        .label("汇编数据")
-                                        .checked(self.show_assembly)
-                                        .on_click(cx.listener(|this, v: &bool, _, cx| {
-                                            this.show_assembly = *v;
-                                            cx.notify();
-                                        })),
-                                )
-                                .child(
-                                    Checkbox::new("opt-auto")
-                                        .label("自动")
-                                        .checked(self.show_auto)
-                                        .on_click(cx.listener(|this, v: &bool, _, cx| {
-                                            this.show_auto = *v;
-                                            cx.notify();
-                                        })),
-                                )
-                                .child(
-                                    Checkbox::new("opt-invert")
-                                        .label("反转不可打印字符")
-                                        .checked(self.invert_non_printable)
-                                        .on_click(cx.listener(|this, v: &bool, _, cx| {
-                                            this.invert_non_printable = *v;
-                                            cx.notify();
-                                        })),
-                                )
-                                .child(
-                                    Checkbox::new("opt-null")
-                                        .label("追加NUL结尾")
-                                        .checked(self.append_null)
-                                        .on_click(cx.listener(|this, v: &bool, _, cx| {
-                                            this.append_null = *v;
-                                            cx.notify();
-                                        })),
-                                ),
-                        ),
-                )
-                // 11. 操作 (Paste + Copy + Close) — 匹配 Tauri
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(label_w).text_sm().child("操作"))
-                        .child(
-                            ButtonGroup::new("output-buttons")
-                                .child(
-                                    Button::new("paste-output")
-                                        .icon(Icon::new(IconName::File))
-                                        .tooltip("粘贴")
-                                        .on_click(cx.listener(|this, _, window, cx| {
-                                            this.paste_output(window, cx);
-                                        })),
-                                )
-                                .child(
-                                    Button::new("copy-output")
-                                        .icon(Icon::new(IconName::Copy))
-                                        .tooltip("复制")
-                                        .on_click(cx.listener(|this, _, _, cx| {
-                                            this.copy_output(cx);
-                                        })),
-                                )
-                                .child(
-                                    Button::new("clear-output")
-                                        .icon(Icon::new(IconName::Close))
-                                        .tooltip("清空")
-                                        .on_click(cx.listener(|this, _, window, cx| {
-                                            this.clear(window, cx);
-                                        })),
-                                ),
-                        ),
-                )
-                // 12. 输出
-                .child(
-                    div()
-                        .flex()
-                        .items_start()
-                        .gap_2()
-                        .child(div().w(label_w).text_sm().mt_1().child("输出"))
-                        .child(Input::new(&self.output_state).h(px(150.0)).flex_1()),
-                )
-                // 13. 统计信息
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(label_w).text_sm().child("统计信息"))
-                        .child(
-                            div()
-                                .flex()
-                                .gap_4()
+                                .items_center()
+                                .gap_2()
+                                .child(design::caption("自定义分隔符", cx).w(label_w))
                                 .child(
                                     div()
-                                        .text_xs()
-                                        .text_color(cx.theme().muted_foreground)
-                                        .child(format!("字节: {}", self.byte_count)),
-                                )
-                                .child(
-                                    div()
-                                        .text_xs()
-                                        .text_color(cx.theme().muted_foreground)
-                                        .child(format!("字符: {}", self.char_count)),
+                                        .flex_1()
+                                        .child(Input::new(&self.custom_delimiter_state)),
                                 ),
-                        ),
-                ),
-        )
+                        )
+                    })
+                    // 9. 进制格式
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(design::caption("进制格式", cx).w(label_w))
+                            .child(Select::new(&self.base_format_state)),
+                    )
+                    // 10. 显示选项 → Checkbox（匹配 Tauri n-checkbox）
+                    .child(
+                        div()
+                            .flex()
+                            .items_start()
+                            .gap_2()
+                            .child(design::caption("显示选项", cx).w(label_w).mt_1())
+                            .child(
+                                div()
+                                    .flex()
+                                    .flex_wrap()
+                                    .gap_4()
+                                    .child(
+                                        Checkbox::new("opt-unicode")
+                                            .label("Unicode码点")
+                                            .checked(self.show_unicode)
+                                            .on_click(cx.listener(|this, v: &bool, _, cx| {
+                                                this.show_unicode = *v;
+                                                cx.notify();
+                                            })),
+                                    )
+                                    .child(
+                                        Checkbox::new("opt-escape")
+                                            .label("转义序列")
+                                            .checked(self.show_escape)
+                                            .on_click(cx.listener(|this, v: &bool, _, cx| {
+                                                this.show_escape = *v;
+                                                cx.notify();
+                                            })),
+                                    )
+                                    .child(
+                                        Checkbox::new("opt-carray")
+                                            .label("C/C++数组")
+                                            .checked(self.show_c_array)
+                                            .on_click(cx.listener(|this, v: &bool, _, cx| {
+                                                this.show_c_array = *v;
+                                                cx.notify();
+                                            })),
+                                    )
+                                    .child(
+                                        Checkbox::new("opt-asm")
+                                            .label("汇编数据")
+                                            .checked(self.show_assembly)
+                                            .on_click(cx.listener(|this, v: &bool, _, cx| {
+                                                this.show_assembly = *v;
+                                                cx.notify();
+                                            })),
+                                    )
+                                    .child(
+                                        Checkbox::new("opt-auto")
+                                            .label("自动")
+                                            .checked(self.show_auto)
+                                            .on_click(cx.listener(|this, v: &bool, _, cx| {
+                                                this.show_auto = *v;
+                                                cx.notify();
+                                            })),
+                                    )
+                                    .child(
+                                        Checkbox::new("opt-invert")
+                                            .label("反转不可打印字符")
+                                            .checked(self.invert_non_printable)
+                                            .on_click(cx.listener(|this, v: &bool, _, cx| {
+                                                this.invert_non_printable = *v;
+                                                cx.notify();
+                                            })),
+                                    )
+                                    .child(
+                                        Checkbox::new("opt-null")
+                                            .label("追加NUL结尾")
+                                            .checked(self.append_null)
+                                            .on_click(cx.listener(|this, v: &bool, _, cx| {
+                                                this.append_null = *v;
+                                                cx.notify();
+                                            })),
+                                    ),
+                            ),
+                    ),
+            )
+            .child(
+                // 输入卡片
+                design::card(cx)
+                    // 3. 顶部操作行 (Paste + Copy + 自动检测 + Close)
+                    .child(
+                        design::toolbar()
+                            .child(
+                                Button::new("paste-input")
+                                    .icon(Icon::new(IconName::File))
+                                    .tooltip("粘贴")
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.paste(window, cx);
+                                    })),
+                            )
+                            .child(
+                                Button::new("copy-input")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.copy_input(cx);
+                                    })),
+                            )
+                            .child(Button::new("auto-detect").child("自动检测").on_click(
+                                cx.listener(|this, _, window, cx| {
+                                    this.auto_detect(window, cx);
+                                }),
+                            ))
+                            .child(
+                                Button::new("clear-input")
+                                    .icon(Icon::new(IconName::Close))
+                                    .tooltip("清空")
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.clear(window, cx);
+                                    })),
+                            )
+                            .child(div().flex_1()),
+                    )
+                    // 4. 输入
+                    .child(
+                        Textarea::new(&self.input_state)
+                            .h(design::CODE_BOX_HEIGHT)
+                            .font_family("monospace"),
+                    ),
+            )
+            .child(
+                // 5. 转换主操作
+                design::action_row()
+                    .child(
+                        Button::new("convert")
+                            .label("转换")
+                            .primary()
+                            .icon(Icon::new(IconName::ArrowDown))
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.convert(window, cx);
+                            })),
+                    ),
+            )
+            .child(
+                // 输出卡片
+                design::card(cx)
+                    // 输出
+                    .child(
+                        Textarea::new(&self.output_state)
+                            .h(design::CODE_BOX_HEIGHT)
+                            .font_family("monospace"),
+                    )
+                    // 底部操作行 (Paste + Copy + Close)
+                    .child(
+                        design::toolbar()
+                            .child(
+                                Button::new("paste-output")
+                                    .icon(Icon::new(IconName::File))
+                                    .tooltip("粘贴")
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.paste_output(window, cx);
+                                    })),
+                            )
+                            .child(
+                                Button::new("copy-output")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.copy_output(cx);
+                                    })),
+                            )
+                            .child(
+                                Button::new("clear-output")
+                                    .icon(Icon::new(IconName::Close))
+                                    .tooltip("清空")
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.clear(window, cx);
+                                    })),
+                            )
+                            .child(div().flex_1()),
+                    )
+                    // 统计信息
+                    .child(
+                        div()
+                            .flex()
+                            .gap_4()
+                            .child(
+                                div()
+                                    .text_xs()
+                                    .text_color(cx.theme().muted_foreground)
+                                    .child(format!("字节: {}", self.byte_count)),
+                            )
+                            .child(
+                                div()
+                                    .text_xs()
+                                    .text_color(cx.theme().muted_foreground)
+                                    .child(format!("字符: {}", self.char_count)),
+                            ),
+                    ),
+            )
     }
 }

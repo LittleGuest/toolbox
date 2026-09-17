@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { useMessage } from "naive-ui";
+import { Copy, Close, MagicWand } from "@vicons/carbon";
 
 const message = useMessage();
 
@@ -303,15 +304,42 @@ const copyCode = async (code) => {
         <n-tab-pane v-for="(code, file) in generatedCodes" :key="file" :name="file" :tab="file">
           <div class="code-actions">
             <n-tag size="small">{{ getFileLanguage(file) }}</n-tag>
-            <n-button size="small" @click="copyCode(code)">复制</n-button>
+            <n-tooltip trigger="hover">
+              <template #trigger>
+                <n-button size="small" @click="copyCode(code)">
+                  <template #icon>
+                    <n-icon><Copy /></n-icon>
+                  </template>
+                </n-button>
+              </template>
+              复制
+            </n-tooltip>
           </div>
           <pre class="code-block"><code>{{ code }}</code></pre>
         </n-tab-pane>
       </n-tabs>
 
       <template #footer>
-        <n-button @click="emits('closeDrawer')">取消</n-button>
-        <n-button type="primary" :loading="generating" @click="handleGenerate">生成代码</n-button>
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <n-button @click="emits('closeDrawer')">
+              <template #icon>
+                <n-icon><Close /></n-icon>
+              </template>
+            </n-button>
+          </template>
+          取消
+        </n-tooltip>
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <n-button type="primary" :loading="generating" @click="handleGenerate">
+              <template #icon>
+                <n-icon><MagicWand /></n-icon>
+              </template>
+            </n-button>
+          </template>
+          生成代码
+        </n-tooltip>
       </template>
     </n-drawer-content>
   </n-drawer>

@@ -15,16 +15,21 @@ mod base64;
 mod cffc;
 mod charset;
 mod checksum;
+mod cron;
 mod datetime;
 mod hash;
 mod hex;
+mod image_convert;
 mod ip;
 mod jwt;
+mod pdf;
 mod qrcode;
 mod string;
 mod url;
 mod url_params;
 pub mod uuid;
+
+pub use cron::CronParseResult;
 
 pub async fn hash(
     uppercase: bool,
@@ -142,6 +147,22 @@ pub fn encode_base64_text(data: &str) -> Result<String> {
 
 pub fn decode_base64_text(data: &str) -> Result<String> {
     base64::decode_text(data)
+}
+
+pub fn encode_base64_image(file_path: &str) -> Result<HashMap<String, String>> {
+    base64::encode_image(file_path)
+}
+
+pub fn decode_base64_image(data: &str) -> Result<HashMap<String, String>> {
+    base64::decode_image(data)
+}
+
+pub fn save_base64_image(data: &str, file_path: &str) -> Result<()> {
+    base64::save_image(data, file_path)
+}
+
+pub fn cron_parse(expression: &str, count: u32, cron_type: &str) -> Result<CronParseResult> {
+    cron::parse_expression(expression, count, cron_type)
 }
 
 pub fn encode_url(data: &str) -> Result<String> {
@@ -416,4 +437,64 @@ pub fn auto_detect_charset(input: &str) -> Result<String> {
 
 pub fn recover_garbled_code(input: &str) -> Result<Vec<RecoverGarbledCode>> {
     Ok(charset::recover_garbled_code(input))
+}
+
+pub use datetime::TimestampRow;
+
+/// 时间戳 <-> 时间 双向批量转换（支持秒/毫秒、时区切换）。
+pub fn timestamp_convert(
+    mode: &str,
+    unit: &str,
+    tz_offset_secs: i32,
+    values: &[String],
+) -> Result<Vec<datetime::TimestampRow>> {
+    datetime::timestamp_convert(mode, unit, tz_offset_secs, values)
+}
+
+/// 批量图片格式转换。
+pub fn image_convert(
+    inputs: &[String],
+    output_format: &str,
+    output_dir: &str,
+    quality: Option<u16>,
+) -> Result<Vec<String>> {
+    image_convert::image_convert(inputs, output_format, output_dir, quality)
+}
+
+/// 将多张图片合并为一个 PDF（每图一页）。
+pub fn images_to_pdf(inputs: &[String], output_path: &str) -> Result<()> {
+    pdf::images_to_pdf(inputs, output_path)
+}
+
+/// 将多个 PDF 合并成一个。
+pub fn pdf_merge(inputs: &[String], output_path: &str) -> Result<()> {
+    pdf::pdf_merge(inputs, output_path)
+}
+
+/// PDF 页面删除 / 旋转 / 顺序调整。
+pub fn pdf_edit(
+    input: &str,
+    output_path: &str,
+    delete: &[u32],
+    rotate: &[(u32, f32)],
+    order: &[u32],
+) -> Result<()> {
+    pdf::pdf_edit(input, output_path, delete, rotate, order)
+}
+
+/// 拆分 PDF（按页码范围切分）。
+pub fn pdf_split(input: &str, output_dir: &str, ranges: &str) -> Result<Vec<String>> {
+    pdf::pdf_split(input, output_dir, ranges)
+}
+
+/// 为 PDF 添加页码。
+pub fn pdf_add_page_numbers(
+    input: &str,
+    output_path: &str,
+    position: &str,
+    font_size: f32,
+    format_pattern: &str,
+    start_at: i32,
+) -> Result<()> {
+    pdf::pdf_add_page_numbers(input, output_path, position, font_size, format_pattern, start_at)
 }

@@ -4,7 +4,7 @@
 
 use std::ops::Range;
 
-use gpui::{HighlightStyle, Hsla, StyledText};
+use gpui_kit::{HighlightStyle, Hsla, StyledText};
 
 /// 语法高亮配色（与主题解耦，使用 HSLA 自定义色板，兼容深/浅色背景）
 pub struct HighlightPalette {
@@ -24,16 +24,16 @@ impl HighlightPalette {
     /// 默认配色（紫色 key、绿色 string、橙色 number、红色 boolean）
     pub fn default_light() -> Self {
         Self {
-            key: gpui::hsla(0.75, 0.55, 0.45, 1.0),
-            string: gpui::hsla(0.33, 0.6, 0.4, 1.0),
-            number: gpui::hsla(0.08, 0.7, 0.5, 1.0),
-            boolean: gpui::hsla(0.0, 0.65, 0.5, 1.0),
-            null: gpui::hsla(0.0, 0.0, 0.45, 1.0),
-            punctuation: gpui::hsla(0.58, 0.0, 0.45, 1.0),
-            keyword: gpui::hsla(0.58, 0.75, 0.45, 1.0),
-            comment: gpui::hsla(0.33, 0.3, 0.45, 1.0),
-            tag: gpui::hsla(0.0, 0.6, 0.5, 1.0),
-            attr: gpui::hsla(0.75, 0.55, 0.45, 1.0),
+            key: gpui_kit::hsla(0.75, 0.55, 0.45, 1.0),
+            string: gpui_kit::hsla(0.33, 0.6, 0.4, 1.0),
+            number: gpui_kit::hsla(0.08, 0.7, 0.5, 1.0),
+            boolean: gpui_kit::hsla(0.0, 0.65, 0.5, 1.0),
+            null: gpui_kit::hsla(0.0, 0.0, 0.45, 1.0),
+            punctuation: gpui_kit::hsla(0.58, 0.0, 0.45, 1.0),
+            keyword: gpui_kit::hsla(0.58, 0.75, 0.45, 1.0),
+            comment: gpui_kit::hsla(0.33, 0.3, 0.45, 1.0),
+            tag: gpui_kit::hsla(0.0, 0.6, 0.5, 1.0),
+            attr: gpui_kit::hsla(0.75, 0.55, 0.45, 1.0),
         }
     }
 }

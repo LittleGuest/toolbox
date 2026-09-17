@@ -1,7 +1,8 @@
-use gpui::*;
-use gpui_component::{
+use crate::design;
+use gpui_kit::*;
+use gpui_kit::component::{
     button::*,
-    input::{Input, InputEvent, InputState},
+    input::{Input, InputEvent, InputState, Textarea, TextareaState },
     select::{Select, SelectEvent, SelectState},
     *,
 };
@@ -18,8 +19,8 @@ pub struct TransformFiletype {
     from_format_state: Entity<SelectState<Vec<String>>>,
     to_format_state: Entity<SelectState<Vec<String>>>,
     indent_state: Entity<SelectState<Vec<String>>>,
-    input_state: Entity<InputState>,
-    output_state: Entity<InputState>,
+    input_state: Entity<TextareaState>,
+    output_state: Entity<TextareaState>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -38,14 +39,14 @@ impl TransformFiletype {
             state
         });
         let input_state = cx.new(|cx| {
-            InputState::new(window, cx)
+            TextareaState::new(window, cx)
                 .placeholder("请输入内容或选择文件...")
-                .multi_line(true)
+                
         });
         let output_state = cx.new(|cx| {
-            InputState::new(window, cx)
+            TextareaState::new(window, cx)
                 .placeholder("转换结果将显示在这里...")
-                .multi_line(true)
+                
         });
 
         let indent_items = vec!["2".to_string(), "4".to_string()];
@@ -164,7 +165,7 @@ impl TransformFiletype {
         let indent = self.indent;
 
         cx.spawn_in(window, async move |this: WeakEntity<Self>, cx| {
-            let result = base::cffc(indent, &from, &to, &input);
+            let result = ::base::cffc(indent, &from, &to, &input);
 
             let _ = this.update_in(cx, |this, window, cx| {
                 this.is_converting = false;
@@ -284,170 +285,139 @@ impl Render for TransformFiletype {
         let error = self.error.clone();
         let is_converting = self.is_converting;
 
-        div().child(
-            div()
-                .flex()
-                .flex_col()
-                .gap_3()
-                // Row: 缩进 → Select
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(px(100.0)).text_sm().child("缩进"))
-                        .child(Select::new(&self.indent_state)),
-                )
-                // Row: 输入文件类型 → Select
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(px(100.0)).text_sm().child("输入文件类型"))
-                        .child(Select::new(&self.from_format_state)),
-                )
-                // Row: 操作 → Paste+Copy+Close (input)
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(px(100.0)).text_sm().child("操作"))
-                        .child(
-                            ButtonGroup::new("input-buttons")
-                                .child(
-                                    Button::new("paste-input")
-                                        .icon(Icon::new(IconName::File))
-                                        .tooltip("粘贴")
-                                        .on_click(cx.listener(|this, _, window, cx| {
-                                            this.paste(window, cx);
-                                        })),
-                                )
-                                .child(
-                                    Button::new("copy-input")
-                                        .icon(Icon::new(IconName::Copy))
-                                        .tooltip("复制")
-                                        .on_click(cx.listener(|this, _, _, cx| {
-                                            cx.write_to_clipboard(ClipboardItem::new_string(
-                                                this.input.clone(),
-                                            ));
-                                        })),
-                                )
-                                .child(
-                                    Button::new("clear-input")
-                                        .icon(Icon::new(IconName::Close))
-                                        .tooltip("清空")
-                                        .on_click(cx.listener(|this, _, window, cx| {
-                                            this.clear(window, cx);
-                                        })),
-                                ),
-                        ),
-                )
-                // Row: 输入 → textarea
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(px(100.0)).text_sm().child("输入"))
-                        .child(Input::new(&self.input_state).h(px(200.0))),
-                )
-                // Row: 转换 → ArrowDown + ArrowUp (separate buttons)
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(px(100.0)).text_sm().child("转换"))
-                        .child(
-                            Button::new("convert")
-                                .primary()
-                                .icon(Icon::new(IconName::ArrowDown))
-                                .tooltip("转换")
-                                .disabled(is_converting)
-                                .on_click(cx.listener(|this, _, window, cx| {
-                                    this.convert(window, cx);
-                                })),
-                        )
-                        .child(
-                            Button::new("reverse-convert")
-                                .primary()
-                                .icon(Icon::new(IconName::ArrowUp))
-                                .tooltip("反向转换")
-                                .disabled(is_converting)
-                                .on_click(cx.listener(|this, _, window, cx| {
-                                    this.reverse_convert(window, cx);
-                                })),
-                        )
-                        .child(if is_converting {
-                            div()
-                                .text_sm()
-                                .text_color(cx.theme().muted_foreground)
-                                .child("转换中...")
-                        } else {
-                            div()
-                        })
-                        .child(if !error.is_empty() {
-                            div().text_sm().text_color(rgb(0xff0000)).child(error)
-                        } else {
-                            div()
-                        }),
-                )
-                // Row: 输出文件类型 → Select
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(px(100.0)).text_sm().child("输出文件类型"))
-                        .child(Select::new(&self.to_format_state)),
-                )
-                // Row: 操作 → Paste+Copy+Close (output)
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(px(100.0)).text_sm().child("操作"))
-                        .child(
-                            ButtonGroup::new("output-buttons")
-                                .child(
-                                    Button::new("paste-output")
-                                        .icon(Icon::new(IconName::File))
-                                        .tooltip("粘贴")
-                                        .on_click(cx.listener(|this, _, window, cx| {
-                                            this.paste_output(window, cx);
-                                        })),
-                                )
-                                .child(
-                                    Button::new("copy-output")
-                                        .icon(Icon::new(IconName::Copy))
-                                        .tooltip("复制")
-                                        .disabled(self.output.is_empty())
-                                        .on_click(cx.listener(|this, _, _, cx| {
-                                            this.copy_output(cx);
-                                        })),
-                                )
-                                .child(
-                                    Button::new("clear-output")
-                                        .icon(Icon::new(IconName::Close))
-                                        .tooltip("清空")
-                                        .on_click(cx.listener(|this, _, window, cx| {
-                                            this.clear(window, cx);
-                                        })),
-                                ),
-                        ),
-                )
-                // Row: 输出 → textarea
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(px(100.0)).text_sm().child("输出"))
-                        .child(Input::new(&self.output_state).h(px(200.0))),
-                ),
-        )
+        design::page()
+            .child(design::page_header("文件格式转换", "转换各类文件格式", cx))
+            .child(
+                // 配置卡片
+                design::card(cx)
+                    .child(
+                        design::toolbar()
+                            .child(design::caption("缩进", cx))
+                            .child(Select::new(&self.indent_state)),
+                    )
+                    .child(
+                        design::toolbar()
+                            .child(design::caption("输入格式", cx))
+                            .child(Select::new(&self.from_format_state)),
+                    )
+                    .child(
+                        design::toolbar()
+                            .child(design::caption("输出格式", cx))
+                            .child(Select::new(&self.to_format_state)),
+                    ),
+            )
+            .child(
+                // 输入卡片
+                design::card(cx)
+                    .child(
+                        design::toolbar()
+                            .child(
+                                Button::new("paste-input")
+                                    .icon(Icon::new(IconName::File))
+                                    .tooltip("粘贴")
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.paste(window, cx);
+                                    })),
+                            )
+                            .child(
+                                Button::new("copy-input")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        cx.write_to_clipboard(ClipboardItem::new_string(
+                                            this.input.clone(),
+                                        ));
+                                    })),
+                            )
+                            .child(
+                                Button::new("clear-input")
+                                    .icon(Icon::new(IconName::Close))
+                                    .tooltip("清空")
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.clear(window, cx);
+                                    })),
+                            )
+                            .child(div().flex_1()),
+                    )
+                    .child(
+                        Textarea::new(&self.input_state)
+                            .h(design::CODE_BOX_HEIGHT)
+                            .font_family("monospace"),
+                    ),
+            )
+            .child(
+                // 转换操作行
+                design::action_row()
+                    .child(
+                        Button::new("convert")
+                            .label("转换")
+                            .primary()
+                            .icon(Icon::new(IconName::ArrowDown))
+                            .disabled(is_converting)
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.convert(window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("reverse-convert")
+                            .label("反向转换")
+                            .icon(Icon::new(IconName::ArrowUp))
+                            .disabled(is_converting)
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.reverse_convert(window, cx);
+                            })),
+                    )
+                    .child(if is_converting {
+                        div()
+                            .text_sm()
+                            .text_color(cx.theme().muted_foreground)
+                            .child("转换中...")
+                    } else {
+                        div()
+                    })
+                    .child(if !error.is_empty() {
+                        div().text_sm().text_color(rgb(0xff0000)).child(error)
+                    } else {
+                        div()
+                    }),
+            )
+            .child(
+                // 输出卡片
+                design::card(cx)
+                    .child(
+                        Textarea::new(&self.output_state)
+                            .h(design::CODE_BOX_HEIGHT)
+                            .font_family("monospace"),
+                    )
+                    .child(
+                        design::toolbar()
+                            .child(
+                                Button::new("paste-output")
+                                    .icon(Icon::new(IconName::File))
+                                    .tooltip("粘贴")
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.paste_output(window, cx);
+                                    })),
+                            )
+                            .child(
+                                Button::new("copy-output")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制")
+                                    .disabled(self.output.is_empty())
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.copy_output(cx);
+                                    })),
+                            )
+                            .child(
+                                Button::new("clear-output")
+                                    .icon(Icon::new(IconName::Close))
+                                    .tooltip("清空")
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.clear(window, cx);
+                                    })),
+                            )
+                            .child(div().flex_1()),
+                    ),
+            )
     }
 }

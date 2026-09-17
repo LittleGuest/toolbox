@@ -8,5 +8,20 @@ const text = ref('');
 </script>
 
 <template>
-  <MdEditor v-model="text" style="height: calc(100vh - 48px);" />
+  <div class="tb-page">
+    <section class="tb-card md-card">
+      <MdEditor v-model="text" class="md-editor" />
+    </section>
+  </div>
 </template>
+
+<style scoped>
+.md-card {
+  padding: 8px;
+}
+
+.md-editor {
+  height: calc(100vh - 160px);
+  min-height: 480px;
+}
+</style>

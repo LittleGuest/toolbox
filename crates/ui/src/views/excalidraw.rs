@@ -1,7 +1,8 @@
+use crate::design;
 use std::{cell::Cell, rc::Rc};
 
-use gpui::{prelude::FluentBuilder as _, *};
-use gpui_component::{
+use gpui_kit::{prelude::FluentBuilder as _, *};
+use gpui_kit::component::{
     WindowExt,
     button::*,
     input::{Input, InputState},
@@ -755,54 +756,101 @@ impl ExcalidrawView {
         self.status = format!("已导出 {} 个元素的 SVG 到剪贴板。", self.elements.len());
         cx.notify();
     }
+
+    fn export_png(&mut self, cx: &mut Context<Self>) {
+        if self.elements.is_empty() {
+            self.status = "画布为空，无法导出 PNG。".to_string();
+            cx.notify();
+            return;
+        }
+        let elements = self.elements.clone();
+        let task = cx.background_executor().spawn(async move {
+            let png = render_elements_to_png(&elements);
+            let path = rfd::AsyncFileDialog::new()
+                .set_title("导出 PNG")
+                .add_filter("PNG 图片", &["png"])
+                .set_file_name("excalidraw.png")
+                .save_file()
+                .await
+                .map(|f| f.path().to_path_buf());
+            (png, path)
+        });
+        cx.spawn(async move |this: WeakEntity<Self>, cx| {
+            let (png, path) = task.await;
+            let _ = this.update(cx, |this, cx| {
+                if let Some(path) = path {
+                    match png {
+                        Ok(bytes) => match std::fs::write(&path, bytes) {
+                            Ok(_) => {
+                                this.status = format!("已导出 PNG：{}", path.display())
+                            }
+                            Err(err) => this.status = format!("写入 PNG 失败：{err}"),
+                        },
+                        Err(err) => this.status = format!("渲染 PNG 失败：{err}"),
+                    }
+                } else {
+                    this.status = "已取消导出 PNG。".to_string();
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
 }
 
 impl Render for ExcalidrawView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // 匹配 Tauri Excalidraw.vue：全屏画布 + 左侧垂直工具栏
+        // 页头 + 画布工作区（画布内浮动工具条定位在相对容器内，不与页头重叠）
         div()
             .size_full()
-            .relative()
-            // 画布填满全屏
-            .child(canvas_container(self, cx))
-            // 左侧：垂直工具栏 + 选中时下方的样式面板
+            .flex_col()
+            .gap_3()
+            .child(design::page_header("Excalidraw", "白板绘图", cx))
             .child(
                 div()
-                    .absolute()
-                    .top(px(8.0))
-                    .left(px(8.0))
-                    .flex()
-                    .flex_col()
-                    .gap_2()
-                    .child(toolbar(self, cx))
-                    .when(self.selection.is_some(), |el| {
-                        el.child(style_panel(self, cx))
-                    }),
-            )
-            // 顶部水平操作栏（撤销/重做/删除/清空/导出/文档管理）
-            .child(top_toolbar(self, cx))
-            // 底部状态栏：缩放百分比 + 状态信息（对齐 Excalidraw 官方左下角 zoom/坐标）
-            .child(
-                div()
-                    .absolute()
-                    .bottom(px(8.0))
-                    .left(px(8.0))
-                    .flex()
-                    .items_center()
-                    .gap_2()
-                    .px_2()
-                    .py_1()
-                    .rounded_md()
-                    .bg(cx.theme().background)
-                    .shadow_sm()
-                    .border_1()
-                    .border_color(cx.theme().border)
-                    .text_xs()
-                    .text_color(cx.theme().muted_foreground)
-                    .child(format!("缩放: {:.0}%", self.zoom * 100.0))
-                    .when(!self.status.is_empty(), |el| {
-                        el.child(format!("| {}", self.status))
-                    }),
+                    .relative()
+                    .flex_1()
+                    // 画布填满工作区
+                    .child(canvas_container(self, cx))
+                    // 左侧：垂直工具栏 + 选中时下方的样式面板
+                    .child(
+                        div()
+                            .absolute()
+                            .top(px(8.0))
+                            .left(px(8.0))
+                            .flex()
+                            .flex_col()
+                            .gap_2()
+                            .child(toolbar(self, cx))
+                            .when(self.selection.is_some(), |el| {
+                                el.child(style_panel(self, cx))
+                            }),
+                    )
+                    // 顶部水平操作栏（撤销/重做/删除/清空/导出/文档管理）
+                    .child(top_toolbar(self, cx))
+                    // 底部状态栏：缩放百分比 + 状态信息
+                    .child(
+                        div()
+                            .absolute()
+                            .bottom(px(8.0))
+                            .left(px(8.0))
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .px_2()
+                            .py_1()
+                            .rounded_md()
+                            .bg(cx.theme().background)
+                            .shadow_sm()
+                            .border_1()
+                            .border_color(cx.theme().border)
+                            .text_xs()
+                            .text_color(cx.theme().muted_foreground)
+                            .child(format!("缩放: {:.0}%", self.zoom * 100.0))
+                            .when(!self.status.is_empty(), |el| {
+                                el.child(format!("| {}", self.status))
+                            }),
+                    ),
             )
     }
 }
@@ -882,6 +930,16 @@ fn top_toolbar(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
                 .tooltip("导出 SVG 到剪贴板")
                 .on_click(cx.listener(|this, _, _, cx| {
                     this.export_svg(cx);
+                })),
+        )
+        .child(
+            Button::new("export-png")
+                .small()
+                .ghost()
+                .icon(Icon::new(IconName::Frame))
+                .tooltip("导出 PNG 图片")
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.export_png(cx);
                 })),
         )
         .child(div().flex_1())
@@ -1124,7 +1182,7 @@ fn canvas_container(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> 
     let selection = this.selection;
     let canvas_origin = this.canvas_origin.clone();
     let border_color = cx.theme().border;
-    let bg_color = gpui::white();
+    let bg_color = gpui_kit::white();
 
     let text_overlays: Vec<(f32, f32, f32, f32, String, [f32; 4])> = elements
         .iter()
@@ -1566,6 +1624,212 @@ fn element_to_svg(elem: &ExcalidrawElement) -> String {
             )
         }
     }
+}
+
+fn rgba_color(arr: [f32; 4]) -> tiny_skia::Color {
+    tiny_skia::Color::from_rgba(
+        arr[0].clamp(0.0, 1.0),
+        arr[1].clamp(0.0, 1.0),
+        arr[2].clamp(0.0, 1.0),
+        arr[3].clamp(0.0, 1.0),
+    )
+    .unwrap_or(tiny_skia::Color::BLACK)
+}
+
+/// 将 Excalidraw 元素栅格化为 PNG（几何图形，文本用浅色块占位），返回 PNG 字节
+fn render_elements_to_png(elements: &[ExcalidrawElement]) -> anyhow::Result<Vec<u8>> {
+    let mut minx = f32::INFINITY;
+    let mut miny = f32::INFINITY;
+    let mut maxx = f32::NEG_INFINITY;
+    let mut maxy = f32::NEG_INFINITY;
+    for e in elements {
+        minx = minx.min(e.x);
+        miny = miny.min(e.y);
+        maxx = maxx.max(e.x + e.width);
+        maxy = maxy.max(e.y + e.height);
+    }
+    if !(minx.is_finite() && miny.is_finite() && maxx.is_finite() && maxy.is_finite()) {
+        anyhow::bail!("无法计算画布边界");
+    }
+    let pad = 40.0_f32;
+    let left = minx - pad;
+    let top = miny - pad;
+    let w = ((maxx - minx + pad * 2.0).ceil() as u32).clamp(1, 4096);
+    let h = ((maxy - miny + pad * 2.0).ceil() as u32).clamp(1, 4096);
+
+    let mut pix = tiny_skia::Pixmap::new(w, h)
+        .ok_or_else(|| anyhow::anyhow!("创建位图失败"))?;
+    pix.fill(tiny_skia::Color::WHITE);
+    let transform = tiny_skia::Transform::from_translate(-left, -top);
+    {
+        let mut pm = pix.as_mut();
+        for e in elements {
+            draw_element_into(&mut pm, e, transform);
+        }
+    }
+
+    let mut buf = Vec::new();
+    {
+        let mut enc = png::Encoder::new(&mut buf, w, h);
+        enc.set_color(png::ColorType::Rgba);
+        enc.set_depth(png::BitDepth::Eight);
+        let mut wr = enc.write_header().map_err(|e| anyhow::anyhow!("{e}"))?;
+        wr.write_image_data(pix.data())
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        wr.finish().map_err(|e| anyhow::anyhow!("{e}"))?;
+    }
+    Ok(buf)
+}
+
+fn solid_paint(color: tiny_skia::Color) -> tiny_skia::Paint<'static> {
+    tiny_skia::Paint {
+        shader: tiny_skia::Shader::SolidColor(color),
+        ..Default::default()
+    }
+}
+
+fn rect_path(x: f32, y: f32, w: f32, h: f32) -> Option<tiny_skia::Path> {
+    tiny_skia::Rect::from_xywh(x, y, w, h).map(tiny_skia::PathBuilder::from_rect)
+}
+
+fn draw_element_into(
+    pm: &mut tiny_skia::PixmapMut,
+    e: &ExcalidrawElement,
+    transform: tiny_skia::Transform,
+) {
+    let stroke_paint = solid_paint(rgba_color(e.stroke));
+    let fill_paint = solid_paint(rgba_color(e.fill));
+    let stroke = tiny_skia::Stroke {
+        width: e.stroke_width.max(0.5),
+        ..Default::default()
+    };
+    let has_fill = e.fill[3] > 0.0;
+
+    match e.kind {
+        ShapeKind::Rectangle => {
+            if let Some(path) = rect_path(e.x, e.y, e.width, e.height) {
+                if has_fill {
+                    pm.fill_path(&path, &fill_paint, tiny_skia::FillRule::Winding, transform, None);
+                }
+                pm.stroke_path(&path, &stroke_paint, &stroke, transform, None);
+            }
+        }
+        ShapeKind::Ellipse => {
+            let cx = e.x + e.width / 2.0;
+            let cy = e.y + e.height / 2.0;
+            if let Some(path) = ellipse_path(cx, cy, e.width / 2.0, e.height / 2.0) {
+                if has_fill {
+                    pm.fill_path(&path, &fill_paint, tiny_skia::FillRule::Winding, transform, None);
+                }
+                pm.stroke_path(&path, &stroke_paint, &stroke, transform, None);
+            }
+        }
+        ShapeKind::Diamond => {
+            if let Some(path) = diamond_path(e.x, e.y, e.width, e.height) {
+                if has_fill {
+                    pm.fill_path(&path, &fill_paint, tiny_skia::FillRule::Winding, transform, None);
+                }
+                pm.stroke_path(&path, &stroke_paint, &stroke, transform, None);
+            }
+        }
+        ShapeKind::Line | ShapeKind::Arrow => {
+            let x2 = e.x + e.width;
+            let y2 = e.y + e.height;
+            if let Some(path) = line_path(e.x, e.y, x2, y2) {
+                pm.stroke_path(&path, &stroke_paint, &stroke, transform, None);
+            }
+            if e.kind == ShapeKind::Arrow {
+                if let Some(arrow) = arrow_head_path(e.x, e.y, x2, y2) {
+                    pm.stroke_path(&arrow, &stroke_paint, &stroke, transform, None);
+                }
+            }
+        }
+        ShapeKind::Freedraw => {
+            if let Some(path) = freedraw_path(e) {
+                pm.stroke_path(&path, &stroke_paint, &stroke, transform, None);
+            }
+        }
+        ShapeKind::Text => {
+            // 文本无法用像素字体重现，用浅色块占位
+            if let Some(rect) = tiny_skia::Rect::from_xywh(e.x, e.y, e.width, e.height) {
+                let block = solid_paint(
+                    tiny_skia::Color::from_rgba(1.0, 0.96, 0.8, 1.0).unwrap(),
+                );
+                pm.fill_rect(rect, &block, transform, None);
+                if let Some(path) = rect_path(e.x, e.y, e.width, e.height) {
+                    pm.stroke_path(&path, &stroke_paint, &stroke, transform, None);
+                }
+            }
+        }
+    }
+}
+
+fn ellipse_path(cx: f32, cy: f32, rx: f32, ry: f32) -> Option<tiny_skia::Path> {
+    if rx <= 0.0 || ry <= 0.0 {
+        return None;
+    }
+    let k = 0.552_284_8_f32;
+    let mut b = tiny_skia::PathBuilder::new();
+    b.move_to(cx + rx, cy);
+    b.cubic_to(cx + rx, cy + k * ry, cx + k * rx, cy + ry, cx, cy + ry);
+    b.cubic_to(cx - k * rx, cy + ry, cx - rx, cy + k * ry, cx - rx, cy);
+    b.cubic_to(cx - rx, cy - k * ry, cx - k * rx, cy - ry, cx, cy - ry);
+    b.cubic_to(cx + k * rx, cy - ry, cx + rx, cy - k * ry, cx + rx, cy);
+    b.close();
+    b.finish()
+}
+
+fn diamond_path(x: f32, y: f32, w: f32, h: f32) -> Option<tiny_skia::Path> {
+    let cx = x + w / 2.0;
+    let cy = y + h / 2.0;
+    let mut b = tiny_skia::PathBuilder::new();
+    b.move_to(cx, y);
+    b.line_to(x + w, cy);
+    b.line_to(cx, y + h);
+    b.line_to(x, cy);
+    b.close();
+    b.finish()
+}
+
+fn line_path(x1: f32, y1: f32, x2: f32, y2: f32) -> Option<tiny_skia::Path> {
+    let mut b = tiny_skia::PathBuilder::new();
+    b.move_to(x1, y1);
+    b.line_to(x2, y2);
+    b.finish()
+}
+
+fn arrow_head_path(x1: f32, y1: f32, x2: f32, y2: f32) -> Option<tiny_skia::Path> {
+    let dx = x2 - x1;
+    let dy = y2 - y1;
+    let len = (dx * dx + dy * dy).sqrt().max(0.001);
+    let ux = dx / len;
+    let uy = dy / len;
+    let arrow_len = 12.0_f32;
+    let angle = 0.5_f32;
+    let (ca, sa) = (angle.cos(), angle.sin());
+    let ax1 = x2 - arrow_len * (ux * ca + uy * sa);
+    let ay1 = y2 - arrow_len * (uy * ca - ux * sa);
+    let ax2 = x2 - arrow_len * (ux * ca - uy * sa);
+    let ay2 = y2 - arrow_len * (uy * ca + ux * sa);
+    let mut b = tiny_skia::PathBuilder::new();
+    b.move_to(x2, y2);
+    b.line_to(ax1, ay1);
+    b.move_to(x2, y2);
+    b.line_to(ax2, ay2);
+    b.finish()
+}
+
+fn freedraw_path(e: &ExcalidrawElement) -> Option<tiny_skia::Path> {
+    if e.points.len() < 2 {
+        return None;
+    }
+    let mut b = tiny_skia::PathBuilder::new();
+    let first = e.points[0];
+    b.move_to(first.0, first.1);
+    for pt in &e.points[1..] {
+        b.line_to(pt.0, pt.1);
+    }
+    b.finish()
 }
 
 fn hit_test(elements: &[ExcalidrawElement], x: f32, y: f32) -> Option<usize> {

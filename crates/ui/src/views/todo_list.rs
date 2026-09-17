@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
-use gpui::{prelude::FluentBuilder, *};
-use gpui_component::{
+use crate::design;
+use gpui_kit::{prelude::FluentBuilder, *};
+use gpui_kit::component::{
     button::*,
     checkbox::Checkbox,
     input::{Input, InputEvent, InputState},
@@ -451,12 +452,12 @@ impl TodoList {
 
     fn delete_todo(&mut self, id: i64, window: &mut Window, cx: &mut Context<Self>) {
         let this = cx.entity().downgrade();
-        window.open_dialog(cx, move |dialog, _, _cx| {
+        window.open_alert_dialog(cx, move |alert, _, _cx| {
             let this = this.clone();
-            dialog
+            alert
                 .title(div().text_lg().font_semibold().child("确认删除"))
                 .width(px(420.))
-                .child(
+                .description(
                     div()
                         .py_4()
                         .text_sm()
@@ -793,14 +794,16 @@ impl Render for TodoList {
             )
         };
 
-        div()
+        design::page()
+            .child(design::page_header("待办事项", "简单的任务清单", cx))
             .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap_4()
-                    .mb_4()
-                    .child(Input::new(input_state))
+                design::card(cx)
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_4()
+                            .child(Input::new(input_state))
                     .child(
                         Button::new("add")
                             .primary()
@@ -832,15 +835,17 @@ impl Render for TodoList {
                     } else {
                         vec![]
                     }),
+                    ),
             )
             .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .justify_between()
-                    .mb_4()
+                design::card(cx)
                     .child(
-                        RadioGroup::horizontal("filter-group")
+                        div()
+                            .flex()
+                            .items_center()
+                            .justify_between()
+                            .child(
+                                RadioGroup::horizontal("filter-group")
                             .selected_index(match self.filter.as_str() {
                                 "all" => Some(0),
                                 "active" => Some(1),
@@ -868,17 +873,13 @@ impl Render for TodoList {
                                 cx.notify();
                             })),
                     ),
+                    )
+                    .children(status_bar),
             )
-            .children(status_bar)
             .child(
-                div()
-                    .flex_1()
+                design::card(cx)
                     .min_h(px(400.0))
                     .max_h(px(400.0))
-                    .border_1()
-                    .border_color(cx.theme().border)
-                    .rounded_lg()
-                    .p_4()
                     .overflow_y_scrollbar()
                     .child(if top_todos.is_empty() {
                         div()

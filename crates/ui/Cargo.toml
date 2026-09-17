@@ -10,9 +10,7 @@ name = "toolbox"
 path = "src/main.rs"
 
 [dependencies]
-gpui = { workspace = true }
-gpui-component = { workspace = true }
-gpui-component-assets = { workspace = true }
+gpui-kit = { workspace = true }
 anyhow = { workspace = true }
 uuid = { workspace = true }
 base = { workspace = true }
@@ -33,3 +31,14 @@ sysinfo = { workspace = true }
 sqlx = { workspace = true }
 dirs = { workspace = true }
 qrcode-generator = { workspace = true }
+data-encoding = { workspace = true }
+bs58 = { workspace = true }
+similar = { workspace = true }
+aes = { workspace = true }
+des = { workspace = true }
+ecb = { workspace = true }
+cbc = { workspace = true }
+unicode-normalization = "0.1.25"
+regex-syntax = "0.8.11"
+tiny-skia = "0.11.4"
+png = "0.17.16"

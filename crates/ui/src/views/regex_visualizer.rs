@@ -1,9 +1,10 @@
+use crate::design;
 use std::ops::Range;
 
-use gpui::{prelude::FluentBuilder as _, *};
-use gpui_component::{
+use gpui_kit::{prelude::FluentBuilder as _, *};
+use gpui_kit::component::{
     button::*,
-    input::{Input, InputEvent, InputState},
+    input::{Input, InputEvent, InputState, Textarea, TextareaState },
     scroll::ScrollableElement,
     *,
 };
@@ -27,7 +28,7 @@ pub struct RegexVisualizer {
     matches: Vec<RegexMatch>,
     error: String,
     pattern_state: Entity<InputState>,
-    text_state: Entity<InputState>,
+    text_state: Entity<TextareaState>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -36,13 +37,13 @@ impl RegexVisualizer {
         let pattern_state = cx.new(|cx| {
             InputState::new(window, cx)
                 .placeholder("输入正则表达式，例如 (?P<word>\\w+)")
-                .multi_line(false)
+                
                 .default_value(r"\w+".to_string())
         });
         let text_state = cx.new(|cx| {
-            InputState::new(window, cx)
+            TextareaState::new(window, cx)
                 .placeholder("输入测试文本...")
-                .multi_line(true)
+                
                 .default_value("hello gpui\n123 toolbox".to_string())
         });
 
@@ -151,80 +152,86 @@ impl RegexVisualizer {
 
 impl Render for RegexVisualizer {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        div().child(
-            div()
-                .grid()
-                .grid_cols(2)
-                .gap_4()
-                .child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .gap_3()
-                        .child(div().text_sm().font_semibold().child("表达式"))
-                        .child(Input::new(&self.pattern_state))
-                        .child(div().text_sm().font_semibold().child("测试文本"))
-                        .child(Input::new(&self.text_state).h(px(220.0)))
-                        .child(
-                            ButtonGroup::new("regex-actions")
-                                .child(
-                                    Button::new("regex-run")
-                                        .primary()
-                                        .icon(Icon::new(IconName::Search))
-                                        .tooltip("执行匹配")
-                                        .on_click(cx.listener(|this, _, _, cx| {
-                                            this.evaluate();
-                                            cx.notify();
-                                        })),
-                                )
-                                .child(
-                                    Button::new("regex-paste")
-                                        .icon(Icon::new(IconName::File))
-                                        .tooltip("粘贴测试文本")
-                                        .on_click(cx.listener(|this, _, window, cx| {
-                                            this.paste_text(window, cx);
-                                            cx.notify();
-                                        })),
-                                )
-                                .child(
-                                    Button::new("regex-copy")
-                                        .icon(Icon::new(IconName::Copy))
-                                        .tooltip("复制匹配摘要")
-                                        .on_click(cx.listener(|this, _, _, cx| {
-                                            cx.write_to_clipboard(ClipboardItem::new_string(
-                                                this.summary(),
-                                            ));
-                                        })),
-                                )
-                                .child(
-                                    Button::new("regex-clear")
-                                        .icon(Icon::new(IconName::Delete))
-                                        .tooltip("清空")
-                                        .on_click(cx.listener(|this, _, window, cx| {
-                                            this.clear(window, cx);
-                                            cx.notify();
-                                        })),
-                                ),
-                        )
-                        .when(!self.error.is_empty(), |this| {
-                            this.child(
+        design::page()
+            .child(design::page_header("正则可视化", "正则表达式调试", cx))
+            .child(
+                design::card(cx)
+                    .child(
+                        div()
+                            .grid()
+                            .grid_cols(2)
+                            .gap_4()
+                            .child(
                                 div()
-                                    .text_sm()
-                                    .text_color(cx.theme().danger)
-                                    .child(self.error.clone()),
+                                    .flex()
+                                    .flex_col()
+                                    .gap_3()
+                                    .child(div().text_sm().font_semibold().child("表达式"))
+                                    .child(Input::new(&self.pattern_state))
+                                    .child(div().text_sm().font_semibold().child("测试文本"))
+                                    .child(Textarea::new(&self.text_state).h(px(220.0)))
+                                    .child(
+                                        design::toolbar()
+                                            .child(
+                                                Button::new("regex-run")
+                                                    .primary()
+                                                    .icon(Icon::new(IconName::Search))
+                                                    .tooltip("执行匹配")
+                                                    .on_click(cx.listener(|this, _, _, cx| {
+                                                        this.evaluate();
+                                                        cx.notify();
+                                                    })),
+                                            )
+                                            .child(
+                                                Button::new("regex-paste")
+                                                    .icon(Icon::new(IconName::File))
+                                                    .tooltip("粘贴测试文本")
+                                                    .on_click(cx.listener(|this, _, window, cx| {
+                                                        this.paste_text(window, cx);
+                                                        cx.notify();
+                                                    })),
+                                            )
+                                            .child(
+                                                Button::new("regex-copy")
+                                                    .icon(Icon::new(IconName::Copy))
+                                                    .tooltip("复制匹配摘要")
+                                                    .on_click(cx.listener(|this, _, _, cx| {
+                                                        cx.write_to_clipboard(ClipboardItem::new_string(
+                                                            this.summary(),
+                                                        ));
+                                                    })),
+                                            )
+                                            .child(
+                                                Button::new("regex-clear")
+                                                    .icon(Icon::new(IconName::Delete))
+                                                    .tooltip("清空")
+                                                    .on_click(cx.listener(|this, _, window, cx| {
+                                                        this.clear(window, cx);
+                                                        cx.notify();
+                                                    })),
+                                            )
+                                            .child(div().flex_1()),
+                                    )
+                                    .when(!self.error.is_empty(), |this| {
+                                        this.child(
+                                            div()
+                                                .text_sm()
+                                                .text_color(cx.theme().danger)
+                                                .child(self.error.clone()),
+                                        )
+                                    })
+                                    .child(highlight_preview_panel(&self.test_text, &self.matches, cx)),
                             )
-                        })
-                        .child(highlight_preview_panel(&self.test_text, &self.matches, cx)),
-                )
-                .child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .gap_3()
-                        .child(result_panel("语法说明", self.explanation.clone(), cx))
-                        .child(match_panel(self.matches.clone(), cx)),
-                ),
-        )
+                            .child(
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .gap_3()
+                                    .child(result_panel("语法树 (AST)", self.explanation.clone(), cx))
+                                    .child(match_panel(self.matches.clone(), cx)),
+                            ),
+                    ),
+            )
     }
 }
 
@@ -314,39 +321,92 @@ fn match_panel(matches: Vec<RegexMatch>, cx: &mut Context<RegexVisualizer>) -> D
         )
 }
 
+/// 用 regex-syntax 解析正则并遍历 AST，生成结构化语法树说明（对齐 regex-vis 的树形可视化）。
+/// 返回带缩进的树形文本行；解析失败时返回错误信息。
 fn explain_regex(pattern: &str) -> Vec<String> {
-    if pattern.is_empty() {
-        return Vec::new();
-    }
+    use regex_syntax::ast;
 
-    let rules = [
-        (r"\d", r"\d：数字字符"),
-        (r"\w", r"\w：字母、数字或下划线"),
-        (r"\s", r"\s：空白字符"),
-        (".", ".：任意字符（默认不含换行）"),
-        ("*", "*：重复 0 次或多次"),
-        ("+", "+：重复 1 次或多次"),
-        ("?", "?：可选或非贪婪修饰"),
-        ("|", "|：或分支"),
-        ("^", "^：文本开始或行开始"),
-        ("$", "$：文本结束或行结束"),
-        ("[", "[]：字符集合"),
-        ("(", "()：捕获组或分组"),
-        ("(?P<", "(?P<name>...)：命名捕获组"),
-    ];
+    let ast = match ast::parse::Parser::new().parse(pattern) {
+        Ok(ast) => ast,
+        Err(err) => return vec![format!("正则解析错误：{err}")],
+    };
 
     let mut lines = Vec::new();
-    for (token, description) in rules {
-        if pattern.contains(token) {
-            lines.push(description.to_string());
-        }
-    }
+    ast_walk(&ast, pattern, 0, &mut lines);
 
     if lines.is_empty() {
         lines.push("普通字符：按字面值匹配".to_string());
     }
-
     lines
+}
+
+fn ast_slice<'a>(pattern: &'a str, span: &regex_syntax::ast::Span) -> String {
+    match pattern.get(span.start.offset..span.end.offset) {
+        Some(s) => format!("`{s}`"),
+        None => "<无法提取>".to_string(),
+    }
+}
+
+fn ast_walk(
+    node: &regex_syntax::ast::Ast,
+    pattern: &str,
+    depth: usize,
+    out: &mut Vec<String>,
+) {
+    use regex_syntax::ast::{AssertionKind, Ast, GroupKind, RepetitionKind};
+    let ind = "  ".repeat(depth);
+    match node {
+        Ast::Empty(_) => out.push(format!("{ind}− 空匹配 ∅")),
+        Ast::Flags(_) => out.push(format!("{ind}− 内联标志 (?im... )")),
+        Ast::Literal(lit) => out.push(format!("{ind}− 字面量 {}", ast_slice(pattern, &lit.span))),
+        Ast::Dot(_) => out.push(format!("{ind}− 任意字符（默认不含换行）")),
+        Ast::Assertion(a) => {
+            let desc = match &a.kind {
+                AssertionKind::StartLine => "断言：行首 ^",
+                AssertionKind::EndLine => "断言：行尾 $",
+                AssertionKind::StartText => "断言：文本开始 \\A",
+                AssertionKind::EndText => "断言：文本结束 \\z",
+                AssertionKind::WordBoundary => "断言：单词边界 \\b",
+                AssertionKind::NotWordBoundary => "断言：非单词边界 \\B",
+                _ => "断言",
+            };
+            out.push(format!("{ind}− {desc}"));
+        }
+        Ast::ClassUnicode(c) => out.push(format!("{ind}− 字符类 {}", ast_slice(pattern, &c.span))),
+        Ast::ClassPerl(c) => out.push(format!("{ind}− 字符类 {}", ast_slice(pattern, &c.span))),
+        Ast::ClassBracketed(c) => out.push(format!("{ind}− 字符类 {}", ast_slice(pattern, &c.span))),
+        Ast::Repetition(rep) => {
+            let op = match &rep.op.kind {
+                RepetitionKind::ZeroOrMore => "* 0次或多次",
+                RepetitionKind::OneOrMore => "+ 1次或多次",
+                RepetitionKind::ZeroOrOne => "? 可选或非贪婪",
+                RepetitionKind::Range(_) => "{} 次数",
+            };
+            out.push(format!("{ind}− 重复{op} {}", ast_slice(pattern, &rep.span)));
+            ast_walk(&rep.ast, pattern, depth + 1, out);
+        }
+        Ast::Group(g) => {
+            let label = match &g.kind {
+                GroupKind::CaptureIndex(_) => "捕获组",
+                GroupKind::CaptureName { .. } => "命名捕获组",
+                GroupKind::NonCapturing(_) => "非捕获组",
+            };
+            out.push(format!("{ind}− {label} {}", ast_slice(pattern, &g.span)));
+            ast_walk(&g.ast, pattern, depth + 1, out);
+        }
+        Ast::Alternation(a) => {
+            out.push(format!("{ind}− 或分支 {}", ast_slice(pattern, &a.span)));
+            for child in &a.asts {
+                ast_walk(child, pattern, depth + 1, out);
+            }
+        }
+        Ast::Concat(c) => {
+            out.push(format!("{ind}− 连接 {}", ast_slice(pattern, &c.span)));
+            for child in &c.asts {
+                ast_walk(child, pattern, depth + 1, out);
+            }
+        }
+    }
 }
 
 /// 渲染匹配高亮预览面板，将匹配的文本区间用高亮色着色

@@ -5,13 +5,11 @@ import {
   LetterUu,
   Link,
   Sql,
-  TextUnderline,
   Xml,
   Time,
   Json,
   Barcode,
   DataFormat,
-  TextItalic,
   DataBase,
   DataStructured,
   CdCreateExchange,
@@ -22,6 +20,21 @@ import {
   ToolKit,
   QrCode,
   Settings,
+  TextCreation,
+  TypePattern,
+  Number4,
+  FunctionMath,
+  Translate,
+  Security,
+  Compare,
+  ColorPalette,
+  Shuffle,
+  DocumentBlank,
+  DirectionMerge,
+  PageBreak,
+  PageNumber,
+  ListNumbered,
+  DocumentPdf,
 } from "@vicons/carbon";
 import { Binary, File, Hash, Markdown } from "@vicons/tabler";
 import { TransformFilled } from "@vicons/material";
@@ -85,6 +98,11 @@ export const menus = [
         key: "/transform/baseconversion",
         icon: renderMenuIcon(Binary),
       },
+      {
+        label: "Cron 表达式",
+        key: "/transform/cron",
+        icon: renderMenuIcon(Time),
+      },
     ],
   },
   {
@@ -93,9 +111,9 @@ export const menus = [
     icon: renderMenuIcon(Barcode),
     children: [
       {
-        label: "Base64",
-        key: "/encodedecode/base64text",
-        icon: renderMenuIcon(TextUnderline),
+        label: "Base 编码",
+        key: "/encodedecode/base",
+        icon: renderMenuIcon(Barcode),
       },
       {
         label: "URL",
@@ -108,16 +126,16 @@ export const menus = [
         icon: renderMenuIcon(Code),
       },
       {
-        label: "字符编码",
-        key: "/encodedecode/charset",
-        icon: renderMenuIcon(TextUnderline),
-      },
-      {
-        label: "乱码恢复",
-        key: "/encodedecode/messycode",
-        icon: renderMenuIcon(TextUnderline),
+        label: "文本编码",
+        key: "/encodedecode/textencode",
+        icon: renderMenuIcon(Translate),
       },
     ],
+  },
+  {
+    label: "加密",
+    key: "/crypto",
+    icon: renderMenuIcon(Security),
   },
   {
     label: "格式化",
@@ -152,14 +170,9 @@ export const menus = [
         icon: renderMenuIcon(LetterUu),
       },
       {
-        label: "文本Hash",
+        label: "Hash 计算",
         key: "/generator/hash",
         icon: renderMenuIcon(Hash),
-      },
-      {
-        label: "文件校验",
-        key: "/generator/checksum",
-        icon: renderMenuIcon(File),
       },
     ],
   },
@@ -183,12 +196,44 @@ export const menus = [
   {
     label: "文本",
     key: "/text",
-    icon: renderMenuIcon(TextItalic),
+    icon: renderMenuIcon(TextCreation),
     children: [
       {
         label: "Markdown",
         key: "/text/markdown",
         icon: renderMenuIcon(Markdown),
+      },
+      {
+        label: "文本工具",
+        key: "/text/tools",
+        icon: renderMenuIcon(TextCreation),
+      },
+      {
+        label: "文本 / JSON 差异",
+        key: "/text/diff",
+        icon: renderMenuIcon(Compare),
+      },
+    ],
+  },
+  {
+    label: "随机",
+    key: "/random",
+    icon: renderMenuIcon(Shuffle),
+    children: [
+      {
+        label: "随机字符串",
+        key: "/random/string",
+        icon: renderMenuIcon(TypePattern),
+      },
+      {
+        label: "随机数字",
+        key: "/random/number",
+        icon: renderMenuIcon(Number4),
+      },
+      {
+        label: "随机数据",
+        key: "/random/data",
+        icon: renderMenuIcon(DataStructured),
       },
     ],
   },
@@ -198,11 +243,31 @@ export const menus = [
     icon: renderMenuIcon(NetworkPublic),
     children: [
       {
-        label: "IP",
+        label: "IP 地址转换",
         key: "/network/ip",
         icon: renderMenuIcon(NetworkPublic),
       },
+      {
+        label: "随机 IP / MAC / 时间",
+        key: "/network/ipmac",
+        icon: renderMenuIcon(Time),
+      },
     ],
+  },
+  {
+    label: "按位计算器",
+    key: "/number/bitwise",
+    icon: renderMenuIcon(FunctionMath),
+  },
+  {
+    label: "颜色转换",
+    key: "/color",
+    icon: renderMenuIcon(ColorPalette),
+  },
+  {
+    label: "正则",
+    key: "/regex",
+    icon: renderMenuIcon(Barcode),
   },
   {
     label: "图像",
@@ -210,9 +275,46 @@ export const menus = [
     icon: renderMenuIcon(Image),
     children: [
       {
+        label: "图片格式转换",
+        key: "/graphic/convert",
+        icon: renderMenuIcon(Image),
+      },
+      {
         label: "Excalidraw",
         key: "/graphic/excalidraw",
         icon: renderMenuIcon(Image),
+      },
+    ],
+  },
+  {
+    label: "PDF",
+    key: "/pdf",
+    icon: renderMenuIcon(DocumentPdf),
+    children: [
+      {
+        label: "图片转 PDF",
+        key: "/pdf/images-to-pdf",
+        icon: renderMenuIcon(DocumentBlank),
+      },
+      {
+        label: "PDF 合并",
+        key: "/pdf/merge",
+        icon: renderMenuIcon(DirectionMerge),
+      },
+      {
+        label: "PDF 编辑",
+        key: "/pdf/edit",
+        icon: renderMenuIcon(PageBreak),
+      },
+      {
+        label: "PDF 添加页码",
+        key: "/pdf/page-number",
+        icon: renderMenuIcon(PageNumber),
+      },
+      {
+        label: "PDF 拆分",
+        key: "/pdf/split",
+        icon: renderMenuIcon(ListNumbered),
       },
     ],
   },
@@ -233,23 +335,11 @@ export const menus = [
       },
     ],
   },
-  {
-    label: "正则",
-    key: "/regex",
-    icon: renderMenuIcon(Barcode),
-    children: [
-      {
-        label: "正则可视化",
-        key: "/regex/visualizer",
-        icon: renderMenuIcon(Barcode),
-      },
-    ],
-  },
-  {
-    label: "设置",
-    key: "/setting",
-    icon: renderMenuIcon(Settings),
-  }
+  // {
+  //   label: "设置",
+  //   key: "/setting",
+  //   icon: renderMenuIcon(Settings),
+  // }
 ];
 
 // 所有菜单，包含子菜单，移除首页

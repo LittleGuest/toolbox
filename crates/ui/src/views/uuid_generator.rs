@@ -1,5 +1,6 @@
-use gpui::{prelude::FluentBuilder as _, *};
-use gpui_component::{
+use crate::design;
+use gpui_kit::{prelude::FluentBuilder as _, *};
+use gpui_kit::component::{
     button::*,
     input::{Input, InputEvent, InputState, NumberInput, NumberInputEvent, StepAction},
     scroll::ScrollableElement,
@@ -132,14 +133,14 @@ impl UuidGenerator {
         let mut results = Vec::new();
         for _ in 0..self.number {
             let uuid_str = match self.version {
-                1 => base::uuid::uuid_v1().unwrap_or_default(),
-                3 => base::uuid::uuid_v3(&namespace, &name).unwrap_or_default(),
-                4 => base::uuid::uuid_v4().unwrap_or_default(),
-                5 => base::uuid::uuid_v5(&namespace, &name).unwrap_or_default(),
-                6 => base::uuid::uuid_v6().unwrap_or_default(),
-                7 => base::uuid::uuid_v7().unwrap_or_default(),
-                8 => base::uuid::uuid_v8().unwrap_or_default(),
-                _ => base::uuid::uuid_v4().unwrap_or_default(),
+                1 => ::base::uuid::uuid_v1().unwrap_or_default(),
+                3 => ::base::uuid::uuid_v3(&namespace, &name).unwrap_or_default(),
+                4 => ::base::uuid::uuid_v4().unwrap_or_default(),
+                5 => ::base::uuid::uuid_v5(&namespace, &name).unwrap_or_default(),
+                6 => ::base::uuid::uuid_v6().unwrap_or_default(),
+                7 => ::base::uuid::uuid_v7().unwrap_or_default(),
+                8 => ::base::uuid::uuid_v8().unwrap_or_default(),
+                _ => ::base::uuid::uuid_v4().unwrap_or_default(),
             };
 
             let mut uuid_str = uuid_str;
@@ -192,129 +193,116 @@ impl Render for UuidGenerator {
             self.uuids.clone()
         };
 
-        div().child(
-            div()
-                .flex()
-                .flex_col()
-                .gap_2()
-                // label "大写" → Switch
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(px(85.0)).text_sm().child("大写"))
-                        .child(
-                            Switch::new("uppercase")
-                                .checked(uppercase)
-                                .on_click(cx.listener(|this, checked: &bool, _, cx| {
-                                    this.set_uppercase(*checked);
-                                    cx.notify();
-                                })),
-                        ),
-                )
-                // label "去掉连接符" → Switch
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(px(85.0)).text_sm().child("去掉连接符"))
-                        .child(
-                            Switch::new("remove-connector")
-                                .checked(remove_connector)
-                                .on_click(cx.listener(|this, checked: &bool, _, cx| {
-                                    this.set_remove_connector(*checked);
-                                    cx.notify();
-                                })),
-                        ),
-                )
-                // label "UUID版本" → Select
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(px(85.0)).text_sm().child("UUID版本"))
-                        .child(Select::new(&self.version_state)),
-                )
-                .when(self.version == 3 || self.version == 5, |this| {
-                    this.child(
+        design::page()
+            .child(design::page_header("UUID 生成", "生成多种 UUID", cx))
+            .child(
+                // 配置卡片
+                design::card(cx)
+                    .child(
                         div()
                             .flex()
                             .items_center()
                             .gap_2()
-                            .child(div().w(px(85.0)).text_sm().child("namespace"))
-                            .child(div().flex_1().child(Input::new(&self.namespace_state))),
+                            .child(div().w(px(85.0)).text_sm().child("大写"))
+                            .child(
+                                Switch::new("uppercase")
+                                    .checked(uppercase)
+                                    .on_click(cx.listener(|this, checked: &bool, _, cx| {
+                                        this.set_uppercase(*checked);
+                                        cx.notify();
+                                    })),
+                            ),
                     )
                     .child(
                         div()
                             .flex()
                             .items_center()
                             .gap_2()
-                            .child(div().w(px(85.0)).text_sm().child("name"))
-                            .child(div().flex_1().child(Input::new(&self.name_state))),
+                            .child(div().w(px(85.0)).text_sm().child("去掉连接符"))
+                            .child(
+                                Switch::new("remove-connector")
+                                    .checked(remove_connector)
+                                    .on_click(cx.listener(|this, checked: &bool, _, cx| {
+                                        this.set_remove_connector(*checked);
+                                        cx.notify();
+                                    })),
+                            ),
                     )
-                })
-                // label "生成数量" → "UUID(s) x " + NumberInput + 生成 button
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(px(85.0)).text_sm().child("生成数量"))
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(div().w(px(85.0)).text_sm().child("UUID版本"))
+                            .child(Select::new(&self.version_state)),
+                    )
+                    .when(self.version == 3 || self.version == 5, |this| {
+                        this.child(
+                            div()
+                                .flex()
+                                .items_center()
+                                .gap_2()
+                                .child(div().w(px(85.0)).text_sm().child("namespace"))
+                                .child(div().flex_1().child(Input::new(&self.namespace_state))),
+                        )
                         .child(
                             div()
                                 .flex()
                                 .items_center()
                                 .gap_2()
-                                .child("UUID(s) x ")
-                                .child(NumberInput::new(&self.number_state))
-                                .child(Button::new("generate").primary().label("生成").on_click(
-                                    cx.listener(|this, _, _, cx| {
-                                        this.generate(cx);
-                                        cx.notify();
-                                    }),
-                                )),
-                        ),
-                )
-                // label "操作" → Copy button
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(px(85.0)).text_sm().child("操作"))
-                        .child(
-                            Button::new("copy")
-                                .icon(Icon::new(IconName::Copy))
-                                .tooltip("复制")
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.copy(cx);
-                                })),
-                        ),
-                )
-                // label "UUID(S)" → textarea
-                .child(
-                    div()
-                        .flex()
-                        .items_start()
-                        .gap_2()
-                        .child(div().w(px(85.0)).text_sm().mt_1().child("UUID(S)"))
-                        .child(
-                            div()
-                                .flex_1()
-                                .min_h(px(300.0))
-                                .border_1()
-                                .border_color(cx.theme().border)
-                                .rounded_lg()
-                                .p_2()
-                                .overflow_y_scrollbar()
-                                .text_sm()
-                                .font_family("monospace")
-                                .child(uuids_text),
-                        ),
-                ),
-        )
+                                .child(div().w(px(85.0)).text_sm().child("name"))
+                                .child(div().flex_1().child(Input::new(&self.name_state))),
+                        )
+                    })
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(div().w(px(85.0)).text_sm().child("生成数量"))
+                            .child(NumberInput::new(&self.number_state)),
+                    ),
+            )
+            .child(
+                // 生成操作行
+                design::action_row()
+                    .child(
+                        Button::new("generate")
+                            .primary()
+                            .label("生成")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.generate(cx);
+                                cx.notify();
+                            })),
+                    ),
+            )
+            .child(
+                // 输出卡片
+                design::card(cx)
+                    .child(
+                        div()
+                            .min_h(px(300.0))
+                            .border_1()
+                            .border_color(cx.theme().border)
+                            .rounded_lg()
+                            .p_2()
+                            .overflow_y_scrollbar()
+                            .text_sm()
+                            .font_family("monospace")
+                            .child(uuids_text),
+                    )
+                    .child(
+                        design::toolbar()
+                            .child(
+                                Button::new("copy")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.copy(cx);
+                                    })),
+                            )
+                            .child(div().flex_1()),
+                    ),
+            )
     }
 }

@@ -3,7 +3,7 @@ import { ref, h } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { useMessage } from "naive-ui";
-import { Copy, Close, ArrowUp } from "@vicons/carbon";
+import { Copy, Close, ArrowUp, Play, Erase } from "@vicons/carbon";
 
 const message = useMessage();
 
@@ -124,52 +124,40 @@ const extractText = (result) => {
 </script>
 
 <template>
-  <!-- 输入区域 -->
-  <div class="input-section">
-    <n-input v-model:value="input" :rows="6" type="textarea" placeholder="请输入乱码文本，例如：锘挎槬鐪犱笉瑙夋檽锛屽澶勯椈鍟奸笩。"
-      style="width: 100%" />
-    <div class="hint">
-      <span>说明：并非所有乱码都可以被完美恢复，乱码中的问号说明该字符已经丢失，是无法恢复的。</span>
-      <div class="buttons">
-        <n-button @click="recover" :loading="loading" type="primary">
-          恢复
-        </n-button>
-        <n-button @click="clear">
-          清空
-        </n-button>
+  <div>
+      <div class="tb-editor tb-mono">
+        <span class="tb-editor-label">输入</span>
+        <n-input v-model:value="input" :rows="6" type="textarea"
+          placeholder="请输入乱码文本，例如：锘挎槬鐪犱笉瑙夋檽锛屽澶勯椈鍟奸笩。" />
+        <div class="tb-toolbar">
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button type="primary" :loading="loading" @click="recover">
+                <template #icon><n-icon><Play /></n-icon></template>
+              </n-button>
+            </template>
+            恢复
+          </n-tooltip>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="clear">
+                <template #icon><n-icon><Erase /></n-icon></template>
+              </n-button>
+            </template>
+            清空
+          </n-tooltip>
+        </div>
+        <p class="tb-hint">说明：并非所有乱码都可以被完美恢复，乱码中的问号说明该字符已经丢失，是无法恢复的。</p>
       </div>
-    </div>
-  </div>
 
-  <!-- 结果区域 -->
-  <div class="results-section">
-    <n-data-table v-if="results && results.length > 0" :columns="tableColumns" :data="results" :pagination="false"
-      :bordered="true" max-height="calc(100vh - 350px)">
-      <template #empty>
-        <n-empty description="暂无数据" />
-      </template>
-    </n-data-table>
+      <div class="tb-editor">
+        <span class="tb-editor-label">结果</span>
+        <n-data-table v-if="results && results.length > 0" :columns="tableColumns" :data="results"
+          :pagination="false" :bordered="true" max-height="calc(100vh - 350px)">
+          <template #empty>
+            <n-empty description="暂无数据" />
+          </template>
+        </n-data-table>
+      </div>
   </div>
 </template>
-
-<style scoped>
-.buttons {
-  display: flex;
-  gap: 8px;
-}
-
-.hint {
-  margin-top: 8px;
-  font-size: 12px;
-  color: #999;
-  line-height: 1.5;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-}
-
-.results-section {
-  margin-top: 24px;
-}
-</style>

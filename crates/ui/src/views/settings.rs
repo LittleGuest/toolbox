@@ -1,7 +1,8 @@
-use gpui::{prelude::FluentBuilder, *};
-use gpui_component::{Theme, ThemeMode, button::*, select::*, switch::Switch, *};
+use gpui_kit::{prelude::FluentBuilder, *};
+use gpui_kit::component::{Theme, ThemeMode, button::*, select::*, switch::Switch, *};
 
 use crate::config_store;
+use crate::design;
 
 /// 设置项的默认值
 const DEFAULT_LANGUAGE: &str = "zh_cn";
@@ -277,56 +278,50 @@ impl Render for SettingsView {
         // 匹配 Tauri: n-card title="设置" + n-form label-placement="left" label-width="140"
         // 仅显示"主题"（语言/字体/紧凑模式/智能检测在 Tauri 中已注释掉）
         // 注意：main.rs 提供 .p_6() padding，此处不再添加
-        div()
-            .flex()
-            .flex_col()
-            .gap_4()
-            // 主题
+        design::page()
+            .child(design::page_header("设置", "应用偏好设置", cx))
             .child(
-                h_flex()
-                    .items_center()
-                    .gap_3()
+                design::card(cx)
+                    // 主题
                     .child(
-                        div()
-                            .w(px(140.))
-                            .text_sm()
-                            .text_color(cx.theme().muted_foreground)
-                            .child("主题"),
+                        h_flex()
+                            .items_center()
+                            .gap_3()
+                            .child(div().w(px(140.)).child(design::caption("主题", cx)))
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .children(theme_state.map(|s| Select::new(&s))),
+                            ),
                     )
+                    // 操作按钮
                     .child(
-                        div()
-                            .flex_1()
-                            .children(theme_state.map(|s| Select::new(&s))),
-                    ),
-            )
-            // 操作按钮
-            .child(
-                h_flex()
-                    .gap_2()
-                    .child(
-                        Button::new("save-settings")
-                            .label("保存设置")
-                            .primary()
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.save_settings(cx);
-                            })),
+                        design::action_row()
+                            .child(
+                                Button::new("save-settings")
+                                    .label("保存设置")
+                                    .primary()
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.save_settings(cx);
+                                    })),
+                            )
+                            .child(
+                                Button::new("reset-settings")
+                                    .label("恢复默认")
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.reset_settings(window, cx);
+                                    })),
+                            ),
                     )
-                    .child(
-                        Button::new("reset-settings")
-                            .label("恢复默认")
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.reset_settings(window, cx);
-                            })),
-                    ),
+                    // 状态栏
+                    .when(!self.status.is_empty(), |this| {
+                        this.child(
+                            div()
+                                .text_sm()
+                                .text_color(cx.theme().muted_foreground)
+                                .child(self.status.clone()),
+                        )
+                    }),
             )
-            // 状态栏
-            .when(!self.status.is_empty(), |this| {
-                this.child(
-                    div()
-                        .text_sm()
-                        .text_color(cx.theme().muted_foreground)
-                        .child(self.status.clone()),
-                )
-            })
     }
 }

@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { NButton, NButtonGroup, useMessage } from "naive-ui";
-import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Copy, Paste, Close } from "@vicons/carbon";
+import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Copy, Paste, Close, Reset } from "@vicons/carbon";
 
 const message = useMessage();
 
@@ -17,9 +17,16 @@ const configForm = ref();
         :options="datasourceInfos" @update:value="handleSelectDatasource" />
     </n-form-item>
     <n-form-item>
-      <n-button @click="handleValidateClick">
+      <n-tooltip trigger="hover">
+        <template #trigger>
+          <n-button @click="handleValidateClick">
+            <template #icon>
+              <n-icon><Reset /></n-icon>
+            </template>
+          </n-button>
+        </template>
         重置属性
-      </n-button>
+      </n-tooltip>
     </n-form-item>
   </n-form>
 </template>

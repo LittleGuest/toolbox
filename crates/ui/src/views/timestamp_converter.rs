@@ -1,7 +1,8 @@
+use crate::design;
 use std::time::Duration;
 
-use gpui::*;
-use gpui_component::{
+use gpui_kit::*;
+use gpui_kit::component::{
     button::*,
     input::{Input, InputEvent, InputState},
     *,
@@ -28,7 +29,7 @@ impl TimestampConverter {
         let input_state = cx.new(|cx| {
             InputState::new(window, cx)
                 .placeholder("请输入时间戳或日期时间...")
-                .multi_line(false)
+                
         });
         let _subscriptions = vec![cx.subscribe_in(&input_state, window, {
             let input_state = input_state.clone();
@@ -72,10 +73,10 @@ impl TimestampConverter {
 
         if let Ok(_ts) = self.input.parse::<i64>() {
             self.timestamp = self.input.clone();
-            self.datetime = base::timestamp(Some(&self.input))
+            self.datetime = ::base::timestamp(Some(&self.input))
                 .map(|m| m.get("format").unwrap_or(&String::new()).clone())
                 .unwrap_or_default();
-        } else if let Ok(result) = base::timestamp(Some(&self.input)) {
+        } else if let Ok(result) = ::base::timestamp(Some(&self.input)) {
             self.timestamp = result.get("format").unwrap_or(&String::new()).clone();
             self.datetime = self.input.clone();
         } else {
@@ -117,43 +118,11 @@ impl Render for TimestampConverter {
             datetime.clone()
         };
 
-        div().child(
-            div()
-                .flex()
-                .flex_col()
-                .gap_3()
-                // Row: 当前时间 → readonly + Copy
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(px(120.0)).text_sm().child("当前时间"))
-                        .child(
-                            div()
-                                .flex_1()
-                                .border_1()
-                                .border_color(cx.theme().border)
-                                .rounded_md()
-                                .px_2()
-                                .py_1()
-                                .text_sm()
-                                .font_family("monospace")
-                                .child(current_time),
-                        )
-                        .child(
-                            Button::new("copy-current")
-                                .icon(Icon::new(IconName::Copy))
-                                .tooltip("复制")
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    cx.write_to_clipboard(ClipboardItem::new_string(
-                                        this.current_time.clone(),
-                                    ));
-                                })),
-                        ),
-                )
-                // Row: 时间戳 → Input + Paste
-                .child(
+        design::page()
+            .child(design::page_header("时间戳转换", "时间戳与日期互转", cx))
+            .child(
+                // 输入卡片
+                design::card(cx).child(
                     div()
                         .flex()
                         .items_center()
@@ -169,37 +138,69 @@ impl Render for TimestampConverter {
                                     cx.notify();
                                 })),
                         ),
-                )
-                // Row: 时间 → readonly + Copy
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(px(120.0)).text_sm().child("时间"))
-                        .child(
-                            div()
-                                .flex_1()
-                                .border_1()
-                                .border_color(cx.theme().border)
-                                .rounded_md()
-                                .px_2()
-                                .py_1()
-                                .text_sm()
-                                .font_family("monospace")
-                                .child(datetime_text),
-                        )
-                        .child(
-                            Button::new("copy-datetime")
-                                .icon(Icon::new(IconName::Copy))
-                                .tooltip("复制")
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    cx.write_to_clipboard(ClipboardItem::new_string(
-                                        this.datetime.clone(),
-                                    ));
-                                })),
-                        ),
                 ),
-        )
+            )
+            .child(
+                // 输出卡片
+                design::card(cx)
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(div().w(px(120.0)).text_sm().child("当前时间"))
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .border_1()
+                                    .border_color(cx.theme().border)
+                                    .rounded_md()
+                                    .px_2()
+                                    .py_1()
+                                    .text_sm()
+                                    .font_family("monospace")
+                                    .child(current_time),
+                            )
+                            .child(
+                                Button::new("copy-current")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        cx.write_to_clipboard(ClipboardItem::new_string(
+                                            this.current_time.clone(),
+                                        ));
+                                    })),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(div().w(px(120.0)).text_sm().child("时间"))
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .border_1()
+                                    .border_color(cx.theme().border)
+                                    .rounded_md()
+                                    .px_2()
+                                    .py_1()
+                                    .text_sm()
+                                    .font_family("monospace")
+                                    .child(datetime_text),
+                            )
+                            .child(
+                                Button::new("copy-datetime")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        cx.write_to_clipboard(ClipboardItem::new_string(
+                                            this.datetime.clone(),
+                                        ));
+                                    })),
+                            ),
+                    ),
+            )
     }
 }

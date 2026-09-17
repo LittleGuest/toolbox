@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
 import { useMessage } from "naive-ui";
+import { Play, Paste, Copy } from "@vicons/carbon";
 
 const message = useMessage();
 
@@ -46,43 +47,89 @@ const copy = async (value: string) => {
 </script>
 
 <template>
-  <n-card title="JWT 解码">
-    <n-space vertical size="large">
-      <n-input
-        v-model:value="token"
-        type="textarea"
-        :autosize="{ minRows: 5, maxRows: 12 }"
-        placeholder="粘贴 JWT Token"
-      />
-      <n-space>
-        <n-button type="primary" :disabled="!canDecode" @click="decode">解码</n-button>
-        <n-button @click="paste">粘贴并解码</n-button>
-        <n-button :disabled="!token" @click="copy(token)">复制 Token</n-button>
-      </n-space>
-      <n-grid :cols="2" :x-gap="16" responsive="screen">
-        <n-grid-item>
-          <n-card title="Header" size="small">
-            <template #header-extra>
-              <n-button text :disabled="!header" @click="copy(header)">复制</n-button>
+  <div class="tb-page">
+    <section class="tb-card">
+      <div class="tb-editor tb-mono">
+        <span class="tb-editor-label">Token</span>
+        <n-input
+          v-model:value="token"
+          type="textarea"
+          :autosize="{ minRows: 5, maxRows: 12 }"
+          placeholder="粘贴 JWT Token"
+        />
+        <div class="tb-action-row">
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button type="primary" :disabled="!canDecode" @click="decode">
+                <template #icon><n-icon><Play /></n-icon></template>
+              </n-button>
             </template>
-            <n-code :code="header || '{}'" language="json" word-wrap />
-          </n-card>
-        </n-grid-item>
-        <n-grid-item>
-          <n-card title="Payload" size="small">
-            <template #header-extra>
-              <n-button text :disabled="!payload" @click="copy(payload)">复制</n-button>
+            解码
+          </n-tooltip>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="paste">
+                <template #icon><n-icon><Paste /></n-icon></template>
+              </n-button>
             </template>
-            <n-code :code="payload || '{}'" language="json" word-wrap />
-          </n-card>
-        </n-grid-item>
-      </n-grid>
-      <n-card title="完整解码结果" size="small">
-        <template #header-extra>
-          <n-button text :disabled="!decoded" @click="copy(decoded)">复制</n-button>
-        </template>
+            粘贴并解码
+          </n-tooltip>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button :disabled="!token" @click="copy(token)">
+                <template #icon><n-icon><Copy /></n-icon></template>
+              </n-button>
+            </template>
+            复制 Token
+          </n-tooltip>
+        </div>
+      </div>
+
+      <div class="tb-editor-grid">
+        <div class="tb-editor">
+          <span class="tb-editor-label">Header</span>
+          <div class="tb-toolbar">
+            <n-tooltip trigger="hover">
+              <template #trigger>
+                <n-button text :disabled="!header" @click="copy(header)">
+                  <template #icon><n-icon><Copy /></n-icon></template>
+                </n-button>
+              </template>
+              复制
+            </n-tooltip>
+          </div>
+          <n-code :code="header || '{}'" language="json" word-wrap />
+        </div>
+        <div class="tb-editor">
+          <span class="tb-editor-label">Payload</span>
+          <div class="tb-toolbar">
+            <n-tooltip trigger="hover">
+              <template #trigger>
+                <n-button text :disabled="!payload" @click="copy(payload)">
+                  <template #icon><n-icon><Copy /></n-icon></template>
+                </n-button>
+              </template>
+              复制
+            </n-tooltip>
+          </div>
+          <n-code :code="payload || '{}'" language="json" word-wrap />
+        </div>
+      </div>
+
+      <div class="tb-editor">
+        <span class="tb-editor-label">完整解码结果</span>
+        <div class="tb-toolbar">
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button text :disabled="!decoded" @click="copy(decoded)">
+                <template #icon><n-icon><Copy /></n-icon></template>
+              </n-button>
+            </template>
+            复制
+          </n-tooltip>
+        </div>
         <n-code :code="decoded || '{}'" language="json" word-wrap />
-      </n-card>
-    </n-space>
-  </n-card>
+      </div>
+    </section>
+  </div>
 </template>

@@ -1,5 +1,6 @@
-use gpui::{prelude::FluentBuilder as _, *};
-use gpui_component::{
+use crate::design;
+use gpui_kit::{prelude::FluentBuilder as _, *};
+use gpui_kit::component::{
     button::*,
     input::{Input, InputEvent, InputState},
     *,
@@ -82,7 +83,7 @@ impl IpConverter {
 
     fn convert(&mut self, version: &str, ip: String) -> IpResult {
         self.error.clear();
-        match base::ip_to_number(version, Some(ip)) {
+        match ::base::ip_to_number(version, Some(ip)) {
             Ok(map) => IpResult {
                 binary: map.get("binary").cloned().unwrap_or_default(),
                 octal: map.get("octal").cloned().unwrap_or_default(),
@@ -123,34 +124,36 @@ impl IpConverter {
 
 impl Render for IpConverter {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        div().child(
-            div()
-                .flex()
-                .flex_col()
-                .gap_4()
-                .child(ip_panel(
+        design::page()
+            .child(design::page_header("IP 地址转换", "IP 与整数互转", cx))
+            .child(
+                // IPv4 转换卡片
+                design::card(cx).child(ip_panel(
                     "IPv4 转换",
                     &self.ipv4_state,
                     self.ipv4_result.clone(),
                     true,
                     cx,
-                ))
-                .child(ip_panel(
+                )),
+            )
+            .child(
+                // IPv6 转换卡片
+                design::card(cx).child(ip_panel(
                     "IPv6 转换",
                     &self.ipv6_state,
                     self.ipv6_result.clone(),
                     false,
                     cx,
-                ))
-                .when(!self.error.is_empty(), |this| {
-                    this.child(
-                        div()
-                            .text_sm()
-                            .text_color(cx.theme().danger)
-                            .child(self.error.clone()),
-                    )
-                }),
-        )
+                )),
+            )
+            .when(!self.error.is_empty(), |this| {
+                this.child(
+                    div()
+                        .text_sm()
+                        .text_color(cx.theme().danger)
+                        .child(self.error.clone()),
+                )
+            })
     }
 }
 

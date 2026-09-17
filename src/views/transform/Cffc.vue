@@ -75,89 +75,103 @@ const clear = () => {
 </script>
 
 <template>
-  <n-scrollbar>
-    <n-form label-placement="left" label-width="100">
-      <n-form-item label="缩进">
-        <n-select placeholder="请缩进字符" :options="indentOptions" v-model:value="indent" />
-      </n-form-item>
-      <n-form-item label="输入文件类型">
-        <n-select placeholder="请选择文件类型" :options="typeOptions" v-model:value="ft" />
-      </n-form-item>
-      <n-form-item label="操作">
-        <n-button-group>
-          <n-button @click="pasteInput">
-            <template #icon>
-              <n-icon>
-                <Paste />
-              </n-icon>
+  <div class="tb-page">
+    <section class="tb-card">
+      <div class="tb-config-row">
+        <div class="tb-config-item">
+          <span class="tb-config-label">缩进</span>
+          <n-select placeholder="请缩进字符" :options="indentOptions" v-model:value="indent" style="width: 120px" />
+        </div>
+        <div class="tb-config-item">
+          <span class="tb-config-label">输入文件类型</span>
+          <n-select placeholder="请选择文件类型" :options="typeOptions" v-model:value="ft" style="width: 150px" />
+        </div>
+        <div class="tb-config-item">
+          <span class="tb-config-label">输出文件类型</span>
+          <n-select placeholder="请选择文件类型" :options="typeOptions" v-model:value="tt" style="width: 150px" />
+        </div>
+      </div>
+
+      <div class="tb-editor tb-mono">
+        <span class="tb-editor-label">输入</span>
+        <n-input placeholder="" v-model:value="input" :rows="8" type="textarea" />
+        <div class="tb-toolbar">
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button size="small" quaternary @click="pasteInput">
+                <template #icon><n-icon><Paste /></n-icon></template>
+              </n-button>
             </template>
-          </n-button>
-          <n-button @click="copy(input)">
-            <template #icon>
-              <n-icon>
-                <Copy />
-              </n-icon>
+            粘贴
+          </n-tooltip>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button size="small" quaternary @click="copy(input)">
+                <template #icon><n-icon><Copy /></n-icon></template>
+              </n-button>
             </template>
-          </n-button>
-          <n-button @click="clear">
-            <template #icon>
-              <n-icon>
-                <Close />
-              </n-icon>
+            复制
+          </n-tooltip>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button size="small" quaternary @click="clear">
+                <template #icon><n-icon><Close /></n-icon></template>
+              </n-button>
             </template>
-          </n-button>
-        </n-button-group>
-      </n-form-item>
-      <n-form-item label="输入">
-        <n-input placeholder="" v-model:value="input" :rows="6" type="textarea" />
-      </n-form-item>
-      <n-form-item label="转换">
-        <n-button @click="itt">
-          <template #icon>
-            <n-icon>
-              <ArrowDown />
-            </n-icon>
+            清除
+          </n-tooltip>
+        </div>
+      </div>
+
+      <div class="tb-action-row">
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <n-button type="primary" @click="itt">
+              <template #icon><n-icon><ArrowDown /></n-icon></template>
+            </n-button>
           </template>
-        </n-button>
-        <n-button @click="tti">
-          <template #icon>
-            <n-icon>
-              <ArrowUp />
-            </n-icon>
+          转换
+        </n-tooltip>
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <n-button @click="tti">
+              <template #icon><n-icon><ArrowUp /></n-icon></template>
+            </n-button>
           </template>
-        </n-button>
-      </n-form-item>
-      <n-form-item label="输出文件类型">
-        <n-select placeholder="请选择文件类型" :options="typeOptions" v-model:value="tt" />
-      </n-form-item>
-      <n-form-item label="操作">
-        <n-button-group>
-          <n-button @click="pasteOutput()">
-            <template #icon>
-              <n-icon>
-                <Paste />
-              </n-icon>
+          反向转换
+        </n-tooltip>
+      </div>
+
+      <div class="tb-editor tb-mono">
+        <span class="tb-editor-label">输出</span>
+        <n-input placeholder="" v-model:value="output" :rows="8" type="textarea" />
+        <div class="tb-toolbar">
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button size="small" quaternary @click="pasteOutput()">
+                <template #icon><n-icon><Paste /></n-icon></template>
+              </n-button>
             </template>
-          </n-button>
-          <n-button @click="copy(output)">
-            <template #icon>
-              <n-icon>
-                <Copy />
-              </n-icon>
+            粘贴
+          </n-tooltip>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button size="small" quaternary @click="copy(output)">
+                <template #icon><n-icon><Copy /></n-icon></template>
+              </n-button>
             </template>
-          </n-button>
-          <n-button @click="clear">
-            <template #icon>
-              <n-icon>
-                <Close />
-              </n-icon>
+            复制
+          </n-tooltip>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button size="small" quaternary @click="clear">
+                <template #icon><n-icon><Close /></n-icon></template>
+              </n-button>
             </template>
-          </n-button>
-        </n-button-group>
-      </n-form-item>
-      <n-form-item label="输出">
-        <n-input placeholder="" v-model:value="output" :rows="6" type="textarea" />
-      </n-form-item>
-    </n-form>
-  </n-scrollbar>
+            清除
+          </n-tooltip>
+        </div>
+      </div>
+    </section>
+  </div>
 </template>

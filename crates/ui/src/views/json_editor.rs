@@ -1,9 +1,10 @@
+use crate::design;
 use std::collections::HashSet;
 
-use gpui::{prelude::FluentBuilder as _, *};
-use gpui_component::{
+use gpui_kit::{prelude::FluentBuilder as _, *};
+use gpui_kit::component::{
     button::*,
-    input::{Input, InputEvent, InputState},
+    input::{Input, InputEvent, InputState, Textarea, TextareaState },
     scroll::ScrollableElement,
     *,
 };
@@ -28,16 +29,16 @@ pub struct JsonEditor {
     expanded: HashSet<String>,
     /// 树查看器选项
     tree_options: TreeOptions,
-    input_state: Entity<InputState>,
+    input_state: Entity<TextareaState>,
     _subscriptions: Vec<Subscription>,
 }
 
 impl JsonEditor {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let input_state = cx.new(|cx| {
-            InputState::new(window, cx)
+            TextareaState::new(window, cx)
                 .placeholder("请输入JSON...")
-                .multi_line(true)
+                
         });
 
         let _subscriptions = vec![cx.subscribe_in(&input_state, window, {
@@ -234,34 +235,33 @@ fn leaf_display(value: &serde_json::Value) -> String {
 impl Render for JsonEditor {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         // 匹配 Tauri JsonEditor.vue: ButtonGroup(Paste+Copy) + VueJsonPretty
-        div().child(
-            div()
-                .flex()
-                .flex_col()
-                .gap_3()
-                // 操作按钮（匹配 Tauri n-button-group）
-                .child(
-                    ButtonGroup::new("input-buttons")
-                        .child(
-                            Button::new("paste-input")
-                                .icon(Icon::new(IconName::File))
-                                .tooltip("粘贴")
-                                .on_click(cx.listener(|this, _, window, cx| {
-                                    this.paste(window, cx);
-                                })),
-                        )
-                        .child(
-                            Button::new("copy-input")
-                                .icon(Icon::new(IconName::Copy))
-                                .tooltip("复制")
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.copy_input(cx);
-                                })),
-                        ),
-                )
-                // 树查看器（匹配 Tauri VueJsonPretty）
-                .child(tree_viewer_panel(self, cx)),
-        )
+        design::page()
+            .child(design::page_header("JSON Editor", "JSON 格式化与编辑", cx))
+            .child(
+                // 整体卡片：内部编辑器/树结构保持原样
+                design::card(cx)
+                    .child(
+                        design::toolbar()
+                            .child(
+                                Button::new("paste-input")
+                                    .icon(Icon::new(IconName::File))
+                                    .tooltip("粘贴")
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.paste(window, cx);
+                                    })),
+                            )
+                            .child(
+                                Button::new("copy-input")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.copy_input(cx);
+                                    })),
+                            )
+                            .child(div().flex_1()),
+                    )
+                    .child(tree_viewer_panel(self, cx)),
+            )
     }
 }
 
@@ -434,9 +434,9 @@ fn render_node(
         };
         let icon_color = match value {
             serde_json::Value::Object(_) | serde_json::Value::Array(_) => cx.theme().primary,
-            serde_json::Value::String(_) => gpui::hsla(0.33, 0.6, 0.4, 1.0),
-            serde_json::Value::Number(_) => gpui::hsla(0.08, 0.7, 0.5, 1.0),
-            serde_json::Value::Bool(_) => gpui::hsla(0.0, 0.65, 0.5, 1.0),
+            serde_json::Value::String(_) => gpui_kit::hsla(0.33, 0.6, 0.4, 1.0),
+            serde_json::Value::Number(_) => gpui_kit::hsla(0.08, 0.7, 0.5, 1.0),
+            serde_json::Value::Bool(_) => gpui_kit::hsla(0.0, 0.65, 0.5, 1.0),
             serde_json::Value::Null => cx.theme().muted_foreground,
         };
         row = row.child(
@@ -451,7 +451,7 @@ fn render_node(
     if depth > 0 {
         row = row.child(
             div()
-                .text_color(gpui::hsla(0.75, 0.55, 0.45, 1.0))
+                .text_color(gpui_kit::hsla(0.75, 0.55, 0.45, 1.0))
                 .child(format!("\"{key}\":")),
         );
     }
@@ -471,9 +471,9 @@ fn render_node(
         // 叶子节点值
         let display = leaf_display(value);
         let color = match value {
-            serde_json::Value::String(_) => gpui::hsla(0.33, 0.6, 0.4, 1.0),
-            serde_json::Value::Number(_) => gpui::hsla(0.08, 0.7, 0.5, 1.0),
-            serde_json::Value::Bool(_) => gpui::hsla(0.0, 0.65, 0.5, 1.0),
+            serde_json::Value::String(_) => gpui_kit::hsla(0.33, 0.6, 0.4, 1.0),
+            serde_json::Value::Number(_) => gpui_kit::hsla(0.08, 0.7, 0.5, 1.0),
+            serde_json::Value::Bool(_) => gpui_kit::hsla(0.0, 0.65, 0.5, 1.0),
             serde_json::Value::Null => cx.theme().muted_foreground,
             _ => cx.theme().foreground,
         };

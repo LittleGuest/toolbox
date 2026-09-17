@@ -1,7 +1,8 @@
-use gpui::{prelude::FluentBuilder as _, *};
-use gpui_component::{
+use crate::design;
+use gpui_kit::{prelude::FluentBuilder as _, *};
+use gpui_kit::component::{
     button::*,
-    input::{Input, InputEvent, InputState},
+    input::{Input, InputEvent, InputState, Textarea, TextareaState },
     scroll::ScrollableElement,
     *,
 };
@@ -14,16 +15,16 @@ pub struct JwtDecoder {
     payload: String,
     decoded: String,
     error: String,
-    token_state: Entity<InputState>,
+    token_state: Entity<TextareaState>,
     _subscriptions: Vec<Subscription>,
 }
 
 impl JwtDecoder {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let token_state = cx.new(|cx| {
-            InputState::new(window, cx)
+            TextareaState::new(window, cx)
                 .placeholder("粘贴 JWT Token...")
-                .multi_line(true)
+                
         });
         let _subscriptions = vec![cx.subscribe_in(&token_state, window, {
             let token_state = token_state.clone();
@@ -48,7 +49,7 @@ impl JwtDecoder {
 
     fn decode(&mut self) {
         self.error.clear();
-        match base::decode_jwt(self.token.trim()) {
+        match ::base::decode_jwt(self.token.trim()) {
             Ok(value) => {
                 self.decoded = value.clone();
                 match serde_json::from_str::<serde_json::Value>(&value) {
@@ -103,15 +104,38 @@ impl JwtDecoder {
 impl Render for JwtDecoder {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let token_empty = self.token.trim().is_empty();
-        div()
-            .flex()
-            .flex_col()
-            .gap_4()
-            .child(Input::new(&self.token_state).h(px(130.0)))
+        design::page()
+            .child(design::page_header("JWT 解析", "解析与校验 JWT", cx))
             .child(
-                div()
-                    .flex()
-                    .gap_2()
+                // 输入卡片
+                design::card(cx)
+                    .child(
+                        design::toolbar()
+                            .child(
+                                Button::new("paste")
+                                    .label("粘贴并解码")
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.paste(window, cx);
+                                        cx.notify();
+                                    })),
+                            )
+                            .child(
+                                Button::new("copy-token")
+                                    .disabled(token_empty)
+                                    .label("复制 Token")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        cx.write_to_clipboard(ClipboardItem::new_string(
+                                            this.token.clone(),
+                                        ));
+                                    })),
+                            )
+                            .child(div().flex_1()),
+                    )
+                    .child(Textarea::new(&self.token_state).h(px(130.0))),
+            )
+            .child(
+                // 解码操作行
+                design::action_row()
                     .child(
                         Button::new("decode")
                             .primary()
@@ -120,24 +144,6 @@ impl Render for JwtDecoder {
                             .on_click(cx.listener(|this, _, _, cx| {
                                 this.decode();
                                 cx.notify();
-                            })),
-                    )
-                    .child(
-                        Button::new("paste")
-                            .label("粘贴并解码")
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.paste(window, cx);
-                                cx.notify();
-                            })),
-                    )
-                    .child(
-                        Button::new("copy-token")
-                            .disabled(token_empty)
-                            .label("复制 Token")
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                cx.write_to_clipboard(ClipboardItem::new_string(
-                                    this.token.clone(),
-                                ));
                             })),
                     ),
             )
@@ -150,28 +156,32 @@ impl Render for JwtDecoder {
                 )
             })
             .child(
-                div()
-                    .flex()
-                    .gap_4()
-                    .child(div().flex_1().child(json_panel(
-                        "Header",
-                        "copy-header",
-                        self.header.clone(),
+                // 输出卡片
+                design::card(cx)
+                    .child(
+                        div()
+                            .flex()
+                            .gap_4()
+                            .child(div().flex_1().child(json_panel(
+                                "Header",
+                                "copy-header",
+                                self.header.clone(),
+                                cx,
+                            )))
+                            .child(div().flex_1().child(json_panel(
+                                "Payload",
+                                "copy-payload",
+                                self.payload.clone(),
+                                cx,
+                            ))),
+                    )
+                    .child(json_panel(
+                        "完整解码结果",
+                        "copy-decoded",
+                        self.decoded.clone(),
                         cx,
-                    )))
-                    .child(div().flex_1().child(json_panel(
-                        "Payload",
-                        "copy-payload",
-                        self.payload.clone(),
-                        cx,
-                    ))),
+                    )),
             )
-            .child(json_panel(
-                "完整解码结果",
-                "copy-decoded",
-                self.decoded.clone(),
-                cx,
-            ))
     }
 }
 

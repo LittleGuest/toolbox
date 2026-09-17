@@ -3,7 +3,7 @@ import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { useMessage } from "naive-ui";
-import { Copy } from "@vicons/carbon";
+import { Copy, MagicWand } from "@vicons/carbon";
 
 const message = useMessage();
 
@@ -67,33 +67,72 @@ const copy = () => {
 </script>
 
 <template>
-  <n-form label-placement="left" label-width="85">
-    <n-form-item label="大写">
-      <n-switch v-model:value="uppercase" checked="Y" unchecked="N" />
-    </n-form-item>
-     <n-form-item label="去掉连接符">
-      <n-switch v-model:value="removeConnector" checked="Y" unchecked="N" />
-    </n-form-item>
-    <n-form-item label="UUID版本">
-      <n-select placeholder="请选择版本" :options="versionOptions" v-model:value="uuidVersion" />
-    </n-form-item>
-    <n-form-item label="生成数量">
-      <span>Generate UUID(s) x &nbsp;</span>
-      <n-input-number placeholder="请输入生成数量" v-model:value="number" min="5" max="999999" />
-      <n-button @click="generate">生成</n-button>
-    </n-form-item>
+  <div class="tb-page">
+    <section class="tb-card">
+      <div class="tb-config-row">
+        <div class="tb-config-item">
+          <span class="tb-config-label">大写</span>
+          <n-switch v-model:value="uppercase" checked="Y" unchecked="N" />
+        </div>
+        <div class="tb-config-item">
+          <span class="tb-config-label">去掉连接符</span>
+          <n-switch v-model:value="removeConnector" checked="Y" unchecked="N" />
+        </div>
+        <div class="tb-config-item">
+          <span class="tb-config-label">UUID版本</span>
+          <n-select placeholder="请选择版本" :options="versionOptions" v-model:value="uuidVersion"
+            class="config-control" />
+        </div>
+        <div class="tb-config-item">
+          <span class="tb-config-label">生成数量</span>
+          <n-input-number placeholder="请输入生成数量" v-model:value="number" min="5" max="999999"
+            class="config-number" />
+        </div>
+      </div>
 
-    <n-form-item label="操作">
-      <n-button @click="copy">
-        <template #icon>
-          <n-icon>
-            <Copy />
-          </n-icon>
-        </template>
-      </n-button>
-    </n-form-item>
-    <n-form-item label="UUID(S)">
-      <n-input placeholder="" v-model:value="uuids" :rows="10" type="textarea" />
-    </n-form-item>
-  </n-form>
+      <div class="tb-action-row">
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <n-button type="primary" @click="generate">
+              <template #icon>
+                <n-icon>
+                  <MagicWand />
+                </n-icon>
+              </template>
+            </n-button>
+          </template>
+          生成
+        </n-tooltip>
+      </div>
+
+      <div class="tb-editor tb-mono">
+        <span class="tb-editor-label">UUID 列表</span>
+        <n-input placeholder="" v-model:value="uuids" :rows="10" type="textarea" />
+        <div class="tb-toolbar">
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="copy">
+                <template #icon>
+                  <n-icon>
+                    <Copy />
+                  </n-icon>
+                </template>
+              </n-button>
+            </template>
+            复制
+          </n-tooltip>
+        </div>
+      </div>
+    </section>
+  </div>
 </template>
+
+<style scoped>
+.config-control {
+  width: 140px;
+}
+
+.config-number {
+  width: 140px;
+}
+</style>

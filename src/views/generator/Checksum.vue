@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useMessage, useLoadingBar } from "naive-ui";
 import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
-import { Copy, Paste } from "@vicons/carbon";
+import { Copy, Paste, Folder, Calculator } from "@vicons/carbon";
 
 const message = useMessage();
 const loadingBar = useLoadingBar();
@@ -121,89 +121,128 @@ const paste = async () => {
 </script>
 
 <template>
-  <n-form label-placement="left" label-width="80">
-    <n-form-item label=" ">
-      <n-flex align="center">
-        <n-button size="large" type="success" @click="handleUpload"
-          >选择</n-button
-        >
-        <span>{{ filePath }}</span>
-      </n-flex>
-    </n-form-item>
+  <div>
+      <div class="tb-config-row">
+        <div class="tb-config-item">
+          <span class="tb-config-label">文件</span>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button size="large" type="success" @click="handleUpload">
+                <template #icon>
+                  <n-icon>
+                    <Folder />
+                  </n-icon>
+                </template>
+              </n-button>
+            </template>
+            选择
+          </n-tooltip>
+          <span class="file-path">{{ filePath }}</span>
+        </div>
+        <div class="tb-config-item">
+          <span class="tb-config-label">校验算法</span>
+          <n-select v-model:value="checksumAlgorithm" :options="checksumOptions" class="config-control" />
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button type="success" @click="upload">
+                <template #icon>
+                  <n-icon>
+                    <Calculator />
+                  </n-icon>
+                </template>
+              </n-button>
+            </template>
+            计算
+          </n-tooltip>
+        </div>
+      </div>
 
-    <!-- 校验算法 -->
-    <n-form-item label="校验算法">
-      <n-select v-model:value="checksumAlgorithm" :options="checksumOptions" />
-      <n-button type="success" @click="upload"> 计算 </n-button>
-    </n-form-item>
+      <div class="tb-editor tb-mono">
+        <span class="tb-editor-label">校验值</span>
+        <n-input
+          placeholder=""
+          type="textarea"
+          :autosize="{
+            minRows: 3,
+          }"
+          readonly
+          v-model:value="checksum"
+        />
+        <div class="tb-toolbar">
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="copy(checksum)">
+                <template #icon>
+                  <n-icon>
+                    <Copy />
+                  </n-icon>
+                </template>
+              </n-button>
+            </template>
+            复制
+          </n-tooltip>
+        </div>
+      </div>
 
-    <!-- 校验值 -->
-    <n-form-item label="校验值">
-      <n-button @click="paste">
-        <template #icon>
-          <n-icon>
-            <Paste />
-          </n-icon>
-        </template>
-      </n-button>
-      <n-button @click="copy(checksum)">
-        <template #icon>
-          <n-icon>
-            <Copy />
-          </n-icon>
-        </template>
-      </n-button>
-    </n-form-item>
-    <n-form-item label=" ">
-      <n-input
-        placeholder=""
-        type="textarea"
-        :autosize="{
-          minRows: 3,
-        }"
-        readonly
-        v-model:value="checksum"
-      />
-    </n-form-item>
+      <div class="tb-editor tb-mono">
+        <span class="tb-editor-label">对比值</span>
+        <n-input
+          placeholder=""
+          type="textarea"
+          :autosize="{
+            minRows: 3,
+          }"
+          readonly
+          v-model:value="validValue"
+        />
+        <div class="tb-toolbar">
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="paste">
+                <template #icon>
+                  <n-icon>
+                    <Paste />
+                  </n-icon>
+                </template>
+              </n-button>
+            </template>
+            粘贴
+          </n-tooltip>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="copy(validValue)">
+                <template #icon>
+                  <n-icon>
+                    <Copy />
+                  </n-icon>
+                </template>
+              </n-button>
+            </template>
+            复制
+          </n-tooltip>
+        </div>
+      </div>
 
-    <n-form-item label="对比值">
-      <n-button-group>
-        <n-button @click="paste">
-          <template #icon>
-            <n-icon>
-              <Paste />
-            </n-icon>
-          </template>
-        </n-button>
-        <n-button @click="copy(validValue)">
-          <template #icon>
-            <n-icon>
-              <Copy />
-            </n-icon>
-          </template>
-        </n-button>
-      </n-button-group>
-    </n-form-item>
-    <n-form-item label=" ">
-      <n-input
-        placeholder=""
-        type="textarea"
-        :autosize="{
-          minRows: 3,
-        }"
-        readonly
-        v-model:value="validValue"
-      />
-    </n-form-item>
-    <n-form-item label=" " v-if="validValue">
-      <span :class="checksumMatched ? 'matched' : 'notMatched'">{{
-        checksumMatched ? "一致" : "不一致"
-      }}</span>
-    </n-form-item>
-  </n-form>
+      <div class="tb-action-row" v-if="validValue">
+        <span :class="checksumMatched ? 'matched' : 'notMatched'">{{
+          checksumMatched ? "一致" : "不一致"
+        }}</span>
+      </div>
+  </div>
 </template>
 
-<style lang="scss" scoped>
+<style scoped>
+.config-control {
+  width: 160px;
+}
+
+.file-path {
+  font-family: var(--tb-font-mono);
+  font-size: 13px;
+  color: var(--tb-text-2);
+  word-break: break-all;
+}
+
 .matched {
   font-size: 24px;
   color: #18a058;

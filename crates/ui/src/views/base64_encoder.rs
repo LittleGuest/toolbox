@@ -1,29 +1,30 @@
-use gpui::*;
-use gpui_component::{
+use crate::design;
+use gpui_kit::*;
+use gpui_kit::component::{
     button::*,
-    input::{Input, InputEvent, InputState},
+    input::{Input, InputEvent, InputState, Textarea, TextareaState },
     *,
 };
 
 pub struct Base64Encoder {
     input: String,
     output: String,
-    input_state: Entity<InputState>,
-    output_state: Entity<InputState>,
+    input_state: Entity<TextareaState>,
+    output_state: Entity<TextareaState>,
     _subscriptions: Vec<Subscription>,
 }
 
 impl Base64Encoder {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let input_state = cx.new(|cx| {
-            InputState::new(window, cx)
+            TextareaState::new(window, cx)
                 .placeholder("请输入文本...")
-                .multi_line(true)
+                
         });
         let output_state = cx.new(|cx| {
-            InputState::new(window, cx)
+            TextareaState::new(window, cx)
                 .placeholder("输出结果...")
-                .multi_line(true)
+                
         });
 
         let _subscriptions = vec![cx.subscribe_in(&input_state, window, {
@@ -50,7 +51,7 @@ impl Base64Encoder {
         if self.input.is_empty() {
             return;
         }
-        self.output = base::encode_base64_text(&self.input).unwrap_or_default();
+        self.output = ::base::encode_base64_text(&self.input).unwrap_or_default();
         self.output_state.update(cx, |state, cx| {
             state.set_value(self.output.clone(), window, cx);
         });
@@ -60,7 +61,7 @@ impl Base64Encoder {
         if self.output.is_empty() {
             return;
         }
-        let decoded = base::decode_base64_text(&self.output).unwrap_or_default();
+        let decoded = ::base::decode_base64_text(&self.output).unwrap_or_default();
         self.input = decoded.clone();
         self.input_state.update(cx, |state, cx| {
             state.set_value(decoded, window, cx);
@@ -116,18 +117,19 @@ impl Base64Encoder {
 impl Render for Base64Encoder {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         div()
-            .flex()
+            .w_full()
             .flex_col()
-            .gap_3()
+            .gap_4()
+            .child(design::page_header(
+                "Base64 编码 / 解码",
+                "在文本与 Base64 之间互相转换",
+                cx,
+            ))
             .child(
-                // Row 1: 操作 → Paste + Copy + Close (input)
-                div()
-                    .flex()
-                    .items_center()
-                    .gap_2()
-                    .child(div().text_sm().w(px(80.0)).child("操作"))
+                // 输入卡片
+                design::card(cx)
                     .child(
-                        ButtonGroup::new("input-buttons")
+                        design::toolbar()
                             .child(
                                 Button::new("paste-input")
                                     .icon(Icon::new(IconName::File))
@@ -151,51 +153,46 @@ impl Render for Base64Encoder {
                                     .on_click(cx.listener(|this, _, window, cx| {
                                         this.clear(window, cx);
                                     })),
-                            ),
+                            )
+                            .child(div().flex_1()),
+                    )
+                    .child(
+                        Textarea::new(&self.input_state)
+                            .h(design::CODE_BOX_HEIGHT)
+                            .font_family("monospace"),
                     ),
             )
             .child(
-                // Row 2: 输入 → textarea
-                div()
-                    .flex()
-                    .items_center()
-                    .gap_2()
-                    .child(div().text_sm().w(px(80.0)).child("输入"))
-                    .child(Input::new(&self.input_state).h(px(250.0))),
-            )
-            .child(
-                // Row 3: 编码/解码 → ArrowDown + ArrowUp (separate buttons, 匹配 Tauri 非primary)
-                div()
-                    .flex()
-                    .items_center()
-                    .gap_2()
-                    .child(div().text_sm().w(px(80.0)).child("编码/解码"))
+                // 编码/解码操作行
+                design::action_row()
                     .child(
                         Button::new("encode")
+                            .label("编码")
+                            .primary()
                             .icon(Icon::new(IconName::ArrowDown))
-                            .tooltip("编码")
                             .on_click(cx.listener(|this, _, window, cx| {
                                 this.encode(window, cx);
                             })),
                     )
                     .child(
                         Button::new("decode")
+                            .label("解码")
                             .icon(Icon::new(IconName::ArrowUp))
-                            .tooltip("解码")
                             .on_click(cx.listener(|this, _, window, cx| {
                                 this.decode(window, cx);
                             })),
                     ),
             )
             .child(
-                // Row 4: 操作 → Paste + Copy + Close (output)
-                div()
-                    .flex()
-                    .items_center()
-                    .gap_2()
-                    .child(div().text_sm().w(px(80.0)).child("操作"))
+                // 输出卡片
+                design::card(cx)
                     .child(
-                        ButtonGroup::new("output-buttons")
+                        Textarea::new(&self.output_state)
+                            .h(design::CODE_BOX_HEIGHT)
+                            .font_family("monospace"),
+                    )
+                    .child(
+                        design::toolbar()
                             .child(
                                 Button::new("paste-output")
                                     .icon(Icon::new(IconName::File))
@@ -219,17 +216,9 @@ impl Render for Base64Encoder {
                                     .on_click(cx.listener(|this, _, window, cx| {
                                         this.clear(window, cx);
                                     })),
-                            ),
+                            )
+                            .child(div().flex_1()),
                     ),
-            )
-            .child(
-                // Row 5: 输出 → textarea
-                div()
-                    .flex()
-                    .items_center()
-                    .gap_2()
-                    .child(div().text_sm().w(px(80.0)).child("输出"))
-                    .child(Input::new(&self.output_state).h(px(250.0))),
             )
     }
 }

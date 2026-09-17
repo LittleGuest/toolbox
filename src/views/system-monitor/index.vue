@@ -327,12 +327,16 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="system-monitor-container">
+  <div class="tb-page system-monitor-container">
+
     <div v-if="!monitoringEnabled" class="monitor-switch-empty">
       <div class="monitor-switch-panel">
-        <n-switch :value="monitoringEnabled" size="large" @update:value="handleMonitoringChange" />
         <div class="monitor-switch-title">系统监控已关闭</div>
-        <div class="monitor-switch-desc">打开开关后开始采集 CPU、内存、磁盘和进程信息</div>
+        
+        <div class="monitor-switch-desc">
+                  <n-switch :value="monitoringEnabled" size="medium" @update:value="handleMonitoringChange" />
+
+        </div>
       </div>
     </div>
 
@@ -506,17 +510,8 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 .system-monitor-container {
-  padding: 10px;
-  height: calc(100vh - 300px);
   display: flex;
   flex-direction: column;
-
-  .monitor-title {
-    font-size: 24px;
-    font-weight: bold;
-    margin-bottom: 30px;
-    text-align: center;
-  }
 
   .monitor-card {
     margin-bottom: 20px;
@@ -553,22 +548,7 @@ onUnmounted(() => {
     color: var(--n-secondary-text-color);
   }
 
-  .monitor-toolbar {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 12px;
-    flex-shrink: 0;
-  }
-
-  .monitor-toolbar-label {
-    font-size: 13px;
-    color: var(--n-secondary-text-color);
-  }
-
   .process-list-card {
-    flex: 1;
     display: flex;
     flex-direction: column;
 
@@ -595,16 +575,6 @@ onUnmounted(() => {
   .item-header {
     display: flex;
     align-items: center;
-
-    .item-icon {
-      font-size: 20px;
-      margin-right: 10px;
-    }
-
-    .item-title {
-      font-size: 18px;
-      font-weight: bold;
-    }
   }
 
   .item-content {
@@ -627,13 +597,6 @@ onUnmounted(() => {
         font-weight: bold;
       }
     }
-  }
-
-  .disk-metrics,
-  .network-metrics {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
   }
 }
 </style>

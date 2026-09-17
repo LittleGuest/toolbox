@@ -10,6 +10,7 @@ import {
 } from "@/store/db";
 import DatabaseDiffReport from "./DatabaseDiffReport.vue";
 import { QuestionCircleOutlined } from "@vicons/antd";
+import { MagicWand, Compare, Checkmark, Filter, Add, Radar, Save, Close } from "@vicons/carbon";
 import DatabaseDiffSql from "./DatabaseDiffSql.vue";
 import DatabaseStandardCheck from "./DatabaseStandardCheck.vue";
 import DatabaseGeneratorCode from "./DatabaseGeneratorCode.vue";
@@ -310,94 +311,167 @@ const showCheck = () => {
 </script>
 
 <template>
-  <n-form inline :label-width="80" label-placement="left" class="opt">
-    <n-form-item>
-      差异报告
-      <n-tooltip trigger="hover">
-        <template #trigger>
-          <n-icon size="18">
-            <QuestionCircleOutlined />
-          </n-icon>
-        </template>
-        对比两个数据库之间的差异变化，用于评审检查数据库的变动
-      </n-tooltip>
-    </n-form-item>
-    <n-form-item label="基准库">
-      <n-select placeholder="请选择基准库" v-model:value="reportSourceTable" :options="sourceTables" />
-    </n-form-item>
-    <n-form-item label="变动库">
-      <n-select placeholder="请选择变动库" v-model:value="reportTargetTable" :options="targetTables" />
-    </n-form-item>
-    <n-form-item>
-      <n-button @click="generateReport">生成</n-button>
-    </n-form-item>
-  </n-form>
-  <n-form inline :label-width="80" label-placement="left" class="opt">
-    <n-form-item>
-      差异SQL
-      <n-tooltip trigger="hover">
-        <template #trigger>
-          <n-icon size="18">
-            <QuestionCircleOutlined />
-          </n-icon>
-        </template>
-        对比基准库之后,生成的差异sql，在变化库上执行即可补齐差异。
-        （注意：sql语句仅供参考，执行前应当检查一下sql，出现数据丢失一概不负责）
-      </n-tooltip>
-    </n-form-item>
-    <n-form-item label="基准库">
-      <n-select placeholder="请选择基准库" v-model:value="sqlSourceTable" :options="sourceTables" />
-    </n-form-item>
-    <n-form-item label="变动库">
-      <n-select placeholder="请选择变动库" v-model:value="sqlTargetTable" :options="targetTables" />
-    </n-form-item>
-    <n-form-item>
-      <n-button @click="generateSql('struct')">结构差异</n-button>
-      <!-- <n-button @click="generateSql('data')">数据差异</n-button> -->
-    </n-form-item>
-  </n-form>
-  <n-form inline :label-width="80" label-placement="left" class="opt">
-    <n-form-item>
-      规范检查
-      <n-tooltip trigger="hover">
-        <template #trigger>
-          <n-icon size="18">
-            <QuestionCircleOutlined />
-          </n-icon>
-        </template>
-        对基准库的数据库设计进行规范检查
-      </n-tooltip>
-    </n-form-item>
-    <n-form-item label="基准库">
-      <n-select placeholder="请选择基准库" v-model:value="standardCheckTable" :options="sourceTables" />
-    </n-form-item>
-    <n-form-item>
-      <n-button @click="generateCheck(false)">检查</n-button>
-      <n-button @click="showCheck">自定义检查</n-button>
-    </n-form-item>
-  </n-form>
-  <n-form inline :label-width="80" label-placement="left">
-    <n-form-item>
-      逆向生成
-      <n-tooltip trigger="hover">
-        <template #trigger>
-          <n-icon size="18">
-            <QuestionCircleOutlined />
-          </n-icon>
-        </template>
-        一键生成entity.java，mapper.java，mapper.xml，service.java，serviceImpl.java，controller.java文件
-      </n-tooltip>
-    </n-form-item>
-    <n-form-item>
-      <n-button @click="generateCode()">生成</n-button>
-    </n-form-item>
-  </n-form>
+  <div class="tb-page">
+    <div class="tb-card">
+      <div class="tb-card-header">
+        <span class="tb-card-header-title">差异对比</span>
+        <div class="tb-card-header-actions">
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="handleAddDrawer">
+                <template #icon>
+                  <n-icon><Add /></n-icon>
+                </template>
+              </n-button>
+            </template>
+            新建连接
+          </n-tooltip>
+        </div>
+      </div>
+      <n-form inline :label-width="80" label-placement="left" class="opt">
+        <n-form-item>
+          差异报告
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-icon size="18">
+                <QuestionCircleOutlined />
+              </n-icon>
+            </template>
+            对比两个数据库之间的差异变化，用于评审检查数据库的变动
+          </n-tooltip>
+        </n-form-item>
+        <n-form-item label="基准库">
+          <n-select placeholder="请选择基准库" v-model:value="reportSourceTable" :options="sourceTables" />
+        </n-form-item>
+        <n-form-item label="变动库">
+          <n-select placeholder="请选择变动库" v-model:value="reportTargetTable" :options="targetTables" />
+        </n-form-item>
+        <n-form-item>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="generateReport">
+                <template #icon>
+                  <n-icon><MagicWand /></n-icon>
+                </template>
+              </n-button>
+            </template>
+            生成
+          </n-tooltip>
+        </n-form-item>
+      </n-form>
+    </div>
 
-  <n-button @click="handleAddDrawer">新建连接</n-button>
-  <n-data-table :columns="columns" :data="connects" :bordered="false" :scroll-x="1800" :max-height="550" />
+    <div class="tb-card">
+      <n-form inline :label-width="80" label-placement="left" class="opt">
+        <n-form-item>
+          差异SQL
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-icon size="18">
+                <QuestionCircleOutlined />
+              </n-icon>
+            </template>
+            对比基准库之后,生成的差异sql，在变化库上执行即可补齐差异。
+            （注意：sql语句仅供参考，执行前应当检查一下sql，出现数据丢失一概不负责）
+          </n-tooltip>
+        </n-form-item>
+        <n-form-item label="基准库">
+          <n-select placeholder="请选择基准库" v-model:value="sqlSourceTable" :options="sourceTables" />
+        </n-form-item>
+        <n-form-item label="变动库">
+          <n-select placeholder="请选择变动库" v-model:value="sqlTargetTable" :options="targetTables" />
+        </n-form-item>
+        <n-form-item>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="generateSql('struct')">
+                <template #icon>
+                  <n-icon><Compare /></n-icon>
+                </template>
+              </n-button>
+            </template>
+            结构差异
+          </n-tooltip>
+          <!-- <n-button @click="generateSql('data')">数据差异</n-button> -->
+        </n-form-item>
+      </n-form>
+    </div>
 
-  <n-drawer v-model:show="showAddaDrawer" placement="bottom" resizable :default-width="502" :default-height="600">
-    <n-drawer-content :title="addDrawer ? '添加' : '编辑'" closable>
+    <div class="tb-card">
+      <n-form inline :label-width="80" label-placement="left" class="opt">
+        <n-form-item>
+          规范检查
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-icon size="18">
+                <QuestionCircleOutlined />
+              </n-icon>
+            </template>
+            对基准库的数据库设计进行规范检查
+          </n-tooltip>
+        </n-form-item>
+        <n-form-item label="基准库">
+          <n-select placeholder="请选择基准库" v-model:value="standardCheckTable" :options="sourceTables" />
+        </n-form-item>
+        <n-form-item>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="generateCheck(false)">
+                <template #icon>
+                  <n-icon><Checkmark /></n-icon>
+                </template>
+              </n-button>
+            </template>
+            检查
+          </n-tooltip>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="showCheck">
+                <template #icon>
+                  <n-icon><Filter /></n-icon>
+                </template>
+              </n-button>
+            </template>
+            自定义检查
+          </n-tooltip>
+        </n-form-item>
+      </n-form>
+    </div>
+
+    <div class="tb-card">
+      <n-form inline :label-width="80" label-placement="left">
+        <n-form-item>
+          逆向生成
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-icon size="18">
+                <QuestionCircleOutlined />
+              </n-icon>
+            </template>
+            一键生成entity.java，mapper.java，mapper.xml，service.java，serviceImpl.java，controller.java文件
+          </n-tooltip>
+        </n-form-item>
+        <n-form-item>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="generateCode()">
+                <template #icon>
+                  <n-icon><MagicWand /></n-icon>
+                </template>
+              </n-button>
+            </template>
+            生成
+          </n-tooltip>
+        </n-form-item>
+      </n-form>
+    </div>
+
+    <div class="tb-card">
+      <n-data-table :columns="columns" :data="connects" :bordered="false" :scroll-x="1800" :max-height="550" />
+    </div>
+
+    <n-drawer v-model:show="showAddaDrawer" placement="bottom" resizable :default-width="502" :default-height="600">
+      <n-drawer-content :title="addDrawer ? '添加' : '编辑'" closable>
       <n-form ref="formRef" :model="model" :rules="rules" label-placement="left" label-width="auto"
         require-mark-placement="right-hanging">
         <n-form-item path="driver" label="类型">
@@ -424,8 +498,26 @@ const showCheck = () => {
         </n-form-item>
       </n-form>
       <template #footer>
-        <n-button @click="ping(model)">测试连接</n-button>
-        <n-button @click="saveConnect">保存</n-button>
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <n-button @click="ping(model)">
+              <template #icon>
+                <n-icon><Radar /></n-icon>
+              </template>
+            </n-button>
+          </template>
+          测试连接
+        </n-tooltip>
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <n-button @click="saveConnect">
+              <template #icon>
+                <n-icon><Save /></n-icon>
+              </template>
+            </n-button>
+          </template>
+          保存
+        </n-tooltip>
       </template>
     </n-drawer-content>
   </n-drawer>
@@ -443,8 +535,26 @@ const showCheck = () => {
         </n-form-item>
       </n-form>
       <template #footer>
-        <n-button @click="closeDrawer()">取消</n-button>
-        <n-button @click="generateCheck(true)">保存</n-button>
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <n-button @click="closeDrawer()">
+              <template #icon>
+                <n-icon><Close /></n-icon>
+              </template>
+            </n-button>
+          </template>
+          取消
+        </n-tooltip>
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <n-button @click="generateCheck(true)">
+              <template #icon>
+                <n-icon><Save /></n-icon>
+              </template>
+            </n-button>
+          </template>
+          保存
+        </n-tooltip>
       </template>
     </n-drawer-content>
   </n-drawer>
@@ -457,6 +567,7 @@ const showCheck = () => {
     :showDrawer="showStandardCheckDrawer" @closeDrawer="closeDrawer" />
   <DatabaseGeneratorCode v-if="showGeneratorCodeDrawer" :datasource="connects" :showDrawer="showGeneratorCodeDrawer"
     @closeDrawer="closeDrawer" />
+  </div>
 </template>
 
 <style lang="scss" scoped>

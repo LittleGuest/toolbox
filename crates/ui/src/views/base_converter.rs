@@ -1,5 +1,6 @@
-use gpui::*;
-use gpui_component::{
+use crate::design;
+use gpui_kit::*;
+use gpui_kit::component::{
     button::*,
     input::{Input, InputEvent, InputState},
     select::{Select, SelectEvent, SelectState},
@@ -12,7 +13,7 @@ pub struct BaseConverter {
     octal: String,
     decimal: String,
     hex: String,
-    input_type: base::Base,
+    input_type: ::base::Base,
     input_state: Entity<InputState>,
     input_type_state: Entity<SelectState<Vec<String>>>,
     _subscriptions: Vec<Subscription>,
@@ -45,11 +46,11 @@ impl BaseConverter {
                 move |this, _, ev: &SelectEvent<Vec<String>>, _, cx| {
                     if let SelectEvent::Confirm(Some(value)) = ev {
                         let input_type = match value.as_str() {
-                            "二进制" => base::Base::Binary,
-                            "八进制" => base::Base::Octal,
-                            "十进制" => base::Base::Decimal,
-                            "十六进制" => base::Base::Hex,
-                            _ => base::Base::Decimal,
+                            "二进制" => ::base::Base::Binary,
+                            "八进制" => ::base::Base::Octal,
+                            "十进制" => ::base::Base::Decimal,
+                            "十六进制" => ::base::Base::Hex,
+                            _ => ::base::Base::Decimal,
                         };
                         this.input_type = input_type;
                         this.convert();
@@ -74,7 +75,7 @@ impl BaseConverter {
             octal: String::new(),
             decimal: String::new(),
             hex: String::new(),
-            input_type: base::Base::Decimal,
+            input_type: ::base::Base::Decimal,
             input_state,
             input_type_state,
             _subscriptions,
@@ -91,12 +92,12 @@ impl BaseConverter {
         }
 
         let input_type = match self.input_type {
-            base::Base::Binary => base::Base::Binary,
-            base::Base::Octal => base::Base::Octal,
-            base::Base::Decimal => base::Base::Decimal,
-            base::Base::Hex => base::Base::Hex,
+            ::base::Base::Binary => ::base::Base::Binary,
+            ::base::Base::Octal => ::base::Base::Octal,
+            ::base::Base::Decimal => ::base::Base::Decimal,
+            ::base::Base::Hex => ::base::Base::Hex,
         };
-        if let Ok(result) = base::number_base(Some(input_type), self.input.clone()) {
+        if let Ok(result) = ::base::number_base(Some(input_type), self.input.clone()) {
             self.binary = result.get("binary").cloned().unwrap_or_default();
             self.octal = result.get("octal").cloned().unwrap_or_default();
             self.decimal = result.get("decimal").cloned().unwrap_or_default();
@@ -162,170 +163,167 @@ impl Render for BaseConverter {
             hex.clone()
         };
 
-        div().child(
-            div()
-                .flex()
-                .flex_col()
-                .gap_3()
-                // Row: 输入类型 → Select
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(px(80.0)).text_sm().child("输入类型"))
-                        .child(Select::new(&self.input_type_state)),
-                )
-                // Row: 输入 → Paste+Copy buttons then Input
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(px(80.0)).text_sm().child("输入"))
-                        .child(
-                            ButtonGroup::new("input-buttons")
-                                .child(
-                                    Button::new("paste")
-                                        .icon(Icon::new(IconName::File))
-                                        .tooltip("粘贴")
-                                        .on_click(cx.listener(|this, _, _, cx| {
-                                            this.paste(cx);
-                                        })),
-                                )
-                                .child(
-                                    Button::new("copy_input")
-                                        .icon(Icon::new(IconName::Copy))
-                                        .tooltip("复制")
-                                        .on_click(cx.listener(|this, _, _, cx| {
-                                            cx.write_to_clipboard(ClipboardItem::new_string(
-                                                this.input.clone(),
-                                            ));
-                                        })),
-                                ),
-                        )
-                        .child(div().flex_1().child(Input::new(&self.input_state))),
-                )
-                // Row: 二进制 → readonly + Copy
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(px(80.0)).text_sm().child("二进制"))
-                        .child(
-                            div()
-                                .flex_1()
-                                .border_1()
-                                .border_color(cx.theme().border)
-                                .rounded_md()
-                                .px_2()
-                                .py_1()
-                                .text_sm()
-                                .font_family("monospace")
-                                .child(binary_text),
-                        )
-                        .child(
-                            Button::new("copy_binary")
-                                .icon(Icon::new(IconName::Copy))
-                                .tooltip("复制")
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    cx.write_to_clipboard(ClipboardItem::new_string(
-                                        this.binary.clone(),
-                                    ));
-                                })),
-                        ),
-                )
-                // Row: 八进制 → readonly + Copy
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(px(80.0)).text_sm().child("八进制"))
-                        .child(
-                            div()
-                                .flex_1()
-                                .border_1()
-                                .border_color(cx.theme().border)
-                                .rounded_md()
-                                .px_2()
-                                .py_1()
-                                .text_sm()
-                                .font_family("monospace")
-                                .child(octal_text),
-                        )
-                        .child(
-                            Button::new("copy_octal")
-                                .icon(Icon::new(IconName::Copy))
-                                .tooltip("复制")
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    cx.write_to_clipboard(ClipboardItem::new_string(
-                                        this.octal.clone(),
-                                    ));
-                                })),
-                        ),
-                )
-                // Row: 十进制 → readonly + Copy
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(px(80.0)).text_sm().child("十进制"))
-                        .child(
-                            div()
-                                .flex_1()
-                                .border_1()
-                                .border_color(cx.theme().border)
-                                .rounded_md()
-                                .px_2()
-                                .py_1()
-                                .text_sm()
-                                .font_family("monospace")
-                                .child(decimal_text),
-                        )
-                        .child(
-                            Button::new("copy_decimal")
-                                .icon(Icon::new(IconName::Copy))
-                                .tooltip("复制")
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    cx.write_to_clipboard(ClipboardItem::new_string(
-                                        this.decimal.clone(),
-                                    ));
-                                })),
-                        ),
-                )
-                // Row: 十六进制 → readonly + Copy
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(px(80.0)).text_sm().child("十六进制"))
-                        .child(
-                            div()
-                                .flex_1()
-                                .border_1()
-                                .border_color(cx.theme().border)
-                                .rounded_md()
-                                .px_2()
-                                .py_1()
-                                .text_sm()
-                                .font_family("monospace")
-                                .child(hex_text),
-                        )
-                        .child(
-                            Button::new("copy_hex")
-                                .icon(Icon::new(IconName::Copy))
-                                .tooltip("复制")
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    cx.write_to_clipboard(ClipboardItem::new_string(
-                                        this.hex.clone(),
-                                    ));
-                                })),
-                        ),
-                ),
-        )
+        design::page()
+            .child(design::page_header("进制转换", "十进制 / 十六进制 / 二进制", cx))
+            .child(
+                // 输入配置卡片
+                design::card(cx)
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(div().w(px(80.0)).child(design::caption("输入类型", cx)))
+                            .child(Select::new(&self.input_type_state)),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(
+                                design::toolbar()
+                                    .child(
+                                        Button::new("paste")
+                                            .icon(Icon::new(IconName::File))
+                                            .tooltip("粘贴")
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.paste(cx);
+                                            })),
+                                    )
+                                    .child(
+                                        Button::new("copy_input")
+                                            .icon(Icon::new(IconName::Copy))
+                                            .tooltip("复制")
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                cx.write_to_clipboard(ClipboardItem::new_string(
+                                                    this.input.clone(),
+                                                ));
+                                            })),
+                                    ),
+                            )
+                            .child(div().flex_1().child(Input::new(&self.input_state))),
+                    ),
+            )
+            .child(
+                // 转换结果卡片
+                design::card(cx)
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(div().w(px(80.0)).child(design::caption("二进制", cx)))
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .border_1()
+                                    .border_color(cx.theme().border)
+                                    .rounded_md()
+                                    .px_2()
+                                    .py_1()
+                                    .text_sm()
+                                    .font_family("monospace")
+                                    .child(binary_text),
+                            )
+                            .child(
+                                Button::new("copy_binary")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        cx.write_to_clipboard(ClipboardItem::new_string(
+                                            this.binary.clone(),
+                                        ));
+                                    })),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(div().w(px(80.0)).child(design::caption("八进制", cx)))
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .border_1()
+                                    .border_color(cx.theme().border)
+                                    .rounded_md()
+                                    .px_2()
+                                    .py_1()
+                                    .text_sm()
+                                    .font_family("monospace")
+                                    .child(octal_text),
+                            )
+                            .child(
+                                Button::new("copy_octal")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        cx.write_to_clipboard(ClipboardItem::new_string(
+                                            this.octal.clone(),
+                                        ));
+                                    })),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(div().w(px(80.0)).child(design::caption("十进制", cx)))
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .border_1()
+                                    .border_color(cx.theme().border)
+                                    .rounded_md()
+                                    .px_2()
+                                    .py_1()
+                                    .text_sm()
+                                    .font_family("monospace")
+                                    .child(decimal_text),
+                            )
+                            .child(
+                                Button::new("copy_decimal")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        cx.write_to_clipboard(ClipboardItem::new_string(
+                                            this.decimal.clone(),
+                                        ));
+                                    })),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(div().w(px(80.0)).child(design::caption("十六进制", cx)))
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .border_1()
+                                    .border_color(cx.theme().border)
+                                    .rounded_md()
+                                    .px_2()
+                                    .py_1()
+                                    .text_sm()
+                                    .font_family("monospace")
+                                    .child(hex_text),
+                            )
+                            .child(
+                                Button::new("copy_hex")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        cx.write_to_clipboard(ClipboardItem::new_string(
+                                            this.hex.clone(),
+                                        ));
+                                    })),
+                            ),
+                    ),
+            )
     }
 }

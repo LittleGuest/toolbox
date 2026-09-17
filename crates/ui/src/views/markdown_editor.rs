@@ -1,14 +1,15 @@
-use gpui::*;
-use gpui_component::{
+use crate::design;
+use gpui_kit::*;
+use gpui_kit::component::{
     button::*,
-    input::{Input, InputEvent, InputState},
+    input::{Input, InputEvent, InputState, Textarea, TextareaState },
     scroll::ScrollableElement,
     *,
 };
 
 pub struct MarkdownEditor {
     content: String,
-    input_state: Entity<InputState>,
+    input_state: Entity<TextareaState>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -69,9 +70,9 @@ fn find_closing_backtick(chars: &[char], start: usize) -> Option<usize> {
 impl MarkdownEditor {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let input_state = cx.new(|cx| {
-            InputState::new(window, cx)
+            TextareaState::new(window, cx)
                 .placeholder("请输入 Markdown 内容...")
-                .multi_line(true)
+                
         });
 
         let _subscriptions = vec![cx.subscribe_in(&input_state, window, {
@@ -344,7 +345,7 @@ impl MarkdownEditor {
                                     .child(format!("[img: {alt}]"))
                                     .tooltip(move |_, cx| {
                                         cx.new(|_| {
-                                            gpui_component::tooltip::Tooltip::new(
+                                            gpui_kit::component::tooltip::Tooltip::new(
                                                 url_for_tooltip.clone(),
                                             )
                                         })
@@ -378,7 +379,7 @@ impl MarkdownEditor {
                                     .child(link_text)
                                     .tooltip(move |_, cx| {
                                         cx.new(|_| {
-                                            gpui_component::tooltip::Tooltip::new(
+                                            gpui_kit::component::tooltip::Tooltip::new(
                                                 url_for_tooltip.clone(),
                                             )
                                         })
@@ -474,15 +475,15 @@ impl Render for MarkdownEditor {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let content = self.content.clone();
 
-        div()
-            .flex()
-            .flex_col()
-            .gap_4()
+        design::page()
+            .child(design::page_header("Markdown", "Markdown 编辑与预览", cx))
             .child(
-                div()
-                    .flex()
-                    .flex_wrap()
-                    .gap_2()
+                design::card(cx)
+                    .child(
+                        div()
+                            .flex()
+                            .flex_wrap()
+                            .gap_2()
                     .child(
                         ButtonGroup::new("heading-buttons")
                             .child(
@@ -648,6 +649,7 @@ impl Render for MarkdownEditor {
                                     })),
                             ),
                     ),
+                    ),
             )
             .child(
                 div()
@@ -655,26 +657,14 @@ impl Render for MarkdownEditor {
                     .grid_cols(2)
                     .gap_4()
                     .child(
-                        div()
-                            .flex()
-                            .flex_col()
-                            .gap_2()
-                            .child(div().text_sm().font_medium().child("编辑"))
-                            .child(Input::new(&self.input_state).h(px(400.0))),
+                        design::card(cx)
+                            .child(Textarea::new(&self.input_state).h(px(400.0))),
                     )
                     .child(
-                        div()
-                            .flex()
-                            .flex_col()
-                            .gap_2()
-                            .child(div().text_sm().font_medium().child("预览"))
+                        design::card(cx)
                             .child(
                                 div()
                                     .h(px(400.0))
-                                    .border_1()
-                                    .border_color(cx.theme().border)
-                                    .rounded_lg()
-                                    .p_4()
                                     .overflow_y_scrollbar()
                                     .child(if content.is_empty() {
                                         div()

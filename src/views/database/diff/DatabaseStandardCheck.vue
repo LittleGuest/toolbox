@@ -121,15 +121,20 @@ onMounted(async () => {
         </div>
       </div>
       <template #footer>
-        <n-button-group>
-          <n-button @click="downloadImg()">
-            <template #icon>
-              <n-icon>
-                <Download />
-              </n-icon>
+        <n-space :size="8">
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="downloadImg()">
+                <template #icon>
+                  <n-icon>
+                    <Download />
+                  </n-icon>
+                </template>
+              </n-button>
             </template>
-          </n-button>
-        </n-button-group>
+            下载
+          </n-tooltip>
+        </n-space>
       </template>
     </n-drawer-content>
   </n-drawer>

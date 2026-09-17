@@ -1,7 +1,8 @@
-use gpui::{prelude::FluentBuilder, *};
-use gpui_component::{
+use crate::design;
+use gpui_kit::{prelude::FluentBuilder, *};
+use gpui_kit::component::{
     button::*,
-    input::{Input, InputEvent, InputState},
+    input::{Input, InputEvent, InputState, Textarea, TextareaState },
     scroll::ScrollableElement,
     *,
 };
@@ -53,7 +54,7 @@ pub struct CodeSnippet {
     status: String,
     search_input_state: Option<Entity<InputState>>,
     title_input_state: Option<Entity<InputState>>,
-    code_input_state: Option<Entity<InputState>>,
+    code_input_state: Option<Entity<TextareaState>>,
     tag_input_state: Option<Entity<InputState>>,
     language_input_state: Option<Entity<InputState>>,
     search_text: SharedString,
@@ -96,9 +97,9 @@ impl CodeSnippet {
         let title_input_state = cx.new(|cx| InputState::new(window, cx).placeholder("输入标题..."));
 
         let code_input_state = cx.new(|cx| {
-            InputState::new(window, cx)
+            TextareaState::new(window, cx)
                 .placeholder("输入代码内容...")
-                .multi_line(true)
+                
         });
 
         let tag_input_state =
@@ -447,7 +448,7 @@ impl CodeSnippet {
                                 .gap_1()
                                 .child(div().text_sm().font_semibold().child("代码内容"))
                                 .child(if let Some(ref cs) = code_state {
-                                    div().min_h(px(200.0)).child(Input::new(cs))
+                                    div().min_h(px(200.0)).child(Textarea::new(cs))
                                 } else {
                                     div()
                                 }),
@@ -610,12 +611,12 @@ impl CodeSnippet {
 
     fn delete_snippet(&mut self, id: i64, window: &mut Window, cx: &mut Context<Self>) {
         let this = cx.entity().downgrade();
-        window.open_dialog(cx, move |dialog, _, _cx| {
+        window.open_alert_dialog(cx, move |alert, _, _cx| {
             let this = this.clone();
-            dialog
+            alert
                 .title(div().text_lg().font_semibold().child("确认删除"))
                 .width(px(420.))
-                .child(
+                .description(
                     div()
                         .py_4()
                         .text_sm()
@@ -1014,26 +1015,30 @@ impl Render for CodeSnippet {
             )
         };
 
-        div().child(
-            div()
-                .flex()
-                .flex_col()
-                .gap_4()
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(
-                            Button::new("new")
-                                .primary()
-                                .icon(Icon::new(IconName::Plus))
-                                .tooltip("新建")
-                                .on_click(cx.listener(|this, _, window, cx| {
-                                    this.start_add(window, cx);
-                                    cx.notify();
-                                })),
-                        )
+        design::page()
+            .child(design::page_header("代码片段", "管理常用代码片段", cx))
+            .child(
+                design::card(cx)
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap_4()
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap_2()
+                                    .child(
+                                        Button::new("new")
+                                            .primary()
+                                            .icon(Icon::new(IconName::Plus))
+                                            .tooltip("新建")
+                                            .on_click(cx.listener(|this, _, window, cx| {
+                                                this.start_add(window, cx);
+                                                cx.notify();
+                                            })),
+                                    )
                         .child(
                             Button::new("import")
                                 .icon(Icon::new(IconName::ArrowUp))
@@ -1075,6 +1080,7 @@ impl Render for CodeSnippet {
                             .child(snippet_list),
                     ),
                 ),
-        )
+            )
+    )
     }
 }

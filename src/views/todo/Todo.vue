@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
-import { Delete, Edit, ChevronDown, ChevronRight, Add } from "@vicons/carbon";
+import { Delete, Edit, ChevronDown, ChevronRight, Add, Save, Close, Erase } from "@vicons/carbon";
 import { useMessage } from "naive-ui";
 
 const message = useMessage();
@@ -256,28 +256,45 @@ watch(
 </script>
 
 <template>
-  <div class="todo-container">
-    <!-- 添加待办事项 -->
-    <div class="add-todo">
-      <n-input v-model:value="newTodoText" placeholder="输入新的待办事项..." clearable @keyup.enter="addTodo" />
-      <n-button type="primary" @click="addTodo" :disabled="!newTodoText.trim()">添加</n-button>
-    </div>
+  <div class="tb-page todo-container">
+    <div class="tb-card">
+      <!-- 添加待办事项 -->
+      <div class="add-todo">
+        <n-input v-model:value="newTodoText" placeholder="输入新的待办事项..." clearable @keyup.enter="addTodo" />
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <n-button type="primary" @click="addTodo" :disabled="!newTodoText.trim()">
+              <template #icon>
+                <n-icon><Add /></n-icon>
+              </template>
+            </n-button>
+          </template>
+          添加
+        </n-tooltip>
+      </div>
 
-    <!-- 筛选器 -->
-    <div class="filter-container">
-      <n-radio-group v-model:value="filter" button-style="solid">
-        <n-radio-button value="all">全部</n-radio-button>
-        <n-radio-button value="active">未完成</n-radio-button>
-        <n-radio-button value="completed">已完成</n-radio-button>
-      </n-radio-group>
+      <!-- 筛选器 -->
+      <div class="filter-container">
+        <n-radio-group v-model:value="filter" button-style="solid">
+          <n-radio-button value="all">全部</n-radio-button>
+          <n-radio-button value="active">未完成</n-radio-button>
+          <n-radio-button value="completed">已完成</n-radio-button>
+        </n-radio-group>
 
-      <n-button type="text" @click="clearCompleted" v-if="completedCount > 0">
-        清除已完成 ({{ completedCount }})
-      </n-button>
-    </div>
+        <n-tooltip trigger="hover" v-if="completedCount > 0">
+          <template #trigger>
+            <n-button type="text" @click="clearCompleted">
+              <template #icon>
+                <n-icon><Erase /></n-icon>
+              </template>
+            </n-button>
+          </template>
+          清除已完成
+        </n-tooltip>
+      </div>
 
-    <!-- 待办事项列表 -->
-    <div class="todo-list-container">
+      <!-- 待办事项列表 -->
+      <div class="todo-list-container">
       <n-scrollbar>
         <n-list class="todo-list">
           <n-empty v-if="topTodos.length === 0">
@@ -297,12 +314,17 @@ watch(
             <n-list-item v-for="todo in topTodos" :key="todo.id" class="todo-item">
               <div class="todo-item-content">
                 <!-- 展开/折叠按钮 -->
-                <n-button v-if="hasSubTodos(todo.id)" text @click="toggleExpand(todo.id)" class="expand-btn">
-                  <n-icon>
-                    <ChevronDown v-if="expandedTodos.has(todo.id)" />
-                    <ChevronRight v-else />
-                  </n-icon>
-                </n-button>
+                <n-tooltip v-if="hasSubTodos(todo.id)" trigger="hover">
+                  <template #trigger>
+                    <n-button text @click="toggleExpand(todo.id)" class="expand-btn">
+                      <n-icon>
+                        <ChevronDown v-if="expandedTodos.has(todo.id)" />
+                        <ChevronRight v-else />
+                      </n-icon>
+                    </n-button>
+                  </template>
+                  展开/收起
+                </n-tooltip>
                 <div v-else class="expand-placeholder"></div>
 
                 <n-checkbox v-model:checked="todo.completed" @update:checked="updateTodoStatus(todo)" />
@@ -311,43 +333,76 @@ watch(
                 <div v-if="editingTodoId === todo.id" class="edit-mode">
                   <n-input v-model:value="editingTodoText" placeholder="编辑待办事项..." @keyup.enter="saveEdit"
                     @keyup.esc="cancelEdit" autofocus />
-                  <n-button-group size="small">
-                    <n-button type="primary" @click="saveEdit">保存</n-button>
-                    <n-button @click="cancelEdit">取消</n-button>
-                  </n-button-group>
+                  <n-space :size="8">
+                    <n-tooltip trigger="hover">
+                      <template #trigger>
+                        <n-button type="primary" @click="saveEdit">
+                          <template #icon>
+                            <n-icon><Save /></n-icon>
+                          </template>
+                        </n-button>
+                      </template>
+                      保存
+                    </n-tooltip>
+                    <n-tooltip trigger="hover">
+                      <template #trigger>
+                        <n-button @click="cancelEdit">
+                          <template #icon>
+                            <n-icon><Close /></n-icon>
+                          </template>
+                        </n-button>
+                      </template>
+                      取消
+                    </n-tooltip>
+                  </n-space>
                 </div>
 
                 <!-- 显示模式 -->
                 <div v-else class="display-mode">
                   <div class="todo-text" :class="{ completed: todo.completed }">{{ todo.text }}</div>
-                  <n-button-group size="small">
-                    <n-button class="add-sub-btn" @click="startAddSubTodo(todo.id)">
-                      <template #icon>
-                        <n-icon>
-                          <Add />
-                        </n-icon>
-                      </template>
-                    </n-button>
-                    <n-button class="edit-button" @click="editTodo(todo.id)">
-                      <template #icon>
-                        <n-icon>
-                          <Edit />
-                        </n-icon>
-                      </template>
-                    </n-button>
-                    <n-popconfirm positive-text="确认" negative-text="取消" @positive-click="deleteTodo(todo.id)">
+                  <n-space :size="8">
+                    <n-tooltip trigger="hover">
                       <template #trigger>
-                        <n-button class="delete-button" type="error">
+                        <n-button class="add-sub-btn" @click="startAddSubTodo(todo.id)">
                           <template #icon>
                             <n-icon>
-                              <Delete />
+                              <Add />
                             </n-icon>
                           </template>
                         </n-button>
                       </template>
+                      添加子任务
+                    </n-tooltip>
+                    <n-tooltip trigger="hover">
+                      <template #trigger>
+                        <n-button class="edit-button" @click="editTodo(todo.id)">
+                          <template #icon>
+                            <n-icon>
+                              <Edit />
+                            </n-icon>
+                          </template>
+                        </n-button>
+                      </template>
+                      编辑
+                    </n-tooltip>
+                    <n-popconfirm positive-text="确认" negative-text="取消" @positive-click="deleteTodo(todo.id)">
+                      <template #trigger>
+                        <n-tooltip trigger="hover">
+                          <template #trigger>
+                            <n-button class="delete-button" type="error">
+                              <template #icon>
+                                <n-icon>
+                                  <Delete />
+                                </n-icon>
+                              </template>
+                            </n-button>
+                          </template>
+                          删除
+                        </n-tooltip>
+                      </template>
                       是否确认删除？
                     </n-popconfirm>
-                  </n-button-group>
+                  </n-space>
                 </div>
               </div>
 
@@ -355,10 +410,28 @@ watch(
               <div v-if="addingSubTodoForId === todo.id" class="add-sub-todo-container">
                 <n-input v-model:value="newSubTodoText" placeholder="输入子任务内容..." @keyup.enter="addSubTodo"
                   @keyup.esc="cancelAddSubTodo" autofocus />
-                <n-button-group size="small">
-                  <n-button type="primary" @click="addSubTodo">添加</n-button>
-                  <n-button @click="cancelAddSubTodo">取消</n-button>
-                </n-button-group>
+                <n-space :size="8">
+                  <n-tooltip trigger="hover">
+                    <template #trigger>
+                      <n-button type="primary" @click="addSubTodo">
+                        <template #icon>
+                          <n-icon><Add /></n-icon>
+                        </template>
+                      </n-button>
+                    </template>
+                    添加
+                  </n-tooltip>
+                  <n-tooltip trigger="hover">
+                    <template #trigger>
+                      <n-button @click="cancelAddSubTodo">
+                        <template #icon>
+                          <n-icon><Close /></n-icon>
+                        </template>
+                      </n-button>
+                    </template>
+                    取消
+                  </n-tooltip>
+                </n-space>
               </div>
 
               <!-- 子任务列表 -->
@@ -372,36 +445,64 @@ watch(
                     <div v-if="editingTodoId === subTodo.id" class="edit-mode">
                       <n-input v-model:value="editingTodoText" placeholder="编辑子任务..." @keyup.enter="saveEdit"
                         @keyup.esc="cancelEdit" autofocus />
-                      <n-button-group size="small">
-                        <n-button type="primary" @click="saveEdit">保存</n-button>
-                        <n-button @click="cancelEdit">取消</n-button>
-                      </n-button-group>
+                      <n-space :size="8">
+                        <n-tooltip trigger="hover">
+                          <template #trigger>
+                            <n-button type="primary" @click="saveEdit">
+                              <template #icon>
+                                <n-icon><Save /></n-icon>
+                              </template>
+                            </n-button>
+                          </template>
+                          保存
+                        </n-tooltip>
+                        <n-tooltip trigger="hover">
+                          <template #trigger>
+                            <n-button @click="cancelEdit">
+                              <template #icon>
+                                <n-icon><Close /></n-icon>
+                              </template>
+                            </n-button>
+                          </template>
+                          取消
+                        </n-tooltip>
+                      </n-space>
                     </div>
 
                     <!-- 子任务显示模式 -->
                     <div v-else class="display-mode">
                       <div class="todo-text" :class="{ completed: subTodo.completed }">{{ subTodo.text }}</div>
-                      <n-button-group size="small">
-                        <n-button class="edit-button" @click="editTodo(subTodo.id)">
-                          <template #icon>
-                            <n-icon>
-                              <Edit />
-                            </n-icon>
-                          </template>
-                        </n-button>
-                        <n-popconfirm positive-text="确认" negative-text="取消" @positive-click="deleteTodo(subTodo.id)">
+                      <n-space :size="8">
+                        <n-tooltip trigger="hover">
                           <template #trigger>
-                            <n-button class="delete-button" type="error">
+                            <n-button class="edit-button" @click="editTodo(subTodo.id)">
                               <template #icon>
                                 <n-icon>
-                                  <Delete />
+                                  <Edit />
                                 </n-icon>
                               </template>
                             </n-button>
                           </template>
+                          编辑
+                        </n-tooltip>
+                        <n-popconfirm positive-text="确认" negative-text="取消" @positive-click="deleteTodo(subTodo.id)">
+                          <template #trigger>
+                            <n-tooltip trigger="hover">
+                              <template #trigger>
+                                <n-button class="delete-button" type="error">
+                                  <template #icon>
+                                    <n-icon>
+                                      <Delete />
+                                    </n-icon>
+                                  </template>
+                                </n-button>
+                              </template>
+                              删除
+                            </n-tooltip>
+                          </template>
                           是否确认删除？
                         </n-popconfirm>
-                      </n-button-group>
+                      </n-space>
                     </div>
                   </div>
                 </div>
@@ -411,29 +512,30 @@ watch(
         </n-list>
       </n-scrollbar>
     </div>
+    </div>
   </div>
 </template>
 
 <style lang="scss" scoped>
 .todo-container {
-  height: 100%;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tb-gap);
 
   .add-todo {
     display: flex;
     gap: 10px;
+    margin-bottom: 16px;
   }
 
   .filter-container {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: 20px;
+    margin-bottom: 16px;
   }
 
   .todo-list-container {
-    height: calc(100% - 120px);
-
     .todo-list {
       .todo-item {
         display: flex;
@@ -481,7 +583,7 @@ watch(
               margin-right: 10px;
             }
 
-            .n-button-group {
+            .n-space {
               margin-left: auto;
               flex-shrink: 0;
             }
@@ -503,7 +605,7 @@ watch(
               }
             }
 
-            .n-button-group {
+            .n-space {
               margin-left: auto;
               flex-shrink: 0;
             }
@@ -569,7 +671,7 @@ watch(
                   margin-right: 10px;
                 }
 
-                .n-button-group {
+                .n-space {
                   margin-left: auto;
                   flex-shrink: 0;
                 }
@@ -592,7 +694,7 @@ watch(
                   }
                 }
 
-                .n-button-group {
+                .n-space {
                   margin-left: auto;
                   flex-shrink: 0;
                 }

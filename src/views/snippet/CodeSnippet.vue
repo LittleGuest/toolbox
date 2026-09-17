@@ -9,7 +9,7 @@ import {
   fetchTagsApi,
   deleteCodeSnippetApi,
 } from "@/store/codeSnippet";
-import { Delete, Edit } from "@vicons/carbon";
+import { Delete, Edit, Add, Upload, Download, Search, Reset, Close, Save } from "@vicons/carbon";
 import { useMessage } from "naive-ui";
 
 // 引入消息提示
@@ -53,6 +53,12 @@ const filteredSnippets = computed(() => {
   }
   return result;
 });
+
+// 代码首行预览
+const firstLine = (code: string) =>
+  String(code || "").split(/\r?\n/).find((l) => l.trim()) ?? "";
+// 代码行数
+const lineCount = (code: string) => (code ? String(code).split(/\r?\n/).length : 0);
 
 // 选择代码片段
 const selectSnippet = (snippet) => {
@@ -274,73 +280,125 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="code-snippet-container">
-    <!-- 顶部工具栏 -->
-    <div class="toolbar">
-      <n-button type="primary" @click="addSnippets">新建</n-button>
-      <n-button @click="importSnippets">导入</n-button>
-      <n-button @click="exportSnippets">导出</n-button>
-      <n-input v-model:value="search" placeholder="搜索片段..." />
-      <n-button>搜索</n-button>
-      <input ref="importInputRef" type="file" accept="application/json,.json" style="display: none"
-        @change="handleImportFile" />
-    </div>
-
-    <!-- 主内容区域 -->
-    <div class="main-content">
-      <!-- 左侧标签栏 -->
-      <div class="tag-sidebar" v-if="tags.length > 0">
-        <n-scrollbar>
-          <n-card title="标签" size="small">
-            <template #header-extra v-if="selectedTags.length > 0">
-              <n-button type="text" size="small" @click="resetSelectedTags">重置选择</n-button>
+  <div class="tb-page">
+    <div class="tb-card code-snippet-container">
+      <!-- 卡片头部 -->
+      <div class="tb-card-header">
+        <span class="tb-card-header-title">代码片段</span>
+        <div class="tb-card-header-actions">
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button type="primary" @click="addSnippets">
+                <template #icon>
+                  <n-icon><Add /></n-icon>
+                </template>
+              </n-button>
             </template>
-            <div class="tag-list">
-              <n-tag v-for="tag in tags" :key="tag" :class="{ active: selectedTags.includes(tag) }"
-                :bordered="!selectedTags.includes(tag)" @click="toggleTag(tag)" class="tag-item">
-                {{ tag }}
-              </n-tag>
-            </div>
-          </n-card>
-        </n-scrollbar>
+            新建
+          </n-tooltip>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="importSnippets">
+                <template #icon>
+                  <n-icon><Upload /></n-icon>
+                </template>
+              </n-button>
+            </template>
+            导入
+          </n-tooltip>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="exportSnippets">
+                <template #icon>
+                  <n-icon><Download /></n-icon>
+                </template>
+              </n-button>
+            </template>
+            导出
+          </n-tooltip>
+        </div>
+        <input ref="importInputRef" type="file" accept="application/json,.json" style="display: none"
+          @change="handleImportFile" />
       </div>
 
-      <!-- 中间代码片段列表 -->
-      <div class="snippet-content">
-        <div class="snippet-list-container">
-          <n-scrollbar>
-            <n-list class="snippet-list" v-if="filteredSnippets.length > 0">
-              <n-list-item v-for="snippet in filteredSnippets" :key="snippet.id"
-                :class="{ active: selectedSnippetId === snippet.id }">
-                <template #suffix>
-                  <n-button-group>
-                    <n-button size="small" @click="editSnippets(snippet)">
-                      <template #icon>
-                        <n-icon>
-                          <Edit />
-                        </n-icon>
-                      </template>
-                    </n-button>
-                    <n-popconfirm positive-text="确认" negative-text="取消" @positive-click="deleteSnippet(snippet.id)">
-                      <template #trigger>
-                        <n-button size="small">
-                          <template #icon>
-                            <n-icon>
-                              <Delete />
-                            </n-icon>
-                          </template>
-                        </n-button>
-                      </template>
-                      是否确认删除？
-                    </n-popconfirm>
-                  </n-button-group>
-                </template>
-                <n-thing :title="snippet.title" />
-              </n-list-item>
-            </n-list>
-            <n-empty v-else description="无数据" style="margin-top: 50px;" />
+      <!-- 搜索 -->
+      <div class="snippet-toolbar">
+        <n-input v-model:value="search" placeholder="搜索标题或代码内容…" clearable class="snippet-search">
+          <template #prefix><n-icon><Search /></n-icon></template>
+        </n-input>
+        <span class="snippet-count">{{ filteredSnippets.length }} 条</span>
+      </div>
+
+      <!-- 主内容区域 -->
+      <div class="main-content">
+        <!-- 左侧标签栏 -->
+        <aside class="tag-sidebar" v-if="tags.length > 0">
+          <div class="tag-sidebar-title">
+            <span>标签</span>
+            <n-button v-if="selectedTags.length" text size="tiny" @click="resetSelectedTags">重置</n-button>
+          </div>
+          <div class="tag-list">
+            <div
+              v-for="tag in tags"
+              :key="tag"
+              class="tag-item"
+              :class="{ active: selectedTags.includes(tag) }"
+              @click="toggleTag(tag)"
+            >
+              <span class="tag-hash">#</span>{{ tag }}
+            </div>
+          </div>
+        </aside>
+
+        <!-- 片段列表 -->
+        <section class="snippet-content">
+          <n-scrollbar class="snippet-scroll" v-if="filteredSnippets.length > 0">
+            <div class="snippet-list">
+              <div
+                v-for="snippet in filteredSnippets"
+                :key="snippet.id"
+                class="snippet-item"
+                :class="{ active: selectedSnippetId === snippet.id }"
+                @click="selectSnippet(snippet)"
+              >
+                <div class="snippet-item-main">
+                  <div class="snippet-item-title">
+                    {{ snippet.title }}
+                    <span class="snippet-item-lines">{{ lineCount(snippet.code) }} 行</span>
+                  </div>
+                  <div class="snippet-item-code">{{ firstLine(snippet.code) || "（空内容）" }}</div>
+                  <div class="snippet-item-tags" v-if="snippet.tags && snippet.tags.length">
+                    <span class="snippet-tag" v-for="t in snippet.tags" :key="t">{{ t }}</span>
+                  </div>
+                </div>
+                <div class="snippet-item-actions" @click.stop>
+                  <n-tooltip trigger="hover">
+                    <template #trigger>
+                      <n-button size="small" quaternary circle @click="editSnippets(snippet)">
+                        <template #icon><n-icon><Edit /></n-icon></template>
+                      </n-button>
+                    </template>
+                    编辑
+                  </n-tooltip>
+                  <n-popconfirm positive-text="确认" negative-text="取消" @positive-click="deleteSnippet(snippet.id)">
+                    <template #trigger>
+                      <n-tooltip trigger="hover">
+                        <template #trigger>
+                          <n-button size="small" quaternary circle>
+                            <template #icon><n-icon><Delete /></n-icon></template>
+                          </n-button>
+                        </template>
+                        删除
+                      </n-tooltip>
+                    </template>
+                    是否确认删除？
+                  </n-popconfirm>
+                </div>
+              </div>
+            </div>
           </n-scrollbar>
-        </div>
+          <n-empty v-else class="snippet-empty" description="暂无代码片段" />
+        </section>
       </div>
     </div>
   </div>
@@ -366,8 +424,26 @@ onMounted(() => {
         </n-form-item>
       </n-form>
       <template #footer>
-        <n-button @click="showAddDialog = false">取消</n-button>
-        <n-button @click="saveSnippet">保存</n-button>
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <n-button @click="showAddDialog = false">
+              <template #icon>
+                <n-icon><Close /></n-icon>
+              </template>
+            </n-button>
+          </template>
+          取消
+        </n-tooltip>
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <n-button @click="saveSnippet">
+              <template #icon>
+                <n-icon><Save /></n-icon>
+              </template>
+            </n-button>
+          </template>
+          保存
+        </n-tooltip>
       </template>
     </n-drawer-content>
   </n-drawer>
@@ -379,93 +455,210 @@ onMounted(() => {
 .code-snippet-container {
   display: flex;
   flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  overflow: hidden;
   height: 100%;
+}
+
+.snippet-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--tb-border);
+
+  .snippet-search {
+    flex: 1;
+    min-width: 200px;
+  }
+
+  .snippet-count {
+    flex-shrink: 0;
+    font-size: 12.5px;
+    color: var(--tb-text-3);
+    white-space: nowrap;
+  }
+}
+
+.main-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
   overflow: hidden;
 
-  .toolbar {
-    display: flex;
-    align-items: center;
-    padding: 10px;
+  /* 左侧标签栏 */
+  .tag-sidebar {
+    flex-shrink: 0;
+    width: 180px;
+    padding-right: 16px;
+    margin-right: 16px;
+    border-right: 1px solid var(--tb-border);
+    overflow-y: auto;
 
-    .search-container {
-      display: inline-flex;
-      gap: 10px;
-      width: 50%;
-    }
-
-    .action-buttons {
+    .tag-sidebar-title {
       display: flex;
-      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--tb-text-3);
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
     }
-  }
 
-  .main-content {
-    flex: 1;
-    display: flex;
-    overflow: hidden;
+    .tag-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
 
-    .tag-sidebar {
-      width: 200px;
-      height: 100%;
-      border-right: 1px solid #eee;
-      padding: 10px;
+      .tag-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: var(--tb-radius-m);
+        font-size: 13px;
+        color: var(--tb-text-2);
+        cursor: pointer;
+        border: 1px solid transparent;
+        transition: background-color 0.15s ease, color 0.15s ease;
 
-      .tag-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
+        .tag-hash {
+          color: var(--tb-text-3);
+          font-size: 12px;
+        }
 
-        .tag-item {
-          cursor: pointer;
+        &:hover {
+          background: var(--tb-bg-app);
+          color: var(--tb-text);
+        }
 
-          &.active {
-            background-color: #f0f7ff;
-            color: #1890ff;
+        &.active {
+          background: var(--tb-primary-weak);
+          color: var(--tb-primary);
+          font-weight: 600;
+
+          .tag-hash {
+            color: var(--tb-primary);
           }
         }
       }
     }
+  }
 
-    .snippet-content {
+  /* 右侧片段列表 */
+  .snippet-content {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+
+    .snippet-scroll {
+      flex: 1;
+      min-height: 0;
+    }
+
+    .snippet-empty {
       flex: 1;
       display: flex;
+      align-items: center;
       justify-content: center;
-      align-items: flex-start;
-      padding: 20px;
-      overflow-y: auto;
+    }
+  }
+}
 
-      .snippet-list-container {
-        width: 100%;
-        background-color: #fff;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        padding: 16px;
+.snippet-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px;
+}
 
-        .snippet-list {
-          .n-list-item {
-            cursor: pointer;
-            margin-bottom: 8px;
-            border-radius: 6px;
-            transition: all 0.3s ease;
+.snippet-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--tb-border);
+  border-radius: var(--tb-radius-m);
+  background: var(--tb-bg-elevated);
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 
-            &:hover {
-              background-color: #f9f9f9;
-            }
+  &:hover {
+    border-color: var(--tb-border-strong);
+    box-shadow: var(--tb-shadow-card);
+  }
 
-            &.active {
-              background-color: #f0f7ff;
-              border-left: 3px solid #1890ff;
-            }
-          }
-        }
-      }
+  &.active {
+    border-color: var(--tb-primary);
+    background: var(--tb-primary-weak);
+    box-shadow: 0 2px 12px rgba(79, 110, 247, 0.12);
+  }
+
+  .snippet-item-main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .snippet-item-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--tb-text);
+
+    .snippet-item-lines {
+      font-size: 11.5px;
+      font-weight: 400;
+      color: var(--tb-text-3);
     }
   }
 
-  .code-preview {
-    margin-top: 16px;
-    max-height: 400px;
-    overflow-y: auto;
+  .snippet-item-code {
+    margin-top: 4px;
+    font-family: var(--tb-font-mono);
+    font-size: 12px;
+    color: var(--tb-text-3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .snippet-item-tags {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+
+    .snippet-tag {
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      background: var(--tb-bg-app);
+      border: 1px solid var(--tb-border);
+      color: var(--tb-text-2);
+    }
+  }
+
+  &.active .snippet-tag {
+    background: var(--tb-primary-weak-hover);
+  }
+
+  .snippet-item-actions {
+    display: flex;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  &:hover .snippet-item-actions,
+  &.active .snippet-item-actions {
+    opacity: 1;
   }
 }
 </style>

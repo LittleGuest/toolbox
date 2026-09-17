@@ -1,25 +1,26 @@
-use gpui::*;
-use gpui_component::{
+use crate::design;
+use gpui_kit::*;
+use gpui_kit::component::{
     button::*,
-    input::{Input, InputEvent, InputState},
+    input::{Input, InputEvent, InputState, Textarea, TextareaState },
     scroll::ScrollableElement,
     *,
 };
 
 pub struct MessyCodeRecover {
     input: String,
-    results: Vec<base::RecoverGarbledCode>,
+    results: Vec<::base::RecoverGarbledCode>,
     loading: bool,
-    input_state: Entity<InputState>,
+    input_state: Entity<TextareaState>,
     _subscriptions: Vec<Subscription>,
 }
 
 impl MessyCodeRecover {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let input_state = cx.new(|cx| {
-            InputState::new(window, cx)
+            TextareaState::new(window, cx)
                 .placeholder("请输入乱码文本，例如：锘挎槬鐪犱笉瑙夋檽锛屽澶勯椈鍟奸笩")
-                .multi_line(true)
+                
         });
 
         let _subscriptions = vec![cx.subscribe_in(&input_state, window, {
@@ -46,7 +47,7 @@ impl MessyCodeRecover {
         }
 
         self.loading = true;
-        self.results = base::recover_garbled_code(&self.input).unwrap_or_default();
+        self.results = ::base::recover_garbled_code(&self.input).unwrap_or_default();
         self.loading = false;
     }
 
@@ -70,189 +71,185 @@ impl Render for MessyCodeRecover {
         let results = self.results.clone();
         let loading = self.loading;
 
-        div()
+        design::page()
+            .child(design::page_header("乱码恢复", "修复乱码文本", cx))
             .child(
-                div()
-                    .flex()
-                    .flex_col()
-                    .gap_3()
-                    // 输入区域
-                    .child(Input::new(&self.input_state).h(px(150.0)))
-                    // 提示行：左侧说明文字，右侧按钮
+                // 输入卡片
+                design::card(cx)
                     .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .justify_between()
-                            .child(
-                                div()
-                                    .text_xs()
-                                    .text_color(cx.theme().muted_foreground)
-                                    .child(format!(
-                                        "说明{}并非所有乱码都可以被完美恢复{}乱码中的问号说明该字符已经丢失{}是无法恢复的{}",
-                                        std::char::from_u32(0xFF1A).unwrap_or(':'),
-                                        std::char::from_u32(0xFF0C).unwrap_or(','),
-                                        std::char::from_u32(0xFF0C).unwrap_or(','),
-                                        std::char::from_u32(0x3002).unwrap_or('.')
-                                    )),
-                            )
-                            .child(
-                                div().flex().items_center().gap_2().child(
-                                    Button::new("recover")
-                                        .primary()
-                                        .label("恢复")
-                                        .on_click(cx.listener(|this, _, _, cx| {
-                                            this.recover();
-                                            cx.notify();
-                                        })),
-                                ).child(
-                                    Button::new("clear")
-                                        .label("清空")
-                                        .on_click(cx.listener(|this, _, window, cx| {
-                                            this.clear(window, cx);
-                                        })),
-                                ),
+                        design::caption(
+                            format!(
+                                "说明{}并非所有乱码都可以被完美恢复{}乱码中的问号说明该字符已经丢失{}是无法恢复的{}",
+                                std::char::from_u32(0xFF1A).unwrap_or(':'),
+                                std::char::from_u32(0xFF0C).unwrap_or(','),
+                                std::char::from_u32(0xFF0C).unwrap_or(','),
+                                std::char::from_u32(0x3002).unwrap_or('.')
                             ),
+                            cx,
+                        ),
                     )
-                    // 结果（匹配 Tauri n-data-table 风格）
-                    .child(if !results.is_empty() {
-                        div()
-                            .flex_1()
-                            .min_h(px(300.0))
-                            .max_h(px(400.0))
-                            .border_1()
-                            .border_color(cx.theme().border)
-                            .rounded_lg()
-                            .p_4()
-                            .overflow_y_scrollbar()
-                            .child(
-                                div()
-                                    .flex()
-                                    .flex_col()
-                                    .gap_2()
-                                    .children(results.iter().enumerate().map(
-                                        |(idx, result)| {
-                                            let score_text =
-                                                format!("{:.2}%", result.score * 100.0);
-                                            let score_color =
-                                                if result.score >= 0.9 {
-                                                    cx.theme().success
-                                                } else if result.score >= 0.7 {
-                                                    cx.theme().warning
-                                                } else {
-                                                    cx.theme().accent
-                                                };
-                                            let recovered_text =
-                                                result.recovered_text.clone();
+                    .child(Textarea::new(&self.input_state).h(px(150.0))),
+            )
+            .child(
+                // 恢复操作行
+                design::action_row()
+                    .child(
+                        Button::new("recover")
+                            .primary()
+                            .label("恢复")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.recover();
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        Button::new("clear")
+                            .label("清空")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.clear(window, cx);
+                            })),
+                    ),
+            )
+            .child(
+                // 结果卡片
+                design::card(cx).child(if !results.is_empty() {
+                    div()
+                        .flex_1()
+                        .min_h(px(300.0))
+                        .max_h(px(400.0))
+                        .border_1()
+                        .border_color(cx.theme().border)
+                        .rounded_lg()
+                        .p_4()
+                        .overflow_y_scrollbar()
+                        .child(
+                            div()
+                                .flex()
+                                .flex_col()
+                                .gap_2()
+                                .children(results.iter().enumerate().map(
+                                    |(idx, result)| {
+                                        let score_text =
+                                            format!("{:.2}%", result.score * 100.0);
+                                        let score_color =
+                                            if result.score >= 0.9 {
+                                                cx.theme().success
+                                            } else if result.score >= 0.7 {
+                                                cx.theme().warning
+                                            } else {
+                                                cx.theme().accent
+                                            };
+                                        let recovered_text =
+                                            result.recovered_text.clone();
 
-                                            div()
-                                                .p_3()
-                                                .border_1()
-                                                .border_color(cx.theme().border)
-                                                .rounded_md()
-                                                .child(
-                                                    div()
-                                                        .flex()
-                                                        .flex_col()
-                                                        .gap_2()
-                                                        .child(
-                                                            div()
-                                                                .flex()
-                                                                .items_center()
-                                                                .justify_between()
-                                                                .child(
-                                                                    div()
-                                                                        .flex()
-                                                                        .items_center()
-                                                                        .gap_4()
-                                                                        .child(
-                                                                            div()
-                                                                                .text_xs()
-                                                                                .text_color(
-                                                                                    cx.theme()
-                                                                                        .muted_foreground,
-                                                                                )
-                                                                                .child(
-                                                                                    format!(
-                                                                                        "#{}",
-                                                                                        idx + 1
-                                                                                    ),
+                                        div()
+                                            .p_3()
+                                            .border_1()
+                                            .border_color(cx.theme().border)
+                                            .rounded_md()
+                                            .child(
+                                                div()
+                                                    .flex()
+                                                    .flex_col()
+                                                    .gap_2()
+                                                    .child(
+                                                        div()
+                                                            .flex()
+                                                            .items_center()
+                                                            .justify_between()
+                                                            .child(
+                                                                div()
+                                                                    .flex()
+                                                                    .items_center()
+                                                                    .gap_4()
+                                                                    .child(
+                                                                        div()
+                                                                            .text_xs()
+                                                                            .text_color(
+                                                                                cx.theme()
+                                                                                    .muted_foreground,
+                                                                            )
+                                                                            .child(
+                                                                                format!(
+                                                                                    "#{}",
+                                                                                    idx + 1
                                                                                 ),
-                                                                        )
-                                                                        .child(
-                                                                            div()
-                                                                                .text_xs()
-                                                                                .child(
-                                                                                    format!(
-                                                                                        "{} -> {}",
-                                                                                        result
-                                                                                            .source_charset,
-                                                                                        result
-                                                                                            .target_charset
-                                                                                    ),
+                                                                            ),
+                                                                    )
+                                                                    .child(
+                                                                        div()
+                                                                            .text_xs()
+                                                                            .child(
+                                                                                format!(
+                                                                                    "{} -> {}",
+                                                                                    result
+                                                                                        .source_charset,
+                                                                                    result
+                                                                                        .target_charset
                                                                                 ),
-                                                                        )
-                                                                        .child(
-                                                                            div()
-                                                                                .text_xs()
-                                                                                .font_semibold()
-                                                                                .text_color(
-                                                                                    score_color,
-                                                                                )
-                                                                                .child(
-                                                                                    score_text,
-                                                                                ),
-                                                                        ),
-                                                                )
-                                                                .child(
-                                                                    Button::new((
-                                                                        "copy",
-                                                                        idx,
-                                                                    ))
-                                                                    .icon(Icon::new(
-                                                                        IconName::Copy,
-                                                                    ))
-                                                                    .tooltip("复制")
-                                                                    .on_click(
-                                                                        cx.listener(
-                                                                            move |this,
-                                                                                  _,
-                                                                                  _,
-                                                                                  cx| {
-                                                                                this.copy_result(
-                                                                                    &recovered_text,
-                                                                                    cx,
-                                                                                );
-                                                                            },
-                                                                        ),
+                                                                            ),
+                                                                    )
+                                                                    .child(
+                                                                        div()
+                                                                            .text_xs()
+                                                                            .font_semibold()
+                                                                            .text_color(
+                                                                                score_color,
+                                                                            )
+                                                                            .child(
+                                                                                score_text,
+                                                                            ),
+                                                                    ),
+                                                            )
+                                                            .child(
+                                                                Button::new((
+                                                                    "copy",
+                                                                    idx,
+                                                                ))
+                                                                .icon(Icon::new(
+                                                                    IconName::Copy,
+                                                                ))
+                                                                .tooltip("复制")
+                                                                .on_click(
+                                                                    cx.listener(
+                                                                        move |this,
+                                                                              _,
+                                                                              _,
+                                                                              cx| {
+                                                                            this.copy_result(
+                                                                                &recovered_text,
+                                                                                cx,
+                                                                            );
+                                                                        },
                                                                     ),
                                                                 ),
-                                                        )
-                                                        .child(
-                                                            div()
-                                                                .text_sm()
-                                                                .font_family("monospace")
-                                                                .child(
-                                                                    result
-                                                                        .recovered_text
-                                                                        .clone(),
-                                                                ),
-                                                        ),
-                                                )
-                                        },
-                                    )),
-                            )
-                    } else if loading {
-                        div()
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .py_8()
-                            .overflow_y_scrollbar()
-                            .child(div().text_sm().text_color(cx.theme().muted_foreground).child("正在恢复..."))
-                    } else {
-                        div().overflow_y_scrollbar()
-                    })
+                                                            ),
+                                                    )
+                                                    .child(
+                                                        div()
+                                                            .text_sm()
+                                                            .font_family("monospace")
+                                                            .child(
+                                                                result
+                                                                    .recovered_text
+                                                                    .clone(),
+                                                            ),
+                                                    ),
+                                            )
+                                    },
+                                )),
+                        )
+                } else if loading {
+                    div()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .py_8()
+                        .overflow_y_scrollbar()
+                        .child(div().text_sm().text_color(cx.theme().muted_foreground).child("正在恢复..."))
+                } else {
+                    div().overflow_y_scrollbar()
+                }),
             )
     }
 }

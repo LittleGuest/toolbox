@@ -2,7 +2,7 @@
 import { ref, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { NButton, NButtonGroup, useMessage } from "naive-ui";
-import { Download } from "@vicons/carbon";
+import { Download, Maximize } from "@vicons/carbon";
 import html2canvas from 'html2canvas';
 
 const message = useMessage();
@@ -323,18 +323,30 @@ onMounted(async () => {
       </div>
 
       <template #footer>
-        <n-button-group>
-          <n-button @click="closeColumn()">
-            展开/收起
-          </n-button>
-          <n-button @click="downloadImg()">
-            <template #icon>
-              <n-icon>
-                <Download />
-              </n-icon>
+        <n-space :size="8">
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="closeColumn()">
+                <template #icon>
+                  <n-icon><Maximize /></n-icon>
+                </template>
+              </n-button>
             </template>
-          </n-button>
-        </n-button-group>
+            展开/收起
+          </n-tooltip>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="downloadImg()">
+                <template #icon>
+                  <n-icon>
+                    <Download />
+                  </n-icon>
+                </template>
+              </n-button>
+            </template>
+            下载
+          </n-tooltip>
+        </n-space>
       </template>
     </n-drawer-content>
   </n-drawer>

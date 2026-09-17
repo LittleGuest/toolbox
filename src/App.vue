@@ -1,45 +1,284 @@
 <script setup lang="ts">
-import { inject } from "vue";
+import { inject, computed, ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { menus, navigateToMenu } from "./menu";
-import { NButton } from "naive-ui";
-import { Moon, Sun } from "@vicons/carbon";
+import { NButton, NIcon, useThemeVars } from "naive-ui";
+import { Moon, Sun, ToolBox, Search } from "@vicons/carbon";
+import { pinyin as toPinyin } from "pinyin-pro";
 
 const router = useRouter();
 const route = useRoute();
 const theme = inject("theme");
 const toggleTheme = inject("toggleTheme");
+const themeVars = useThemeVars();
 
 // 菜单点击事件
 const toMenu = navigateToMenu(router);
+
+const collapsed = ref(false);
+
+// 全局工具搜索
+const search = ref("");
+
+// 扁平化所有叶子工具（含分组信息）
+const flatTools = computed(() => {
+  const list: { key: string; label: string; group: string }[] = [];
+  for (const group of menus as any[]) {
+    if (group.children) {
+      for (const child of group.children) {
+        list.push({ key: child.key, label: child.label, group: group.label });
+      }
+    } else {
+      list.push({ key: group.key, label: group.label, group: "" });
+    }
+  }
+  return list;
+});
+
+// 自动补全选项：按关键字过滤工具名 / 分组 / 路由 / 拼音 / 拼音首字母
+const searchOptions = computed(() => {
+  const kw = search.value.trim().toLowerCase();
+  if (!kw) return [];
+
+  // 搜索索引：每个工具预计算全拼（去空格）与拼音首字母
+  const index = flatTools.value.map((t) => {
+    const p = toPinyin(t.label, { toneType: "none", type: "array" }).join("");
+    const first = toPinyin(t.label, { pattern: "first", toneType: "none", type: "array" }).join("");
+    return { ...t, pinyin: p.toLowerCase(), first: first.toLowerCase() };
+  });
+
+  return index
+    .filter(
+      (t) =>
+        t.label.toLowerCase().includes(kw) ||
+        t.key.toLowerCase().includes(kw) ||
+        (t.group && t.group.toLowerCase().includes(kw)) ||
+        t.pinyin.includes(kw) ||
+        t.first.includes(kw)
+    )
+    .slice(0, 12)
+    .map((t) => ({
+      value: t.key,
+      label: t.group ? `${t.label}（${t.group}）` : t.label,
+    }));
+});
+
+// 选中工具后跳转并清空输入
+const onSelectTool = (key: string | number) => {
+  search.value = "";
+  toMenu(String(key));
+};
+
+const siderBg = computed(() => themeVars.value.bodyColor);
+const siderBorder = computed(() => themeVars.value.borderColor);
+
+// 展开态下菜单宽度
+const siderWidth = computed(() => (collapsed.value ? 64 : 240));
+
+const activeKey = computed(() => route.path);
 </script>
 
 <template>
-  <n-layout has-sider position="absolute">
-    <n-layout-sider collapse-mode="width" :collapsed-width="55" :width="260" show-trigger="arrow-circle" bordered
-      :native-scrollbar="false">
-      <n-menu :options="menus" :default-expand-all="false" @update:value="toMenu" />
+  <n-layout has-sider position="absolute" :style="{ background: 'var(--tb-bg-app)' }">
+    <n-layout-sider
+      bordered
+      collapse-mode="width"
+      :collapsed-width="64"
+      :width="siderWidth"
+      :collapsed="collapsed"
+      show-trigger="bar"
+      :native-scrollbar="false"
+      :style="{
+        background: siderBg,
+        borderColor: siderBorder,
+        transition: 'width .2s cubic-bezier(.4,0,.2,1)',
+      }"
+    >
+      <!-- 顶部 Logo 区 -->
+      <div class="tb-brand" :class="{ 'is-collapsed': collapsed }">
+        <div class="tb-brand-left">
+          <div class="tb-brand-logo">
+            <n-icon size="22">
+              <ToolBox />
+            </n-icon>
+          </div>
+          <transition name="fade">
+            <span v-if="!collapsed" class="tb-brand-name">ToolBox</span>
+          </transition>
+        </div>
+        <n-tooltip trigger="hover" placement="right">
+          <template #trigger>
+            <n-button
+              quaternary
+              circle
+              size="small"
+              class="tb-theme-btn"
+              @click="toggleTheme"
+            >
+              <template #icon>
+                <n-icon>
+                  <template v-if="theme === 'light'">
+                    <Moon />
+                  </template>
+                  <template v-else>
+                    <Sun />
+                  </template>
+                </n-icon>
+              </template>
+            </n-button>
+          </template>
+          {{ theme === 'light' ? '切换深色模式' : '切换浅色模式' }}
+        </n-tooltip>
+      </div>
+
+      <n-menu
+        :options="menus"
+        :value="activeKey"
+        :collapsed="collapsed"
+        :collapsed-width="64"
+        :indent="18"
+        :root-indent="14"
+        :style="{ background: 'transparent' }"
+        @update:value="toMenu"
+      />
     </n-layout-sider>
-    <n-layout>
-      <!-- <n-layout-header style="height: 30px; padding: 0 24px; display: flex; align-items: center; justify-content: flex-end; border-bottom: 1px solid #e0e0e0">
-                <n-button @click="toggleTheme" quaternary circle>
-                  <template #icon>
-                    <n-icon>
-                      <template v-if="theme === 'light'">
-                        <Moon />
-                      </template>
-<template v-else>
-                        <Sun />
-                      </template>
-</n-icon>
-</template>
-</n-button>
-</n-layout-header> -->
-      <n-layout-content style="padding: 24px; height: 100%">
-        <router-view />
-      </n-layout-content>
-    </n-layout>
+
+    <div class="tb-main">
+      <div class="tb-topbar">
+        <div class="tb-search">
+          <n-icon class="tb-search-icon">
+            <Search />
+          </n-icon>
+          <n-auto-complete
+            v-model:value="search"
+            :options="searchOptions"
+            :input-props="{ placeholder: '搜索工具，快速切换…' }"
+            clearable
+            size="large"
+            style="flex: 1; min-width: 0"
+            @select="onSelectTool"
+          />
+        </div>
+      </div>
+
+      <div class="tb-scroll">
+        <div class="tb-viewport">
+          <router-view />
+        </div>
+      </div>
+    </div>
   </n-layout>
 </template>
 
-<style scoped></style>
+<style scoped>
+.tb-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--tb-header-h);
+  padding: 0 18px;
+  overflow: hidden;
+}
+
+.tb-brand-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.tb-brand-logo {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: var(--tb-primary-weak);
+  color: var(--tb-primary);
+}
+
+.tb-brand-name {
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--tb-text);
+  white-space: nowrap;
+}
+
+.tb-brand.is-collapsed {
+  padding: 0 16px;
+  justify-content: center;
+}
+
+/* 折叠态只显示主题按钮并居中，隐藏左侧图标与名称 */
+.tb-brand.is-collapsed .tb-brand-left {
+  display: none;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.tb-topbar {
+  flex-shrink: 0;
+  height: var(--tb-header-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--tb-border);
+  background: var(--tb-bg-elevated);
+}
+
+.tb-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 560px;
+}
+
+.tb-search-icon {
+  position: absolute;
+  left: 12px;
+  z-index: 1;
+  color: var(--tb-text-3);
+  pointer-events: none;
+  font-size: 16px;
+}
+
+/* 输入框左侧留出图标位 */
+.tb-search :deep(.n-input__input-el) {
+  padding-left: 34px;
+}
+
+.tb-viewport {
+  height: 100%;
+  min-height: 100%;
+}
+
+/* 右侧主区域：顶栏固定，内容区滚动铺满 */
+.tb-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.tb-scroll {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+</style>

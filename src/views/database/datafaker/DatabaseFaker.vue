@@ -2,6 +2,7 @@
 import { ref, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { NButton, NButtonGroup, useMessage } from "naive-ui";
+import { Add, Radar, Save } from "@vicons/carbon";
 import { datasourceInfosApi, saveDatasourceInfoApi, updateDatasourceInfoApi, deleteDatasourceInfoApi } from '@/store/db';
 import DataGenerator from './DataGenerator.vue';
 import { useRoute, useRouter } from "vue-router";
@@ -170,11 +171,28 @@ const saveConnect = (e) => {
 </script>
 
 <template>
-  <n-button @click="handleAddDrawer">新建连接</n-button>
-  <n-data-table :columns="columns" :data="connects" :bordered="false" :scroll-x="1800" :max-height="550" />
+  <div class="tb-page">
+    <div class="tb-card">
+      <div class="tb-card-header">
+        <span class="tb-card-header-title">数据源连接</span>
+        <div class="tb-card-header-actions">
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="handleAddDrawer">
+                <template #icon>
+                  <n-icon><Add /></n-icon>
+                </template>
+              </n-button>
+            </template>
+            新建连接
+          </n-tooltip>
+        </div>
+      </div>
+      <n-data-table :columns="columns" :data="connects" :bordered="false" :scroll-x="1800" :max-height="550" />
+    </div>
 
-  <n-drawer v-model:show="showAddaDrawer" placement="bottom" resizable :default-width="502" :default-height="600">
-    <n-drawer-content :title="addDrawer ? '添加' : '编辑'" closable>
+    <n-drawer v-model:show="showAddaDrawer" placement="bottom" resizable :default-width="502" :default-height="600">
+      <n-drawer-content :title="addDrawer ? '添加' : '编辑'" closable>
       <n-form ref="formRef" :model="model" :rules="rules" label-placement="left" label-width="auto"
         require-mark-placement="right-hanging">
         <n-form-item path="driver" label="类型">
@@ -201,23 +219,28 @@ const saveConnect = (e) => {
         </n-form-item>
       </n-form>
       <template #footer>
-        <n-button @click="ping">测试连接</n-button>
-        <n-button @click="saveConnect">保存</n-button>
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <n-button @click="ping">
+              <template #icon>
+                <n-icon><Radar /></n-icon>
+              </template>
+            </n-button>
+          </template>
+          测试连接
+        </n-tooltip>
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <n-button @click="saveConnect">
+              <template #icon>
+                <n-icon><Save /></n-icon>
+              </template>
+            </n-button>
+          </template>
+          保存
+        </n-tooltip>
       </template>
     </n-drawer-content>
   </n-drawer>
-
-
+  </div>
 </template>
-
-<style lang="scss" scoped>
-.light-green {
-  height: 100%;
-  background-color: rgba(0, 128, 0, 0.12);
-}
-
-.green {
-  height: 100%;
-  background-color: rgba(0, 128, 0, 0.24);
-}
-</style>

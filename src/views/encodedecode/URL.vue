@@ -54,78 +54,91 @@ const clear = () => {
 </script>
 
 <template>
-  <n-form label-placement="left" label-width="80">
-    <n-form-item label="操作">
-      <n-button-group>
-        <n-button @click="pasteInput">
-          <template #icon>
-            <n-icon>
-              <Paste />
-            </n-icon>
+  <div class="tb-page">
+    <section class="tb-card">
+      <!-- 输入区 -->
+      <div class="tb-editor tb-mono">
+        <span class="tb-editor-label">输入</span>
+        <n-input v-model:value="input" :rows="10" type="textarea" />
+        <div class="tb-toolbar">
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="pasteInput">
+                <template #icon><n-icon><Paste /></n-icon></template>
+              </n-button>
+            </template>
+            粘贴
+          </n-tooltip>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="copy(input)">
+                <template #icon><n-icon><Copy /></n-icon></template>
+              </n-button>
+            </template>
+            复制
+          </n-tooltip>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="clear">
+                <template #icon><n-icon><Close /></n-icon></template>
+              </n-button>
+            </template>
+            清除
+          </n-tooltip>
+        </div>
+      </div>
+
+      <!-- 主操作行 -->
+      <div class="tb-action-row">
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <n-button type="primary" @click="encode">
+              <template #icon><n-icon><ArrowDown /></n-icon></template>
+            </n-button>
           </template>
-        </n-button>
-        <n-button @click="copy(input)">
-          <template #icon>
-            <n-icon>
-              <Copy />
-            </n-icon>
+          编码
+        </n-tooltip>
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <n-button type="primary" @click="decode">
+              <template #icon><n-icon><ArrowUp /></n-icon></template>
+            </n-button>
           </template>
-        </n-button>
-        <n-button @click="clear">
-          <template #icon>
-            <n-icon>
-              <Close />
-            </n-icon>
-          </template>
-        </n-button>
-      </n-button-group>
-    </n-form-item>
-    <n-form-item label="输入">
-      <n-input placeholder="" v-model:value="input" :rows="10" type="textarea" />
-    </n-form-item>
-    <n-form-item label="编码/解码">
-      <n-button @click="encode">
-        <template #icon>
-          <n-icon>
-            <ArrowDown />
-          </n-icon>
-        </template>
-      </n-button>
-      <n-button @click="decode">
-        <template #icon>
-          <n-icon>
-            <ArrowUp />
-          </n-icon>
-        </template>
-      </n-button>
-    </n-form-item>
-    <n-form-item label="操作">
-      <n-button-group>
-        <n-button @click="pasteOutput()">
-          <template #icon>
-            <n-icon>
-              <Paste />
-            </n-icon>
-          </template>
-        </n-button>
-        <n-button @click="copy(output)">
-          <template #icon>
-            <n-icon>
-              <Copy />
-            </n-icon>
-          </template>
-        </n-button>
-        <n-button @click="clear">
-          <template #icon>
-            <n-icon>
-              <Close />
-            </n-icon>
-          </template>
-        </n-button>
-      </n-button-group>
-    </n-form-item>
-    <n-form-item label="输出">
-      <n-input placeholder="" v-model:value="output" :rows="10" type="textarea" />
-    </n-form-item>
-  </n-form>
+          解码
+        </n-tooltip>
+      </div>
+
+      <!-- 输出区 -->
+      <div class="tb-editor tb-mono">
+        <span class="tb-editor-label">输出</span>
+        <n-input v-model:value="output" :rows="10" type="textarea" />
+        <div class="tb-toolbar">
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="pasteOutput">
+                <template #icon><n-icon><Paste /></n-icon></template>
+              </n-button>
+            </template>
+            粘贴
+          </n-tooltip>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="copy(output)">
+                <template #icon><n-icon><Copy /></n-icon></template>
+              </n-button>
+            </template>
+            复制
+          </n-tooltip>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button @click="clear">
+                <template #icon><n-icon><Close /></n-icon></template>
+              </n-button>
+            </template>
+            清除
+          </n-tooltip>
+        </div>
+      </div>
+    </section>
+  </div>
 </template>

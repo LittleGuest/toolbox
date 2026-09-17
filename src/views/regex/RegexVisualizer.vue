@@ -3,26 +3,25 @@ const regexVisUrl = "/vendor/regex-vis/index.html";
 </script>
 
 <template>
-  <div class="regex-vis-page">
-    <iframe class="regex-vis-frame" :src="regexVisUrl" title="Regex Vis" />
+  <div class="tb-page">
+    <section class="tb-card regex-vis-card">
+      <iframe class="regex-vis-frame" :src="regexVisUrl" title="Regex Vis" />
+    </section>
   </div>
 </template>
 
 <style scoped>
-.regex-vis-page {
-  width: 100%;
-  height: calc(100vh - 36px);
-  min-height: 720px;
-  overflow: hidden;
-  border-radius: 8px;
-  background: #fff;
+.regex-vis-card {
+  padding: 8px;
 }
 
 .regex-vis-frame {
   display: block;
   width: 100%;
-  height: 100%;
+  height: calc(100vh - 160px);
+  min-height: 640px;
   border: 0;
-  background: #fff;
+  border-radius: var(--tb-radius-m);
+  background: var(--tb-bg-elevated);
 }
 </style>

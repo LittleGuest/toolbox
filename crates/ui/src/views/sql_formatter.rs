@@ -1,7 +1,8 @@
-use gpui::{prelude::FluentBuilder as _, *};
-use gpui_component::{
+use crate::design;
+use gpui_kit::{prelude::FluentBuilder as _, *};
+use gpui_kit::component::{
     button::*,
-    input::{Input, InputEvent, InputState},
+    input::{Input, InputEvent, InputState, Textarea, TextareaState },
     scroll::ScrollableElement,
     select::{Select, SelectEvent, SelectState},
     switch::Switch,
@@ -14,7 +15,7 @@ pub struct SqlFormatter {
     input: String,
     indent: usize,
     keyword_case: String,
-    input_state: Entity<InputState>,
+    input_state: Entity<TextareaState>,
     indent_state: Entity<SelectState<Vec<String>>>,
     _subscriptions: Vec<Subscription>,
 }
@@ -22,9 +23,9 @@ pub struct SqlFormatter {
 impl SqlFormatter {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let input_state = cx.new(|cx| {
-            InputState::new(window, cx)
+            TextareaState::new(window, cx)
                 .placeholder("请输入SQL语句...")
-                .multi_line(true)
+                
         });
 
         let indent_state = cx.new(|cx| {
@@ -316,74 +317,74 @@ impl SqlFormatter {
 
 impl Render for SqlFormatter {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        div().child(
-            div()
-                .flex()
-                .flex_col()
-                .gap_3()
-                // 缩进 → Select（匹配 Tauri n-select）
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().text_sm().w(px(100.0)).child("缩进"))
-                        .child(Select::new(&self.indent_state)),
-                )
-                // 关键字大写 → Switch（匹配 Tauri n-switch）
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().text_sm().w(px(100.0)).child("关键字大写"))
-                        .child(
-                            Switch::new("keyword-case")
-                                .checked(self.keyword_case == "upper")
-                                .on_click(cx.listener(|this, v: &bool, _, cx| {
-                                    this.keyword_case = if *v {
-                                        "upper".to_string()
-                                    } else {
-                                        "lower".to_string()
-                                    };
-                                    cx.notify();
-                                })),
-                        ),
-                )
-                // 操作 → Paste + Copy + 格式化（匹配 Tauri n-button-group，三个按钮在同一组内）
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().text_sm().w(px(100.0)).child(""))
-                        .child(
-                            ButtonGroup::new("action-buttons")
-                                .child(
-                                    Button::new("paste-input")
-                                        .icon(Icon::new(IconName::File))
-                                        .tooltip("粘贴")
-                                        .on_click(cx.listener(|this, _, window, cx| {
-                                            this.paste(window, cx);
-                                        })),
-                                )
-                                .child(
-                                    Button::new("copy-input")
-                                        .icon(Icon::new(IconName::Copy))
-                                        .tooltip("复制")
-                                        .on_click(cx.listener(|this, _, _, cx| {
-                                            this.copy_input(cx);
-                                        })),
-                                )
-                                .child(Button::new("format").child("格式化").on_click(
-                                    cx.listener(|this, _, window, cx| {
+        design::page()
+            .child(design::page_header("SQL 格式化", "格式化 SQL 文本", cx))
+            .child(
+                design::card(cx)
+                    // 缩进 → Select（匹配 Tauri n-select）
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(div().w(px(100.0)).child(design::caption("缩进", cx)))
+                            .child(Select::new(&self.indent_state)),
+                    )
+                    // 关键字大写 → Switch（匹配 Tauri n-switch）
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(div().w(px(100.0)).child(design::caption("关键字大写", cx)))
+                            .child(
+                                Switch::new("keyword-case")
+                                    .checked(self.keyword_case == "upper")
+                                    .on_click(cx.listener(|this, v: &bool, _, cx| {
+                                        this.keyword_case = if *v {
+                                            "upper".to_string()
+                                        } else {
+                                            "lower".to_string()
+                                        };
+                                        cx.notify();
+                                    })),
+                            ),
+                    )
+                    // 操作 → Paste + Copy + 格式化
+                    .child(
+                        design::toolbar()
+                            .child(
+                                Button::new("paste-input")
+                                    .icon(Icon::new(IconName::File))
+                                    .tooltip("粘贴")
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.paste(window, cx);
+                                    })),
+                            )
+                            .child(
+                                Button::new("copy-input")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.copy_input(cx);
+                                    })),
+                            )
+                            .child(
+                                Button::new("format")
+                                    .label("格式化")
+                                    .primary()
+                                    .on_click(cx.listener(|this, _, window, cx| {
                                         this.format_sql(window, cx);
-                                    }),
-                                )),
-                        ),
-                )
-                // 单编辑器（匹配 Tauri CodeMirror，格式化后替换内容）
-                .child(Input::new(&self.input_state).h(px(400.0))),
-        )
+                                    })),
+                            )
+                            .child(div().flex_1()),
+                    )
+                    // 单编辑器（格式化后替换内容）
+                    .child(
+                        Textarea::new(&self.input_state)
+                            .h(px(400.0))
+                            .font_family("monospace"),
+                    ),
+            )
     }
 }

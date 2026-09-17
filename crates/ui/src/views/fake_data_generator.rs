@@ -1,6 +1,7 @@
+use crate::design;
 use database::{DatasourceInfo, Driver};
-use gpui::{prelude::FluentBuilder as _, *};
-use gpui_component::{
+use gpui_kit::{prelude::FluentBuilder as _, *};
+use gpui_kit::component::{
     WindowExt,
     button::*,
     checkbox::Checkbox,
@@ -1239,7 +1240,6 @@ impl FakeDataGenerator {
                                     .flex()
                                     .items_center()
                                     .gap_2()
-                                    .child(div().w(label_w).text_sm().child("预览"))
                                     .child(
                                         div()
                                             .flex_1()
@@ -2006,10 +2006,13 @@ impl FakeDataGenerator {
 
 impl Render for FakeDataGenerator {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        match self.active_view {
-            FakerView::ConnectionList => self.render_connection_list(cx),
-            FakerView::Generator => self.render_generator(window, cx),
-        }
+        design::page()
+            .h_full()
+            .child(design::page_header("假数据生成", "生成模拟业务数据", cx))
+            .child(match self.active_view {
+                FakerView::ConnectionList => self.render_connection_list(cx),
+                FakerView::Generator => self.render_generator(window, cx),
+            })
     }
 }
 
@@ -2469,7 +2472,7 @@ impl FakeDataGenerator {
     }
 
     fn render_canvas_area(&mut self, cx: &mut Context<Self>) -> Div {
-        let dot_color = gpui::hsla(0.0, 0.0, 0.85, 1.0);
+        let dot_color = gpui_kit::hsla(0.0, 0.0, 0.85, 1.0);
         let dot_size = 1.5_f32;
 
         // 捕获节点数据供连线绘制使用
@@ -2477,7 +2480,7 @@ impl FakeDataGenerator {
         let viewport_x = self.canvas_viewport_x;
         let viewport_y = self.canvas_viewport_y;
         let zoom = self.canvas_zoom;
-        let line_color = gpui::hsla(0.6, 0.6, 0.55, 1.0);
+        let line_color = gpui_kit::hsla(0.6, 0.6, 0.55, 1.0);
 
         let mut canvas_div = div()
             .relative()
@@ -2486,7 +2489,7 @@ impl FakeDataGenerator {
             .border_1()
             .border_color(cx.theme().border)
             .overflow_hidden()
-            .bg(gpui::white())
+            .bg(gpui_kit::white())
             .on_mouse_down(
                 MouseButton::Left,
                 cx.listener(|this, event, window, cx| {
@@ -2511,7 +2514,7 @@ impl FakeDataGenerator {
             canvas(
                 move |_, _, _| {},
                 move |bounds: Bounds<Pixels>, _, window: &mut Window, _| {
-                    window.paint_quad(fill(bounds, gpui::white()));
+                    window.paint_quad(fill(bounds, gpui_kit::white()));
                     // 点阵网格（缩放适配）
                     let step = 20.0_f32 * zoom;
                     if step > 2.0 {
@@ -2662,7 +2665,7 @@ impl FakeDataGenerator {
                     .top(px(col_screen_y))
                     .w(px(COLUMN_NODE_WIDTH * self.canvas_zoom))
                     .h(px(FIELD_NODE_HEIGHT * self.canvas_zoom))
-                    .bg(gpui::white())
+                    .bg(gpui_kit::white())
                     .border_1()
                     .border_color(cx.theme().border)
                     .px_2()
@@ -2689,7 +2692,7 @@ impl FakeDataGenerator {
                     .top(px(gen_screen_y))
                     .w(px(GENERATOR_NODE_WIDTH * self.canvas_zoom))
                     .h(px(FIELD_NODE_HEIGHT * self.canvas_zoom))
-                    .bg(gpui::hsla(0.58, 0.15, 0.95, 1.0))
+                    .bg(gpui_kit::hsla(0.58, 0.15, 0.95, 1.0))
                     .border_1()
                     .border_color(cx.theme().border)
                     .px_2()
@@ -3568,9 +3571,9 @@ struct GeneratorSelectItem {
     value: String,
 }
 
-impl gpui_component::select::SelectItem for GeneratorSelectItem {
+impl gpui_kit::component::select::SelectItem for GeneratorSelectItem {
     type Value = String;
-    fn title(&self) -> gpui::SharedString {
+    fn title(&self) -> gpui_kit::SharedString {
         self.label.clone().into()
     }
     fn value(&self) -> &Self::Value {
