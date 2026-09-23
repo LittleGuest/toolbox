@@ -35,6 +35,7 @@ import {
   PageNumber,
   ListNumbered,
   DocumentPdf,
+  CurrencyYen,
 } from "@vicons/carbon";
 import { Binary, File, Hash, Markdown } from "@vicons/tabler";
 import { TransformFilled } from "@vicons/material";
@@ -102,6 +103,11 @@ export const menus = [
         label: "Cron 表达式",
         key: "/transform/cron",
         icon: renderMenuIcon(Time),
+      },
+      {
+        label: "人民币大小写",
+        key: "/transform/rmbcase",
+        icon: renderMenuIcon(CurrencyYen),
       },
     ],
   },

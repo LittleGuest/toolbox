@@ -43,6 +43,10 @@ const routes = [
     path: "/transform/cron",
     component: () => import("@/views/transform/Cron.vue"),
   },
+  {
+    path: "/transform/rmbcase",
+    component: () => import("@/views/transform/RmbCase.vue"),
+  },
 
   {
     path: "/encodedecode/base",

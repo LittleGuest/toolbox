@@ -66,6 +66,8 @@ pub fn run() {
             base::cffc,
             base::timestamp,
             base::number_base,
+            base::rmb_to_upper,
+            base::rmb_to_amount,
             base::qrcode,
             base::check_ip,
             base::charset_encode,

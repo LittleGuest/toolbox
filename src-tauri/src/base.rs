@@ -128,6 +128,33 @@ pub fn qrcode(input: Option<String>) -> Result<String> {
     base::qrcode(input).map_err(|e| e.to_string())
 }
 
+// ---------- 新增：人民币大小写转换 ----------
+
+#[tauri::command]
+pub fn rmb_to_upper(
+    input: Option<&str>,
+    yuan: Option<&str>,
+    zheng: Option<&str>,
+    jiao_zheng: bool,
+) -> Result<String> {
+    let Some(data) = input else {
+        return Err("input empty".to_string());
+    };
+    base::rmb_to_upper(data, yuan, zheng, jiao_zheng).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn rmb_to_amount(
+    input: Option<&str>,
+    yuan: Option<&str>,
+    zheng: Option<&str>,
+) -> Result<base::RmbParseResult> {
+    let Some(data) = input else {
+        return Err("input empty".to_string());
+    };
+    base::rmb_to_amount(data, yuan, zheng).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub fn check_ip(t: &str, ip: Option<String>) -> Result<bool> {
     base::check_ip(t, ip).map_err(|e| e.to_string())

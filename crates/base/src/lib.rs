@@ -24,12 +24,14 @@ mod ip;
 mod jwt;
 mod pdf;
 mod qrcode;
+mod rmb;
 mod string;
 mod url;
 mod url_params;
 pub mod uuid;
 
 pub use cron::CronParseResult;
+pub use rmb::RmbParseResult;
 
 pub async fn hash(
     uppercase: bool,
@@ -175,6 +177,21 @@ pub fn decode_url(data: &str) -> Result<String> {
 
 pub fn decode_jwt(data: &str) -> Result<String> {
     jwt::decode(data)
+}
+
+/// 金额数字 → 中文大写金额
+pub fn rmb_to_upper(
+    input: &str,
+    yuan: Option<&str>,
+    zheng: Option<&str>,
+    jiao_zheng: bool,
+) -> Result<String> {
+    rmb::amount_to_upper(input, yuan, zheng, jiao_zheng)
+}
+
+/// 中文大写金额 → 金额数字
+pub fn rmb_to_amount(input: &str, yuan: Option<&str>, zheng: Option<&str>) -> Result<RmbParseResult> {
+    rmb::upper_to_amount(input, yuan, zheng)
 }
 
 pub fn cffc(indent: u8, ft: &str, tt: &str, input: &str) -> Result<String> {
