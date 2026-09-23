@@ -15,7 +15,6 @@ const loading = ref(false);
 
 const shortName = (p: string) => p.split(/[\\/]/).pop() || p;
 
-// 解析页码范围：支持 "3" / "1-5" / "1,3-4"，返回错误信息或成功段列表
 const rangeError = computed(() => {
   if (!ranges.value.trim()) return "请填写页码范围";
   const tokens = ranges.value.split(",").map((t) => t.trim()).filter(Boolean);

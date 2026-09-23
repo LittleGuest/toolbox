@@ -91,7 +91,6 @@ impl RandomStringGenerator {
         if self.exclude_similar {
             s = s.chars().filter(|c| !SIMILAR_CHARS.contains(c)).collect();
         }
-        // 去重并保持顺序
         let mut seen = std::collections::HashSet::new();
         s.chars().filter(|c| seen.insert(*c)).collect()
     }
@@ -110,7 +109,6 @@ impl RandomStringGenerator {
 
         for _ in 0..count {
             if self.password_mode && self.custom_charset_state.read(cx).value().trim().is_empty() {
-                // 密码模式：每种已选字符集至少取一个字符，其余随机补齐后打乱
                 let mut parts: Vec<char> = Vec::new();
                 if self.use_lower {
                     parts.push(CHARSET_LOWER.as_bytes()[rng.random_range(0..CHARSET_LOWER.len())] as char);
@@ -170,9 +168,7 @@ impl Render for RandomStringGenerator {
         design::page()
             .child(design::page_header("随机字符串", "生成随机字符串", cx))
             .child(
-                // 配置卡片
                 design::card(cx)
-                    // 长度
                     .child(
                         div()
                             .flex()
@@ -181,7 +177,6 @@ impl Render for RandomStringGenerator {
                             .child(div().w(label_w).child(design::caption("长度", cx)))
                             .child(div().w(px(160.0)).child(Input::new(&self.length_state))),
                     )
-                    // 数量
                     .child(
                         div()
                             .flex()
@@ -190,7 +185,6 @@ impl Render for RandomStringGenerator {
                             .child(div().w(label_w).child(design::caption("数量", cx)))
                             .child(div().w(px(160.0)).child(Input::new(&self.count_state))),
                     )
-                    // 字符集
                     .child(
                         div()
                             .flex()
@@ -240,7 +234,6 @@ impl Render for RandomStringGenerator {
                                     ),
                             ),
                     )
-                    // 自定义字符集
                     .child(
                         div()
                             .flex()
@@ -249,7 +242,6 @@ impl Render for RandomStringGenerator {
                             .child(div().w(label_w).child(design::caption("自定义字符集", cx)))
                             .child(div().flex_1().child(Input::new(&self.custom_charset_state))),
                     )
-                    // 选项
                     .child(
                         div()
                             .flex()
@@ -282,7 +274,6 @@ impl Render for RandomStringGenerator {
                             ),
                     ),
             )
-            // 生成操作行
             .child(
                 design::action_row()
                     .child(
@@ -302,7 +293,6 @@ impl Render for RandomStringGenerator {
                         )
                     }),
             )
-            // 输出卡片
             .child(
                 design::card(cx)
                     .child(

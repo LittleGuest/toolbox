@@ -9,6 +9,7 @@ const message = useMessage();
 
 const yuanUnit = ref<"元" | "圆">("元");
 const zhengUnit = ref<"整" | "正">("整");
+const zhengYuan = ref(true);
 const jiaoZheng = ref(false);
 
 interface RmbParseResult {
@@ -17,7 +18,6 @@ interface RmbParseResult {
   upper: string;
 }
 
-// ---------------- 数字 → 大写 ----------------
 const amountInput = ref("");
 const upperResult = ref("");
 const upperError = ref("");
@@ -37,6 +37,7 @@ const convertToUpper = async () => {
       input: value,
       yuan: yuanUnit.value,
       zheng: zhengUnit.value,
+      zhengYuan: zhengYuan.value,
       jiaoZheng: jiaoZheng.value,
     });
     upperError.value = "";
@@ -45,9 +46,6 @@ const convertToUpper = async () => {
     upperError.value = String(error);
   }
 };
-
-// 元位 / 结尾 / 角后加整变化后，已输入的金额需要重新换算
-watch([yuanUnit, zhengUnit, jiaoZheng], convertToUpper);
 
 const fillAmount = () => {
   amountInput.value = amountExamples[amountIndex % amountExamples.length];
@@ -70,7 +68,6 @@ const clearAmount = () => {
   upperError.value = "";
 };
 
-// ---------------- 大写 → 数字 ----------------
 const upperInput = ref("");
 const parseError = ref("");
 const parsed = ref<RmbParseResult | null>(null);
@@ -95,6 +92,7 @@ const parseUpper = async () => {
       input: value,
       yuan: yuanUnit.value,
       zheng: zhengUnit.value,
+      zhengYuan: zhengYuan.value,
     });
     parseError.value = "";
   } catch (error) {
@@ -102,6 +100,11 @@ const parseUpper = async () => {
     parseError.value = String(error);
   }
 };
+
+watch([yuanUnit, zhengUnit, zhengYuan, jiaoZheng], () => {
+  convertToUpper();
+  parseUpper();
+});
 
 const fillUpper = () => {
   upperInput.value = upperExamples[upperIndex % upperExamples.length];
@@ -124,7 +127,6 @@ const clearUpper = () => {
   parseError.value = "";
 };
 
-// ---------------- 通用操作 ----------------
 const copyText = (value?: string | null) => {
   if (!value) {
     message.warning("内容为空");
@@ -147,21 +149,35 @@ const copyText = (value?: string | null) => {
           </n-radio-group>
         </div>
         <div class="tb-config-item">
-          <span class="tb-config-label">结尾</span>
+          <span class="tb-config-label">结尾字</span>
           <n-radio-group v-model:value="zhengUnit" size="small">
             <n-radio-button value="整">整</n-radio-button>
             <n-radio-button value="正">正</n-radio-button>
           </n-radio-group>
         </div>
         <div class="tb-config-item">
-          <n-checkbox size="small" v-model:checked="jiaoZheng">
-            角位金额后加「{{ zhengUnit }}」
-          </n-checkbox>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-checkbox size="small" v-model:checked="zhengYuan">
+                整数金额结尾加「{{ zhengUnit }}」
+              </n-checkbox>
+            </template>
+            仅当没有角、分时追加结尾字，如 100 → 壹佰元{{ zhengUnit }}；取消勾选则输出 壹佰元
+          </n-tooltip>
+        </div>
+        <div class="tb-config-item">
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-checkbox size="small" v-model:checked="jiaoZheng">
+                角位金额后加「{{ zhengUnit }}」
+              </n-checkbox>
+            </template>
+            仅当有角无分时追加结尾字，如 100.50 → 壹佰元伍角{{ zhengUnit }}
+          </n-tooltip>
         </div>
       </div>
 
       <n-tabs type="line" animated>
-        <!-- 数字 → 大写 -->
         <n-tab-pane name="toUpper" tab="数字 → 大写">
           <div class="tb-config-row">
             <div class="tb-config-item">
@@ -242,7 +258,6 @@ const copyText = (value?: string | null) => {
           <n-text v-if="upperError" type="error" class="rmb-error">{{ upperError }}</n-text>
         </n-tab-pane>
 
-        <!-- 大写 → 数字 -->
         <n-tab-pane name="toAmount" tab="大写 → 数字">
           <div class="tb-editor tb-mono">
             <span class="tb-editor-label">中文大写金额</span>

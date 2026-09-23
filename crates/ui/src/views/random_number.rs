@@ -276,7 +276,6 @@ impl RandomNumberGenerator {
                     .map(|_| if rng.random::<bool>() { '1' } else { '0' })
                     .collect();
                 if bits > 1 {
-                    // 首字符不能为 0
                     format!("1{}", &s[1..])
                 } else {
                     s
@@ -314,7 +313,6 @@ impl Render for RandomNumberGenerator {
 
         design::page()
             .child(design::page_header("随机数字", "生成随机数字", cx))
-            // 整数
             .child(
                 design::card(cx)
                     .child(design::caption("整数", cx))
@@ -380,7 +378,6 @@ impl Render for RandomNumberGenerator {
                         ),
                 )
             )
-            // 小数
             .child(
                 design::card(cx)
                     .child(design::caption("小数", cx))
@@ -448,7 +445,6 @@ impl Render for RandomNumberGenerator {
                         ),
                 )
             )
-            // 素数
             .child(
                 design::card(cx)
                     .child(design::caption("素数", cx))
@@ -511,7 +507,6 @@ impl Render for RandomNumberGenerator {
                         ),
                 )
             )
-            // 十六进制
             .child(
                 design::card(cx)
                     .child(design::caption("十六进制", cx))
@@ -566,7 +561,6 @@ impl Render for RandomNumberGenerator {
                         ),
                 )
             )
-            // 二进制
             .child(
                 design::card(cx)
                     .child(design::caption("二进制", cx))
@@ -621,7 +615,6 @@ impl Render for RandomNumberGenerator {
                         ),
                 )
             )
-            // 字节
             .child(
                 design::card(cx)
                     .child(design::caption("字节", cx))

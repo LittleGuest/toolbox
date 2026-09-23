@@ -149,15 +149,8 @@ impl SensorData {
 pub struct BatteryData {
     pub temperature: String,
     pub cycle_count: u32,
-    // 充电状态
     pub state: i32,
-    // 电量百分比
     pub percentage: f32,
-    // // 还需多久充满
-    // pub time_to_full: u32,
-    // // 电池剩余使用时间
-    // pub time_to_empty: u32,
-    // 电池健康
     pub state_of_health: String,
 }
 

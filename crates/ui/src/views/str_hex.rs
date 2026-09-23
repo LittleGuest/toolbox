@@ -243,7 +243,6 @@ impl Render for StrHexConverter {
         design::page()
             .child(design::page_header("字符串进制转换", "字符串与十六进制互转", cx))
             .child(
-                // 输入配置卡片
                 design::card(cx)
                     .child(
                         div()
@@ -306,7 +305,6 @@ impl Render for StrHexConverter {
                     ),
             )
             .child(
-                // 编码/解码操作行
                 design::action_row()
                     .child(
                         Button::new("encode")
@@ -335,7 +333,6 @@ impl Render for StrHexConverter {
                     }),
             )
             .child(
-                // 输出卡片
                 design::card(cx)
                     .child(
                         Textarea::new(&self.output_state)

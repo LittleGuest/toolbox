@@ -182,7 +182,6 @@ impl Render for BaseEncodingConverter {
         design::page()
             .child(design::page_header("Base32 / Base58", "Base32 与 Base58 编码", cx))
             .child(
-                // 输入卡片（含算法配置）
                 design::card(cx)
                     .child(
                         div()
@@ -199,7 +198,6 @@ impl Render for BaseEncodingConverter {
                     ),
             )
             .child(
-                // 编码/解码操作行
                 design::action_row()
                     .child(
                         Button::new("encode")
@@ -220,7 +218,6 @@ impl Render for BaseEncodingConverter {
                     ),
             )
             .child(
-                // 输出卡片
                 design::card(cx)
                     .child(
                         Textarea::new(&self.output_state)

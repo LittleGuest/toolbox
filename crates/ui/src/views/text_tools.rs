@@ -28,9 +28,6 @@ pub struct TextTools {
     _subscriptions: Vec<Subscription>,
 }
 
-// ---------------- 手写纯函数 ----------------
-
-/// 按行拆分，兼容 \r\n、\r、\n（与 Vue split(/\r\n|\r|\n/) 一致，保留尾部空行）
 fn split_lines(s: &str) -> Vec<String> {
     let mut lines = Vec::new();
     let mut cur = String::new();
@@ -96,7 +93,6 @@ fn collapse_whitespace(s: &str) -> String {
     out
 }
 
-/// 删除重音符号：NFD 归一化后移除组合变音符 U+0300–U+036F（对齐 Vue removeDiacritics）
 fn remove_diacritics(s: &str) -> String {
     use unicode_normalization::UnicodeNormalization;
     s.nfd()
@@ -338,8 +334,6 @@ impl TextTools {
         self.apply_str(|s| f(split_lines(s)).join("\n"), window, cx);
     }
 
-    // ---------------- 清理操作 ----------------
-
     fn op_dedupe(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.apply_lines(
             |lines| {
@@ -410,8 +404,6 @@ impl TextTools {
         self.apply_str(remove_diacritics, window, cx);
     }
 
-    // ---------------- 行操作 ----------------
-
     fn op_sort_asc(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.apply_lines(|mut lines| {
             lines.sort();
@@ -468,8 +460,6 @@ impl TextTools {
         self.set_output(matches.join("\n"), window, cx);
     }
 
-    // ---------------- 查找替换与重复 ----------------
-
     fn op_replace(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.find.is_empty() {
             self.warn("请输入查找内容", cx);
@@ -512,8 +502,6 @@ impl TextTools {
         self.set_output(out, window, cx);
     }
 
-    // ---------------- 斜线与翻转 ----------------
-
     fn op_add_slashes(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.apply_str(add_slashes, window, cx);
     }
@@ -541,8 +529,6 @@ impl TextTools {
             cx,
         );
     }
-
-    // ---------------- 通用操作 ----------------
 
     fn copy_input(&mut self, cx: &mut Context<Self>) {
         if !self.input.is_empty() {
@@ -615,7 +601,6 @@ impl Render for TextTools {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         design::page()
             .child(design::page_header("文本工具", "常用文本处理工具", cx))
-            // 统计
             .child(
                 design::card(cx)
                     .child(Textarea::new(&self.stat_state).h(px(100.0)).flex_1())
@@ -673,7 +658,6 @@ impl Render for TextTools {
                             ),
                     ),
             )
-            // 输入
             .child(
                 design::card(cx)
                     .child(Textarea::new(&self.input_state).h(px(150.0)).flex_1())
@@ -711,7 +695,6 @@ impl Render for TextTools {
                             ),
                     ),
             )
-            // 清理操作
             .child(
                 design::card(cx)
                     .child(design::caption("清理", cx))
@@ -773,7 +756,6 @@ impl Render for TextTools {
                         ),
                     ),
             )
-            // 行操作
             .child(
                 design::card(cx)
                     .child(design::caption("行操作", cx))
@@ -803,7 +785,6 @@ impl Render for TextTools {
                         ),
                     ),
             )
-            // 提取
             .child(
                 design::card(cx)
                     .child(design::caption("提取", cx))
@@ -823,7 +804,6 @@ impl Render for TextTools {
                             ),
                     ),
             )
-            // 查找替换
             .child(
                 design::card(cx)
                     .child(design::caption("查找替换", cx))
@@ -853,7 +833,6 @@ impl Render for TextTools {
                             ),
                     ),
             )
-            // 重复
             .child(
                 design::card(cx)
                     .child(design::caption("重复", cx))
@@ -878,7 +857,6 @@ impl Render for TextTools {
                             ),
                     ),
             )
-            // 翻转
             .child(
                 design::card(cx)
                     .child(design::caption("翻转", cx))
@@ -913,12 +891,10 @@ impl Render for TextTools {
                         ),
                     ),
             )
-            // 输出
             .child(
                 design::card(cx)
                     .child(Textarea::new(&self.output_state).h(px(150.0)).flex_1()),
             )
-            // 输出操作
             .child(
                 design::card(cx)
                     .child(
@@ -935,7 +911,6 @@ impl Render for TextTools {
                                     })),
                             ),
                     )
-                    // 提示
                     .when(!self.message.is_empty(), |this| {
                         this.child(
                             div()

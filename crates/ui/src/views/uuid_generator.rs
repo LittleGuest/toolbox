@@ -196,7 +196,6 @@ impl Render for UuidGenerator {
         design::page()
             .child(design::page_header("UUID 生成", "生成多种 UUID", cx))
             .child(
-                // 配置卡片
                 design::card(cx)
                     .child(
                         div()
@@ -264,7 +263,6 @@ impl Render for UuidGenerator {
                     ),
             )
             .child(
-                // 生成操作行
                 design::action_row()
                     .child(
                         Button::new("generate")
@@ -277,7 +275,6 @@ impl Render for UuidGenerator {
                     ),
             )
             .child(
-                // 输出卡片
                 design::card(cx)
                     .child(
                         div()

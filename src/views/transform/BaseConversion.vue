@@ -65,7 +65,6 @@ const clear = () => {
   hex.value = "";
 };
 
-// ---------------- 任意进制转换 (2~36) ----------------
 const convInput = ref("");
 const convOutput = ref("");
 const fromBase = ref(10);
@@ -77,7 +76,6 @@ const baseOptions = Array.from({ length: 35 }, (_, i) => ({
   value: i + 2,
 }));
 
-// 校验输入在来源进制下合法
 const isValidInBase = (s: string, base: number) => {
   const charset = DIGITS.slice(0, base);
   return new RegExp(`^[${charset}]+$`, "i").test(s);
@@ -95,7 +93,6 @@ const convertBase = () => {
     message.error(`"${s}" 不是合法的 ${from} 进制数`);
     return;
   }
-  // 手写按位累加解析为 BigInt，再转目标进制
   let big = 0n;
   for (const ch of s.toLowerCase()) {
     big = big * BigInt(from) + BigInt(DIGITS.indexOf(ch));
@@ -107,7 +104,6 @@ const pasteConvInput = async () => {
   try {
     convInput.value = await readText();
   } catch {
-    /* 忽略剪贴板读取失败 */
   }
 };
 
@@ -116,7 +112,6 @@ const clearConv = () => {
   convOutput.value = "";
 };
 
-// ---------------- 字符串 ↔ 十六进制 ----------------
 const hexInput = ref("");
 const hexOutput = ref("");
 const hexNoSpace = ref(false);
@@ -144,7 +139,6 @@ const decodeHex = () => {
   }
 };
 
-// ---------------- 字符串 ↔ 二进制 ----------------
 const binInput = ref("");
 const binOutput = ref("");
 
@@ -170,7 +164,6 @@ const decodeBin = () => {
   }
 };
 
-// ---------------- 文本 ↔ ASCII 码 ----------------
 const asciiInput = ref("");
 const asciiOutput = ref("");
 const asciiMode = ref<"text" | "code">("text");
@@ -185,7 +178,6 @@ const convertAscii = () => {
       .join("\n");
     return;
   }
-  // 码 → 文本：十进制或十六进制（支持 0x 前缀），逗号/空格分隔
   const parts = asciiInput.value.split(/[\s,，]+/).filter(Boolean);
   if (parts.length === 0) {
     message.warning("请输入要转换的编码");
@@ -216,26 +208,22 @@ const convertAscii = () => {
   asciiOutput.value = result;
 };
 
-// ---------------- 通用操作 ----------------
 const pasteHexInput = async () => {
   try {
     hexInput.value = await readText();
   } catch {
-    /* 忽略剪贴板读取失败 */
   }
 };
 const pasteBinInput = async () => {
   try {
     binInput.value = await readText();
   } catch {
-    /* 忽略剪贴板读取失败 */
   }
 };
 const pasteAsciiInput = async () => {
   try {
     asciiInput.value = await readText();
   } catch {
-    /* 忽略剪贴板读取失败 */
   }
 };
 
@@ -266,7 +254,6 @@ const clearAscii = () => {
   <div class="tb-page">
     <section class="tb-card">
       <n-tabs type="line" animated>
-        <!-- 常见进制 -->
         <n-tab-pane name="common" tab="常见进制">
           <div class="tb-config-row">
             <div class="tb-config-item">
@@ -331,7 +318,6 @@ const clearAscii = () => {
           </div>
         </n-tab-pane>
 
-        <!-- 任意进制 -->
         <n-tab-pane name="arbitrary" tab="任意进制">
           <div class="tb-config-row">
             <div class="tb-config-item">
@@ -400,7 +386,6 @@ const clearAscii = () => {
           </div>
         </n-tab-pane>
 
-        <!-- 字符串 ↔ 十六进制 -->
         <n-tab-pane name="hex" tab="字符串 ↔ 十六进制">
           <div class="tb-editor tb-mono">
             <span class="tb-editor-label">输入</span>
@@ -467,7 +452,6 @@ const clearAscii = () => {
           </div>
         </n-tab-pane>
 
-        <!-- 字符串 ↔ 二进制 -->
         <n-tab-pane name="bin" tab="字符串 ↔ 二进制">
           <div class="tb-editor tb-mono">
             <span class="tb-editor-label">输入</span>
@@ -533,7 +517,6 @@ const clearAscii = () => {
           </div>
         </n-tab-pane>
 
-        <!-- 文本 ↔ ASCII 码 -->
         <n-tab-pane name="ascii" tab="文本 ↔ ASCII 码">
           <div class="tb-editor tb-mono">
             <span class="tb-editor-label">输入</span>

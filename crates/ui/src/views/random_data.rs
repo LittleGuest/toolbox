@@ -129,7 +129,6 @@ impl RandomDataGenerator {
                     "address" => (faker.address().full_address(), false),
                     "uuid" => (faker.uuid().uuid_v4(), false),
                     "age" => (rng.random_range(18..=80i64).to_string(), true),
-                    // 1970-01-01 ~ 2030-12-31 之间的随机日期
                     "date" => {
                         let lo = Date::from_calendar_date(1970, Month::January, 1)
                             .unwrap()
@@ -248,7 +247,6 @@ impl Render for RandomDataGenerator {
         design::page()
             .child(design::page_header("随机数据", "生成随机数据记录", cx))
             .child(
-                // 字段与格式配置卡片
                 design::card(cx)
                     .child(design::caption("字段", cx))
                     .child(
@@ -320,7 +318,6 @@ impl Render for RandomDataGenerator {
                                     })),
                             ),
                     )
-                    // 数量
                     .child(
                         div()
                             .flex()
@@ -329,7 +326,6 @@ impl Render for RandomDataGenerator {
                             .child(div().w(label_w).child(design::caption("数量", cx)))
                             .child(div().w(px(160.0)).child(Input::new(&self.count_state))),
                     )
-                    // 输出格式
                     .child(
                         div()
                             .flex()
@@ -339,7 +335,6 @@ impl Render for RandomDataGenerator {
                             .child(Select::new(&self.format_state)),
                     ),
             )
-            // 生成操作行
             .child(
                 design::action_row()
                     .child(
@@ -357,7 +352,6 @@ impl Render for RandomDataGenerator {
                             .child(self.status.clone()),
                     ),
             )
-            // 输出卡片
             .child(
                 design::card(cx)
                     .child(

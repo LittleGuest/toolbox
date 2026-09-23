@@ -15,7 +15,6 @@ import {
 interface Props {
   files: string[];
   title: string;
-  /** 支持的扩展名清单（不含点），用于拖拽过滤与选择器 */
   extensions: string[];
   emptyHint: string;
   isImage?: boolean;
@@ -36,7 +35,6 @@ const filters = computed(() => [
   { name: "所有文件", extensions: ["*"] },
 ]);
 
-// 文件同名去重 + 过滤扩展名（拖拽进来的才需要过滤，选择器已过滤）
 const accept = (p: string) => {
   const ext = p.split(".").pop()?.toLowerCase() || "";
   return props.extensions.includes(ext);
@@ -46,7 +44,6 @@ const fileNames = computed(() =>
   props.files.map((f) => f.split(/[\\/]/).pop() || f)
 );
 
-// 通过系统对话框追加
 const pick = async () => {
   const selected = await open({ multiple: true, filters: filters.value });
   if (!selected) return;
@@ -78,7 +75,6 @@ const move = (i: number, dir: number) => {
 
 const clear = () => emit("update", []);
 
-// 真实拖拽（Tauri webview 返回本地路径）
 let unlisten: (() => void) | null = null;
 onMounted(async () => {
   try {
@@ -92,7 +88,6 @@ onMounted(async () => {
       } else dragging.value = false;
     });
   } catch {
-    /* 非 Tauri 环境忽略 */
   }
 });
 onBeforeUnmount(() => {
@@ -102,7 +97,6 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="pfp">
-    <!-- 标题 + 数量 + 清空 -->
     <div class="pfp-head">
       <span class="tb-editor-label">{{ title }}</span>
       <div class="pfp-head-right">
@@ -114,7 +108,6 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <!-- 拖拽区 -->
     <div
       class="pfp-drop"
       :class="{ 'pfp-drop--over': dragging }"
@@ -130,7 +123,6 @@ onBeforeUnmount(() => {
       <div class="pfp-drop-ext">.{{ extensions.slice(0, 4).join(" / .") }}</div>
     </div>
 
-    <!-- 文件列表 -->
     <div v-if="files.length" class="pfp-list">
       <div v-for="(name, i) in fileNames" :key="i" class="pfp-item">
         <span class="pfp-item-index">
@@ -168,7 +160,6 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <!-- 追加按钮 -->
     <n-button v-if="files.length" dashed class="pfp-add" @click="pick">
       <template #icon><n-icon><Add /></n-icon></template>
       继续添加

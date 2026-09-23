@@ -54,32 +54,24 @@ pub struct FakerData;
 
 #[derive(Default, Clone, Copy, Deserialize)]
 pub enum Locale {
-    /// 英文
     #[default]
     #[serde(rename = "en_us")]
     EnUs,
-    /// 简体中文
     #[serde(rename = "zh_cn")]
     ZhCn,
-    /// 繁体中文
     #[serde(rename = "zh_traditional", alias = "zh_tw")]
     ZhTw,
-    /// 中文拼音
     #[serde(rename = "zh_pinyin")]
     ZhPinyin,
 }
 
-/// 数据提供者
 pub trait Provider {
     fn name(&self) -> String;
 }
 
-/// 假数据生成器
 pub struct Faker {
-    /// 随机数生成器
     rng: ThreadRng,
     pub locale: Locale,
-    // providers: HashMap<String, Box<dyn Provider>>,
     providers: HashMap<String, String>,
 }
 
@@ -180,14 +172,6 @@ impl Faker {
         }
     }
 
-    // pub fn register(&mut self, key: String, value: Box<dyn Provider>) {
-    //     self.providers.insert(key, value);
-    // }
-
-    // pub fn providers(&self) -> Vec<String> {
-    //     self.providers.keys().cloned().collect::<Vec<_>>()
-    // }
-
     pub fn education(&self) -> Education {
         Education::new_with_locale(self.locale)
     }
@@ -233,12 +217,9 @@ impl Faker {
     }
 }
 
-/// 默认值组件
 #[derive(Debug, Clone)]
 pub struct DefaultComponent {
-    /// 默认值
     pub default: String,
-    /// 默认值出现百分比
     pub percent: f64,
 }
 
@@ -247,7 +228,6 @@ impl DefaultComponent {
         Self { default, percent }
     }
 
-    /// 检查默认值组件参数  
     pub fn check(&self, len: Option<usize>) -> Result<()> {
         if self.percent - 100.0 > 0.0 {
             return Err(Error::PercentNotGreaterThan100);
@@ -261,10 +241,8 @@ impl DefaultComponent {
     }
 }
 
-/// NULL值组件
 #[derive(Debug, Clone)]
 pub struct NullComponent {
-    /// NULL值出现百分比
     pub percent: f64,
 }
 
@@ -273,7 +251,6 @@ impl NullComponent {
         Self { percent }
     }
 
-    /// 检查NULL值组件参数
     pub fn check(&self) -> Result<()> {
         if self.percent - 100.0 > 0.0 {
             return Err(Error::PercentNotGreaterThan100);
@@ -282,10 +259,8 @@ impl NullComponent {
     }
 }
 
-/// 唯一值组件
 #[derive(Debug, Clone)]
 pub struct UniqueComponent {
-    /// 已经生成的唯一值
     pub value: HashSet<String>,
 }
 
@@ -297,19 +272,14 @@ impl UniqueComponent {
     }
 }
 
-/// 获取数据提供者列表
-// #[tauri::command]
 pub async fn datafaker_providers() -> Result<HashMap<String, String>> {
     Ok(Faker::new().providers)
 }
 
-/// 根据表字段名或字段类型匹配一个合适的生成器，优先适配字段名
-// #[tauri::command]
 pub async fn datafaker_adapter(
     field_name: Option<String>,
     field_type: Option<String>,
 ) -> Result<String> {
-    // 根据字段名称匹配合适的生成器
     if let Some(field_name) = field_name {
         let name = field_name.to_lowercase();
         let normalized = name.replace(['-', ' '], "_");
@@ -621,7 +591,6 @@ pub async fn datafaker_adapter(
         }
     }
 
-    // 根据字段类型匹配生成器
     if let Some(field_type) = field_type {
         match field_type.to_lowercase().as_str() {
             "tinyint" | "int" | "smallint" | "integer" | "bigint" | "mediumint" | "numeric"
@@ -644,22 +613,16 @@ pub async fn datafaker_adapter(
             _ => {}
         }
     }
-    // 默认正则表达式生成器
     Ok("regex".into())
 }
 
-/// 表字段
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Column {
-    /// 字段名
     pub name: String,
-    /// 字段类型
     pub column_type: String,
 }
 
-/// 根据表字段名或字段类型匹配一个合适的生成器，优先适配字段名
-// #[tauri::command]
 pub async fn datafaker_adapter_columns(columns: Vec<Column>) -> Result<IndexMap<String, String>> {
     let mut res = IndexMap::new();
     for column in columns {
@@ -670,8 +633,6 @@ pub async fn datafaker_adapter_columns(columns: Vec<Column>) -> Result<IndexMap<
     Ok(res)
 }
 
-/// 预览正则表达式数据
-// #[tauri::command]
 pub async fn preview_regex(pattern: String) -> Result<String> {
     let generator = RegexGenerator::new(pattern, None, None, None, false)?;
     generator.preview()

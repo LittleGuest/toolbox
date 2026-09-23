@@ -19,8 +19,6 @@ const indentOptions = [
     value: 4,
   }
 ];
-// bigquery,db2,db2i,hive,mariadb,mysql,n1ql,plsql,postgresql,redshift,singlestoredb,
-// snowflake,spark,sql,sqlite,tidb,transactsql,trino,tsql
 const dialectOptions = [
   {
     label: 'MySQl',

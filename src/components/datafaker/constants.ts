@@ -1,4 +1,3 @@
-// 扩展类型和数据
 export const fileExtensionTypeData = [
   {
     label: "图片",

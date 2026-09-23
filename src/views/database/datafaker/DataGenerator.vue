@@ -36,16 +36,13 @@ import {
   saveDatafakerConfigApi,
 } from "@/store/datafakerConfig";
 
-// 定义属性
 const props = defineProps({
   datasourceId: {
     type: Number,
   },
 });
 
-// 数据源详情
 const datasourceInfo = ref({});
-// 数据源表
 const allDatasourceTables = ref([]);
 const datasourceTables = ref([]);
 const rowCount = ref(10);
@@ -97,7 +94,6 @@ const sameTableNode = (node, tableData) => {
   return data.schema === tableData.schema && data.tableName === tableData.tableName;
 };
 
-// 数据库表API
 const databaseTableTreeApi = async (info) => {
   return await invoke("database_table_tree", { datasourceInfo: info })
     .then((res) => {
@@ -120,28 +116,19 @@ const filterDatasourceTables = (keyword: string) => {
   });
 };
 
-// 搜索表
 const searchTable = ref("");
-// 监听搜索表
 watch(searchTable, async (val) => {
   filterDatasourceTables(val);
 });
 
-// 节点
 const nodes = ref([]);
-// 边
 const edges = ref([]);
-// 拖拽节点类型
 const draggedType = ref(null);
-// 拖拽是否进行中
 const isDragging = ref(false);
-// 拖拽是否结束
 const isDragOver = ref(false);
 
-// 拖拽事件
 const onDragStart = (event, type, data) => {
   if (event.dataTransfer) {
-    // 传递数据
     event.dataTransfer.setData(
       "application/vueflow",
       JSON.stringify({
@@ -156,7 +143,6 @@ const onDragStart = (event, type, data) => {
   document.addEventListener("drop", onDragEnd);
 };
 
-// 拖拽到画布上事件
 const onDragOver = (event) => {
   event.preventDefault();
   if (draggedType.value) {
@@ -167,12 +153,10 @@ const onDragOver = (event) => {
   }
 };
 
-// 拖拽到画布外面的事件
 function onDragLeave() {
   isDragOver.value = false;
 }
 
-// 拖拽结束事件
 function onDragEnd() {
   isDragging.value = false;
   isDragOver.value = false;
@@ -180,14 +164,12 @@ function onDragEnd() {
   document.removeEventListener("drop", onDragEnd);
 }
 
-// 拖拽放下事件
 const onDrop = async (event) => {
   event.preventDefault();
 
   let data = event.dataTransfer.getData("application/vueflow");
   data = JSON.parse(data);
 
-  // 将屏幕坐标转换为画布坐标
   const position = screenToFlowCoordinate({
     x: event.clientX,
     y: event.clientY,
@@ -228,15 +210,10 @@ const onDrop = async (event) => {
   onDragEnd();
 };
 
-// 自动生成生成器节点
-// 为每个字段匹配一个合适的生成器
-// data：字段信息
-// pNode：表节点
 const adapterGenerator = async (data, pNode) => {
   if (!data.children) {
     return;
   }
-  // 字段的生成器
   const columnDatafaker = await adapterColumnsApi(
     data.children.map((item) => {
       return {
@@ -245,7 +222,6 @@ const adapterGenerator = async (data, pNode) => {
       };
     })
   );
-  // 自动生成生成器节点（为每个字段匹配一个合适的生成器）
   const generatorNodes = Object.entries(columnDatafaker).map(
     ([key, value], index) => {
       const columnData = data.children.find((item) => item.name === key);
@@ -270,10 +246,8 @@ const adapterGenerator = async (data, pNode) => {
       };
     }
   );
-  // 添加生成器节点到画布
   addNodes(generatorNodes);
 
-  // 自动创建连线
   const edges = generatorNodes.map((item) => {
     const field = data.children.find(
       (child) => child.name === item.data.columnName
@@ -291,9 +265,7 @@ const adapterGenerator = async (data, pNode) => {
   refreshReferenceOptions();
 };
 
-// 打开生成器弹窗
 const showDatafakerDialog = ref(false);
-// 生成器弹窗数据
 const datafakerData = ref();
 const referenceOptions = ref([]);
 const refreshReferenceOptions = () => {
@@ -311,7 +283,6 @@ const refreshReferenceOptions = () => {
       };
     });
 };
-// 节点双击事件处理
 onNodeDoubleClick((event) => {
   const node = event.node;
   const data = node.data;
@@ -361,12 +332,8 @@ onNodeDragStop(({ node }) => {
   draggingTablePositions.delete(node.id);
 });
 
-// onConnect(addEdges);
-
-// 生成器列表
 const datafakersObj = ref();
 
-// 生成器列表
 const datafakersApi = async () => {
   return await invoke("datafaker_providers")
     .then((res) => {
@@ -376,7 +343,6 @@ const datafakersApi = async () => {
       message.error(err);
     });
 };
-// 生成器列表
 const adapterColumnsApi = async (columns) => {
   return await invoke("datafaker_adapter_columns", { columns })
     .then((res) => {
@@ -552,18 +518,14 @@ const runConfig = async () => {
   }
 };
 
-// 初始化
 const init = async () => {
-  // 数据源详情
   const detail = await datasourceDetailApi(props.datasourceId);
   datasourceInfo.value = detail[0];
   if (datasourceInfo.value) {
-    // 数据表
     allDatasourceTables.value = await databaseTableTreeApi(datasourceInfo.value);
     datasourceTables.value = allDatasourceTables.value;
   }
 
-  // 生成器列表
   datafakersObj.value = await datafakersApi();
   await loadConfig();
 };
@@ -580,7 +542,6 @@ onUnmounted(() => {
 
 <template>
   <div class="flow-content">
-    <!-- 左侧列表 -->
     <n-list class="sidebar" hoverable clickable :show-divider="false">
       <template #header>
         <div class="sidebar-header">
@@ -615,7 +576,6 @@ onUnmounted(() => {
     </n-list>
 
     <div class="flow-main">
-      <!-- 右侧画布 -->
       <VueFlow
         :nodes="nodes"
         :edges="edges"

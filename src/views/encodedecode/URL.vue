@@ -56,7 +56,6 @@ const clear = () => {
 <template>
   <div class="tb-page">
     <section class="tb-card">
-      <!-- 输入区 -->
       <div class="tb-editor tb-mono">
         <span class="tb-editor-label">输入</span>
         <n-input v-model:value="input" :rows="10" type="textarea" />
@@ -88,7 +87,6 @@ const clear = () => {
         </div>
       </div>
 
-      <!-- 主操作行 -->
       <div class="tb-action-row">
         <n-tooltip trigger="hover">
           <template #trigger>
@@ -108,7 +106,6 @@ const clear = () => {
         </n-tooltip>
       </div>
 
-      <!-- 输出区 -->
       <div class="tb-editor tb-mono">
         <span class="tb-editor-label">输出</span>
         <n-input v-model:value="output" :rows="10" type="textarea" />

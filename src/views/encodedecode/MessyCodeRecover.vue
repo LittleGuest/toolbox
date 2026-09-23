@@ -11,7 +11,6 @@ const input = ref("");
 const results = ref([]);
 const loading = ref(false);
 
-// 表格列配置
 const tableColumns = [
   {
     title: "序号",
@@ -78,8 +77,6 @@ const tableColumns = [
   }
 ];
 
-
-// 乱码恢复函数
 const recover = async () => {
   if (!input.value.trim()) {
     message.warning("请输入乱码文本");
@@ -105,19 +102,16 @@ const recover = async () => {
   }
 };
 
-// 复制结果
 const copyResult = (result) => {
   writeText(result.recoveredText);
   message.success("已复制到剪贴板");
 };
 
-// 清空
 const clear = () => {
   input.value = "";
   results.value = [];
 };
 
-// 提取恢复后的文本（现在直接使用结构化数据）
 const extractText = (result) => {
   return result.recoveredText;
 };

@@ -8,7 +8,6 @@ use std::path::{Path, PathBuf};
 
 type Id = (u32, u16);
 
-/// 图片 -> PDF：每张图片生成一个 A4 宽（595pt）自适应高度页面。
 pub fn images_to_pdf(inputs: &[String], output_path: &str) -> Result<()> {
     if inputs.is_empty() {
         return Err(Error::msg("请至少选择一张图片"));
@@ -61,7 +60,6 @@ pub fn images_to_pdf(inputs: &[String], output_path: &str) -> Result<()> {
     Ok(())
 }
 
-/// 合并多个 PDF，页面按输入顺序排列。
 pub fn pdf_merge(inputs: &[String], output_path: &str) -> Result<()> {
     if inputs.is_empty() {
         return Err(Error::msg("请至少选择一个 PDF"));
@@ -77,8 +75,6 @@ pub fn pdf_merge(inputs: &[String], output_path: &str) -> Result<()> {
     Ok(())
 }
 
-/// PDF 页面编辑：删除（delete）、旋转（rotate: (页码, 角度)）、重排（order）。
-/// order 为空表示按原页序；非空则为最终页序（1 基页码）。
 pub fn pdf_edit(
     input: &str,
     output_path: &str,
@@ -90,7 +86,6 @@ pub fn pdf_edit(
     let page_map = doc.get_pages();
     let page_count = page_map.len() as u32;
 
-    // 应用旋转
     for (page_num, deg) in rotate {
         if let Some(page_id) = page_map.get(page_num) {
             let degrees = ((*deg as i64 % 360) + 360) % 360;
@@ -103,7 +98,6 @@ pub fn pdf_edit(
         }
     }
 
-    // 最终页序：order 提供则使用之，否则用原序；再剔除 delete
     let delete: std::collections::HashSet<u32> = delete.iter().copied().collect();
     let base: Vec<u32> = if order.is_empty() {
         (1..=page_count).collect()
@@ -111,7 +105,6 @@ pub fn pdf_edit(
         order.to_vec()
     };
     let mut keep: Vec<u32> = base.into_iter().filter(|p| !delete.contains(p)).collect();
-    // 去重并限制范围
     let mut seen = std::collections::HashSet::new();
     keep.retain(|p| *p >= 1 && *p <= page_count && seen.insert(*p));
     if keep.is_empty() {
@@ -123,7 +116,6 @@ pub fn pdf_edit(
     Ok(())
 }
 
-/// 按页码范围拆分 PDF。ranges 形如 "1-3,5,7-9"，每个范围生成一个 PDF。
 pub fn pdf_split(input: &str, output_dir: &str, ranges: &str) -> Result<Vec<String>> {
     let parsed = parse_ranges(ranges)?;
     let doc = Document::load(input).map_err(|e| Error::msg(format!("读取 {input} 失败: {e}")))?;
@@ -156,8 +148,6 @@ pub fn pdf_split(input: &str, output_dir: &str, ranges: &str) -> Result<Vec<Stri
     Ok(outs)
 }
 
-/// 为 PDF 添加页码。position: bottom|top + left|center|right。
-/// format_pattern 中的 {n} 会被替换为实际页码；无 {n} 则在末尾追加页码。
 pub fn pdf_add_page_numbers(
     input: &str,
     output_path: &str,
@@ -210,8 +200,6 @@ pub fn pdf_add_page_numbers(
     Ok(())
 }
 
-// ---------- 内部工具 ----------
-
 fn image_desc(input: &str) -> String {
     Path::new(input)
         .file_name()
@@ -220,7 +208,6 @@ fn image_desc(input: &str) -> String {
         .to_string()
 }
 
-/// 由若干 (Document, 需保留的页序) 构建合并/切片文档。
 fn build_combined(specs: Vec<(Document, Vec<u32>)>) -> Result<Document> {
     let mut out = Document::with_version("1.5");
     let mut page_objects: BTreeMap<Id, Object> = BTreeMap::new();
@@ -259,7 +246,6 @@ fn build_combined(specs: Vec<(Document, Vec<u32>)>) -> Result<Document> {
         }
     }
 
-    // 新建 Pages 根节点
     let pages_id = out.new_object_id();
     let kids: Vec<Object> = keep_order.iter().map(|&id| Object::Reference(id)).collect();
     out.objects.insert(
@@ -271,7 +257,6 @@ fn build_combined(specs: Vec<(Document, Vec<u32>)>) -> Result<Document> {
         }),
     );
 
-    // 页面对象，更新 Parent
     for (page_id, obj) in page_objects {
         match obj.as_dict().cloned() {
             Ok(dict) => {
@@ -286,7 +271,6 @@ fn build_combined(specs: Vec<(Document, Vec<u32>)>) -> Result<Document> {
     }
     out.objects.extend(other_objects);
 
-    // Catalog
     let root = match catalog {
         Some((cid, obj)) => {
             if let Ok(dict) = obj.as_dict().cloned() {
@@ -312,7 +296,6 @@ fn new_catalog(out: &mut Document, pages_id: Id) -> Id {
     out.add_object(dictionary! {"Type" => "Catalog", "Pages" => pages_id})
 }
 
-/// 读取页面尺寸（pt）。
 fn page_size(doc: &Document, page_id: Id) -> Result<(f32, f32)> {
     let page = doc.get_dictionary(page_id)?;
     if let Ok(media_box) = page.get(b"MediaBox").and_then(Object::as_array) {
@@ -343,7 +326,6 @@ fn build_number_text(pattern: &str, page_no: i32, cur: i32, total: i32) -> Strin
     }
 }
 
-/// 估算 Helvetica 文本宽度（用于居中对齐 / 右对齐）。
 fn text_width(text: &str, font_size: f32) -> f32 {
     let units: f32 = text
         .chars()
@@ -375,7 +357,6 @@ fn number_position(position: &str, text: &str, fs: f32, margin: f32, w: f32, h: 
     (x.max(0.0), vertical.max(fs * 0.5))
 }
 
-/// 解析 "1-3,5,7-9" 形式的范围。
 fn parse_ranges(s: &str) -> Result<Vec<Vec<u32>>> {
     let mut ranges = Vec::new();
     for token in s.split([',', '，']).map(str::trim) {

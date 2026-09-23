@@ -10,7 +10,6 @@ const mode = ref<"text" | "json">("text");
 const leftText = ref("");
 const rightText = ref("");
 
-// ---------- 文本差异（按行 LCS） ----------
 interface LineCell {
   text: string;
   type: "same" | "delete" | "add" | "blank";
@@ -27,7 +26,6 @@ interface TextResult {
 
 type DiffOp = { type: "same" | "delete" | "add"; text: string };
 
-// 按行 LCS（O(n×m)，dp 用 Uint32Array 展平存储，限制 n*m <= 4,000,000）
 function lcsOps(a: string[], b: string[]): DiffOp[] {
   const n = a.length;
   const m = b.length;
@@ -104,7 +102,6 @@ const runTextDiff = () => {
   textResult.value = { left, right, add, del, same };
 };
 
-// ---------- JSON 差异（按结构递归） ----------
 type JsonDiffType = "add" | "delete" | "modify";
 
 interface JsonDiffItem {
@@ -128,7 +125,6 @@ const fmt = (v: unknown): string => {
 
 const truncate = (s: string) => (s.length > 80 ? s.slice(0, 80) + "…" : s);
 
-// 递归对比：对象按键（新增/删除/共有递归）、数组按索引（长度差为尾部新增/删除）、基本类型按值
 const diffValue = (a: unknown, b: unknown, path: string, out: JsonDiffItem[]) => {
   const aObj = a !== null && typeof a === "object";
   const bObj = b !== null && typeof b === "object";
@@ -292,7 +288,6 @@ const clear = () => {
       </n-radio-group>
     </div>
 
-    <!-- 文本差异结果 -->
     <template v-if="mode === 'text' && textResult">
       <n-space :size="8" class="stat-bar">
         <n-tag :bordered="false" type="success" size="small">新增 {{ textResult.add }} 行</n-tag>
@@ -328,7 +323,6 @@ const clear = () => {
       </div>
     </template>
 
-    <!-- JSON 差异结果 -->
     <template v-if="mode === 'json' && jsonCompared">
       <n-alert
         v-if="jsonItems.length === 0"

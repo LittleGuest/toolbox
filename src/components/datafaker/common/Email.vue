@@ -3,10 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { ref, reactive } from "vue";
 import { useMessage } from "naive-ui";
 
-// 消息提示
 const message = useMessage();
 
-// 生成器默认值
 const defaultValue = {
   domain: [
     "gmail.com",
@@ -25,12 +23,10 @@ const defaultValue = {
   unique: false, // 唯一值
   forbiddenLinks: false, // 禁用字段之间的数据链接
 };
-// 表单数据
 const form = reactive({
   ...defaultValue,
 });
 
-// 重置属性
 const reset = () => {
   form.domain = defaultValue.domain;
   form.includeDefault = defaultValue.includeDefault;
@@ -43,9 +39,7 @@ const reset = () => {
   previewValue.value = "";
 };
 
-// 预览数据
 const previewValue = ref("");
-// 预览API
 const previewApi = async (config) => {
   return await invoke("preview_email", { config })
     .then((res) => {
@@ -55,7 +49,6 @@ const previewApi = async (config) => {
       message.error(err);
     });
 };
-// 生成预览数据
 const preview = async () => {
   previewValue.value = await previewApi({
     domain: form.domain,
@@ -69,7 +62,6 @@ defineExpose({
 
 <template>
   <n-form :model="form" label-placement="left" label-width="180">
-    <!-- 域名 -->
     <n-form-item label="域名">
       <n-input
         v-model:value="form.domain"
@@ -79,19 +71,14 @@ defineExpose({
       />
     </n-form-item>
 
-    <!-- 预览 -->
     <n-form-item path="previewValue" label="预览">
       <n-input v-model:value="previewValue" readonly placeholder="" />
       <n-button @click="preview">刷新</n-button>
     </n-form-item>
 
-    <!-- 其它配置选项 -->
-
-    <!-- 包含默认值 -->
     <n-form-item path="includeDefault" label="包含默认值">
       <n-checkbox v-model:checked="form.includeDefault" />
     </n-form-item>
-    <!-- 默认值 -->
     <n-form-item path="defaultValue" label=" ">
       <n-input
         placeholder="请输入默认值"
@@ -100,7 +87,6 @@ defineExpose({
         clearable
       />
     </n-form-item>
-    <!-- 默认值百分比 -->
     <n-form-item path="defaultPercentage" label=" ">
       <n-input-number
         placeholder="百分比"
@@ -114,11 +100,9 @@ defineExpose({
       </n-input-number>
     </n-form-item>
 
-    <!-- 包含NULL值 -->
     <n-form-item path="includeNull" label="包含NULL值">
       <n-checkbox v-model:checked="form.includeNull" />
     </n-form-item>
-    <!-- NULL值百分比 -->
     <n-form-item path="nullPercentage" label=" ">
       <n-input-number
         placeholder="百分比"

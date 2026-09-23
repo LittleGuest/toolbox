@@ -18,7 +18,6 @@ interface CronResult {
   nextTimes: string[];
 }
 
-// ---------------- 类型 ----------------
 const cronType = ref<CronType>("linux");
 
 const TYPE_LIST: { key: CronType; title: string; sub: string }[] = [
@@ -42,7 +41,6 @@ const TYPE_META: Record<CronType, { placeholder: string; hint: string }> = {
   },
 };
 
-// ---------------- 解析区 ----------------
 const loading = ref(false);
 const result = ref<CronResult | null>(null);
 const activeTab = ref("parse");
@@ -115,7 +113,6 @@ const applyPreset = (value: string) => {
   parse(value);
 };
 
-// ---------------- 生成区 ----------------
 interface FieldGen {
   mode: "any" | "interval" | "specific" | "special";
   interval: number;
@@ -206,7 +203,6 @@ const DOW_SPECIAL_OPTIONS = [
   { label: "N#M · 每月第 M 个周 N", value: "#" },
 ];
 
-// 按 Cron 字段顺序生成配置卡片（秒/分/时/日/月/周/[年]）
 const FIELD_CARDS = computed<FieldCard[]>(() => {
   const cards: FieldCard[] = [];
   if (cronType.value !== "linux") {
@@ -275,7 +271,6 @@ const generatedExpr = computed(() => {
   return parts.join(" ");
 });
 
-// 切换类型时重置示例并清理不兼容的选项
 watch(cronType, (t) => {
   expr.value = t === "linux" ? "*/5 * * * *" : t === "spring" ? "0 */5 * * * *" : "0 */5 * * * * ?";
   if (t === "linux") {
@@ -298,7 +293,6 @@ const clear = () => {
 
 <template>
   <div class="tb-page">
-    <!-- 方言选择：卡片式分段 -->
     <div class="kind-switch" role="radiogroup" aria-label="Cron 方言">
       <button
         v-for="t in TYPE_LIST"
@@ -321,7 +315,6 @@ const clear = () => {
 
     <div class="tb-card cron-body">
       <n-tabs v-model:value="activeTab" type="segment" animated class="cron-tabs">
-        <!-- 解析 -->
         <n-tab-pane name="parse" tab="解析">
           <div class="parse-row">
             <n-input
@@ -353,7 +346,6 @@ const clear = () => {
           </div>
         </n-tab-pane>
 
-        <!-- 生成 -->
         <n-tab-pane name="generate" tab="生成">
           <div class="gen-grid">
             <div v-for="c in FIELD_CARDS" :key="c.key" class="field-card">
@@ -368,7 +360,6 @@ const clear = () => {
               </div>
 
               <div class="field-body">
-                <!-- 数值字段（秒/分/时/月） -->
                 <template v-if="c.kind === 'num'">
                   <template v-if="gen[c.key].mode === 'interval'">
                     <n-input-number v-model:value="gen[c.key].interval" :min="1" :max="c.max ?? 59" size="small" class="num-input" />
@@ -387,7 +378,6 @@ const clear = () => {
                   <span v-else class="any-symbol">*</span>
                 </template>
 
-                <!-- 日字段 -->
                 <template v-else-if="c.kind === 'dom'">
                   <template v-if="gen.dom.mode === 'interval'">
                     <n-input-number v-model:value="gen.dom.interval" :min="1" :max="31" size="small" class="num-input" />
@@ -425,7 +415,6 @@ const clear = () => {
                   <span v-else class="any-symbol">*</span>
                 </template>
 
-                <!-- 周字段 -->
                 <template v-else-if="c.kind === 'dow'">
                   <n-select
                     v-if="gen.dow.mode === 'specific'"
@@ -452,7 +441,6 @@ const clear = () => {
                   <span v-else class="any-symbol">*</span>
                 </template>
 
-                <!-- 年字段（Quartz） -->
                 <template v-else>
                   <n-input
                     v-if="gen.year.mode === 'specific'"
@@ -467,7 +455,6 @@ const clear = () => {
             </div>
           </div>
 
-          <!-- 表达式预览 -->
           <div class="expr-bar">
             <div class="expr-info">
               <n-icon :size="16" class="expr-ico"><Code /></n-icon>
@@ -499,7 +486,6 @@ const clear = () => {
         </n-tab-pane>
       </n-tabs>
 
-      <!-- 结果 -->
       <div v-if="result" class="result-panel">
         <n-alert
           v-if="!result.valid"
@@ -556,7 +542,6 @@ const clear = () => {
 </template>
 
 <style scoped>
-/* ---------- 方言切换（卡片式分段） ---------- */
 .kind-switch {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -631,7 +616,6 @@ const clear = () => {
   opacity: 0.8;
 }
 
-/* ---------- 主卡 ---------- */
 .cron-body {
   padding: 22px;
 }
@@ -647,7 +631,6 @@ const clear = () => {
   color: var(--tb-text-2);
 }
 
-/* ---------- 解析 ---------- */
 .parse-row {
   display: flex;
   gap: 10px;
@@ -707,7 +690,6 @@ const clear = () => {
   color: var(--tb-text-3);
 }
 
-/* ---------- 生成 ---------- */
 .gen-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -773,7 +755,6 @@ const clear = () => {
   color: var(--tb-text-3);
 }
 
-/* ---------- 表达式预览 ---------- */
 .expr-bar {
   display: flex;
   align-items: center;
@@ -808,7 +789,6 @@ const clear = () => {
   word-break: break-all;
 }
 
-/* ---------- 结果 ---------- */
 .result-panel {
   margin-top: 16px;
 }

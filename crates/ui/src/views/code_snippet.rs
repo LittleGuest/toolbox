@@ -174,7 +174,6 @@ impl CodeSnippet {
         self.language_input_state = Some(language_input_state);
         self._subscriptions = _subscriptions;
 
-        // 从 SQLite 加载已有片段
         self.status = "正在加载片段...".to_string();
         cx.notify();
         cx.spawn(async move |this: WeakEntity<Self>, cx| {
@@ -334,7 +333,6 @@ impl CodeSnippet {
         window.close_sheet(cx);
     }
 
-    /// 打开底部抽屉编辑表单（对齐 Tauri 的 n-drawer placement="bottom"）
     fn open_edit_sheet(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let weak = cx.entity().downgrade();
         let is_edit = self.selected_snippet_id.is_some();
@@ -360,7 +358,6 @@ impl CodeSnippet {
                         .flex_col()
                         .gap_3()
                         .p_4()
-                        // 标题
                         .child(
                             div()
                                 .flex()
@@ -373,7 +370,6 @@ impl CodeSnippet {
                                     div()
                                 }),
                         )
-                        // 语言 + 标签
                         .child(
                             div()
                                 .flex()
@@ -440,7 +436,6 @@ impl CodeSnippet {
                                         ),
                                 ),
                         )
-                        // 代码内容
                         .child(
                             div()
                                 .flex()
@@ -453,7 +448,6 @@ impl CodeSnippet {
                                     div()
                                 }),
                         )
-                        // 操作按钮
                         .child(
                             div()
                                 .flex()
@@ -516,7 +510,6 @@ impl CodeSnippet {
     }
 
     fn save_snippet(&mut self, cx: &mut Context<Self>) {
-        // 表单验证
         if self.current_title.trim().is_empty() {
             self.status = "标题不能为空".to_string();
             cx.notify();
@@ -534,7 +527,6 @@ impl CodeSnippet {
             .as_secs() as i64;
 
         if let Some(id) = self.selected_snippet_id {
-            // 编辑现有片段
             if let Some(snippet) = self.snippets.iter_mut().find(|s| s.id == Some(id)) {
                 snippet.title = self.current_title.clone();
                 snippet.tags = self.current_tags.clone();
@@ -558,7 +550,6 @@ impl CodeSnippet {
                 .detach();
             }
         } else {
-            // 新建片段
             let new_snippet = Snippet {
                 id: None,
                 title: self.current_title.clone(),
@@ -728,7 +719,6 @@ impl CodeSnippet {
                         let _ = this.update(cx, |this, cx| {
                             this.status = format!("成功导入 {} 个片段，正在刷新列表...", count);
                             cx.notify();
-                            // 重新加载列表
                             cx.spawn(async move |this: WeakEntity<Self>, cx| {
                                 let result = config_store::load_snippets().await;
                                 let _ = this.update(cx, |this, cx| {

@@ -26,7 +26,6 @@ fn file_name(path: &str) -> String {
         .unwrap_or_else(|| path.to_string())
 }
 
-/// 将长 Data URL 按 76 字符一行拆分用于预览展示
 fn chunk_lines(s: &str, width: usize, max_lines: usize) -> Vec<String> {
     let chars: Vec<char> = s.chars().collect();
     let lines: Vec<String> = chars
@@ -264,9 +263,7 @@ impl Render for Base64ImageConverter {
         design::page()
             .child(design::page_header("Base64 图片", "图片与 Base64 互转", cx))
             .child(
-                // 整体卡片：内部布局保持原样
                 design::card(cx)
-                    // ---------- 图片 → Base64 ----------
                     .child(
                         design::toolbar()
                             .child(
@@ -360,7 +357,6 @@ impl Render for Base64ImageConverter {
                                 .child(self.encode_error.clone()),
                         )
                     })
-                    // ---------- Base64 → 图片 ----------
                     .child(
                         Textarea::new(&self.decode_input_state)
                             .h(design::CODE_BOX_HEIGHT)

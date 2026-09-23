@@ -63,7 +63,6 @@ pub async fn sha3_512(data: impl AsRef<[u8]>) -> Result<String> {
     Ok(format!("{:x}", hasher.finalize()))
 }
 
-// HMAC variants —— 使用 secret 对输入做 HMAC，返回十六进制字符串
 pub async fn hmac_md5(secret: impl AsRef<[u8]>, data: impl AsRef<[u8]>) -> Result<String> {
     use hmac::Mac;
     type HmacMd5 = hmac::Hmac<md5::Md5>;

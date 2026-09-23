@@ -202,7 +202,6 @@ impl Render for HashCalculator {
         design::page()
             .child(design::page_header("文本 Hash", "计算文本散列值", cx))
             .child(
-                // 输入卡片
                 design::card(cx)
                     .child(
                         design::toolbar()
@@ -231,7 +230,6 @@ impl Render for HashCalculator {
                     ),
             )
             .child(
-                // 结果卡片
                 design::card(cx)
                     .child(hash_row(cx, "MD5", md5, "copy_md5", |this, cx| {
                         cx.write_to_clipboard(ClipboardItem::new_string(this.md5.clone()));

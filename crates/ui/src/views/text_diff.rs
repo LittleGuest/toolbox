@@ -254,7 +254,6 @@ impl Render for TextDiffTool {
             .child(design::page_header("文本 / JSON 差异", "对比文本或 JSON", cx))
             .child(
                 design::card(cx)
-                    // 模式
                     .child(
                         div()
                             .flex()
@@ -263,7 +262,6 @@ impl Render for TextDiffTool {
                             .child(div().w(label_w).child(design::caption("模式", cx)))
                             .child(Select::new(&self.mode_state)),
                     )
-                    // 左侧
                     .child(
                         div()
                             .flex()
@@ -276,7 +274,6 @@ impl Render for TextDiffTool {
                                     .font_family("monospace"),
                             ),
                     )
-                    // 对比 / 交换
                     .child(
                         design::action_row()
                             .child(
@@ -295,7 +292,6 @@ impl Render for TextDiffTool {
                                     })),
                             ),
                     )
-                    // 右侧
                     .child(
                         div()
                             .flex()
@@ -308,7 +304,6 @@ impl Render for TextDiffTool {
                                     .font_family("monospace"),
                             ),
                     )
-                    // 操作
                     .child(
                         design::toolbar()
                             .child(
@@ -337,7 +332,6 @@ impl Render for TextDiffTool {
                             )
                             .child(div().flex_1()),
                     )
-                    // 统计
                     .when(show_result, |this| {
                         this.child(
                             div()
@@ -364,7 +358,6 @@ impl Render for TextDiffTool {
                                 ),
                         )
                     })
-                    // 完全相同提示
                     .when(identical, |this| {
                         this.child(
                             div()
@@ -379,7 +372,6 @@ impl Render for TextDiffTool {
                                 ),
                         )
                     })
-                    // 差异结果
                     .when_some(diff_area, |this, area| {
                         this.child(
                             div()
@@ -389,7 +381,6 @@ impl Render for TextDiffTool {
                                 .child(div().flex_1().child(area)),
                         )
                     })
-                    // 提示
                     .when(!self.message.is_empty(), |this| {
                         this.child(
                             div()

@@ -9,13 +9,9 @@ import { Copy, Paste, Folder, Calculator } from "@vicons/carbon";
 const message = useMessage();
 const loadingBar = useLoadingBar();
 
-// 校验值
 const checksum = ref("");
-// 校验值对比
 const validValue = ref("");
-// 校验算法
 const checksumAlgorithm = ref("md5sum");
-// 校验算法
 const checksumOptions = ref([
   {
     label: "md5sum",
@@ -55,7 +51,6 @@ const checksumOptions = ref([
   },
 ]);
 
-// checksum API
 const api = async (type, filePath) => {
   return await invoke("checksum", { type, filePath })
     .then((res) => {
@@ -64,14 +59,10 @@ const api = async (type, filePath) => {
     .catch((error) => message.error(error));
 };
 
-// 文件路径
 const filePath = ref("");
-// 上传
 const handleUpload = async () => {
   try {
-    // 使用 Tauri 文件对话框
     const selected = await open({
-      // 单选文件
       multiple: false,
       filters: [
         {
@@ -82,7 +73,6 @@ const handleUpload = async () => {
     });
 
     if (selected) {
-      // 选择的文件路径
       filePath.value = selected;
     }
   } catch (error) {
@@ -91,22 +81,18 @@ const handleUpload = async () => {
   }
 };
 
-// 上传
 const upload = async () => {
   checksum.value = "";
   loadingBar.start();
 
-  // 文件校验
   checksum.value = await api(checksumAlgorithm.value, filePath.value);
   loadingBar.finish();
 };
 
-// 校验值对比
 const checksumMatched = computed(() => {
   return checksum.value === validValue.value;
 });
 
-// 复制
 const copy = (value) => {
   if (!value) {
     return;
@@ -114,7 +100,6 @@ const copy = (value) => {
   writeText(value);
   message.success("复制成功");
 };
-// 粘贴
 const paste = async () => {
   validValue.value = await readText();
 };

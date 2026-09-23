@@ -94,7 +94,6 @@ const routes = [
   {
     path: "/database/datafaker/generator",
     name: "DataGenerator",
-    // props: true,
     props: (route) => ({ ...route.query }),
     component: () => import("@/views/database/datafaker/DataGenerator.vue"),
   },

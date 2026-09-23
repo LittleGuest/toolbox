@@ -6,35 +6,6 @@ mod datafaker;
 mod migrations;
 mod monitor;
 
-// pub type Result<T, E = Error> = std::result::Result<T, E>;
-
-// #[derive(Debug, Error)]
-// pub enum Error {
-//     #[error("{0}")]
-//     E(String),
-//     #[error(transparent)]
-//     AnyhowError(#[from] anyhow::Error),
-//     #[error(transparent)]
-//     Io(#[from] std::io::Error),
-//     #[error(transparent)]
-//     RequestErr(#[from] reqwest::Error),
-//     #[error(transparent)]
-//     TauriErr(#[from] tauri::Error),
-//     #[error(transparent)]
-//     SqlxErr(#[from] sqlx::Error),
-//     #[error(transparent)]
-//     TeraErr(#[from] tera::Error),
-// }
-
-// impl serde::Serialize for Error {
-//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-//     where
-//         S: serde::ser::Serializer,
-//     {
-//         serializer.serialize_str(self.to_string().as_ref())
-//     }
-// }
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     sqlx::any::install_default_drivers();

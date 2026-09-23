@@ -1,17 +1,11 @@
-//! 正则表达式随机字符串生成器
-//! 根据指定的正则表达式模式生成符合规则的随机字符串
 
 use rand::prelude::*;
 
 use crate::{DefaultComponent, Error, NullComponent, Result, UniqueComponent};
 
-/// 正则表达式随机字符串生成器
 pub struct Regex<R: Rng> {
-    /// 随机数生成器
     rng: R,
-    /// 正则表达式模式
     pub pattern: String,
-    /// 最大重复次数
     pub max_repeat: u32,
 }
 
@@ -30,7 +24,6 @@ impl<R: Rng> Regex<R> {
         }
     }
 
-    /// 生成随机字符串，count为字符串数量
     pub fn random(&mut self, count: usize) -> Result<Vec<String>> {
         let mut parser = regex_syntax::ParserBuilder::new().unicode(false).build();
         let hir = parser
@@ -46,19 +39,13 @@ impl<R: Rng> Regex<R> {
     }
 }
 
-/// 正则表达式随机字符串生成器
 #[derive(Debug, Clone)]
 pub struct RegexGenerator {
-    /// 正则表达式模式
     pub pattern: String,
 
-    /// 包含默认值
     pub include_default: Option<DefaultComponent>,
-    /// 包含NULL值
     pub include_null: Option<NullComponent>,
-    /// 唯一值
     pub unique: Option<UniqueComponent>,
-    /// 禁用链接
     pub forbidden_links: bool,
 }
 
@@ -104,32 +91,26 @@ impl RegexGenerator {
             nc.check()?;
             percent += nc.percent;
         }
-        // 检查出现百分比是否大于100
         if percent - 100.0 > 0.0 {
             return Err(Error::PercentNotGreaterThan100);
         }
         Ok(())
     }
 
-    /// 生成随机字符串，count为字符串数量
     pub fn generate(&mut self, count: usize) -> Result<Vec<Option<String>>> {
         self.check()?;
         let mut res = Vec::with_capacity(count);
         let mut regex = Regex::new(rand::rng(), self.pattern.clone(), 1);
         let samples = regex.random(count)?;
         for item in samples.iter().take(count) {
-            // 包含默认值
             if let Some(dc) = &self.include_default {
-                // 根据默认值出现百分比判断是否应用默认值
                 let include_default = regex.rng.random_bool(dc.percent / 100.0);
                 if include_default {
                     res.push(Some(dc.default.clone()));
                     continue;
                 }
             }
-            // 包含NULL值
             if let Some(nc) = &self.include_null {
-                // 根据NULL值出现百分比判断是否应用NULL值
                 let include_null = regex.rng.random_bool(nc.percent / 100.0);
                 if include_null {
                     res.push(None);
@@ -141,7 +122,6 @@ impl RegexGenerator {
         Ok(res)
     }
 
-    /// 预览随机字符串
     pub fn preview(&self) -> Result<String> {
         let mut regex = Regex::new(rand::rng(), self.pattern.clone(), 1);
         let samples = regex.random(1)?;
@@ -183,7 +163,6 @@ mod tests {
 
         #[test]
         fn test_regex_generator_with_null() {
-            // 配置100%生成NULL值
             let pattern = "[A-Za-z0-9]{10}".into();
             let generator =
                 RegexGenerator::new(pattern, None, Some(NullComponent::new(100.0)), None, false);
@@ -198,7 +177,6 @@ mod tests {
 
         #[test]
         fn test_regex_generator_with_default() {
-            // 配置100%生成默认值
             let pattern = "[A-Za-z0-9]{10}".into();
             let generator = RegexGenerator::new(
                 pattern,

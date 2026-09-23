@@ -23,7 +23,6 @@ const XML_UNESCAPE: &[(&str, &str)] = &[
     ("apos", "'"),
 ];
 
-// ---------------- HTML / XML 实体 ----------------
 fn html_escape(s: &str) -> String {
     s.replace('&', "&amp;")
         .replace('<', "&lt;")
@@ -40,7 +39,6 @@ fn xml_escape(s: &str) -> String {
         .replace('\'', "&apos;")
 }
 
-/// 通用实体反转义：&amp; 等命名实体与 &#NN; / &#xHH; 数字实体
 fn unescape_entities(s: &str, named: &[(&str, &str)]) -> String {
     let mut out = String::with_capacity(s.len());
     let mut rest = s;
@@ -94,7 +92,6 @@ fn xml_unescape(s: &str) -> String {
     unescape_entities(s, XML_UNESCAPE)
 }
 
-// ---------------- JSON ----------------
 fn json_escape(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for ch in s.chars() {
@@ -120,7 +117,6 @@ fn push_char(units: &mut Vec<u16>, ch: char) {
     }
 }
 
-/// JSON 字符串反转义，仅支持 \" \\ \/ \b \f \n \r \t \uXXXX
 fn json_unescape(s: &str) -> Result<String, String> {
     let chars: Vec<char> = s.chars().collect();
     let mut units: Vec<u16> = Vec::with_capacity(chars.len());
@@ -161,7 +157,6 @@ fn json_unescape(s: &str) -> Result<String, String> {
     Ok(String::from_utf16_lossy(&units))
 }
 
-// ---------------- JavaScript / Java / C# ----------------
 fn js_escape(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for ch in s.chars() {
@@ -182,7 +177,6 @@ fn js_escape(s: &str) -> String {
     out
 }
 
-/// 通用反转义：处理 \n \r \t \b \f \v \0 \\ \" \' \xHH \uHHHH 与八进制 \NNN
 fn js_unescape(s: &str) -> Result<String, String> {
     let chars: Vec<char> = s.chars().collect();
     let mut units: Vec<u16> = Vec::with_capacity(chars.len());
@@ -247,7 +241,6 @@ fn js_unescape(s: &str) -> Result<String, String> {
     Ok(String::from_utf16_lossy(&units))
 }
 
-// ---------------- CSV ----------------
 fn csv_escape_field(field: &str) -> String {
     if field.contains(|c| matches!(c, '"' | ',' | '\n' | '\r' | '\t')) {
         format!("\"{}\"", field.replace('"', "\"\""))
@@ -300,7 +293,6 @@ fn csv_unescape(s: &str) -> String {
     fields.join("\n")
 }
 
-// ---------------- SQL ----------------
 fn sql_escape(s: &str) -> String {
     s.replace('\'', "''")
 }
@@ -488,7 +480,6 @@ impl Render for EscapeTools {
         design::page()
             .child(design::page_header("转义工具", "HTML / 字符串转义", cx))
             .child(
-                // 配置卡片：类型 + 工具按钮 + 输入
                 design::card(cx)
                     .child(
                         design::toolbar()
@@ -538,7 +529,6 @@ impl Render for EscapeTools {
                     ),
             )
             .child(
-                // 转义 / 反转义主操作
                 design::action_row()
                     .child(
                         Button::new("escape")
@@ -559,7 +549,6 @@ impl Render for EscapeTools {
                     ),
             )
             .child(
-                // 输出卡片
                 design::card(cx)
                     .child(
                         Textarea::new(&self.output_state)

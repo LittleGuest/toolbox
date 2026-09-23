@@ -13,7 +13,6 @@ const props = defineProps({
   <n-card class="datafaker-node">
     <Handle :id="data.id" type="source" :position="Position.Left" />
     <span class="datafaker-node__name">{{ data.datafakerName }}</span>
-    <!-- <span>{{ data.columnType }} - {{ data.datafaker }}</span> -->
   </n-card>
 </template>
 

@@ -28,13 +28,10 @@ const apply = (fn: (s: string) => string) => {
   output.value = fn(input.value);
 };
 
-// 全部大写
 const toUpperCase = () => apply((s) => s.toUpperCase());
 
-// 全部小写
 const toLowerCase = () => apply((s) => s.toLowerCase());
 
-// 单词首字母大写（每个单词首字母大写其余小写）
 const toTitleCase = () =>
   apply(
     (s) =>
@@ -43,7 +40,6 @@ const toTitleCase = () =>
         .replace(/\B\w/g, (c) => c.toLowerCase())
   );
 
-// 句子首字母大写（每句首字母大写）
 const toSentenceCase = () =>
   apply((s) =>
     s.replace(
@@ -52,36 +48,29 @@ const toSentenceCase = () =>
     )
   );
 
-// 驼峰 camelCase
 const toCamelCase = () =>
   apply((s) => {
     const str = s.toLowerCase().replace(/[\s_-]+(\w)/g, (_m, c: string) => c.toUpperCase());
     return str.charAt(0).toLowerCase() + str.slice(1);
   });
 
-// 帕斯卡 PascalCase
 const toPascalCase = () =>
   apply((s) => {
     const str = s.toLowerCase().replace(/[\s_-]+(\w)/g, (_m, c: string) => c.toUpperCase());
     return str.charAt(0).toUpperCase() + str.slice(1);
   });
 
-// 蛇形 snake_case
 const toSnakeCase = () => apply((s) => s.trim().replace(/[\s_-]+/g, "_"));
 
-// 烤肉串 kebab-case
 const toKebabCase = () => apply((s) => s.trim().replace(/[\s_-]+/g, "-"));
 
-// 反转大小写（大小写互换）
 const swapCase = () =>
   apply((s) =>
     [...s].map((c) => (c.toUpperCase() === c ? c.toLowerCase() : c.toUpperCase())).join("")
   );
 
-// 反转文本（字符级反转，保留换行）
 const reverseText = () => apply((s) => [...s].reverse().join(""));
 
-// 字符倒置（upside-down）
 const UPSIDE_DOWN_MAP: Record<string, string> = {
   a: "ɐ", b: "q", c: "ɔ", d: "p", e: "ǝ", f: "ɟ", g: "ƃ", h: "ɥ", i: "ᴉ", j: "ɾ",
   k: "ʞ", l: "l", m: "ɯ", n: "u", o: "o", p: "d", q: "b", r: "ɹ", s: "s", t: "ʇ",
@@ -97,7 +86,6 @@ const pasteInput = async () => {
   try {
     input.value = await readText();
   } catch {
-    /* 忽略剪贴板读取失败 */
   }
 };
 

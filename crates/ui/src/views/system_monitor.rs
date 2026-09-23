@@ -140,7 +140,6 @@ impl SystemMonitor {
             self.processes.sort_by(|a, b| b.memory.cmp(&a.memory));
         }
 
-        // 读取 CPU 温度传感器
         {
             let mut components = COMPONENTS.lock().unwrap();
             components.refresh(true);
@@ -240,7 +239,6 @@ impl SystemMonitor {
         result
     }
 
-    /// 当前页的进程列表
     fn paginated_processes(&self) -> Vec<&ProcessInfo> {
         let filtered = self.filtered_processes();
         let start = self.current_page * PAGE_SIZE;
@@ -271,7 +269,6 @@ impl SystemMonitor {
         cx.notify();
     }
 
-    /// 弹出确认对话框，确认后终止进程
     fn confirm_kill_process(
         &mut self,
         pid: u32,
@@ -300,7 +297,6 @@ impl SystemMonitor {
         self.monitoring_enabled = enabled;
         if enabled {
             self.refresh();
-            // 启动自动刷新定时器：CPU/内存 2s，进程 10s
             cx.spawn(async move |this: WeakEntity<Self>, cx| {
                 loop {
                     cx.background_executor().timer(Duration::from_secs(2)).await;
@@ -319,7 +315,6 @@ impl SystemMonitor {
             })
             .detach();
 
-            // 进程列表刷新定时器 10s
             cx.spawn(async move |this: WeakEntity<Self>, cx| {
                 loop {
                     cx.background_executor()
@@ -329,7 +324,6 @@ impl SystemMonitor {
                         if !this.monitoring_enabled {
                             return true;
                         }
-                        // 进程数据已在 refresh() 中刷新
                         false
                     });
                     if should_stop.unwrap_or(true) {
@@ -548,7 +542,6 @@ impl Render for SystemMonitor {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let monitoring_enabled = self.monitoring_enabled;
 
-        // 未开启监控时的空状态
         if !monitoring_enabled {
             return design::page()
                 .child(design::page_header("系统监控", "实时监控 CPU、内存与磁盘", cx))
@@ -778,7 +771,6 @@ impl Render for SystemMonitor {
                             )
                             ),
                     )
-                    // 进程列表
                     .child(
                         design::card(cx)
                             .child(
@@ -806,7 +798,6 @@ impl Render for SystemMonitor {
                                                     ),
                                             ),
                                     )
-                                    // 表头
                                     .child(
                                         h_flex()
                                             .text_sm()
@@ -865,7 +856,6 @@ impl Render for SystemMonitor {
                                                 )
                                         }),
                                     ))
-                                    // 分页控件
                                     .child(
                                         h_flex()
                                             .justify_between()

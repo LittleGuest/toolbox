@@ -151,7 +151,6 @@ const clear = () => {
 
 <template>
   <div>
-      <!-- 配置行 -->
       <div class="tb-config-row">
         <div class="tb-config-item">
           <span class="tb-config-label">输入类型</span>
@@ -194,7 +193,6 @@ const clear = () => {
         </div>
       </div>
 
-      <!-- 输入区 -->
       <div class="tb-editor tb-mono">
         <span class="tb-editor-label">输入</span>
         <n-input placeholder="请输入文本或编码数据" v-model:value="input" :rows="6" type="textarea" />
@@ -234,7 +232,6 @@ const clear = () => {
         </div>
       </div>
 
-      <!-- 主操作行 -->
       <div class="tb-action-row">
         <n-tooltip trigger="hover">
           <template #trigger>
@@ -246,7 +243,6 @@ const clear = () => {
         </n-tooltip>
       </div>
 
-      <!-- 输出区 -->
       <div class="tb-editor tb-mono">
         <span class="tb-editor-label">输出</span>
         <n-input placeholder="转换结果" v-model:value="output" :rows="6" type="textarea" />

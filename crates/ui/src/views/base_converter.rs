@@ -166,7 +166,6 @@ impl Render for BaseConverter {
         design::page()
             .child(design::page_header("进制转换", "十进制 / 十六进制 / 二进制", cx))
             .child(
-                // 输入配置卡片
                 design::card(cx)
                     .child(
                         div()
@@ -206,7 +205,6 @@ impl Render for BaseConverter {
                     ),
             )
             .child(
-                // 转换结果卡片
                 design::card(cx)
                     .child(
                         div()

@@ -75,7 +75,6 @@ pub async fn hash(
             ("sha3_512", sha3_512),
         ];
 
-        // 输出编码：base64 时把十六进制解码为字节再 base64 编码
         if output_type == Some("base64") {
             use ::base64::Engine as _;
             for (_, val) in values.iter_mut() {
@@ -179,19 +178,23 @@ pub fn decode_jwt(data: &str) -> Result<String> {
     jwt::decode(data)
 }
 
-/// 金额数字 → 中文大写金额
 pub fn rmb_to_upper(
     input: &str,
     yuan: Option<&str>,
     zheng: Option<&str>,
+    zheng_yuan: bool,
     jiao_zheng: bool,
 ) -> Result<String> {
-    rmb::amount_to_upper(input, yuan, zheng, jiao_zheng)
+    rmb::amount_to_upper(input, yuan, zheng, zheng_yuan, jiao_zheng)
 }
 
-/// 中文大写金额 → 金额数字
-pub fn rmb_to_amount(input: &str, yuan: Option<&str>, zheng: Option<&str>) -> Result<RmbParseResult> {
-    rmb::upper_to_amount(input, yuan, zheng)
+pub fn rmb_to_amount(
+    input: &str,
+    yuan: Option<&str>,
+    zheng: Option<&str>,
+    zheng_yuan: bool,
+) -> Result<RmbParseResult> {
+    rmb::upper_to_amount(input, yuan, zheng, zheng_yuan)
 }
 
 pub fn cffc(indent: u8, ft: &str, tt: &str, input: &str) -> Result<String> {
@@ -405,26 +408,21 @@ pub fn charset_encode(
     invert_non_printable: bool,
     append_null: bool,
 ) -> Result<CharsetEncodeResult> {
-    // 解析输入
     let mut bytes = charset::parse_bytes_from_string(input, input_type)?;
 
-    // 如果是文本输入，先转换为目标字符集
     if input_type == "text" {
         let decoded = charset::decode_bytes(&bytes, "UTF-8")?;
         bytes = charset::encode_string(&decoded, target_charset)?;
     }
 
-    // 处理不可打印字符
     if invert_non_printable {
         bytes = charset::invert_non_printable(&bytes);
     }
 
-    // 追加NUL结尾
     if append_null {
         bytes.push(0);
     }
 
-    // 格式化输出
     let mut output = if show_c_array {
         charset::format_as_c_array(&bytes)
     } else if show_assembly {
@@ -433,7 +431,6 @@ pub fn charset_encode(
         charset::format_bytes_to_string(&bytes, output_type, delimiter, base_format)?
     };
 
-    // 计算统计信息
     let byte_count = bytes.len();
     let char_count = match charset::decode_bytes(&bytes, target_charset) {
         Ok(s) => s.chars().count(),
@@ -458,7 +455,6 @@ pub fn recover_garbled_code(input: &str) -> Result<Vec<RecoverGarbledCode>> {
 
 pub use datetime::TimestampRow;
 
-/// 时间戳 <-> 时间 双向批量转换（支持秒/毫秒、时区切换）。
 pub fn timestamp_convert(
     mode: &str,
     unit: &str,
@@ -468,7 +464,6 @@ pub fn timestamp_convert(
     datetime::timestamp_convert(mode, unit, tz_offset_secs, values)
 }
 
-/// 批量图片格式转换。
 pub fn image_convert(
     inputs: &[String],
     output_format: &str,
@@ -478,17 +473,14 @@ pub fn image_convert(
     image_convert::image_convert(inputs, output_format, output_dir, quality)
 }
 
-/// 将多张图片合并为一个 PDF（每图一页）。
 pub fn images_to_pdf(inputs: &[String], output_path: &str) -> Result<()> {
     pdf::images_to_pdf(inputs, output_path)
 }
 
-/// 将多个 PDF 合并成一个。
 pub fn pdf_merge(inputs: &[String], output_path: &str) -> Result<()> {
     pdf::pdf_merge(inputs, output_path)
 }
 
-/// PDF 页面删除 / 旋转 / 顺序调整。
 pub fn pdf_edit(
     input: &str,
     output_path: &str,
@@ -499,12 +491,10 @@ pub fn pdf_edit(
     pdf::pdf_edit(input, output_path, delete, rotate, order)
 }
 
-/// 拆分 PDF（按页码范围切分）。
 pub fn pdf_split(input: &str, output_dir: &str, ranges: &str) -> Result<Vec<String>> {
     pdf::pdf_split(input, output_dir, ranges)
 }
 
-/// 为 PDF 添加页码。
 pub fn pdf_add_page_numbers(
     input: &str,
     output_path: &str,

@@ -9,7 +9,6 @@ use gpui_kit::component::{
 };
 use qrcode_generator::QrCodeEcc;
 
-/// 纠错级别
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum EccLevel {
     Low,
@@ -107,7 +106,7 @@ impl QrCodeGenerator {
             }),
             cx.subscribe_in(&size_slider, window, |this, _, _: &SliderEvent, _, cx| {
                 this.size = this.size_slider.read(cx).value().end() as usize;
-                this.size = (this.size / 20) * 20; // 对齐步长
+                this.size = (this.size / 20) * 20;
                 this.generate();
                 cx.notify();
             }),
@@ -196,7 +195,6 @@ impl QrCodeGenerator {
         let ecc = self.ecc_level.to_ecc();
         let size = self.size.max(120);
 
-        // 生成 SVG
         match qrcode_generator::to_svg_to_string_from_str(&self.text, ecc, size, None::<&str>) {
             Ok(svg) => self.svg = svg,
             Err(err) => {
@@ -207,7 +205,6 @@ impl QrCodeGenerator {
             }
         }
 
-        // 生成 PNG
         match qrcode_generator::to_png_to_vec_from_str(&self.text, ecc, size) {
             Ok(data) => self.png_data = Some(data),
             Err(err) => {
@@ -288,7 +285,6 @@ impl QrCodeGenerator {
     }
 }
 
-/// 简易 base64 编码
 fn base64_encode(data: &[u8]) -> String {
     const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut result = String::new();
@@ -314,7 +310,6 @@ fn base64_encode(data: &[u8]) -> String {
     result
 }
 
-/// 将 hex 颜色（#rrggbb）转换为 Hsla
 fn hex_to_hsla(hex: &str) -> Option<Hsla> {
     let hex = hex.trim().strip_prefix('#')?;
     if hex.len() != 6 {
@@ -349,7 +344,6 @@ impl Render for QrCodeGenerator {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let ecc_index = ECC_LEVELS.iter().position(|&l| l == self.ecc_level);
 
-        // 预览面板：用 SVG 渲染二维码图形
         let preview = if self.svg.is_empty() {
             div()
                 .flex()
@@ -360,7 +354,6 @@ impl Render for QrCodeGenerator {
                 .text_color(cx.theme().muted_foreground)
                 .child("点击生成按钮生成二维码...")
         } else {
-            // 使用 canvas 绘制 SVG 内容
             let svg = self.svg.clone();
             let dark_color = hex_to_hsla(&self.dark_color).unwrap_or(gpui_kit::black());
             let light_color = hex_to_hsla(&self.light_color).unwrap_or(gpui_kit::white());
@@ -375,15 +368,11 @@ impl Render for QrCodeGenerator {
                     canvas(
                         move |_bounds, _window, _cx| {},
                         move |bounds, _window, window, _cx| {
-                            // 绘制背景
                             window.paint_quad(fill(bounds, light_color));
 
-                            // 解析 SVG 中 QR 码模块坐标并绘制
-                            // qrcode-generator SVG 使用 rect 元素，我们直接解析 viewBox 和 rect
                             let viewbox_size = qr_size as f32;
                             let scale = f32::from(bounds.size.width) / viewbox_size;
 
-                            // 从 SVG 提取 rect 的 x,y,width,height
                             for line in svg.lines() {
                                 let line = line.trim();
                                 if !line.starts_with('<') || !line.contains("rect") {
@@ -394,7 +383,6 @@ impl Render for QrCodeGenerator {
                                 let mut w: Option<f32> = None;
                                 let mut h: Option<f32> = None;
 
-                                // 简易属性解析
                                 for part in line.split_whitespace() {
                                     if let Some(val) = part.strip_prefix("x=\"") {
                                         x = val.trim_end_matches('"').parse().ok();
@@ -439,21 +427,18 @@ impl Render for QrCodeGenerator {
         design::page()
             .child(design::page_header("二维码", "生成二维码", cx))
             .child(
-                // 整体卡片：参数表单 + 画布预览保持原样
                 design::card(cx)
                     .child(
                         div()
                             .grid()
                             .grid_cols(2)
                             .gap_4()
-                            // 左栏：参数表单
                             .child(
                                 div()
                                     .flex()
                                     .flex_col()
                                     .gap_3()
                                     .min_w(px(320.))
-                                    // 内容
                                     .child(
                                         div()
                                             .flex()
@@ -470,7 +455,6 @@ impl Render for QrCodeGenerator {
                                                     ),
                                             ),
                                     )
-                                    // 尺寸
                                     .child(
                                         div()
                                             .flex()
@@ -479,7 +463,6 @@ impl Render for QrCodeGenerator {
                                             .child(design::caption("尺寸", cx).w(px(110.0)))
                                             .child(div().flex_1().child(Slider::new(&self.size_slider))),
                                     )
-                                    // 边距 → NumberInput（匹配 Tauri n-input-number）
                                     .child(
                                         div()
                                             .flex()
@@ -490,7 +473,6 @@ impl Render for QrCodeGenerator {
                                                 div().flex_1().child(NumberInput::new(&self.margin_state)),
                                             ),
                                     )
-                                    // 纠错级别
                                     .child(
                                         div()
                                             .flex()
@@ -510,7 +492,6 @@ impl Render for QrCodeGenerator {
                                                     ),
                                             ),
                                     )
-                                    // 前景色
                                     .child(
                                         div()
                                             .flex()
@@ -531,7 +512,6 @@ impl Render for QrCodeGenerator {
                                                 div().flex_1().child(Input::new(&self.dark_color_state)),
                                             ),
                                     )
-                                    // 背景色
                                     .child(
                                         div()
                                             .flex()
@@ -552,7 +532,6 @@ impl Render for QrCodeGenerator {
                                                 div().flex_1().child(Input::new(&self.light_color_state)),
                                             ),
                                     )
-                                    // 操作按钮
                                     .child(
                                         design::toolbar()
                                             .child(
@@ -592,7 +571,6 @@ impl Render for QrCodeGenerator {
                                     )
                                     .children(error_msg),
                             )
-                            // 右栏：图形化预览
                             .child(
                                 div()
                                     .border_1()

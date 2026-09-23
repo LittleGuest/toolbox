@@ -221,7 +221,6 @@ impl RandomOtherGenerator {
                 (0..6)
                     .map(|j| {
                         if j == 1 && self.mac_unicast {
-                            // 单播：第二段首字符为偶数
                             let hi = unicast_hi[rng.random_range(0..unicast_hi.len())];
                             let lo = format!("{:X}", rng.random_range(0..16));
                             format!("{hi}{lo}")
@@ -319,7 +318,6 @@ impl Render for RandomOtherGenerator {
 
         design::page()
             .child(design::page_header("随机 IP / MAC / 时间", "生成随机 IP / MAC / 时间", cx))
-            // IP 地址
             .child(
                 design::card(cx)
                     .child(design::caption("IP 地址", cx))
@@ -352,7 +350,6 @@ impl Render for RandomOtherGenerator {
                             .child(action_buttons("copy-ip", "clear-ip", &self.ip_out_state, cx)),
                     ),
             )
-            // MAC 地址
             .child(
                 design::card(cx)
                     .child(design::caption("MAC 地址", cx))
@@ -394,7 +391,6 @@ impl Render for RandomOtherGenerator {
                             .child(action_buttons("copy-mac", "clear-mac", &self.mac_out_state, cx)),
                     ),
             )
-            // 时间
             .child(
                 design::card(cx)
                     .child(design::caption("时间", cx))
@@ -427,7 +423,6 @@ impl Render for RandomOtherGenerator {
                             .child(action_buttons("copy-time", "clear-time", &self.time_out_state, cx)),
                     ),
             )
-            // 日期
             .child(
                 design::card(cx)
                     .child(design::caption("日期", cx))

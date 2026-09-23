@@ -188,7 +188,6 @@ impl Render for FileVerify {
             .child(design::page_header("文件校验", "校验文件散列值", cx))
             .child(
                 design::card(cx)
-                    // 选择 button + file path display
                     .child(
                         div()
                             .flex()
@@ -221,7 +220,6 @@ impl Render for FileVerify {
                                     }),
                             ),
                     )
-                    // label "校验算法" → Select + 计算 button (in one row)
                     .child(
                         div()
                             .flex()
@@ -241,7 +239,6 @@ impl Render for FileVerify {
                                     })),
                             ),
                     )
-                    // label "校验值" → 操作按钮 + readonly display
                     .child(
                         div()
                             .flex()
@@ -269,7 +266,6 @@ impl Render for FileVerify {
                                     ),
                             ),
                     )
-                    // readonly checksum display
                     .child(
                         div()
                             .flex()
@@ -295,7 +291,6 @@ impl Render for FileVerify {
                                     }),
                             ),
                     )
-                    // label "对比值" → 操作按钮
                     .child(
                         div()
                             .flex()
@@ -323,7 +318,6 @@ impl Render for FileVerify {
                                     ),
                             ),
                     )
-                    // readonly valid_value display
                     .child(
                         div()
                             .flex()
@@ -335,7 +329,6 @@ impl Render for FileVerify {
                                     .child(Textarea::new(&self.valid_value_state).min_h(px(80.0))),
                             ),
                     )
-                    // 一致/不一致 indicator
                     .when(!checksum.is_empty() && !valid_value.is_empty(), |this| {
                         this.child(
                             div()

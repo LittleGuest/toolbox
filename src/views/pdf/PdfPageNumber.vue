@@ -27,7 +27,6 @@ const positionOptions = [
   { label: "底部靠右", value: "bottom-right" },
 ];
 
-// 位置 -> 3x3 网格中的下标
 const positionIndex = computed(() => {
   const rowMap: Record<string, number> = { top: 0, middle: 3, bottom: 6 };
   const colMap: Record<string, number> = { left: 0, center: 1, right: 2 };
@@ -35,7 +34,6 @@ const positionIndex = computed(() => {
   return (rowMap[row] ?? 0) + (colMap[col] ?? 1);
 });
 
-// 把占位符应用为可读的示例文案
 const sampleText = computed(() => {
   const s = startAt.value || 1;
   return formatPattern.value
@@ -92,7 +90,6 @@ const addNumbers = async () => {
         <span class="tb-editor-label">页码设置</span>
 
         <div class="pn-grid">
-          <!-- 左侧：配置项 -->
           <div class="pn-config">
             <div class="pn-row">
               <span class="pn-label">位置</span>
@@ -113,7 +110,6 @@ const addNumbers = async () => {
             </div>
           </div>
 
-          <!-- 右侧：可视化预览 -->
           <div class="pn-preview">
             <div class="pn-preview-title">预览</div>
             <div class="pn-preview-inner">

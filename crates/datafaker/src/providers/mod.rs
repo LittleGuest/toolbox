@@ -24,7 +24,6 @@ pub use person::*;
 pub use regex::RegexGenerator;
 pub use uuid::Uuid;
 
-/// 随机字符串，count为字符串长度
 fn random_str(count: usize) -> String {
     if count == 0 {
         return String::new();

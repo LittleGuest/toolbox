@@ -446,7 +446,6 @@ impl ExcalidrawView {
         let canvas_x = (mouse_x - self.viewport_x) / self.zoom;
         let canvas_y = (mouse_y - self.viewport_y) / self.zoom;
 
-        // Middle button: pan
         if event.button == MouseButton::Middle {
             self.drag = Some(Drag::Pan {
                 start_mouse_x: f32::from(event.position.x),
@@ -583,7 +582,6 @@ impl ExcalidrawView {
                 let width = (canvas_x - start_x).abs();
                 let height = (canvas_y - start_y).abs();
 
-                // Remove the preview element if it exists (last element with matching tool)
                 let kind = match self.tool {
                     Tool::Rectangle => ShapeKind::Rectangle,
                     Tool::Ellipse => ShapeKind::Ellipse,
@@ -596,7 +594,6 @@ impl ExcalidrawView {
                     }
                 };
 
-                // Update or create the preview element
                 if let Some(last) = self.elements.last_mut() {
                     if last.kind == kind && last.id == self.next_id - 1 {
                         last.x = x;
@@ -731,7 +728,6 @@ impl ExcalidrawView {
             let old_zoom = self.zoom;
             self.zoom = (self.zoom + zoom_delta).clamp(0.1, 30.0);
             if (self.zoom - old_zoom).abs() > 0.001 {
-                // 以鼠标位置为中心缩放：调整 viewport 使鼠标下的画布坐标不变
                 let mouse_x = f32::from(event.position.x - self.canvas_origin.get().x);
                 let mouse_y = f32::from(event.position.y - self.canvas_origin.get().y);
                 let ratio = self.zoom / old_zoom;
@@ -800,7 +796,6 @@ impl ExcalidrawView {
 
 impl Render for ExcalidrawView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // 页头 + 画布工作区（画布内浮动工具条定位在相对容器内，不与页头重叠）
         div()
             .size_full()
             .flex_col()
@@ -810,9 +805,7 @@ impl Render for ExcalidrawView {
                 div()
                     .relative()
                     .flex_1()
-                    // 画布填满工作区
                     .child(canvas_container(self, cx))
-                    // 左侧：垂直工具栏 + 选中时下方的样式面板
                     .child(
                         div()
                             .absolute()
@@ -826,9 +819,7 @@ impl Render for ExcalidrawView {
                                 el.child(style_panel(self, cx))
                             }),
                     )
-                    // 顶部水平操作栏（撤销/重做/删除/清空/导出/文档管理）
                     .child(top_toolbar(self, cx))
-                    // 底部状态栏：缩放百分比 + 状态信息
                     .child(
                         div()
                             .absolute()
@@ -971,8 +962,6 @@ fn top_toolbar(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
 }
 
 fn toolbar(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
-    // 工具顺序对齐 Excalidraw 官方：Select→Rectangle→Diamond→Ellipse→Arrow→Line→Freedraw→Text→Eraser
-    // 用现有图标近似映射
     let tools: [(Tool, Option<IconName>, &'static str); 9] = [
         (Tool::Select, Some(IconName::Map), "选择(V)"),
         (Tool::Rectangle, Some(IconName::Frame), "矩形(R)"),
@@ -1018,7 +1007,6 @@ fn toolbar(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
 }
 
 fn style_panel(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
-    // 垂直布局，对齐 Excalidraw 官方左侧属性面板风格
     let mut panel = div()
         .flex()
         .flex_col()
@@ -1031,7 +1019,6 @@ fn style_panel(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
         .rounded_md()
         .shadow_sm();
 
-    // Stroke color presets（4 列网格）
     panel = panel.child(div().text_xs().font_semibold().child("描边"));
     let stroke_color = this.stroke_color;
     let stroke_grid = color_presets()
@@ -1066,7 +1053,6 @@ fn style_panel(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
         });
     panel = panel.child(stroke_grid);
 
-    // Fill color presets（4 列网格）
     panel = panel.child(div().text_xs().font_semibold().child("填充"));
     let fill_color = this.fill_color;
     let fill_grid = color_presets()
@@ -1101,7 +1087,6 @@ fn style_panel(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
         });
     panel = panel.child(fill_grid);
 
-    // Stroke width（水平 3 个按钮）
     panel = panel.child(div().text_xs().font_semibold().child("线宽"));
     let width_row = [1.0f32, 2.0, 4.0]
         .iter()
@@ -1122,7 +1107,6 @@ fn style_panel(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
         });
     panel = panel.child(width_row);
 
-    // Stroke style（水平 2 个按钮）
     panel = panel.child(div().text_xs().font_semibold().child("样式"));
     panel = panel.child(
         div()
@@ -1152,7 +1136,6 @@ fn style_panel(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
             ),
     );
 
-    // Text editor for selected text element
     if let Some(index) = this.selection {
         if let Some(elem) = this.elements.get(index) {
             if elem.kind == ShapeKind::Text {
@@ -1223,7 +1206,6 @@ fn canvas_container(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> 
                 move |bounds, elems, window, _| {
                     canvas_origin.set(bounds.origin);
                     window.paint_quad(fill(bounds, bg_color));
-                    // 点阵网格（Excalidraw 风格）
                     let dot_color = hsla(0.0, 0.0, 0.85, 1.0);
                     let dot_size = 1.5_f32;
                     let step = 20.0_f32 * zoom;
@@ -1247,7 +1229,6 @@ fn canvas_container(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> 
                         paint_element(bounds.origin, elem, viewport_x, viewport_y, zoom, window);
                     }
 
-                    // Selection highlight
                     if let Some((sx, sy, sw, sh)) = selection_bounds {
                         let sel_bounds = Bounds::new(
                             bounds.origin + point(px(sx - 2.0), px(sy - 2.0)),
@@ -1276,8 +1257,6 @@ fn canvas_container(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> 
                         .text_sm()
                         .text_color(hsla_color)
                         .child(text)
-                        // 不设置 .id()，避免成为交互元素拦截画布鼠标事件
-                        // 也不绑定任何 on_mouse_down，让事件穿透到画布
                 }),
         )
         .on_mouse_down(
@@ -1314,28 +1293,22 @@ fn canvas_container(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> 
             let m = &event.keystroke.modifiers;
             let key = event.keystroke.key.as_str();
             match key {
-                // Ctrl+Z 撤销
                 "z" if m.control && !m.shift => {
                     this.undo(cx);
                 }
-                // Ctrl+Shift+Z 重做
                 "z" if m.control && m.shift => {
                     this.redo(cx);
                 }
-                // Ctrl+Y 重做
                 "y" if m.control => {
                     this.redo(cx);
                 }
-                // Delete / Backspace 删除选中
                 "delete" | "backspace" => {
                     this.delete_selected(cx);
                 }
-                // Escape 取消选择
                 "escape" => {
                     this.selection = None;
                     cx.notify();
                 }
-                // 工具快捷键（仅在无修饰键时生效）
                 _ if !m.control && !m.alt && !m.platform => {
                     match key {
                         "v" => this.set_tool(Tool::Select, cx),
@@ -1467,12 +1440,10 @@ fn paint_element(
             }
         }
         ShapeKind::Text => {
-            // Background quad for text
             let bounds = Bounds::new(abs_origin, size(px(zoomed_width), px(zoomed_height)));
             if elem.fill[3] > 0.0 {
                 window.paint_quad(fill_quad(bounds, fill));
             }
-            // Text is rendered as overlay div
         }
         ShapeKind::Freedraw => {
             if elem.points.len() < 2 {
@@ -1636,7 +1607,6 @@ fn rgba_color(arr: [f32; 4]) -> tiny_skia::Color {
     .unwrap_or(tiny_skia::Color::BLACK)
 }
 
-/// 将 Excalidraw 元素栅格化为 PNG（几何图形，文本用浅色块占位），返回 PNG 字节
 fn render_elements_to_png(elements: &[ExcalidrawElement]) -> anyhow::Result<Vec<u8>> {
     let mut minx = f32::INFINITY;
     let mut miny = f32::INFINITY;
@@ -1750,7 +1720,6 @@ fn draw_element_into(
             }
         }
         ShapeKind::Text => {
-            // 文本无法用像素字体重现，用浅色块占位
             if let Some(rect) = tiny_skia::Rect::from_xywh(e.x, e.y, e.width, e.height) {
                 let block = solid_paint(
                     tiny_skia::Color::from_rgba(1.0, 0.96, 0.8, 1.0).unwrap(),
@@ -1833,7 +1802,6 @@ fn freedraw_path(e: &ExcalidrawElement) -> Option<tiny_skia::Path> {
 }
 
 fn hit_test(elements: &[ExcalidrawElement], x: f32, y: f32) -> Option<usize> {
-    // Iterate in reverse to hit top-most element first
     for (i, elem) in elements.iter().enumerate().rev() {
         if x >= elem.x && x <= elem.x + elem.width && y >= elem.y && y <= elem.y + elem.height {
             return Some(i);

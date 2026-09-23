@@ -35,7 +35,6 @@ const databaseDiffSqlApi = async () => {
   }).catch((error) => message.error(error));
 };
 
-
 const code = ref(null);
 const download = () => {
   const blob = new Blob([sql.value], { type: "text/plain;charset=utf-8" });
@@ -54,11 +53,6 @@ const onClose = () => {
 onMounted(async () => {
   sqls.value = await databaseDiffSqlApi();
   sql.value = sqls.value.join("\n\n");
-  // sql.value = format(sqls.value.join("\n"), {
-  //   language: 'sql',
-  //   tabWidth: 4,
-  //   keywordCase: "upper",
-  // });
 });
 </script>
 

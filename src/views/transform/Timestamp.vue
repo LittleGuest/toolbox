@@ -7,16 +7,13 @@ import { Copy, Paste, Erase, ArrowsHorizontal } from "@vicons/carbon";
 
 const message = useMessage();
 
-// 当前时间
 const current = ref("");
 let updateTimer = null;
 
-// 配置
 const mode = ref<"ts_to_dt" | "dt_to_ts">("ts_to_dt"); // 时间戳→时间 / 时间→时间戳
 const unit = ref<"s" | "ms">("s"); // 秒 / 毫秒（ts_to_dt 时有效，dt_to_ts 时输出两种）
 const tzOffset = ref(28800); // 时区偏移（秒），默认 UTC+8
 
-// 预设时区
 const tzOptions = [
   { label: "UTC-12", value: -43200 },
   { label: "UTC-11", value: -39600 },

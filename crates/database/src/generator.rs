@@ -15,7 +15,6 @@ use tera::Tera;
 
 use crate::{DatasourceInfo, Templates};
 
-/// Rust 1.85关键字
 const KEYWORDS: [&str; 53] = [
     "as", "async", "await", "break", "const", "continue", "crate", "dyn", "else", "enum", "extern",
     "false", "fn", "for", "if", "impl", "in", "let", "loop", "match", "mod", "move", "mut", "pub",
@@ -24,12 +23,10 @@ const KEYWORDS: [&str; 53] = [
     "override", "priv", "try", "typeof", "unsized", "virtual", "yield",
 ];
 
-/// 判断字段名称是否是由多个单词组成
 fn multi_world(name: &str) -> bool {
     name.contains(|c| ['_', '-'].contains(&c))
 }
 
-/// 列名是否为Rust关键字，若为关键字，则需要在其前加 r#
 fn is_keywords(name: &str) -> String {
     if KEYWORDS.contains(&name) {
         format!("r#{name}")
@@ -48,53 +45,32 @@ pub enum Language {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Generator {
-    /// 数据源
     pub datasource_info: DatasourceInfo,
-    /// 编程语言
     pub language: Language,
-    /// 指定要生成代码的表名，为空表示全部
     pub table_names: Vec<String>,
-    /// 忽略的表名
     pub ignore_tables: Vec<String>,
-    /// 忽略表名前缀
     pub ignore_table_prefix: Option<String>,
 
-    /// 代码生成的路径
     pub path: Option<String>,
-    /// 是否覆盖
     pub r#override: bool,
 
-    /// 是否生成 mod.rs 文件
     pub gen_mod: bool,
-    /// 是否生成 error.rs 文件
     pub gen_error: bool,
-    /// 是否生成 Entity 文件
     pub gen_entity: bool,
-    /// 是否生成 Mapper 文件
     pub gen_mapper: bool,
-    /// 是否生成 MapperXml 文件
     pub gen_mapper_xml: bool,
-    /// 是否生成 Service 文件
     pub gen_service: bool,
-    /// 是否生成 Controller 文件
     pub gen_controller: bool,
 
-    /// entity的包名
     pub entity_package_name: Option<String>,
-    /// mapper的包名
     pub mapper_package_name: Option<String>,
-    /// mapperXml的包名
     pub mapper_xml_package_name: Option<String>,
-    /// service的包名
     pub service_package_name: Option<String>,
-    /// serviceImpl的包名
     pub service_impl_package_name: Option<String>,
-    /// controller的包名
     pub controller_package_name: Option<String>,
 }
 
 impl Generator {
-    ///  处理路径，当路径不以 / 结尾时，自动添加 /
     fn deal_path(&mut self) {
         if let Some(path) = &mut self.path
             && !path.is_empty()
@@ -149,7 +125,6 @@ impl Generator {
         Ok((tables, columns))
     }
 
-    /// 渲染模板
     async fn render(&self, path: &str, tera: &mut Tera, ctx: &tera::Context) -> Result<String> {
         let template = Templates::get(path).ok_or(Error::E("模板文件不存在"))?;
         Ok(tera
@@ -157,12 +132,6 @@ impl Generator {
             .map_err(|_| Error::E("模板渲染失败"))?)
     }
 
-    /// 预览代码
-    /// return
-    ///     K：表名
-    ///     V：HashMap
-    ///         K：文件名
-    ///         V：对应的code
     async fn preview(
         &self,
         tables: Vec<Table>,
@@ -170,11 +139,9 @@ impl Generator {
     ) -> Result<HashMap<String, HashMap<String, String>>> {
         let mut res_map = HashMap::with_capacity(self.table_names.len());
 
-        // 将tables转换为map，K：表名，V：表信息
         let table_map: HashMap<String, Table> =
             tables.into_iter().map(|t| (t.name.to_owned(), t)).collect();
 
-        // 组装表信息和表列信息，K：表名，V：表列信息
         let table_column_map =
             table_map
                 .keys()
@@ -191,7 +158,6 @@ impl Generator {
                     table_column_map
                 });
 
-        // 创建模板引擎
         let mut ctx = tera::Context::new();
         ctx.insert("driver", &self.datasource_info.driver);
         ctx.insert("driver_url", &self.datasource_info.url());
@@ -218,7 +184,6 @@ impl Generator {
 
                 for (table_name, table) in table_map.iter() {
                     let column = table_column_map.get(&table_name);
-                    // 创建上下文
                     ctx.insert("struct_name", &table_name.to_upper_camel_case());
                     ctx.insert("table", &table);
                     let mut has_columns = false;
@@ -244,19 +209,6 @@ impl Generator {
                             self.render("code/rust/model.html", &mut tera, &ctx).await?,
                         );
                     }
-                    // if self.gen_service {
-                    //     map.insert(
-                    //         "service.rs".into(),
-                    //         self.render("code/rust/service.html", &mut tera, &ctx)
-                    //             .await?,
-                    //     );
-                    // }
-                    // if self.gen_controller {
-                    //     map.insert(
-                    //         "api.rs".into(),
-                    //         self.render("code/rust/api.html", &mut tera, &ctx).await?,
-                    //     );
-                    // }
                     res_map.insert(table_name.into(), map);
                 }
             }
@@ -305,7 +257,6 @@ impl Generator {
         Ok(res_map)
     }
 
-    /// 写入文件
     async fn write(&self, tables: Vec<Table>, tables_columns: Vec<Column>) -> Result<()> {
         let Some(ref path) = self.path else {
             return Err(Error::E("代码生成的路径为空"));
@@ -320,21 +271,18 @@ impl Generator {
         let data = self.preview(tables, tables_columns).await?;
         match self.language {
             Language::Rust => {
-                // 创建 error.rs 文件
                 if self.gen_error
                     && let Some(code) = data.get("error.rs")
                     && let Some(code) = code.get("error.rs")
                 {
                     Self::write_file(&format!("{path}/error.rs"), code, self.r#override).await?;
                 }
-                // 创建 mod.rs 文件
                 if self.gen_mod
                     && let Some(code) = data.get("mod.rs")
                     && let Some(code) = code.get("mod.rs")
                 {
                     Self::write_file(&format!("{path}/mod.rs"), code, self.r#override).await?;
                 }
-                // 创建 model 文件
                 for (key, value) in data
                     .into_iter()
                     .filter(|(k, _)| !["error.rs", "mod.rs"].contains(&k.as_str()))
@@ -366,7 +314,6 @@ impl Generator {
         Ok(())
     }
 
-    /// 写入文件
     async fn write_file<P>(path: P, contents: &str, r#override: bool) -> Result<()>
     where
         P: AsRef<Path>,

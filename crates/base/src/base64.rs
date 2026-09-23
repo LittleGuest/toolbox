@@ -36,7 +36,6 @@ pub fn decode_img(data: &str) -> Result<Vec<u8>> {
 
 const STANDARD: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
-/// 根据文件字节内容猜测图片 MIME 类型
 fn mime_from_bytes(bytes: &[u8]) -> Option<String> {
     let format = image::guess_format(bytes).ok()?;
     Some(mime_from_format(format))
@@ -63,7 +62,6 @@ fn mime_from_format(format: ImageFormat) -> String {
     }
 }
 
-/// 根据文件扩展名猜测图片 MIME 类型（用于 SVG 等无法从字节识别的格式）
 fn mime_from_ext(path: &str) -> Option<String> {
     let ext = std::path::Path::new(path)
         .extension()?
@@ -85,7 +83,6 @@ fn mime_from_ext(path: &str) -> Option<String> {
     )
 }
 
-/// 图片文件编码为 Data URL，返回 mime / 大小 / Data URL
 pub fn encode_image(path: &str) -> Result<HashMap<String, String>> {
     let bytes = std::fs::read(path).map_err(|e| Error::msg(e.to_string()))?;
     let mime = mime_from_bytes(&bytes)
@@ -106,7 +103,6 @@ pub fn encode_image(path: &str) -> Result<HashMap<String, String>> {
     Ok(map)
 }
 
-/// 解码 Base64 / Data URL 为图片字节，返回 mime 与 Data URL
 pub fn decode_image(data: &str) -> Result<HashMap<String, String>> {
     let (mime, bytes) = decode_image_bytes(data)?;
     let mut map = HashMap::with_capacity(3);
@@ -119,13 +115,11 @@ pub fn decode_image(data: &str) -> Result<HashMap<String, String>> {
     Ok(map)
 }
 
-/// 解码 Base64 / Data URL 并保存为图片文件
 pub fn save_image(data: &str, path: &str) -> Result<()> {
     let (_, bytes) = decode_image_bytes(data)?;
     std::fs::write(path, &bytes).map_err(|e| Error::msg(e.to_string()))
 }
 
-/// 解析 Base64 / Data URL，返回 (mime, bytes)
 fn decode_image_bytes(data: &str) -> Result<(String, Vec<u8>)> {
     let trimmed = data.trim();
     let (mime, b64) = if let Some((prefix, b64)) = trimmed.split_once(',') {

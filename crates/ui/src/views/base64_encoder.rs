@@ -126,7 +126,6 @@ impl Render for Base64Encoder {
                 cx,
             ))
             .child(
-                // 输入卡片
                 design::card(cx)
                     .child(
                         design::toolbar()
@@ -163,7 +162,6 @@ impl Render for Base64Encoder {
                     ),
             )
             .child(
-                // 编码/解码操作行
                 design::action_row()
                     .child(
                         Button::new("encode")
@@ -184,7 +182,6 @@ impl Render for Base64Encoder {
                     ),
             )
             .child(
-                // 输出卡片
                 design::card(cx)
                     .child(
                         Textarea::new(&self.output_state)

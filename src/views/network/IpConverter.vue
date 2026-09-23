@@ -71,7 +71,6 @@ const copy = (value: string) => {
   message.success("复制成功");
 };
 
-// IPv4 点分 → 32 位整数
 const ipv4ToInt = (ip: string): bigint | null => {
   const parts = ip.trim().split(".");
   if (parts.length !== 4) return null;
@@ -85,7 +84,6 @@ const ipv4ToInt = (ip: string): bigint | null => {
   return v;
 };
 
-// 整数 → IPv4 点分（每 8 位一段）
 const intToIpv4 = (int: bigint): string => {
   const parts: string[] = [];
   for (let i = 3; i >= 0; i--) {
@@ -94,7 +92,6 @@ const intToIpv4 = (int: bigint): string => {
   return parts.join(".");
 };
 
-// IPv6 → 128 位整数（支持 :: 压缩）
 const ipv6ToInt = (ip: string): bigint | null => {
   const s = ip.trim().toLowerCase();
   if (!s) return null;
@@ -124,7 +121,6 @@ const ipv6ToInt = (ip: string): bigint | null => {
   return v;
 };
 
-// 128 位整数 → 16 位 × 8 段二进制展开（空格分隔）
 const ipv6ToBinary = (int: bigint): string => {
   const segs: string[] = [];
   for (let i = 7; i >= 0; i--) {

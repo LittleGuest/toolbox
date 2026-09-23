@@ -8,7 +8,6 @@ mod design;
 mod views;
 use views::*;
 
-/// 全局 Tokio runtime，供 sqlx 等需要 Tokio 上下文的库使用
 static TOKIO_RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -199,35 +198,30 @@ impl Render for App {
                                     })),
                             )
                             .children([SidebarMenu::new().children([
-                                // 首页 — 顶级（匹配 Tauri menu.ts）
                                 SidebarMenuItem::new("首页")
                                     .icon(Icon::new(IconName::LayoutDashboard))
                                     .active(current_view == ViewType::Home)
                                     .on_click(cx.listener(|this, _, _, cx| {
                                         this.set_view(ViewType::Home, cx);
                                     })),
-                                // 系统监控 — 顶级
                                 SidebarMenuItem::new("系统监控")
                                     .icon(Icon::new(IconName::ChartPie))
                                     .active(current_view == ViewType::SystemMonitor)
                                     .on_click(cx.listener(|this, _, _, cx| {
                                         this.set_view(ViewType::SystemMonitor, cx);
                                     })),
-                                // 代码片段 — 顶级
                                 SidebarMenuItem::new("代码片段")
                                     .icon(Icon::new(IconName::File))
                                     .active(current_view == ViewType::CodeSnippet)
                                     .on_click(cx.listener(|this, _, _, cx| {
                                         this.set_view(ViewType::CodeSnippet, cx);
                                     })),
-                                // 待办事项 — 顶级
                                 SidebarMenuItem::new("待办事项")
                                     .icon(Icon::new(IconName::Check))
                                     .active(current_view == ViewType::Todo)
                                     .on_click(cx.listener(|this, _, _, cx| {
                                         this.set_view(ViewType::Todo, cx);
                                     })),
-                                // 转换 — 可展开父菜单
                                 SidebarMenuItem::new("转换")
                                     .icon(Icon::new(IconName::Replace))
                                     .click_to_open(true)
@@ -260,7 +254,6 @@ impl Render for App {
                                                 this.set_view(ViewType::TransformCron, cx);
                                             })),
                                     ]),
-                                // 编码/解码 — 可展开父菜单
                                 SidebarMenuItem::new("编码/解码")
                                     .icon(Icon::new(IconName::Dash))
                                     .click_to_open(true)
@@ -338,7 +331,6 @@ impl Render for App {
                                                 );
                                             })),
                                     ]),
-                                // 格式化 — 可展开父菜单
                                 SidebarMenuItem::new("格式化")
                                     .icon(Icon::new(IconName::Replace))
                                     .click_to_open(true)
@@ -362,7 +354,6 @@ impl Render for App {
                                                 this.set_view(ViewType::FormatterXml, cx);
                                             })),
                                     ]),
-                                // 生成器 — 可展开父菜单
                                 SidebarMenuItem::new("生成器")
                                     .icon(Icon::new(IconName::Plus))
                                     .click_to_open(true)
@@ -386,7 +377,6 @@ impl Render for App {
                                                 this.set_view(ViewType::GeneratorChecksum, cx);
                                             })),
                                     ]),
-                                // 数据库 — 可展开父菜单
                                 SidebarMenuItem::new("数据库")
                                     .icon(Icon::new(IconName::Building2))
                                     .click_to_open(true)
@@ -404,7 +394,6 @@ impl Render for App {
                                                 this.set_view(ViewType::DatabaseDiff, cx);
                                             })),
                                     ]),
-                                // 文本 — 可展开父菜单
                                 SidebarMenuItem::new("文本")
                                     .icon(Icon::new(IconName::BookOpen))
                                     .click_to_open(true)
@@ -440,7 +429,6 @@ impl Render for App {
                                                 this.set_view(ViewType::TextDiff, cx);
                                             })),
                                     ]),
-                                // 随机 — 可展开父菜单
                                 SidebarMenuItem::new("随机")
                                     .icon(Icon::new(IconName::Asterisk))
                                     .click_to_open(true)
@@ -470,7 +458,6 @@ impl Render for App {
                                                 this.set_view(ViewType::RandomData, cx);
                                             })),
                                     ]),
-                                // 数字 — 可展开父菜单（匹配 Tauri：IP 地址转换 + 按位计算器）
                                 SidebarMenuItem::new("数字")
                                     .icon(Icon::new(IconName::Globe))
                                     .click_to_open(true)
@@ -488,7 +475,6 @@ impl Render for App {
                                                 this.set_view(ViewType::NumberBitwise, cx);
                                             })),
                                     ]),
-                                // 颜色转换 — 可展开父菜单
                                 SidebarMenuItem::new("颜色转换")
                                     .icon(Icon::new(IconName::Frame))
                                     .click_to_open(true)
@@ -498,7 +484,6 @@ impl Render for App {
                                         .on_click(cx.listener(|this, _, _, cx| {
                                             this.set_view(ViewType::ColorConverter, cx);
                                         }))]),
-                                // 图像 — 可展开父菜单
                                 SidebarMenuItem::new("图像")
                                     .icon(Icon::new(IconName::Frame))
                                     .click_to_open(true)
@@ -508,7 +493,6 @@ impl Render for App {
                                         .on_click(cx.listener(|this, _, _, cx| {
                                             this.set_view(ViewType::ImageExcalidraw, cx);
                                         }))]),
-                                // 其它 — 可展开父菜单
                                 SidebarMenuItem::new("其它")
                                     .icon(Icon::new(IconName::Settings2))
                                     .click_to_open(true)
@@ -526,7 +510,6 @@ impl Render for App {
                                                 this.set_view(ViewType::OtherClipboard, cx);
                                             })),
                                     ]),
-                                // 正则 — 可展开父菜单
                                 SidebarMenuItem::new("正则")
                                     .icon(Icon::new(IconName::Dash))
                                     .click_to_open(true)
@@ -536,7 +519,6 @@ impl Render for App {
                                         .on_click(cx.listener(|this, _, _, cx| {
                                             this.set_view(ViewType::RegexVisualizer, cx);
                                         }))]),
-                                // 设置 — 顶级（匹配 Tauri menu.ts）
                                 SidebarMenuItem::new("设置")
                                     .icon(Icon::new(IconName::Settings))
                                     .active(current_view == ViewType::Settings)
@@ -550,9 +532,6 @@ impl Render for App {
                             .flex_1()
                             .min_w(px(640.0))
                             .overflow_y_scrollbar()
-                            // 深色主题下窗口背景会变深，若不显式指定前景色，
-                            // 内容区的默认文字（深色）会与深背景同色而不可见（白屏）。
-                            // 显式指定主题背景/前景色，浅色与深色主题都能正确显示。
                             .bg(cx.theme().background)
                             .text_color(cx.theme().foreground)
                             .child(match current_view {
@@ -675,7 +654,6 @@ impl Render for App {
 }
 
 fn render_home_view(cx: &mut Context<App>) -> Div {
-    // 首页卡片：图标 + 标题 + 简述，点击跳转对应工具
     let items: &[(&str, &str, IconName)] = &[
         ("系统监控", "实时监控 CPU、内存与磁盘", IconName::ChartPie),
         ("代码片段", "管理常用代码片段", IconName::File),
@@ -781,7 +759,6 @@ fn render_home_view(cx: &mut Context<App>) -> Div {
                 })),
         )
         .child(
-            // 匹配 Tauri footer
             div()
                 .mt_2()
                 .pt_4()
@@ -793,7 +770,6 @@ fn render_home_view(cx: &mut Context<App>) -> Div {
                 .child("ToolBox"),
         )
 }
-
 
 fn view_for_title(title: &str) -> Option<ViewType> {
     match title {
@@ -1375,7 +1351,6 @@ fn render_color_converter_view(app: &mut App, window: &mut Window, cx: &mut Cont
 fn main() {
     sqlx::any::install_default_drivers();
 
-    // 进入 Tokio runtime 上下文，使 sqlx 等库能正常工作
     let _guard = TOKIO_RUNTIME.enter();
 
     let app = gpui_kit::platform::application().with_assets(Assets);

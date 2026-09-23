@@ -373,9 +373,7 @@ impl Render for CharsetEncoder {
         design::page()
             .child(design::page_header("字符编码", "字符集编码转换", cx))
             .child(
-                // 配置卡片
                 design::card(cx)
-                    // 1. 输入类型
                     .child(
                         div()
                             .flex()
@@ -384,7 +382,6 @@ impl Render for CharsetEncoder {
                             .child(design::caption("输入类型", cx).w(label_w))
                             .child(Select::new(&self.input_type_state)),
                     )
-                    // 2. 目标编码
                     .child(
                         div()
                             .flex()
@@ -399,7 +396,6 @@ impl Render for CharsetEncoder {
                                     .child(self.detected_charset.clone()),
                             ),
                     )
-                    // 6. 输出类型
                     .child(
                         div()
                             .flex()
@@ -408,7 +404,6 @@ impl Render for CharsetEncoder {
                             .child(design::caption("输出类型", cx).w(label_w))
                             .child(Select::new(&self.output_type_state)),
                     )
-                    // 7. 分隔符
                     .child(
                         div()
                             .flex()
@@ -417,7 +412,6 @@ impl Render for CharsetEncoder {
                             .child(design::caption("分隔符", cx).w(label_w))
                             .child(Select::new(&self.delimiter_state)),
                     )
-                    // 8. 自定义分隔符 (only when delimiterType=custom)
                     .when(self.delimiter_type == "自定义", |this| {
                         this.child(
                             div()
@@ -432,7 +426,6 @@ impl Render for CharsetEncoder {
                                 ),
                         )
                     })
-                    // 9. 进制格式
                     .child(
                         div()
                             .flex()
@@ -441,7 +434,6 @@ impl Render for CharsetEncoder {
                             .child(design::caption("进制格式", cx).w(label_w))
                             .child(Select::new(&self.base_format_state)),
                     )
-                    // 10. 显示选项 → Checkbox（匹配 Tauri n-checkbox）
                     .child(
                         div()
                             .flex()
@@ -520,9 +512,7 @@ impl Render for CharsetEncoder {
                     ),
             )
             .child(
-                // 输入卡片
                 design::card(cx)
-                    // 3. 顶部操作行 (Paste + Copy + 自动检测 + Close)
                     .child(
                         design::toolbar()
                             .child(
@@ -556,7 +546,6 @@ impl Render for CharsetEncoder {
                             )
                             .child(div().flex_1()),
                     )
-                    // 4. 输入
                     .child(
                         Textarea::new(&self.input_state)
                             .h(design::CODE_BOX_HEIGHT)
@@ -564,7 +553,6 @@ impl Render for CharsetEncoder {
                     ),
             )
             .child(
-                // 5. 转换主操作
                 design::action_row()
                     .child(
                         Button::new("convert")
@@ -577,15 +565,12 @@ impl Render for CharsetEncoder {
                     ),
             )
             .child(
-                // 输出卡片
                 design::card(cx)
-                    // 输出
                     .child(
                         Textarea::new(&self.output_state)
                             .h(design::CODE_BOX_HEIGHT)
                             .font_family("monospace"),
                     )
-                    // 底部操作行 (Paste + Copy + Close)
                     .child(
                         design::toolbar()
                             .child(
@@ -614,7 +599,6 @@ impl Render for CharsetEncoder {
                             )
                             .child(div().flex_1()),
                     )
-                    // 统计信息
                     .child(
                         div()
                             .flex()

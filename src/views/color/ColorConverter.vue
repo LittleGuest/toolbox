@@ -13,7 +13,6 @@ const rgb = ref("52, 152, 219");
 const hsv = ref("210, 76, 86");
 const cmyk = ref("65, 33, 0, 14");
 
-// 联动抑制标记：回填其它格式时不触发各自的 watch
 const suppress = ref(false);
 const invalidField = ref<Source | null>(null);
 
@@ -37,7 +36,6 @@ interface CMYK {
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 const round1 = (v: number) => Math.round(v * 10) / 10;
 
-// ---------------- 转换函数 ----------------
 function hexToRgb(input: string): RGB | null {
   const m = /^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.exec(input.trim());
   if (!m) return null;
@@ -134,7 +132,6 @@ function cmykToRgb({ c, m, y, k }: CMYK): RGB {
   };
 }
 
-// ---------------- 输入解析与校验 ----------------
 const parseList = (input: string, count: number): number[] | null => {
   const parts = input.split(",").map((p) => p.trim()).filter((p) => p !== "");
   if (parts.length !== count) return null;
@@ -167,7 +164,6 @@ const parseCmyk = (input: string): CMYK | null => {
   return { c, m, y, k };
 };
 
-// ---------------- 联动 ----------------
 const currentRgb = ref<RGB | null>(hexToRgb(hex.value));
 
 const currentHex = computed(() => (currentRgb.value ? rgbToHex(currentRgb.value) : "#ffffff"));
@@ -180,7 +176,6 @@ const previewTextColor = computed(() => {
 
 const colorInput = ref("#3498db");
 
-// 以某个 RGB 为源，回填所有格式
 function fillAll(rgb: RGB) {
   suppress.value = true;
   currentRgb.value = rgb;
@@ -226,7 +221,6 @@ watch(cmyk, () => {
   if (!suppress.value) recompute("cmyk");
 });
 
-// 原生取色器：直接作为 hex 源重新计算
 watch(colorInput, (v) => {
   if (suppress.value) return;
   suppress.value = true;
@@ -235,7 +229,6 @@ watch(colorInput, (v) => {
   recompute("hex");
 });
 
-// 初始化时统一回填一次，保证四种格式显示一致
 const initRgb = hexToRgb(hex.value);
 if (initRgb) fillAll(initRgb);
 
@@ -257,7 +250,6 @@ const copyHex = () => {
 <template>
   <div class="tb-page">
     <section class="tb-card">
-    <!-- 预览 -->
     <div class="preview-block" :style="{ background: currentHex, color: previewTextColor }">
       <span class="preview-hex">{{ currentHex }}</span>
     </div>

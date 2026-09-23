@@ -3,10 +3,8 @@ import { ref, computed, onUnmounted, h } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { NProgress, NCard, NDataTable, NInput, NButton, NPopconfirm, NSwitch, useMessage, NDrawer, NDrawerContent } from 'naive-ui';
 
-// 消息提示
 const message = useMessage();
 
-// 定义监控数据的响应式变量
 const cpuData = ref({
   usage: 0,
   temperature: 0
@@ -97,7 +95,6 @@ const processColumns = [
   }
 ];
 
-// 定时器引用
 let cpuMemoryTimer = null;
 let diskTimer = null;
 let processTimer = null;
@@ -172,20 +169,16 @@ const handleMonitoringChange = (enabled) => {
   }
 }
 
-// 获取CPU和内存信息
 const fetchCpuMemoryData = async () => {
   if (!monitoringEnabled.value) {
     return;
   }
   try {
-    // 获取CPU信息
     const cpuInfo = await invoke('monitor_cpu_info');
     cpuData.value.usage = cpuInfo.global_usage || 0;
 
-    // 保存CPU详细信息
     cpuDetails.value = cpuInfo;
 
-    // 获取传感器信息（包括温度）
     const systemInfo = await invoke('monitor_system_info');
     if (systemInfo.sensors) {
       const cpuTempKey = Object.keys(systemInfo.sensors).find(key =>
@@ -197,7 +190,6 @@ const fetchCpuMemoryData = async () => {
       }
     }
 
-    // 获取内存信息
     const memoryInfo = await invoke('monitor_memory_info');
     if (memoryInfo.total_memory && memoryInfo.used_memory) {
       memoryData.value.usage = (memoryInfo.used_memory / memoryInfo.total_memory) * 100;
@@ -214,8 +206,6 @@ const fetchCpuMemoryData = async () => {
       return;
     }
 
-    // 注意：GPU、磁盘读写和网络数据在当前后端实现中可能不可用
-    // 这里使用模拟数据
     gpuData.value.usage = Math.random() * 100;
     gpuData.value.temperature = Math.random() * 50 + 30;
     gpuData.value.memory = Math.random() * 100;
@@ -228,7 +218,6 @@ const fetchCpuMemoryData = async () => {
   }
 }
 
-// 获取磁盘信息
 const fetchDiskData = async () => {
   if (!monitoringEnabled.value) {
     return;
@@ -266,7 +255,6 @@ const openCpuDrawer = () => {
   cpuDrawerVisible.value = true;
 }
 
-// 获取进程信息
 const fetchProcessData = async () => {
   if (!monitoringEnabled.value) {
     return;
@@ -282,12 +270,10 @@ const fetchProcessData = async () => {
   }
 }
 
-// 格式化数字，保留两位小数
 const formatNumber = (num) => {
   return num.toFixed(2);
 }
 
-// 格式化字节为合适的单位
 const formatBytes = (bytes) => {
   if (bytes === 0) return '0 B/s';
   const k = 1024;
@@ -296,7 +282,6 @@ const formatBytes = (bytes) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-// 格式化内存大小为合适的单位
 const formatMemorySize = (bytes) => {
   if (bytes === 0) return '0 B';
   const k = 1024;
@@ -305,12 +290,10 @@ const formatMemorySize = (bytes) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-// 删除进程
 const killProcess = async (pid) => {
   try {
     await invoke('kill_process', { pid: parseInt(pid) });
     message.success(`进程 ${pid} 已终止`);
-    // 刷新进程列表
     if (monitoringEnabled.value) {
       const processInfo = await invoke('monitor_process_info');
       processes.value = processInfo;
@@ -320,7 +303,6 @@ const killProcess = async (pid) => {
   }
 }
 
-// 组件卸载时清除定时器
 onUnmounted(() => {
   stopMonitoring();
 });
@@ -341,9 +323,7 @@ onUnmounted(() => {
     </div>
 
     <template v-else>
-      <!-- CPU和内存监控 - 同一行 -->
       <div class="monitor-row">
-        <!-- CPU监控 -->
         <n-card class="monitor-card" :bordered="true">
           <div class="item-content">
             <div class="metric" style="cursor: pointer;" @click="openCpuDrawer">
@@ -361,7 +341,6 @@ onUnmounted(() => {
           </div>
         </n-card>
 
-        <!-- 内存监控 -->
         <n-card class="monitor-card" :bordered="true">
           <div class="item-content">
             <div class="metric">
@@ -378,7 +357,6 @@ onUnmounted(() => {
         </n-card>
       </div>
 
-      <!-- 进程列表 -->
       <n-card class="monitor-card process-list-card" :bordered="true">
         <template #header>
           <div class="item-header" style="display: flex; justify-content: end; align-items: center;">
@@ -390,47 +368,6 @@ onUnmounted(() => {
       </n-card>
     </template>
 
-    <!-- 磁盘监控 -->
-    <!-- <div class="monitor-item">
-      <div class="item-header">
-        <span class="item-icon">💾</span>
-        <span class="item-title">磁盘</span>
-      </div>
-      <div class="item-content">
-        <div class="disk-metrics">
-          <div class="metric">
-            <span class="metric-label">读取</span>
-            <span class="metric-value">{{ formatBytes(diskData.read * 1024 * 1024) }}</span>
-          </div>
-          <div class="metric">
-            <span class="metric-label">写入</span>
-            <span class="metric-value">{{ formatBytes(diskData.write * 1024 * 1024) }}</span>
-          </div>
-        </div>
-      </div>
-    </div> -->
-
-    <!-- 网络监控 -->
-    <!-- <div class="monitor-item">
-      <div class="item-header">
-        <span class="item-icon">🌐</span>
-        <span class="item-title">网络</span>
-      </div>
-      <div class="item-content">
-        <div class="network-metrics">
-          <div class="metric">
-            <span class="metric-label">上传</span>
-            <span class="metric-value">{{ formatBytes(networkData.upload * 1024 * 1024) }}</span>
-          </div>
-          <div class="metric">
-            <span class="metric-label">下载</span>
-            <span class="metric-value">{{ formatBytes(networkData.download * 1024 * 1024) }}</span>
-          </div>
-        </div>
-      </div>
-    </div> -->
-
-    <!-- 磁盘详情抽屉 -->
     <n-drawer v-model:show="diskDrawerVisible" width="45%" placement="right">
       <n-drawer-content title="磁盘详情">
         <div v-for="(disk, index) in diskDetails" :key="index" style="margin-bottom: 15px;">
@@ -470,7 +407,6 @@ onUnmounted(() => {
       </n-drawer-content>
     </n-drawer>
 
-    <!-- CPU详情抽屉 -->
     <n-drawer v-model:show="cpuDrawerVisible" width="45%" placement="right">
       <n-drawer-content title="CPU详情">
         <n-card :bordered="true" style="margin-bottom: 15px;">

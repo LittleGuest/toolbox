@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use anyhow::{Error, Result};
 
-/// url_params to json
 pub fn parse(data: &str) -> Result<String> {
     if data.trim().is_empty() {
         return Ok(String::new());
@@ -25,11 +24,6 @@ pub fn parse(data: &str) -> Result<String> {
             (key, value)
         })
         .fold(HashMap::<_, _>::new(), |mut map, (k, v)| {
-            // if let Some(vv) = map.get_mut(k) {
-            //     vv.push(v);
-            // } else {
-            //     map.insert(k, vec![v]);
-            // }
             map.insert(k, v);
             map
         });

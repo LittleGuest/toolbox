@@ -326,7 +326,6 @@ impl MarkdownEditor {
         let mut children: Vec<AnyElement> = Vec::new();
 
         while pos < len {
-            // 图片 ![alt](url)
             if chars[pos] == '!' && pos + 1 < len && chars[pos + 1] == '[' {
                 if let Some(end_bracket) = find_closing_bracket(&chars, pos + 1) {
                     let alt_start = pos + 2;
@@ -360,7 +359,6 @@ impl MarkdownEditor {
                 }
             }
 
-            // 链接 [text](url)
             if chars[pos] == '[' {
                 if let Some(end_bracket) = find_closing_bracket(&chars, pos) {
                     let link_text: String = chars[pos + 1..end_bracket].iter().collect();
@@ -394,7 +392,6 @@ impl MarkdownEditor {
                 }
             }
 
-            // 粗体 **text**
             if chars[pos] == '*' && pos + 1 < len && chars[pos + 1] == '*' {
                 if let Some(end) = find_closing_marker(&chars, pos + 2, '*', '*') {
                     let bold_text: String = chars[pos + 2..end].iter().collect();
@@ -404,7 +401,6 @@ impl MarkdownEditor {
                 }
             }
 
-            // 斜体 *text*
             if chars[pos] == '*' {
                 if let Some(end) = find_closing_marker(&chars, pos + 1, '*', None) {
                     let italic_text: String = chars[pos + 1..end].iter().collect();
@@ -414,7 +410,6 @@ impl MarkdownEditor {
                 }
             }
 
-            // 删除线 ~~text~~
             if chars[pos] == '~' && pos + 1 < len && chars[pos + 1] == '~' {
                 if let Some(end) = find_closing_marker(&chars, pos + 2, '~', '~') {
                     let strike_text: String = chars[pos + 2..end].iter().collect();
@@ -424,7 +419,6 @@ impl MarkdownEditor {
                 }
             }
 
-            // 行内代码 `code`
             if chars[pos] == '`' {
                 if let Some(end) = find_closing_backtick(&chars, pos + 1) {
                     let code_text: String = chars[pos + 1..end].iter().collect();
@@ -445,7 +439,6 @@ impl MarkdownEditor {
                 }
             }
 
-            // 普通文本：收集直到下一个特殊字符
             let start = pos;
             while pos < len {
                 let c = chars[pos];
@@ -459,7 +452,6 @@ impl MarkdownEditor {
                 children.push(div().child(plain).into_any_element());
             }
 
-            // 如果没有匹配任何模式，跳过当前字符避免死循环
             if pos == start && pos < len {
                 let ch = chars[pos];
                 children.push(div().child(ch.to_string()).into_any_element());

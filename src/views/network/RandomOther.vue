@@ -8,7 +8,6 @@ const message = useMessage();
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
 
-// ---------- IP 地址 ----------
 const ipType = ref<"v4" | "v6">("v4");
 const ipCount = ref(10);
 const ipOut = ref("");
@@ -29,7 +28,6 @@ const genIp = () => {
   ipOut.value = lines.join("\n");
 };
 
-// ---------- MAC 地址 ----------
 const macFormat = ref("colon");
 const MAC_FORMAT_OPTIONS = [
   { label: "冒号分隔 (AA:BB:CC:DD:EE:FF)", value: "colon" },
@@ -49,7 +47,6 @@ const genMac = () => {
     const bytes: string[] = [];
     for (let j = 0; j < 6; j++) {
       if (j === 1 && macUnicast.value) {
-        // 单播：第二段首字符为偶数（0 2 4 6 8 A C E）
         const hi = ["0", "2", "4", "6", "8", "A", "C", "E"][Math.floor(Math.random() * 8)];
         const lo = Math.floor(Math.random() * 16).toString(16).toUpperCase();
         bytes.push(hi + lo);
@@ -64,7 +61,6 @@ const genMac = () => {
   macOut.value = lines.join("\n");
 };
 
-// ---------- 时间 ----------
 const timeFormat = ref<"24" | "12">("24");
 const timeCount = ref(10);
 const timeOut = ref("");
@@ -86,7 +82,6 @@ const genTime = () => {
   timeOut.value = lines.join("\n");
 };
 
-// ---------- 日期 ----------
 const dateStart = ref<number | null>(null);
 const dateEnd = ref<number | null>(null);
 const dateCount = ref(10);
@@ -113,7 +108,6 @@ const genDate = () => {
   dateOut.value = lines.join("\n");
 };
 
-// ---------- 复制 / 清除 ----------
 const outputs = {
   ip: ipOut,
   mac: macOut,

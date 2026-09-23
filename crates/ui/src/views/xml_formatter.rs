@@ -251,7 +251,6 @@ impl Render for XmlFormatter {
         design::page()
             .child(design::page_header("XML 格式化", "格式化 XML 文本", cx))
             .child(
-                // 输入卡片（含缩进配置）
                 design::card(cx)
                     .child(
                         div()
@@ -284,7 +283,6 @@ impl Render for XmlFormatter {
                     .child(Textarea::new(&self.input_state).h(px(400.0))),
             )
             .child(
-                // 格式化操作行
                 design::action_row()
                     .child(
                         Button::new("format")

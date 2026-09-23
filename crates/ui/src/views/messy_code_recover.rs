@@ -74,7 +74,6 @@ impl Render for MessyCodeRecover {
         design::page()
             .child(design::page_header("乱码恢复", "修复乱码文本", cx))
             .child(
-                // 输入卡片
                 design::card(cx)
                     .child(
                         design::caption(
@@ -91,7 +90,6 @@ impl Render for MessyCodeRecover {
                     .child(Textarea::new(&self.input_state).h(px(150.0))),
             )
             .child(
-                // 恢复操作行
                 design::action_row()
                     .child(
                         Button::new("recover")
@@ -111,7 +109,6 @@ impl Render for MessyCodeRecover {
                     ),
             )
             .child(
-                // 结果卡片
                 design::card(cx).child(if !results.is_empty() {
                     div()
                         .flex_1()

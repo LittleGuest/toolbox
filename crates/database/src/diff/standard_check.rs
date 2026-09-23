@@ -248,7 +248,6 @@ static MYSQL_RESERVED_KEY_WORDS: [&str; 235] = [
     "zerofill",
 ];
 
-/// 规范检查宏，定义 StandardCheck struct
 macro_rules! standard_check {
     ($($name:ident = $code:expr, $desc:expr),*) => {
         #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
@@ -266,21 +265,6 @@ macro_rules! standard_check {
                     $(StandardCheck::$name => $desc),*
                 }
             }
-
-            // pub fn format(&self, args: Vec<String>) -> String {
-            //     match self {
-            //         $(StandardCheck::$name => format_vec_items!($desc,args)),*
-            //     }
-            // }
-
-            // pub fn format(&self, args: Vec<String>) -> String {
-            //     match self {
-            //         $(StandardCheck::$name => format_desc!($desc,args.into_iter()
-            // .map(|s| format!("\"{s}\""))
-            // .collect::<Vec<_>>()
-            // .join(","))),*
-            //     }
-            // }
 
             pub fn codes() -> Vec<HashMap<String, String>> {
                 let checks = vec![
@@ -303,29 +287,18 @@ macro_rules! standard_check {
 }
 
 standard_check! {
-    // 检查小写
     NameContainUpperCase = 11, "应当使用小写",
-    // 检查单词拼写
     NameErrorSpell = 12, "单词拼写建议，原词：{}，建议词：{}",
-    // 检查数字开头
     NameDigitStart = 13, "不能数字开头，原词：{}",
-    // 检查保留字
     NameUseKeyword = 14, "禁用保留字",
-    // 检查复数单词
     TableNameContainPlurality = 31, "表名不要使用复数名词，原词：{}，建议词：{}",
-    // 检查必备字段
     TableMissField = 32, "表缺少必备三字段：id, created_at, updated_at。",
 
-    // 检查索引命名。主键索引名为 pk_字段名、唯一索引名为 uk_字段名、普通索引名则为 idx_字段名
     IndexNameError = 33, "索引命名不规范，原索引名：{}",
 
-    // 检查is开头
     FieldIsStartErrorType = 41, "字段是is开头，但类型不是unsigned tinyint",
-    // 检查is开头
     FieldIsStartErrorComment = 42, "字段是is开头，但字段备注没有包含“是否”二字",
-    // 检查“是否”类型的字段
     FieldIsContainComment = 43, "字段备注包含“是否”二字，但字段名称不是is开头",
-    // 检查小数类型
     FieldTypeUseFloat = 44, "小数类型为 decimal，禁止使用 float 和 double"
 }
 
@@ -352,7 +325,6 @@ impl StandardCheck {
     }
 }
 
-/// 规范检查
 pub async fn standard_check(
     source: DatasourceInfo,
     check_codes: Vec<i32>,
@@ -371,7 +343,6 @@ pub async fn standard_check(
             collect_word(sname, sname, &mut words).await?;
         }
 
-        // 表名不要使用复数名词
         if check_codes.contains(&StandardCheck::TableNameContainPlurality.code()) {
             if sname.contains('_') {
                 for name in sname.split('_') {
@@ -382,7 +353,6 @@ pub async fn standard_check(
             }
         }
 
-        // 索引命名
         if check_codes.contains(&StandardCheck::IndexNameError.code()) {
             check_index(&st.indexs, sname, &mut map).await?;
         }
@@ -396,7 +366,6 @@ pub async fn standard_check(
                 collect_word(&key, cname, &mut words).await?;
             }
 
-            // 字段是is开头，但类型不是unsigned tinyint
             if check_codes.contains(&StandardCheck::FieldIsStartErrorType.code())
                 && cname.starts_with("is_")
                 && !ColumnType::TinyInt.eq(&sc.r#type.unwrap())
@@ -404,7 +373,6 @@ pub async fn standard_check(
                 add_to_map(&mut map, &key, StandardCheck::FieldIsStartErrorType, vec![]);
             }
 
-            // 字段是is开头，但字段备注没有包含“是否”二字
             if check_codes.contains(&StandardCheck::FieldIsStartErrorComment.code())
                 && cname.starts_with("is_")
                 && !sc.comment.contains("是否")
@@ -417,7 +385,6 @@ pub async fn standard_check(
                 );
             }
 
-            // 字段备注包含“是否”二字，但字段名称不是is开头
             if check_codes.contains(&StandardCheck::FieldIsContainComment.code())
                 && !cname.starts_with("is_")
                 && sc.comment.contains("是否")
@@ -425,7 +392,6 @@ pub async fn standard_check(
                 add_to_map(&mut map, &key, StandardCheck::FieldIsContainComment, vec![]);
             }
 
-            // 小数类型为 decimal
             if check_codes.contains(&StandardCheck::FieldTypeUseFloat.code())
                 && (ColumnType::Float.eq(&sc.r#type.unwrap())
                     || ColumnType::Double.eq(&sc.r#type.unwrap()))
@@ -433,7 +399,6 @@ pub async fn standard_check(
                 add_to_map(&mut map, &key, StandardCheck::FieldTypeUseFloat, vec![]);
             }
         }
-        // 表缺少必备三字段
         if check_codes.contains(&StandardCheck::TableMissField.code())
             && ["id", "created_at", "updated_at"]
                 .iter()
@@ -503,26 +468,22 @@ static REG_UPPER_CASE: LazyLock<Regex> = LazyLock::new(|| Regex::new(".*[A-Z]+.*
 static REG_START_WITH_NUMBER: LazyLock<Regex> = LazyLock::new(|| Regex::new("^[0-9].*").unwrap());
 static REG_NUMBER: LazyLock<Regex> = LazyLock::new(|| Regex::new("[\\d]").unwrap());
 
-/// 检查名称
 async fn check_word(
     word: &str,
     check_codes: &[i32],
     key: &str,
     map: &mut DashMap<String, Vec<Suggest>>,
 ) -> Result<()> {
-    // 检查小写
     if check_codes.contains(&StandardCheck::NameContainUpperCase.code())
         && REG_UPPER_CASE.is_match(word)
     {
         add_to_map(map, key, StandardCheck::NameContainUpperCase, vec![]);
     }
-    // 不能以数字开头
     if check_codes.contains(&StandardCheck::NameDigitStart.code())
         && REG_START_WITH_NUMBER.is_match(word)
     {
         add_to_map(map, key, StandardCheck::NameDigitStart, vec![word.into()]);
     }
-    // 禁用关键字
     if check_codes.contains(&StandardCheck::NameUseKeyword.code())
         && MYSQL_RESERVED_KEY_WORDS.contains(&word.to_lowercase().as_str())
     {
@@ -555,14 +516,10 @@ async fn collect_word(
     Ok(())
 }
 
-/// 单词单数形式缓存
 static SINGULARIZE_MAP: LazyLock<DashMap<String, String>> = LazyLock::new(DashMap::new);
-/// 忽略拼写检查的单词
 static IGNORE_SPELLING_WORD: LazyLock<Vec<String>> = LazyLock::new(Vec::new);
-/// 拼写检查缓存
 static SPELLING_MAP: LazyLock<DashMap<String, Vec<String>>> = LazyLock::new(DashMap::new);
 
-/// 检查单词的单复数
 async fn check_plural_word(
     word: &str,
     key: &str,
@@ -597,7 +554,6 @@ async fn check_plural_word(
     Ok(())
 }
 
-/// 检查索引名称
 async fn check_index(
     indexs: &HashMap<String, IndexBo>,
     key: &str,
@@ -649,24 +605,17 @@ fn add_to_map(
 #[derive(Debug, Clone, Default, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CheckReportBo {
-    /// 表名或字段名
     pub name: String,
-    /// 建议列表
     pub suggests: Vec<Suggest>,
-    /// 字段列表
     pub children: Vec<CheckReportBo>,
 }
 
 #[derive(Debug, Clone, Default, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Suggest {
-    /// 规范检查类型code
     pub code: i32,
-    /// 检查建议
     pub desc: String,
-    /// 原词
     pub origin_word: String,
-    /// 是否展示
     pub show: u8,
 }
 

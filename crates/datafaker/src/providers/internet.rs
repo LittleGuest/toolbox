@@ -213,8 +213,6 @@ impl Internet {
         let domain = GOVERNMENT_EMAIL_DOMAINS[fastrand::usize(0..GOVERNMENT_EMAIL_DOMAINS.len())]
             .to_string();
 
-        //Some government emails end with .gov domain
-
         self.build_email(self.username(), domain)
     }
 

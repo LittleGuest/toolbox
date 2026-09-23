@@ -49,7 +49,6 @@ const copy = (value: string) => {
   message.success("复制成功");
 };
 
-// 按基数解析操作数并转为 BigInt；负数按补码取模，非法或超位宽返回 null
 const parseOperand = (text: string, base: Base, width: number): bigint | null => {
   const s = text.trim();
   if (!s) return null;

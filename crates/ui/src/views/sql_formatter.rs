@@ -321,7 +321,6 @@ impl Render for SqlFormatter {
             .child(design::page_header("SQL 格式化", "格式化 SQL 文本", cx))
             .child(
                 design::card(cx)
-                    // 缩进 → Select（匹配 Tauri n-select）
                     .child(
                         div()
                             .flex()
@@ -330,7 +329,6 @@ impl Render for SqlFormatter {
                             .child(div().w(px(100.0)).child(design::caption("缩进", cx)))
                             .child(Select::new(&self.indent_state)),
                     )
-                    // 关键字大写 → Switch（匹配 Tauri n-switch）
                     .child(
                         div()
                             .flex()
@@ -350,7 +348,6 @@ impl Render for SqlFormatter {
                                     })),
                             ),
                     )
-                    // 操作 → Paste + Copy + 格式化
                     .child(
                         design::toolbar()
                             .child(
@@ -379,7 +376,6 @@ impl Render for SqlFormatter {
                             )
                             .child(div().flex_1()),
                     )
-                    // 单编辑器（格式化后替换内容）
                     .child(
                         Textarea::new(&self.input_state)
                             .h(px(400.0))

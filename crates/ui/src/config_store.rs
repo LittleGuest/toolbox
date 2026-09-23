@@ -174,8 +174,6 @@ pub async fn clear_clipboard_history() -> Result<()> {
     Ok(())
 }
 
-// ===== Snippet CRUD =====
-
 pub async fn save_snippet(record: SnippetRecord) -> Result<i64> {
     let pool = open_pool().await?;
     init_schema(&pool).await?;
@@ -252,8 +250,6 @@ pub async fn delete_snippet(id: i64) -> Result<bool> {
     Ok(result.rows_affected() > 0)
 }
 
-// ===== Todo CRUD =====
-
 pub async fn save_todo(record: TodoRecord) -> Result<i64> {
     let pool = open_pool().await?;
     init_schema(&pool).await?;
@@ -320,8 +316,6 @@ pub async fn delete_todo(id: i64) -> Result<bool> {
     Ok(result.rows_affected() > 0)
 }
 
-// ===== App Settings =====
-
 pub async fn get_setting(key: &str) -> Result<Option<String>> {
     let pool = open_pool().await?;
     init_schema(&pool).await?;
@@ -353,8 +347,6 @@ pub async fn set_setting(key: &str, value: &str) -> Result<()> {
     .map_err(|err| err.to_string())?;
     Ok(())
 }
-
-// ===== Datafaker Config CRUD =====
 
 pub async fn save_datafaker_config(name: &str, nodes_json: &str, edges_json: &str) -> Result<()> {
     let pool = open_pool().await?;
@@ -405,8 +397,6 @@ pub async fn delete_datafaker_config(name: String) -> Result<bool> {
         .map_err(|err| err.to_string())?;
     Ok(result.rows_affected() > 0)
 }
-
-// ===== Excalidraw Doc CRUD =====
 
 pub async fn save_excalidraw_doc(name: &str, elements_json: &str) -> Result<()> {
     let pool = open_pool().await?;
@@ -566,7 +556,6 @@ fn config_path() -> Result<PathBuf> {
     let config_dir = dirs::config_dir()
         .ok_or_else(|| "无法获取系统配置目录".to_string())?;
     let app_dir = config_dir.join("toolbox");
-    // 确保目录存在
     std::fs::create_dir_all(&app_dir)
         .map_err(|err| format!("创建配置目录失败：{err}"))?;
     Ok(app_dir.join("tool.db"))

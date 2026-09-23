@@ -31,7 +31,6 @@ import CaseConverter from "./CaseConverter.vue";
 
 const message = useMessage();
 
-// ---------------- 字符统计 ----------------
 const statText = ref("");
 
 const stats = computed(() => {
@@ -59,7 +58,6 @@ const clearStat = () => {
   statText.value = "";
 };
 
-// ---------------- 清理工具 ----------------
 const cleanInput = ref("");
 const cleanOutput = ref("");
 
@@ -67,26 +65,17 @@ const cleanApply = (fn: (s: string) => string) => {
   cleanOutput.value = fn(cleanInput.value);
 };
 
-// 删除重复行（保持首次出现顺序）
 const removeDuplicateLines = () =>
   cleanApply((s) => [...new Set(s.split(/\r\n|\r|\n/))].join("\n"));
-// 删除空行
 const removeEmptyLines = () =>
   cleanApply((s) => s.split(/\r\n|\r|\n/).filter((l) => l.trim() !== "").join("\n"));
-// 合并多余空格（连续空白压成单个空格）
 const collapseWhitespace = () => cleanApply((s) => s.replace(/\s+/g, " "));
-// 删除全部空白
 const removeAllWhitespace = () => cleanApply((s) => s.replace(/\s/g, ""));
-// 删除换行符
 const removeLineBreaks = () => cleanApply((s) => s.replace(/\r\n|\r|\n/g, ""));
-// 删除重音符号
 const removeDiacritics = () =>
   cleanApply((s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
-// 删除标点符号（保留中文和字母数字）
 const removePunctuation = () => cleanApply((s) => s.replace(/[\p{P}\p{S}]/gu, ""));
-// 删除数字
 const removeDigits = () => cleanApply((s) => s.replace(/[0-9]/g, ""));
-// 剥离 HTML 标签
 const stripHtml = () => cleanApply((s) => s.replace(/<[^>]*>/g, ""));
 
 const copyClean = () => {
@@ -103,7 +92,6 @@ const clearClean = () => {
   cleanOutput.value = "";
 };
 
-// ---------------- 排序与提取 ----------------
 const sortInput = ref("");
 const sortOutput = ref("");
 const extractSep = ref("");
@@ -125,7 +113,6 @@ const shuffleLines = () =>
   });
 const trimLines = () => sortApply((lines) => lines.map((l) => l.trim()));
 
-// 分隔符提取：按正则（或字面分隔符）匹配，结果每行一个
 const doExtract = () => {
   if (!extractSep.value.trim()) {
     message.warning("请输入分隔符或正则表达式");
@@ -158,7 +145,6 @@ const clearSort = () => {
   extractSep.value = "";
 };
 
-// ---------------- 查找替换与重复 ----------------
 const findInput = ref("");
 const findOutput = ref("");
 const findValue = ref("");
@@ -206,7 +192,6 @@ const clearFind = () => {
   repeatCount.value = 3;
 };
 
-// ---------------- 斜线与翻转 ----------------
 const slashInput = ref("");
 const slashOutput = ref("");
 
@@ -214,20 +199,15 @@ const slashApply = (fn: (s: string) => string) => {
   slashOutput.value = fn(slashInput.value);
 };
 
-// 添加斜线：在 \ ' " 和 \0 前加反斜杠
 const addSlashes = () =>
   slashApply((s) =>
     s.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\0/g, "\\0")
   );
-// 去除斜线：去掉反斜杠前缀
 const stripSlashes = () => slashApply((s) => s.replace(/\\(.)/g, "$1"));
-// 反向字符串
 const reverseString = () => slashApply((s) => [...s].reverse().join(""));
-// 单词顺序反转
 const reverseWords = () =>
   slashApply((s) => s.split(/\s+/).filter(Boolean).reverse().join(" "));
 
-// 字符倒置（upside-down）
 const UPSIDE_DOWN_MAP: Record<string, string> = {
   a: "ɐ", b: "q", c: "ɔ", d: "p", e: "ǝ", f: "ɟ", g: "ƃ", h: "ɥ", i: "ᴉ", j: "ɾ",
   k: "ʞ", l: "l", m: "ɯ", n: "u", o: "o", p: "d", q: "b", r: "ɹ", s: "s", t: "ʇ",
@@ -258,7 +238,6 @@ const clearSlash = () => {
   <div class="tb-page">
     <section class="tb-card">
       <n-tabs type="line" animated>
-        <!-- 字符统计 -->
         <n-tab-pane name="stats" tab="字符统计">
           <div class="tb-editor tb-mono">
             <span class="tb-editor-label">输入</span>
@@ -295,7 +274,6 @@ const clearSlash = () => {
           </div>
         </n-tab-pane>
 
-        <!-- 清理工具 -->
         <n-tab-pane name="clean" tab="清理工具">
           <div class="tb-editor tb-mono">
             <span class="tb-editor-label">输入</span>
@@ -409,7 +387,6 @@ const clearSlash = () => {
           </div>
         </n-tab-pane>
 
-        <!-- 排序与提取 -->
         <n-tab-pane name="sort" tab="排序与提取">
           <div class="tb-editor tb-mono">
             <span class="tb-editor-label">输入</span>
@@ -507,7 +484,6 @@ const clearSlash = () => {
           </div>
         </n-tab-pane>
 
-        <!-- 查找替换与重复 -->
         <n-tab-pane name="find" tab="查找替换与重复">
           <div class="tb-editor tb-mono">
             <span class="tb-editor-label">输入</span>
@@ -585,7 +561,6 @@ const clearSlash = () => {
           </div>
         </n-tab-pane>
 
-        <!-- 斜线与翻转 -->
         <n-tab-pane name="slash" tab="斜线与翻转">
           <div class="tb-editor tb-mono">
             <span class="tb-editor-label">输入</span>
@@ -667,7 +642,6 @@ const clearSlash = () => {
           </div>
         </n-tab-pane>
 
-        <!-- 大小写转换 -->
         <n-tab-pane name="case" tab="大小写转换"><CaseConverter /></n-tab-pane>
       </n-tabs>
     </section>

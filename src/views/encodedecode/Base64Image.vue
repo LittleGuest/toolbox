@@ -8,7 +8,6 @@ import { Copy, Paste, Close, Download, Upload } from "@vicons/carbon";
 
 const message = useMessage();
 
-// ---------- 编码 ----------
 const filePath = ref("");
 const encodeResult = ref(null); // { mime, size, dataUrl }
 const encodeLoading = ref(false);
@@ -57,7 +56,6 @@ const clearEncode = () => {
   encodeResult.value = null;
 };
 
-// ---------- 解码 ----------
 const decodeInput = ref("");
 const decodeResult = ref(null); // { mime, size, dataUrl }
 const decodeLoading = ref(false);
@@ -118,7 +116,6 @@ const clearDecode = () => {
   decodeResult.value = null;
 };
 
-// ---------- 通用 ----------
 const copy = (value) => {
   if (!value) return;
   writeText(value);
@@ -136,7 +133,6 @@ const formatSize = (bytes) => {
 <template>
   <div>
       <div class="tb-editor-grid">
-        <!-- 编码 -->
         <div class="tb-editor">
           <span class="tb-editor-label">图片 → Base64</span>
           <div class="tb-toolbar">
@@ -188,7 +184,6 @@ const formatSize = (bytes) => {
           </template>
         </div>
 
-        <!-- 解码 -->
         <div class="tb-editor tb-mono">
           <span class="tb-editor-label">Base64 → 图片</span>
           <n-input

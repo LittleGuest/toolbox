@@ -11,7 +11,6 @@ use gpui_kit::component::{
 
 use crate::views::syntax_highlight::{self, HighlightPalette};
 
-/// 树查看器选项开关
 #[derive(Clone, Copy, Default)]
 struct TreeOptions {
     show_length: bool,
@@ -21,13 +20,9 @@ struct TreeOptions {
 
 pub struct JsonEditor {
     input: String,
-    /// 解析后的 JSON 值（用于树查看器）
     parsed: Option<serde_json::Value>,
-    /// 树查看器错误
     tree_error: String,
-    /// 展开的节点路径集合
     expanded: HashSet<String>,
-    /// 树查看器选项
     tree_options: TreeOptions,
     input_state: Entity<TextareaState>,
     _subscriptions: Vec<Subscription>,
@@ -47,7 +42,6 @@ impl JsonEditor {
                 if let InputEvent::Change = ev {
                     let value = input_state.read(cx).value();
                     this.input = value.to_string();
-                    // 输入变化时自动解析
                     this.parse_input();
                     cx.notify();
                 }
@@ -117,7 +111,6 @@ impl JsonEditor {
         }
     }
 
-    /// 切换树节点展开/折叠
     fn toggle_node(&mut self, path: &str, cx: &mut Context<Self>) {
         if self.expanded.contains(path) {
             self.expanded.remove(path);
@@ -127,7 +120,6 @@ impl JsonEditor {
         cx.notify();
     }
 
-    /// 全部展开（递归收集所有 object/array 节点路径）
     fn expand_all(&mut self, cx: &mut Context<Self>) {
         if let Some(ref value) = self.parsed {
             self.expanded.clear();
@@ -136,7 +128,6 @@ impl JsonEditor {
         cx.notify();
     }
 
-    /// 全部折叠
     fn collapse_all(&mut self, cx: &mut Context<Self>) {
         self.expanded.clear();
         cx.notify();
@@ -158,7 +149,6 @@ impl JsonEditor {
     }
 }
 
-/// 递归收集所有 object/array 节点路径（用于「全部展开」）
 fn collect_all_paths(value: &serde_json::Value, prefix: &str, paths: &mut HashSet<String>) {
     match value {
         serde_json::Value::Object(map) => {
@@ -191,7 +181,6 @@ fn collect_all_paths(value: &serde_json::Value, prefix: &str, paths: &mut HashSe
     }
 }
 
-/// 判断 JSON 值是否可展开（是 object 或 array 且非空）
 fn is_expandable(value: &serde_json::Value) -> bool {
     match value {
         serde_json::Value::Object(m) => !m.is_empty(),
@@ -200,7 +189,6 @@ fn is_expandable(value: &serde_json::Value) -> bool {
     }
 }
 
-/// 获取 object/array 的子节点数量
 fn child_count(value: &serde_json::Value) -> usize {
     match value {
         serde_json::Value::Object(m) => m.len(),
@@ -209,7 +197,6 @@ fn child_count(value: &serde_json::Value) -> usize {
     }
 }
 
-/// 获取 JSON 值的类型标签文本
 fn type_label(value: &serde_json::Value) -> &'static str {
     match value {
         serde_json::Value::Object(_) => "object",
@@ -221,7 +208,6 @@ fn type_label(value: &serde_json::Value) -> &'static str {
     }
 }
 
-/// 获取叶子节点的显示值（带引号的字符串、数字、true/false/null）
 fn leaf_display(value: &serde_json::Value) -> String {
     match value {
         serde_json::Value::String(s) => format!("\"{s}\""),
@@ -234,11 +220,9 @@ fn leaf_display(value: &serde_json::Value) -> String {
 
 impl Render for JsonEditor {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // 匹配 Tauri JsonEditor.vue: ButtonGroup(Paste+Copy) + VueJsonPretty
         design::page()
             .child(design::page_header("JSON Editor", "JSON 格式化与编辑", cx))
             .child(
-                // 整体卡片：内部编辑器/树结构保持原样
                 design::card(cx)
                     .child(
                         design::toolbar()
@@ -265,13 +249,11 @@ impl Render for JsonEditor {
     }
 }
 
-/// 渲染交互式树查看器面板（匹配 Tauri VueJsonPretty：工具栏内嵌在树区域顶部）
 fn tree_viewer_panel(this: &JsonEditor, cx: &mut Context<JsonEditor>) -> Div {
     div()
         .flex()
         .flex_col()
         .gap_1()
-        // 工具栏（内嵌在树查看器顶部，匹配 VueJsonPretty 的内置控制）
         .child(
             div().flex().items_center().gap_2().child(
                 ButtonGroup::new("tree-toolbar")
@@ -320,11 +302,9 @@ fn tree_viewer_panel(this: &JsonEditor, cx: &mut Context<JsonEditor>) -> Div {
                     ),
             ),
         )
-        // 树内容
         .child(render_tree_viewer(this, cx))
 }
 
-/// 渲染树查看器内容
 fn render_tree_viewer(this: &JsonEditor, cx: &mut Context<JsonEditor>) -> Div {
     let inner = div()
         .p_3()
@@ -370,7 +350,6 @@ fn render_tree_viewer(this: &JsonEditor, cx: &mut Context<JsonEditor>) -> Div {
         .child(inner)
 }
 
-/// 递归渲染一个 JSON 节点
 fn render_node(
     value: &serde_json::Value,
     key: &str,
@@ -384,14 +363,12 @@ fn render_node(
     let expandable = is_expandable(value);
     let is_expanded = expandable && (depth == 0 || expanded.contains(path));
 
-    // 行容器
     let mut row = div()
         .flex()
         .items_center()
         .gap_1()
-        .pl(px(8.0 * depth as f32)); // 缩进：每层 8px
+        .pl(px(8.0 * depth as f32));
 
-    // 行号
     if options.show_line_number {
         row = row.child(
             div()
@@ -402,7 +379,6 @@ fn render_node(
     }
     *line_counter += 1;
 
-    // 展开/折叠箭头
     if expandable {
         let arrow_text = if is_expanded { "▼" } else { "▶" };
         let path_clone = path.to_string();
@@ -422,7 +398,6 @@ fn render_node(
         row = row.child(div().w(px(16.0)));
     }
 
-    // 类型图标
     if options.show_icon {
         let icon = match value {
             serde_json::Value::Object(_) => "{}",
@@ -447,7 +422,6 @@ fn render_node(
         );
     }
 
-    // 键名（根节点不显示键名）
     if depth > 0 {
         row = row.child(
             div()
@@ -456,7 +430,6 @@ fn render_node(
         );
     }
 
-    // 值或类型标签
     if expandable {
         let label = type_label(value);
         let count = child_count(value);
@@ -468,7 +441,6 @@ fn render_node(
             },
         ));
     } else {
-        // 叶子节点值
         let display = leaf_display(value);
         let color = match value {
             serde_json::Value::String(_) => gpui_kit::hsla(0.33, 0.6, 0.4, 1.0),
@@ -480,7 +452,6 @@ fn render_node(
         row = row.child(div().text_color(color).child(display));
     }
 
-    // 递归渲染子节点
     let mut result = div().flex().flex_col().gap_1().child(row);
 
     if is_expanded && expandable {

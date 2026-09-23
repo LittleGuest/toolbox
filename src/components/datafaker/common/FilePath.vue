@@ -4,18 +4,12 @@ import { ref } from "vue";
 import { useMessage } from "naive-ui";
 import { fileExtensionTypeData } from "@/components/datafaker/constants";
 
-// 消息提示
 const message = useMessage();
 
-// 生成器默认值
 const defaultValue = {
-  // 路径类型
   pathType: ["linux", "windows", "macos"],
-  // 包含文件名称
   includeFileName: true,
-  // 扩展名类型
   fileExtensionType: "",
-  // 扩展名
   fileExtension: [],
 
   includeDefault: false, // 包含默认值
@@ -26,17 +20,14 @@ const defaultValue = {
   forbiddenLinks: false, // 禁用字段之间的数据链接
 };
 
-// 表单数据
 const form = reactive({
   ...defaultValue,
 });
 
-// 扩展名类型选项
 const fileExtensionTypeOptions = fileExtensionTypeData.map((item) => ({
   label: item.label,
   value: item.value,
 }));
-// 监听扩展名类型变化
 watch(
   () => form.fileExtensionType,
   (newValue) => {
@@ -46,7 +37,6 @@ watch(
   }
 );
 
-// 重置属性
 const reset = () => {
   form.includeFileName = defaultValue.includeFileName;
   form.fileExtensionType = defaultValue.fileExtensionType;
@@ -60,9 +50,7 @@ const reset = () => {
   previewValue.value = "";
 };
 
-// 预览数据
 const previewValue = ref("");
-// 预览API
 const previewApi = async (config) => {
   return await invoke("preview_file_path", { config })
     .then((res) => {
@@ -72,7 +60,6 @@ const previewApi = async (config) => {
       message.error(err);
     });
 };
-// 生成预览数据
 const preview = async () => {
   previewValue.value = await previewApi({
     includeFileName: form.includeFileName,
@@ -88,7 +75,6 @@ defineExpose({
 
 <template>
   <n-form :model="form" label-placement="left" label-width="180">
-    <!-- 路径类型 -->
     <n-form-item path="pathType" label="路径类型">
       <n-checkbox-group v-model:value="form.pathType">
         <n-checkbox value="linux">linux</n-checkbox>
@@ -96,7 +82,6 @@ defineExpose({
         <n-checkbox value="macos">macos</n-checkbox>
       </n-checkbox-group>
     </n-form-item>
-    <!-- 包含文件名称 -->
     <n-form-item path="includeFileName" label="包含文件名称">
       <n-checkbox v-model:checked="form.includeFileName" />
     </n-form-item>
@@ -115,7 +100,6 @@ defineExpose({
       />
     </n-form-item>
 
-    <!-- 扩展名 -->
     <n-form-item path="fileExtension" label="扩展名">
       <n-input
         :disabled="!form.includeFileName"
@@ -126,19 +110,14 @@ defineExpose({
       />
     </n-form-item>
 
-    <!-- 预览 -->
     <n-form-item path="previewValue" label="预览">
       <n-input v-model:value="previewValue" readonly placeholder="" />
       <n-button @click="preview">刷新</n-button>
     </n-form-item>
 
-    <!-- 其它配置选项 -->
-
-    <!-- 包含默认值 -->
     <n-form-item path="includeDefault" label="包含默认值">
       <n-checkbox v-model:checked="form.includeDefault" />
     </n-form-item>
-    <!-- 默认值 -->
     <n-form-item path="defaultValue" label=" ">
       <n-input
         placeholder="请输入默认值"
@@ -147,7 +126,6 @@ defineExpose({
         clearable
       />
     </n-form-item>
-    <!-- 默认值百分比 -->
     <n-form-item path="defaultPercentage" label=" ">
       <n-input-number
         placeholder="百分比"
@@ -161,11 +139,9 @@ defineExpose({
       </n-input-number>
     </n-form-item>
 
-    <!-- 包含NULL值 -->
     <n-form-item path="includeNull" label="包含NULL值">
       <n-checkbox v-model:checked="form.includeNull" />
     </n-form-item>
-    <!-- NULL值百分比 -->
     <n-form-item path="nullPercentage" label=" ">
       <n-input-number
         placeholder="百分比"
@@ -179,7 +155,6 @@ defineExpose({
       </n-input-number>
     </n-form-item>
 
-    <!-- 禁用字段之间数据链接 -->
     <n-form-item path="forbiddenLinks" label="禁用字段之间数据链接">
       <n-checkbox v-model:checked="form.forbiddenLinks" />
     </n-form-item>

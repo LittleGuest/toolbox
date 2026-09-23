@@ -2,10 +2,8 @@
 import { ref, reactive, computed } from "vue";
 import { useMessage } from "naive-ui";
 
-// 消息提示
 const message = useMessage();
 
-// 生成器默认值
 const defaultValue = {
   start: 1, // 开始值
   step: 1, // 递增值
@@ -15,12 +13,10 @@ const defaultValue = {
   max: 2147483647, // 最大值
   cycle: false, // 循环
 };
-// 表单数据
 const form = reactive({
   ...defaultValue,
 });
 
-// 重置属性
 const reset = () => {
   form.start = defaultValue.start;
   form.step = defaultValue.step;
@@ -32,9 +28,7 @@ const reset = () => {
   previewValue.value = "";
 };
 
-// 预览数据
 const previewValue = ref("");
-// 预览API
 const previewApi = async (config) => {
   return await invoke("preview_sequence", { config })
     .then((res) => {
@@ -44,7 +38,6 @@ const previewApi = async (config) => {
       message.error(err);
     });
 };
-// 生成预览数据
 const preview = async () => {
   previewValue.value = await previewApi({
     start: form.start,
@@ -96,7 +89,6 @@ defineExpose({
       <n-checkbox v-model:checked="form.cycle" />
     </n-form-item>
 
-    <!-- 预览 -->
     <n-form-item path="previewValue" label="预览">
       <n-input v-model:value="previewValue" readonly placeholder="" />
       <n-button @click="preview">刷新</n-button>

@@ -119,7 +119,6 @@ impl Render for UrlEncoder {
         design::page()
             .child(design::page_header("URL 编码 / 解码", "URL 编码与解码", cx))
             .child(
-                // 输入卡片
                 design::card(cx)
                     .child(
                         design::toolbar()
@@ -156,7 +155,6 @@ impl Render for UrlEncoder {
                     ),
             )
             .child(
-                // 编码/解码操作行
                 design::action_row()
                     .child(
                         Button::new("encode")
@@ -177,7 +175,6 @@ impl Render for UrlEncoder {
                     ),
             )
             .child(
-                // 输出卡片
                 design::card(cx)
                     .child(
                         Textarea::new(&self.output_state)

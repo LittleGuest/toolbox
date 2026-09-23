@@ -7,7 +7,6 @@ import { ArrowDown, ArrowUp, Copy, Paste, Close, View, ViewOff } from "@vicons/c
 
 const message = useMessage();
 
-// ---------------- 配置 ----------------
 const ALG_OPTIONS = [
   { label: "AES", value: "AES" },
   { label: "DES", value: "DES" },
@@ -32,12 +31,10 @@ const hasMode = computed(() =>
   algorithm.value === "AES" || algorithm.value === "DES" || algorithm.value === "TripleDES"
 );
 
-// ---------------- 输入输出 ----------------
 const plain = ref("");
 const cipher = ref("");
 const output = ref("");
 
-// ---------------- 加密 / 解密 ----------------
 const buildOpts = () => {
   const opts: Record<string, unknown> = {
     mode: mode.value === "CBC" ? CryptoJS.mode.CBC : CryptoJS.mode.ECB,
@@ -119,7 +116,6 @@ const decrypt = () => {
   }
 };
 
-// ---------------- 操作 ----------------
 const pastePlain = async () => {
   try {
     plain.value = await readText();
@@ -148,7 +144,6 @@ const clear = () => {
 <template>
   <div class="tb-page">
     <section class="tb-card">
-      <!-- 配置区 -->
       <div class="tb-config-row">
         <div class="tb-config-item">
           <span class="tb-config-label">算法</span>
@@ -192,7 +187,6 @@ const clear = () => {
         </div>
       </div>
 
-      <!-- 输入区 -->
       <div class="tb-editor-grid tb-mono">
         <div class="tb-editor">
           <span class="tb-editor-label">明文</span>
@@ -234,7 +228,6 @@ const clear = () => {
         </div>
       </div>
 
-      <!-- 加密 / 解密 -->
       <div class="tb-action-row">
         <n-tooltip trigger="hover">
           <template #trigger>
@@ -254,7 +247,6 @@ const clear = () => {
         </n-tooltip>
       </div>
 
-      <!-- 输出区 -->
       <div class="tb-editor tb-mono">
         <span class="tb-editor-label">加密 / 解密结果</span>
         <div class="tb-toolbar">
@@ -291,7 +283,6 @@ const clear = () => {
         />
       </div>
 
-      <!-- 说明 -->
       <n-text depth="3" class="tip-text">
         提示：ECB 模式不推荐用于生产环境（相同明文块产生相同密文，易被模式分析攻击）；CBC 模式建议使用随机 IV 并妥善保存。
         解密失败常见原因：密钥或 IV 不一致、密文格式与「输出格式」不匹配、密文被截断或篡改（padding 校验失败）。

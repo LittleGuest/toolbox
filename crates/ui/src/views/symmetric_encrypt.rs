@@ -34,7 +34,6 @@ pub struct SymmetricEncryptor {
     _subscriptions: Vec<Subscription>,
 }
 
-/// 按目标长度截断/零填充密钥或 IV 字节
 fn fit_bytes(s: &str, len: usize) -> Vec<u8> {
     let mut v = s.as_bytes().to_vec();
     v.truncate(len);
@@ -42,7 +41,6 @@ fn fit_bytes(s: &str, len: usize) -> Vec<u8> {
     v
 }
 
-/// rc4 crate 密钥长度需编译期常量，无法处理运行时任意长度 UTF-8 密钥，这里手写 RC4
 fn rc4_apply(key: &[u8], data: &[u8]) -> Vec<u8> {
     let mut s = [0u8; 256];
     for (i, v) in s.iter_mut().enumerate() {
@@ -64,8 +62,6 @@ fn rc4_apply(key: &[u8], data: &[u8]) -> Vec<u8> {
     out
 }
 
-// Rabbit 流密码（eSTREAM 提交之一）。Vue 用 CryptoJS.Rabbit（OpenSSL 口令派生 + Salted__ 头），
-// GPUI 沿用本文件手写 RC4 的 raw-key 设计，直接以密钥原始字节驱动密钥流，加解密自洽。
 const RABBIT_A: [u32; 8] = [
     0x4D34D34D, 0xD34D34D3, 0x34D34D34, 0x4D34D34D, 0xD34D34D3, 0x34D34D34, 0x4D34D34D, 0xD34D34D3,
 ];
@@ -76,8 +72,6 @@ fn rabbit_g(v: u32) -> u32 {
     ((s >> 32) as u32) ^ (s as u32)
 }
 
-/// 推进一轮状态：更新 256 位计数器（带进位，进位位 b 跨轮保留，见 RFC 4503 §2.5），
-/// 随后做 g 函数与混合（§2.6）。加解密共用，保证可逆。
 fn rabbit_next_state(x: &mut [u32; 8], c: &mut [u32; 8], b: &mut u32) {
     for i in 0..8 {
         let t = c[i] as u64 + RABBIT_A[i] as u64 + *b as u64;
@@ -114,9 +108,7 @@ fn rabbit_next_state(x: &mut [u32; 8], c: &mut [u32; 8], b: &mut u32) {
         .wrapping_add(gs[5]);
 }
 
-/// 由 128 位密钥初始化状态（RFC 4503 §2.3：8 个 16 位子密钥、4 轮扩散后 Cj ^= X(j+4)，计数器进位位 b 一并返回保留）。
 fn rabbit_setup(key16: &[u8; 16]) -> ([u32; 8], [u32; 8], u32) {
-    // 子密钥 K0..K7（每个 16 位）：K0 = 密钥最低 16 位，K7 = 密钥最高 16 位。
     let k = |j: usize| -> u16 {
         let hi = key16[14 - 2 * j] as u16;
         let lo = key16[15 - 2 * j] as u16;
@@ -148,7 +140,6 @@ fn rabbit_setup(key16: &[u8; 16]) -> ([u32; 8], [u32; 8], u32) {
     (x, c, b)
 }
 
-/// RFC 4503 §2.7 提取：由状态词半字异或得到 8 个 16 位词，按大端输出 16 字节。
 fn rabbit_extract(x: &[u32; 8], out: &mut [u8; 16]) {
     let w0 = ((x[0] & 0xffff) ^ (x[5] >> 16)) as u16;
     let w1 = ((x[0] >> 16) ^ (x[3] & 0xffff)) as u16;
@@ -165,7 +156,6 @@ fn rabbit_extract(x: &[u32; 8], out: &mut [u8; 16]) {
     }
 }
 
-/// 流密码应用：以固定 IV=0 运行（无 UI IV 输入，与手写 RC4 一致），逐字节异或。
 fn rabbit_apply(key: &[u8], data: &[u8]) -> Vec<u8> {
     let mut key16 = [0u8; 16];
     for (i, b) in key.iter().take(16).enumerate() {

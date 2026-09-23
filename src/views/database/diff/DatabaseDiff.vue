@@ -104,7 +104,6 @@ const columns = [
   },
 ];
 
-// 展示添加/编辑抽屉
 const showAddaDrawer = ref(false);
 const addDrawer = ref(true);
 const formRef = ref(null);
@@ -188,7 +187,6 @@ const ping = async (info) => {
   await pingApi(info);
 };
 
-// 保存连接信息
 const saveConnect = (e) => {
   e.preventDefault();
   formRef.value?.validate(async (errors) => {
@@ -392,7 +390,6 @@ const showCheck = () => {
             </template>
             结构差异
           </n-tooltip>
-          <!-- <n-button @click="generateSql('data')">数据差异</n-button> -->
         </n-form-item>
       </n-form>
     </div>

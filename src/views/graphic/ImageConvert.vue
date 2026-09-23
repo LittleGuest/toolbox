@@ -7,7 +7,6 @@ import { Upload, Close, FolderOpen, Add } from "@vicons/carbon";
 
 const message = useMessage();
 
-// 支持的目标格式（有限集）
 const targetFormats = [
   "png", "jpg", "jpeg", "webp", "bmp", "gif",
   "tiff", "tif", "tga", "ppm", "pgm", "pnm",
@@ -40,7 +39,6 @@ const pickFiles = async () => {
       files.value = (Array.isArray(selected) ? selected : [selected]).filter(
         (p): p is string => typeof p === "string"
       );
-      // 默认输出目录为第一个文件的目录
       if (!outputDir.value && files.value.length) {
         const idx = files.value[0].lastIndexOf("/");
         const idx2 = files.value[0].lastIndexOf("\\");

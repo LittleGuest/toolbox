@@ -128,19 +128,18 @@ pub fn qrcode(input: Option<String>) -> Result<String> {
     base::qrcode(input).map_err(|e| e.to_string())
 }
 
-// ---------- 新增：人民币大小写转换 ----------
-
 #[tauri::command]
 pub fn rmb_to_upper(
     input: Option<&str>,
     yuan: Option<&str>,
     zheng: Option<&str>,
+    zheng_yuan: bool,
     jiao_zheng: bool,
 ) -> Result<String> {
     let Some(data) = input else {
         return Err("input empty".to_string());
     };
-    base::rmb_to_upper(data, yuan, zheng, jiao_zheng).map_err(|e| e.to_string())
+    base::rmb_to_upper(data, yuan, zheng, zheng_yuan, jiao_zheng).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -148,11 +147,12 @@ pub fn rmb_to_amount(
     input: Option<&str>,
     yuan: Option<&str>,
     zheng: Option<&str>,
+    zheng_yuan: bool,
 ) -> Result<base::RmbParseResult> {
     let Some(data) = input else {
         return Err("input empty".to_string());
     };
-    base::rmb_to_amount(data, yuan, zheng).map_err(|e| e.to_string())
+    base::rmb_to_amount(data, yuan, zheng, zheng_yuan).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -204,8 +204,6 @@ pub fn recover_garbled_code(input: &str) -> Result<Vec<base::RecoverGarbledCode>
     base::recover_garbled_code(input).map_err(|e| e.to_string())
 }
 
-// ---------- 新增：时间戳批量转换 ----------
-
 #[tauri::command]
 pub fn timestamp_convert(
     mode: &str,
@@ -216,8 +214,6 @@ pub fn timestamp_convert(
     base::timestamp_convert(mode, unit, tz_offset_secs, &values).map_err(|e| e.to_string())
 }
 
-// ---------- 新增：图片格式转换 ----------
-
 #[tauri::command]
 pub fn image_convert(
     inputs: Vec<String>,
@@ -227,8 +223,6 @@ pub fn image_convert(
 ) -> Result<Vec<String>> {
     base::image_convert(&inputs, output_format, output_dir, quality).map_err(|e| e.to_string())
 }
-
-// ---------- 新增：PDF ----------
 
 #[tauri::command]
 pub fn images_to_pdf(inputs: Vec<String>, output_path: &str) -> Result<()> {

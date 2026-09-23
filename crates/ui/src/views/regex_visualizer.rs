@@ -321,8 +321,6 @@ fn match_panel(matches: Vec<RegexMatch>, cx: &mut Context<RegexVisualizer>) -> D
         )
 }
 
-/// 用 regex-syntax 解析正则并遍历 AST，生成结构化语法树说明（对齐 regex-vis 的树形可视化）。
-/// 返回带缩进的树形文本行；解析失败时返回错误信息。
 fn explain_regex(pattern: &str) -> Vec<String> {
     use regex_syntax::ast;
 
@@ -409,17 +407,14 @@ fn ast_walk(
     }
 }
 
-/// 渲染匹配高亮预览面板，将匹配的文本区间用高亮色着色
 fn highlight_preview_panel(
     text: &str,
     matches: &[RegexMatch],
     cx: &mut Context<RegexVisualizer>,
 ) -> Div {
-    // 构建高亮区间：匹配部分用强调色，非匹配部分用默认前景色
     let palette = HighlightPalette::default_light();
-    let highlight_color = palette.boolean; // 红色突出匹配
+    let highlight_color = palette.boolean;
     let mut ranges: Vec<Range<usize>> = matches.iter().map(|m| m.start..m.end).collect();
-    // 合并重叠区间并排序，确保高亮渲染正确
     ranges.sort_by_key(|r| r.start);
     let mut merged: Vec<Range<usize>> = Vec::new();
     for r in ranges {

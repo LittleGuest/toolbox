@@ -7,7 +7,6 @@ const router = useRouter();
 const toMenu = navigateToMenu(router);
 const hoveredCard = ref(null);
 
-// 工具简述（用于首页卡片副标题）
 const toolDesc: Record<string, string> = {
   "/transform/filetype": "文件类型识别与转换",
   "/transform/time": "时间戳与日期互转",
@@ -51,7 +50,6 @@ const toolDesc: Record<string, string> = {
   "/setting": "应用设置",
 };
 
-// 组装首页工具列表（含父级分组信息）
 const toolCards = computed(() => {
   const cards: any[] = [];
   for (const group of menus as any[]) {

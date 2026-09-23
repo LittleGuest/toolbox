@@ -23,26 +23,16 @@ struct Templates;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DatasourceInfo {
-    /// 数据库驱动
     #[serde(deserialize_with = "deserialize_driver")]
     pub driver: Driver,
-    /// 数据源名称
     pub name: String,
-    /// 数据库主机地址
     pub host: String,
-    /// 数据库端口号
     pub port: Option<u16>,
-    /// 数据库账号
     pub username: Option<String>,
-    /// 数据库密码
     pub password: Option<String>,
-    /// 指定的数据库名称
     pub database: Option<String>,
 }
 
-/// Driver::Mysql       mysql://root:root@localhost:3306/test
-/// Driver::Postgres    postgres://root:root@localhost:5432/test
-/// Driver::Sqlite      sqlite://test.sqlite
 impl DatasourceInfo {
     pub fn url(&self) -> String {
         match self.driver {
@@ -128,7 +118,6 @@ pub async fn database_tables(datasource_info: DatasourceInfo) -> Result<Vec<Tabl
     Ok(data)
 }
 
-/// 表信息
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TableColumnTree {

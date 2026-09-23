@@ -8,15 +8,12 @@ const props = defineProps({
   },
 });
 
-// 生成器默认值
 const defaultValue = {
   referenceKey: null,
   referenceSchema: null,
   referenceTable: null,
   referenceColumn: null,
-  // 生成模式（random/unique/repeat）
   generateMode: "random",
-  // 重复范围
   repeatFrom: 1,
   repeatTo: 3,
 
@@ -29,12 +26,10 @@ const defaultValue = {
   forbiddenLinks: false, // 禁用字段之间的数据链接
 };
 
-// 表单数据
 const form = reactive({
   ...defaultValue,
 });
 
-// 重置属性
 const reset = () => {
   form.referenceKey = defaultValue.referenceKey;
   form.referenceSchema = defaultValue.referenceSchema;
@@ -89,7 +84,6 @@ defineExpose({
       />
     </n-form-item>
 
-    <!-- 生成模式 -->
     <n-form-item label="生成模式">
       <n-radio-group v-model:value="form.generateMode">
         <n-space direction="vertical">

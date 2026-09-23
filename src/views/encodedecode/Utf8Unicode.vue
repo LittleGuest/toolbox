@@ -60,7 +60,6 @@ const decodeUnicode = () => {
   unicodeOutput.value = unicodeUnescape(unicodeInput.value);
 };
 
-// ---------------- 辅助操作 ----------------
 const paste = async (target: { value: string }) => {
   try {
     target.value = await readText();

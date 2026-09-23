@@ -11,7 +11,6 @@ const props = defineProps({
 
 <template>
   <n-card class="column-node">
-    <!-- 提示 -->
     <n-tooltip
       placement="right"
       trigger="hover"

@@ -37,7 +37,6 @@ const databaseDiffReportApi = async () => {
   }).catch((error) => message.error(error));
 };
 
-
 const columnColumns = ref([
   {
     title: "字段名称",
@@ -214,15 +213,12 @@ const downloadImg = () => {
     height: postImg.value.clientHeight,
     scale: 2.5,
   }).then(canvas => {
-    // 转成图片，生成图片地址
     let imgUrl = canvas.toDataURL('image/png');
     const eleLink = document.createElement('a');
     eleLink.href = imgUrl; // 转换后的图片地址
     eleLink.download = "数据库差异报告";
-    // 触发点击
     document.body.appendChild(eleLink);
     eleLink.click();
-    // 然后移除
     document.body.removeChild(eleLink);
   });
 };

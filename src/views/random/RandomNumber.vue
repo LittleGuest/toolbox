@@ -6,7 +6,6 @@ import { Play, Copy, Close } from "@vicons/carbon";
 
 const message = useMessage();
 
-// ---------- 整数 ----------
 const intMin = ref(1);
 const intMax = ref(100);
 const intCount = ref(10);
@@ -22,7 +21,6 @@ const genInt = () => {
   intOut.value = lines.join("\n");
 };
 
-// ---------- 小数 ----------
 const floatMin = ref(0);
 const floatMax = ref(1);
 const floatDecimals = ref(2);
@@ -40,7 +38,6 @@ const genFloat = () => {
   floatOut.value = lines.join("\n");
 };
 
-// ---------- 素数 ----------
 const primeLower = ref(1);
 const primeUpper = ref(100);
 const primeCount = ref(10);
@@ -84,7 +81,6 @@ const modPow = (base: bigint, exp: bigint, mod: bigint): bigint => {
   return result;
 };
 
-// 确定性 Miller-Rabin（witness 集对 Number 可表示范围内均确定）
 const isProbablePrime = (n: number): boolean => {
   if (!Number.isInteger(n) || n < 2) return false;
   const SMALL = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37];
@@ -117,7 +113,6 @@ const isProbablePrime = (n: number): boolean => {
   return true;
 };
 
-// 大区间：随机采样 + 素性测试，尝试次数有上限，避免死循环
 const randomPrimeInRange = (lo: number, hi: number): number => {
   const span = hi - lo + 1;
   const attempts = Math.min(Math.max(1, span), 2000);
@@ -143,7 +138,6 @@ const genPrime = () => {
     return;
   }
   const span = hi - lo + 1;
-  // 区间过大时（跨度或筛法基过大）走采样方案，只生成到上限为止
   const useSieve = span <= SIEVE_SPAN_LIMIT && Math.floor(Math.sqrt(hi)) <= SIEVE_BASE_LIMIT;
   const lines: string[] = [];
   if (useSieve) {
@@ -169,7 +163,6 @@ const genPrime = () => {
   primeOut.value = lines.join("\n");
 };
 
-// ---------- 十六进制 ----------
 const hexLength = ref(8);
 const hexCount = ref(10);
 const hexOut = ref("");
@@ -188,7 +181,6 @@ const genHex = () => {
   hexOut.value = lines.join("\n");
 };
 
-// ---------- 二进制 ----------
 const binBits = ref(8);
 const binCount = ref(10);
 const binOut = ref("");
@@ -203,14 +195,12 @@ const genBin = () => {
     for (let j = 0; j < bits; j++) {
       s += (buf[Math.floor(j / 8)] >> (7 - (j % 8))) & 1 ? "1" : "0";
     }
-    // 首字符不能为 0（位数 = 1 时除外）
     if (bits > 1) s = "1" + s.slice(1);
     lines.push(s);
   }
   binOut.value = lines.join("\n");
 };
 
-// ---------- 字节 ----------
 const bytePerLine = ref(8);
 const byteLines = ref(10);
 const byteOut = ref("");
@@ -225,7 +215,6 @@ const genByte = () => {
   byteOut.value = lines.join("\n");
 };
 
-// ---------- 复制 / 清除 ----------
 const outputs = {
   int: intOut,
   float: floatOut,

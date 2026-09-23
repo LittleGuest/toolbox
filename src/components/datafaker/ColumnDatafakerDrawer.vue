@@ -21,7 +21,6 @@ import Enum from "./common/Enum.vue";
 import ForeignKey from "./common/ForeignKey.vue";
 import SimplePreview from "./common/SimplePreview.vue";
 
-// 定义属性
 const props = defineProps({
   show: {
     type: Boolean,
@@ -36,10 +35,8 @@ const props = defineProps({
     default: () => [],
   },
 });
-// 定义事件
 const emit = defineEmits(["update:show"]);
 
-// 数据生成器配置
 const datafakerValue = ref(null);
 const configComponent = ref();
 const generatorGroups = [
@@ -250,7 +247,6 @@ const isSimplePreviewGenerator = computed(() =>
   simplePreviewGenerators.has(String(datafakerValue.value))
 );
 
-// 关闭抽屉
 const close = () => {
   emit("update:show", false);
 };

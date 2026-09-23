@@ -12,15 +12,12 @@ const theme = inject("theme");
 const toggleTheme = inject("toggleTheme");
 const themeVars = useThemeVars();
 
-// 菜单点击事件
 const toMenu = navigateToMenu(router);
 
 const collapsed = ref(false);
 
-// 全局工具搜索
 const search = ref("");
 
-// 扁平化所有叶子工具（含分组信息）
 const flatTools = computed(() => {
   const list: { key: string; label: string; group: string }[] = [];
   for (const group of menus as any[]) {
@@ -35,12 +32,10 @@ const flatTools = computed(() => {
   return list;
 });
 
-// 自动补全选项：按关键字过滤工具名 / 分组 / 路由 / 拼音 / 拼音首字母
 const searchOptions = computed(() => {
   const kw = search.value.trim().toLowerCase();
   if (!kw) return [];
 
-  // 搜索索引：每个工具预计算全拼（去空格）与拼音首字母
   const index = flatTools.value.map((t) => {
     const p = toPinyin(t.label, { toneType: "none", type: "array" }).join("");
     const first = toPinyin(t.label, { pattern: "first", toneType: "none", type: "array" }).join("");
@@ -63,7 +58,6 @@ const searchOptions = computed(() => {
     }));
 });
 
-// 选中工具后跳转并清空输入
 const onSelectTool = (key: string | number) => {
   search.value = "";
   toMenu(String(key));
@@ -72,7 +66,6 @@ const onSelectTool = (key: string | number) => {
 const siderBg = computed(() => themeVars.value.bodyColor);
 const siderBorder = computed(() => themeVars.value.borderColor);
 
-// 展开态下菜单宽度
 const siderWidth = computed(() => (collapsed.value ? 64 : 240));
 
 const activeKey = computed(() => route.path);
@@ -94,7 +87,6 @@ const activeKey = computed(() => route.path);
         transition: 'width .2s cubic-bezier(.4,0,.2,1)',
       }"
     >
-      <!-- 顶部 Logo 区 -->
       <div class="tb-brand" :class="{ 'is-collapsed': collapsed }">
         <div class="tb-brand-left">
           <div class="tb-brand-logo">
@@ -212,7 +204,6 @@ const activeKey = computed(() => route.path);
   justify-content: center;
 }
 
-/* 折叠态只显示主题按钮并居中，隐藏左侧图标与名称 */
 .tb-brand.is-collapsed .tb-brand-left {
   display: none;
 }
@@ -254,7 +245,6 @@ const activeKey = computed(() => route.path);
   font-size: 16px;
 }
 
-/* 输入框左侧留出图标位 */
 .tb-search :deep(.n-input__input-el) {
   padding-left: 34px;
 }
@@ -264,7 +254,6 @@ const activeKey = computed(() => route.path);
   min-height: 100%;
 }
 
-/* 右侧主区域：顶栏固定，内容区滚动铺满 */
 .tb-main {
   flex: 1;
   min-width: 0;

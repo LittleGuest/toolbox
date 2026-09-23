@@ -4,10 +4,8 @@ import type { GlobalThemeOverrides } from "naive-ui";
 import App from "./App.vue";
 import { NConfigProvider, darkTheme, zhCN } from "naive-ui";
 
-// 主题状态管理
 const theme = ref("light");
 
-// 从本地存储加载主题设置
 onMounted(() => {
   const savedTheme = localStorage.getItem("theme");
   if (savedTheme) {
@@ -16,7 +14,6 @@ onMounted(() => {
   applyTheme(theme.value);
 });
 
-// 切换主题
 const toggleTheme = () => {
   theme.value = theme.value === "light" ? "dark" : "light";
   localStorage.setItem("theme", theme.value);
@@ -27,11 +24,9 @@ const applyTheme = (t: string) => {
   document.documentElement.dataset.theme = t;
 };
 
-// 提供主题状态给子组件
 provide("theme", theme);
 provide("toggleTheme", toggleTheme);
 
-// naive-ui 主题变量统一（浅深色保持一致的设计语言）
 const themeOverrides: GlobalThemeOverrides = {
   common: {
     primaryColor: "#4F6EF7",

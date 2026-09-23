@@ -43,7 +43,6 @@ import { TransformFilled } from "@vicons/material";
 import TodoIcon from '@/assets/todo.svg';
 
 const renderMenuIcon = (icon) => {
-  // 如果是字符串路径，则渲染为SVG图像
   if (typeof icon === "string") {
     return () =>
       h("img", {
@@ -56,7 +55,6 @@ const renderMenuIcon = (icon) => {
   return () => h(NIcon, null, { default: () => h(icon) });
 };
 
-// 定义菜单树
 export const menus = [
   {
     label: "首页",
@@ -341,14 +339,8 @@ export const menus = [
       },
     ],
   },
-  // {
-  //   label: "设置",
-  //   key: "/setting",
-  //   icon: renderMenuIcon(Settings),
-  // }
 ];
 
-// 所有菜单，包含子菜单，移除首页
 export const menuAll = menus
   .filter((item) => item.key !== "/home")
   .flatMap((item) => {
@@ -358,7 +350,6 @@ export const menuAll = menus
     return item;
   });
 
-// 菜单跳转
 export const navigateToMenu = (router) => {
   return (key) => {
     router.push(key);

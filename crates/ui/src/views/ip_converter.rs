@@ -127,7 +127,6 @@ impl Render for IpConverter {
         design::page()
             .child(design::page_header("IP 地址转换", "IP 与整数互转", cx))
             .child(
-                // IPv4 转换卡片
                 design::card(cx).child(ip_panel(
                     "IPv4 转换",
                     &self.ipv4_state,
@@ -137,7 +136,6 @@ impl Render for IpConverter {
                 )),
             )
             .child(
-                // IPv6 转换卡片
                 design::card(cx).child(ip_panel(
                     "IPv6 转换",
                     &self.ipv6_state,

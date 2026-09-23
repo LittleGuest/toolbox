@@ -22,7 +22,6 @@ fn to_lower(s: &str) -> anyhow::Result<String> {
     Ok(s.to_lowercase())
 }
 
-/// base::string 模块未公开 re-export，这里本地实现与 heck 语义一致的大小写转换
 fn split_words(s: &str) -> Vec<String> {
     let chars: Vec<char> = s.chars().collect();
     let mut words: Vec<String> = Vec::new();
@@ -267,7 +266,6 @@ impl Render for CaseConverter {
         design::page()
             .child(design::page_header("大小写转换", "文本大小写快速转换", cx))
             .child(
-                // 输入卡片
                 design::card(cx)
                     .child(
                         design::toolbar()
@@ -304,7 +302,6 @@ impl Render for CaseConverter {
                     ),
             )
             .child(
-                // 转换方式行
                 div()
                     .flex()
                     .items_start()
@@ -312,7 +309,6 @@ impl Render for CaseConverter {
                     .child(div().flex().flex_wrap().gap_2().children(buttons)),
             )
             .child(
-                // 输出卡片
                 design::card(cx)
                     .child(
                         Textarea::new(&self.output_state)

@@ -1,18 +1,10 @@
-/**
- * ToolBox 统一设计系统
- * 面向 layy Tauri（naive-ui）的一套现代轻量工具界面规范。
- * 通过 CSS 变量 + 语义化工具类统一所有页面的色彩、间距、卡片与排版。
- */
 
-/* ─────────────────────────── 设计令牌 ─────────────────────────── */
 :root {
-  /* 品牌色 */
   --tb-primary: #4f6ef7;
   --tb-primary-weak: rgba(79, 110, 247, 0.1);
   --tb-primary-weak-hover: rgba(79, 110, 247, 0.18);
   --tb-accent: #7c5cff;
 
-  /* 中性色（浅色主题） */
   --tb-bg-app: #f4f6fb;
   --tb-bg-elevated: #ffffff;
   --tb-border: #e6e9f2;
@@ -21,7 +13,6 @@
   --tb-text-2: #5b6478;
   --tb-text-3: #929caf;
 
-  /* 布局 */
   --tb-radius-s: 6px;
   --tb-radius-m: 10px;
   --tb-radius-l: 14px;
@@ -30,14 +21,12 @@
   --tb-gap: 16px;
   --tb-header-h: 56px;
 
-  /* 字体 */
   --tb-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
   --tb-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Courier New", monospace;
 }
 
-/* 深色主题令牌 */
 [data-theme="dark"] {
   --tb-bg-app: #12141a;
   --tb-bg-elevated: #1c1f28;
@@ -73,12 +62,10 @@ body {
   line-height: 1.55;
 }
 
-/* 统一下拉/弹层在浅深色下的底色（naive-ui 默认 body 无关） */
 .n-config-provider {
   min-height: 100%;
 }
 
-/* ─────────────────────────── 页面骨架工具类 ─────────────────────────── */
 .tb-page {
   display: flex;
   flex-direction: column;
@@ -88,8 +75,6 @@ body {
   padding: 16px 20px 24px;
 }
 
-/* 让页面最后一个内容块（通常是工具卡片）纵向伸展，铺满剩余高度，消除底部留白；
-   操作栏/提示行等固定高度块不参与伸展 */
 .tb-page > :last-child {
   flex: 1 1 auto;
   min-height: 0;
@@ -101,7 +86,6 @@ body {
   flex: 0 0 auto;
 }
 
-/* 含右侧操作按钮的页面：仅保留操作栏（标题已移除），右对齐 */
 .tb-page-header {
   display: flex;
   align-items: center;
@@ -110,7 +94,6 @@ body {
   padding: 4px 0;
 }
 
-/* ─────────────────────────── 工具卡片 ─────────────────────────── */
 .tb-card {
   display: flex;
   flex-direction: column;
@@ -134,7 +117,6 @@ body {
   letter-spacing: 0.01em;
 }
 
-/* 卡片头部：标题居左，操作居右（把工具操作收进卡片内，替代卡片外的 tb-page-header） */
 .tb-card-header {
   display: flex;
   align-items: center;
@@ -159,7 +141,6 @@ body {
   gap: 8px;
 }
 
-/* 卡片头部标题左侧的图标底块 */
 .tb-card-title-ico {
   width: 30px;
   height: 30px;
@@ -176,7 +157,6 @@ body {
   color: var(--tb-text-3);
 }
 
-/* 配置行（功能性 label + 控件） */
 .tb-config-row {
   display: flex;
   flex-wrap: wrap;
@@ -197,14 +177,12 @@ body {
   white-space: nowrap;
 }
 
-/* 输入 / 输出 编辑网格 —— 铺满卡片剩余宽度与高度 */
 .tb-editor-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr;
   gap: var(--tb-gap);
   min-height: 0;
-  /* 作为卡片/页面最后一块时，伸展占据剩余高度 */
   flex: 1 1 auto;
 }
 
@@ -223,7 +201,6 @@ body {
   height: 100%;
 }
 
-/* 编辑器主体（文本域 / 代码编辑器 / 预览）填满剩余空间 */
 .tb-editor > :not(.tb-editor-label):not(.tb-toolbar) {
   flex: 1 1 auto;
   min-height: 0;
@@ -231,7 +208,6 @@ body {
   flex-direction: column;
 }
 
-/* naive-ui 文本域高度撑满其容器 */
 .tb-editor .n-input,
 .tb-editor .n-input__wrapper,
 .tb-editor .n-input__textarea {
@@ -251,7 +227,6 @@ body {
   margin-bottom: 8px;
 }
 
-/* 输入输出等宽字体 */
 .tb-mono :deep(.n-input__input-el),
 .tb-mono :deep(.n-input__textarea-el),
 .tb-mono :deep(textarea),
@@ -259,7 +234,6 @@ body {
   font-family: var(--tb-font-mono);
 }
 
-/* 主操作行（居中） */
 .tb-action-row {
   display: flex;
   justify-content: center;
@@ -267,7 +241,6 @@ body {
   margin: 16px 0;
 }
 
-/* 整行主操作按钮（撑满 + 贴底） */
 .tb-submit-row {
   margin-top: auto;
   padding-top: 18px;
@@ -280,7 +253,6 @@ body {
   border-radius: var(--tb-radius-m);
 }
 
-/* 单文件 / 输出路径选择块（可点击） */
 .tb-file-tile {
   display: flex;
   align-items: center;
@@ -331,7 +303,6 @@ body {
   flex: 0 0 auto;
 }
 
-/* 底部工具行 */
 .tb-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -339,7 +310,6 @@ body {
   gap: 8px;
 }
 
-/* 输出区（只读展示） */
 .tb-output {
   background: var(--tb-bg-app);
   border: 1px solid var(--tb-border);
@@ -353,13 +323,11 @@ body {
   min-height: 48px;
 }
 
-/* 提示/统计内联文案 */
 .tb-hint {
   font-size: 12.5px;
   color: var(--tb-text-3);
 }
 
-/* ─────────────────────────── 通用滚动条 ─────────────────────────── */
 *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -378,7 +346,6 @@ body {
   background: transparent;
 }
 
-/* 响应式：窄屏时编辑器降为单列 */
 @media (max-width: 760px) {
   .tb-editor-grid {
     grid-template-columns: 1fr;

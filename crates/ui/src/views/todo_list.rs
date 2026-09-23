@@ -99,7 +99,6 @@ impl TodoList {
         self.input_state = Some(input_state);
         self._subscriptions = _subscriptions;
 
-        // 从 SQLite 加载已有待办
         self.status = "正在加载待办...".to_string();
         cx.notify();
         cx.spawn(async move |this: WeakEntity<Self>, cx| {
@@ -122,7 +121,6 @@ impl TodoList {
     }
 
     fn sort_todos(&mut self) {
-        // 未完成在前 + created_at 倒序
         self.todos.sort_by(|a, b| match (a.completed, b.completed) {
             (false, true) => std::cmp::Ordering::Less,
             (true, false) => std::cmp::Ordering::Greater,
@@ -338,17 +336,14 @@ impl TodoList {
             return;
         };
 
-        // 向下传播：所有子任务同步完成状态
         self.toggle_complete_recursive_down(id, completed);
 
-        // 向上传播：如果完成，检查同级是否全完成；如果取消完成，父级也取消
         if completed {
             self.propagate_complete_upward(id);
         } else {
             self.propagate_uncomplete_upward(id);
         }
 
-        // 收集所有需要更新的待办，异步落库
         let updates: Vec<(i64, TodoRecord)> = self
             .todos
             .iter()
@@ -387,7 +382,6 @@ impl TodoList {
         }
     }
 
-    /// 向上传播完成：如果同级全部完成，则父任务也标记完成
     fn propagate_complete_upward(&mut self, id: i64) {
         let mut current_id = id;
         while let Some(parent_id) = self
@@ -415,7 +409,6 @@ impl TodoList {
         }
     }
 
-    /// 向上传播取消完成：任一子任务未完成，父任务也取消完成
     fn propagate_uncomplete_upward(&mut self, id: i64) {
         let mut current_id = id;
         while let Some(parent_id) = self
@@ -433,7 +426,6 @@ impl TodoList {
         }
     }
 
-    /// 检查 ancestor_id 是否是 id 的祖先
     fn is_ancestor(&self, id: i64, ancestor_id: i64) -> bool {
         let mut current_id = id;
         while let Some(parent_id) = self
@@ -480,12 +472,10 @@ impl TodoList {
         cx.notify();
 
         cx.spawn(async move |this: WeakEntity<Self>, cx| {
-            // DB 的 ON DELETE CASCADE 会自动删除子任务
             let result = config_store::delete_todo(id).await;
             let _ = this.update(cx, |this, cx| {
                 match result {
                     Ok(true) => {
-                        // 内存中也递归删除
                         let mut ids_to_delete = vec![id];
                         let mut index = 0;
                         while index < ids_to_delete.len() {
@@ -517,7 +507,6 @@ impl TodoList {
     }
 
     fn clear_completed(&mut self, cx: &mut Context<Self>) {
-        // 仅清除顶级已完成任务（子任务随父 ON DELETE CASCADE）
         let top_completed: Vec<i64> = self
             .todos
             .iter()
@@ -540,7 +529,6 @@ impl TodoList {
                 }
             }
             let _ = this.update(cx, |this, cx| {
-                // 内存中也递归删除
                 let mut ids_to_delete = top_completed.clone();
                 let mut index = 0;
                 while index < ids_to_delete.len() {
@@ -581,8 +569,6 @@ impl TodoList {
                             cx.notify()
                         }
                         InputEvent::PressEnter { .. } => {
-                            // Enter 保存编辑需要 window，这里通过 spawn_in 处理
-                            // 简化：直接标记需要保存
                             this.save_edit_pending = true;
                             cx.notify()
                         }
@@ -727,7 +713,6 @@ impl TodoList {
                                 .tooltip("添加子项目")
                                 .on_click(cx.listener(move |this, _, window, cx| {
                                     this.set_parent_id(id, cx);
-                                    // 清空输入框
                                     if let Some(input_state) = &this.input_state {
                                         input_state.update(cx, |state, cx| {
                                             state.replace(SharedString::default(), window, cx);
@@ -774,7 +759,6 @@ impl TodoList {
 
 impl Render for TodoList {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // 确保 input_state 已初始化
         if self.input_state.is_none() {
             self.initialize(window, cx);
         }

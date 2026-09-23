@@ -80,7 +80,6 @@ const columns = [
   }
 ];
 
-// 展示添加/编辑抽屉
 const showAddaDrawer = ref(false);
 const addDrawer = ref(true);
 const formRef = ref(null);
@@ -136,7 +135,6 @@ const handleAddDrawer = () => {
   modelRef.value = {};
 };
 
-
 const pingApi = async (info) => {
   await invoke("database_ping", { datasourceInfo: info }).then(res => {
     message.success("连接成功")
@@ -149,7 +147,6 @@ const ping = async () => {
   await pingApi(model.value);
 }
 
-// 保存连接信息
 const saveConnect = (e) => {
   e.preventDefault();
   formRef.value?.validate(async (errors) => {

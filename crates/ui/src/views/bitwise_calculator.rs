@@ -32,7 +32,6 @@ fn parse_operand(text: &str, base: &str, width: u32) -> Option<u64> {
         _ => {
             let n: i128 = s.parse().ok()?;
             if n < 0 {
-                // 负数按补码取模
                 let m = n.unsigned_abs();
                 if m > max {
                     return None;
@@ -314,9 +313,7 @@ impl Render for BitwiseCalculator {
         design::page()
             .child(design::page_header("按位计算器", "二进制位运算", cx))
             .child(
-                // 输入配置卡片
                 design::card(cx)
-                    // 位宽
                     .child(
                         div()
                             .flex()
@@ -325,7 +322,6 @@ impl Render for BitwiseCalculator {
                             .child(div().w(label_w).child(design::caption("位宽", cx)))
                             .child(Select::new(&self.bits_state)),
                     )
-                    // 操作数 A
                     .child(
                         div()
                             .flex()
@@ -335,7 +331,6 @@ impl Render for BitwiseCalculator {
                             .child(div().flex_1().child(Input::new(&self.a_state)))
                             .child(div().w(px(110.0)).child(Select::new(&self.a_base_state))),
                     )
-                    // 操作数 B
                     .child(
                         div()
                             .flex()
@@ -345,7 +340,6 @@ impl Render for BitwiseCalculator {
                             .child(div().flex_1().child(Input::new(&self.b_state)))
                             .child(div().w(px(110.0)).child(Select::new(&self.b_base_state))),
                     )
-                    // 运算
                     .child(
                         div()
                             .flex()
@@ -377,7 +371,6 @@ impl Render for BitwiseCalculator {
                                     ),
                             ),
                     )
-                    // 错误提示
                     .when(!self.status.is_empty(), |this| {
                         this.child(
                             div()
@@ -394,7 +387,6 @@ impl Render for BitwiseCalculator {
                         )
                     }),
             )
-            // 结果卡片
             .when(!self.res_expr.is_empty(), |this| {
                 this.child(
                     design::card(cx)

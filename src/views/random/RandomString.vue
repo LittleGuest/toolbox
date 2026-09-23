@@ -60,7 +60,6 @@ const generateOne = (): string => {
     }
     return buf[bi++] % max;
   };
-  // 密码模式：每种已选字符集至少取一个字符，其余随机补齐，再 Fisher-Yates 打乱
   if (passwordMode.value && !customCharset.value.trim()) {
     const parts: string[] = [];
     for (const key of selectedSets.value) {
@@ -101,7 +100,6 @@ const generate = () => {
   output.value = buildLines();
 };
 
-// 配置变化时自动重新生成
 watch(
   [length, count, selectedSets, customCharset, excludeSimilar, passwordMode],
   () => {

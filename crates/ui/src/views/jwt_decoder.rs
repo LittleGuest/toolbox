@@ -107,7 +107,6 @@ impl Render for JwtDecoder {
         design::page()
             .child(design::page_header("JWT 解析", "解析与校验 JWT", cx))
             .child(
-                // 输入卡片
                 design::card(cx)
                     .child(
                         design::toolbar()
@@ -134,7 +133,6 @@ impl Render for JwtDecoder {
                     .child(Textarea::new(&self.token_state).h(px(130.0))),
             )
             .child(
-                // 解码操作行
                 design::action_row()
                     .child(
                         Button::new("decode")
@@ -156,7 +154,6 @@ impl Render for JwtDecoder {
                 )
             })
             .child(
-                // 输出卡片
                 design::card(cx)
                     .child(
                         div()

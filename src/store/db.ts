@@ -23,26 +23,22 @@ const normalizeDatasourceInfo = (connect: DatasourceInfo): DatasourceInfo => ({
      driver: normalizeDriver(connect.driver),
 });
 
-// 加载数据库
 const loadDatabase = async () => {
 	return await Database.load("sqlite:toolbox.db");
 };
 
-// 获取数据源信息
 const datasourceInfosApi = async () => {
 	const db = await loadDatabase();
         const rows = await db.select<DatasourceInfo[]>("select * from datasource_info");
         return rows.map(normalizeDatasourceInfo);
 };
 
-// 数据源详情
 const datasourceDetailApi = async (id: number) => {
 	const db = await loadDatabase();
         const rows = await db.select<DatasourceInfo[]>("select * from datasource_info where id=$1", [id]);
         return rows.map(normalizeDatasourceInfo);
 };
 
-// 新增数据源
 const saveDatasourceInfoApi = async (connect: DatasourceInfo) => {
 	const db = await loadDatabase();
         const datasourceInfo = normalizeDatasourceInfo(connect);
@@ -60,7 +56,6 @@ const saveDatasourceInfoApi = async (connect: DatasourceInfo) => {
 	);
 };
 
-// 更新数据源
 const updateDatasourceInfoApi = async (connect: DatasourceInfo) => {
 	const db = await loadDatabase();
         const datasourceInfo = normalizeDatasourceInfo(connect);
@@ -79,12 +74,10 @@ const updateDatasourceInfoApi = async (connect: DatasourceInfo) => {
 	);
 };
 
-// 删除数据源
 const deleteDatasourceInfoApi = async (id: number) => {
 	const db = await loadDatabase();
 	await db.execute("delete from datasource_info where id=$1", [id]);
 };
-
 
 export {
 	datasourceInfosApi,

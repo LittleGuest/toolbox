@@ -6,7 +6,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// 输出格式 -> (扩展名, 编码器描述)
 fn out_spec(name: &str) -> Result<(String, &'static str)> {
     match name.to_ascii_lowercase().as_str() {
         "png" => Ok(("png".to_string(), "png")),
@@ -28,7 +27,6 @@ fn out_spec(name: &str) -> Result<(String, &'static str)> {
     }
 }
 
-/// 批量图片格式转换。输出到 output_dir/{原名}.{ext}，返回输出文件路径列表。
 pub fn image_convert(
     inputs: &[String],
     output_format: &str,

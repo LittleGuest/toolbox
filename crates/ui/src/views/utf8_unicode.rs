@@ -308,7 +308,6 @@ impl Render for Utf8UnicodeConverter {
         design::page()
             .child(design::page_header("UTF8 / Unicode", "UTF8 与 Unicode 互转", cx))
             .child(
-                // 配置卡片：模式 + 选项
                 design::card(cx)
                     .child(
                         design::toolbar()
@@ -330,7 +329,6 @@ impl Render for Utf8UnicodeConverter {
                     }),
             )
             .child(
-                // 输入卡片
                 design::card(cx)
                     .child(
                         design::toolbar()
@@ -367,7 +365,6 @@ impl Render for Utf8UnicodeConverter {
                     ),
             )
             .child(
-                // 编码/解码操作行
                 design::action_row()
                     .child(
                         Button::new("encode")
@@ -396,7 +393,6 @@ impl Render for Utf8UnicodeConverter {
                     }),
             )
             .child(
-                // 输出卡片
                 design::card(cx)
                     .child(
                         Textarea::new(&self.output_state)

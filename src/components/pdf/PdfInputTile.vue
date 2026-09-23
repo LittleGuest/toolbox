@@ -44,7 +44,6 @@ onMounted(async () => {
       if (type === "drop" && hit) emit("update:modelValue", hit);
     });
   } catch {
-    /* 非 Tauri 环境忽略 */
   }
 });
 onBeforeUnmount(() => unlisten?.());

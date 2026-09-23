@@ -48,7 +48,6 @@ const QUARTZ_PRESETS: &[(&str, &str)] = &[
     ("每年 2 月 29 日", "0 0 0 29 2 ?"),
 ];
 
-// ---------------- 生成区常量 ----------------
 const MODE_ANY: &str = "任意 (*)";
 const MODE_INTERVAL: &str = "间隔 (*/N)";
 const MODE_SPECIFIC: &str = "指定";
@@ -110,7 +109,6 @@ enum GenMode {
     Special,
 }
 
-/// 生成区单个字段的可视化配置状态。
 struct FieldGen {
     key: GenFieldKey,
     label: &'static str,
@@ -240,7 +238,6 @@ fn dow_special_from_label(label: &str) -> &'static str {
     }
 }
 
-/// 解析逗号分隔的数字文本，忽略非法与越界值，排序去重。
 fn parse_values(text: &str, min: u32, max: u32) -> Vec<u32> {
     let mut values: Vec<u32> = text
         .split([',', '，', ' ', '\t'])
@@ -722,7 +719,6 @@ impl CronConverter {
         parts.join(" ")
     }
 
-    /// 方言切换时同步生成区：linux 隐藏特殊模式，周值选项范围随方言调整。
     fn on_cron_type_changed(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let cron_type = self.cron_type.clone();
 
@@ -799,7 +795,6 @@ impl CronConverter {
         self.parse(cx);
     }
 
-    /// 将生成表达式写入解析流程并立即解析。
     fn parse_generated(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let expression = self.generated_expr();
         self.expr = expression.clone();
@@ -836,8 +831,6 @@ impl CronConverter {
         self.error.clear();
         cx.notify();
     }
-
-    // ---------------- 生成区渲染 ----------------
 
     fn unit_of(key: GenFieldKey) -> &'static str {
         match key {
@@ -1035,7 +1028,6 @@ impl Render for CronConverter {
                             .flex()
                             .flex_col()
                             .gap_3()
-                            // 方言
                             .child(
                                 div()
                                     .flex()
@@ -1050,7 +1042,6 @@ impl Render for CronConverter {
                                 .child(self.hint()),
                         ),
                 )
-                // 分段切换：解析 | 生成
                 .child(
                     div()
                         .flex()
@@ -1079,10 +1070,8 @@ impl Render for CronConverter {
                                 ),
                         ),
                 )
-                // 解析 tab
                 .when(self.active_tab == Tab::Parse, |this| {
                     this
-                        // 表达式 + 解析
                         .child(
                             div()
                                 .flex()
@@ -1099,7 +1088,6 @@ impl Render for CronConverter {
                                         })),
                                 ),
                         )
-                        // 次数
                         .child(
                             div()
                                 .flex()
@@ -1112,7 +1100,6 @@ impl Render for CronConverter {
                                         .child(Input::new(&self.count_state)),
                                 ),
                         )
-                        // 常用预设
                         .child(
                             div()
                                 .flex()
@@ -1128,10 +1115,8 @@ impl Render for CronConverter {
                                 ),
                         )
                 })
-                // 生成 tab
                 .when(self.active_tab == Tab::Generate, |this| {
                     this
-                        // 字段配置卡
                         .child(
                             div()
                                 .flex()
@@ -1139,7 +1124,6 @@ impl Render for CronConverter {
                                 .gap_3()
                                 .children(gen_cards),
                         )
-                        // 表达式预览条
                         .child(
                             div()
                                 .flex()
@@ -1177,7 +1161,6 @@ impl Render for CronConverter {
                                 ),
                         )
                 })
-                // 错误
                 .when(!self.error.is_empty(), |this| {
                     this.child(
                         div()
@@ -1186,7 +1169,6 @@ impl Render for CronConverter {
                             .child(self.error.clone()),
                     )
                 })
-                // 结果
                 .when_some(self.result.as_ref(), |this, result| {
                     if !result.valid {
                         return this.child(

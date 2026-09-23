@@ -64,7 +64,6 @@ pub async fn database_tables(datasource_info: DatasourceInfo) -> ResultType<Vec<
     Ok(data)
 }
 
-/// 表信息
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TableColumnTree {

@@ -19,7 +19,6 @@ pub struct TimestampConverter {
 }
 
 fn format_now_timestamp() -> String {
-    // 匹配 Tauri：显示 Unix 时间戳（秒）
     let now = OffsetDateTime::now_utc();
     now.unix_timestamp().to_string()
 }
@@ -121,7 +120,6 @@ impl Render for TimestampConverter {
         design::page()
             .child(design::page_header("时间戳转换", "时间戳与日期互转", cx))
             .child(
-                // 输入卡片
                 design::card(cx).child(
                     div()
                         .flex()
@@ -141,7 +139,6 @@ impl Render for TimestampConverter {
                 ),
             )
             .child(
-                // 输出卡片
                 design::card(cx)
                     .child(
                         div()

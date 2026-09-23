@@ -24,7 +24,6 @@ const MODE_OPTIONS: { label: string; value: EscapeMode }[] = [
 const input = ref("");
 const output = ref("");
 
-// ---------------- 通用实体反转义 ----------------
 const unescapeEntities = (s: string, map: Record<string, string>): string =>
   s.replace(/&(#x?[0-9a-fA-F]+|[a-zA-Z]+);/g, (m, body: string) => {
     if (body[0] === "#") {
@@ -41,7 +40,6 @@ const unescapeEntities = (s: string, map: Record<string, string>): string =>
     return map[m] ?? m;
   });
 
-// ---------------- HTML ----------------
 const htmlEscape = (s: string): string =>
   s
     .replace(/&/g, "&amp;")
@@ -62,7 +60,6 @@ const HTML_UNESCAPE: Record<string, string> = {
 
 const htmlUnescape = (s: string): string => unescapeEntities(s, HTML_UNESCAPE);
 
-// ---------------- XML ----------------
 const xmlEscape = (s: string): string =>
   s
     .replace(/&/g, "&amp;")
@@ -81,7 +78,6 @@ const XML_UNESCAPE: Record<string, string> = {
 
 const xmlUnescape = (s: string): string => unescapeEntities(s, XML_UNESCAPE);
 
-// ---------------- JSON ----------------
 const jsonEscape = (s: string): string => {
   let out = "";
   for (const ch of s) {
@@ -127,7 +123,6 @@ const jsonUnescape = (s: string): string => {
   }
 };
 
-// ---------------- JavaScript / Java / C# ----------------
 const jsEscape = (s: string): string => {
   let out = "";
   for (const ch of s) {
@@ -169,7 +164,6 @@ const jsEscape = (s: string): string => {
   return out;
 };
 
-// 通用反转义：处理 \n \r \t \b \f \v \0 \\ \" \' \xHH \uHHHH 与八进制 \NNN（Java）
 const jsUnescape = (s: string): string => {
   let out = "";
   let i = 0;
@@ -264,7 +258,6 @@ const jsUnescape = (s: string): string => {
   return out;
 };
 
-// ---------------- CSV ----------------
 const csvEscapeField = (field: string): string => {
   if (/[",\n\r\t]/.test(field)) {
     return '"' + field.replace(/"/g, '""') + '"';
@@ -312,11 +305,9 @@ const csvEscape = (s: string): string => s.split(/\r?\n/).map(csvEscapeField).jo
 
 const csvUnescape = (s: string): string => parseCsvLine(s).join("\n");
 
-// ---------------- SQL ----------------
 const sqlEscape = (s: string): string => s.replace(/'/g, "''");
 const sqlUnescape = (s: string): string => s.replace(/''/g, "'");
 
-// ---------------- 主操作 ----------------
 const doEscape = (): void => {
   if (!input.value) return;
   try {
@@ -377,7 +368,6 @@ const doUnescape = (): void => {
   }
 };
 
-// ---------------- 辅助操作 ----------------
 const pasteInput = async () => {
   try {
     input.value = await readText();
@@ -411,7 +401,6 @@ const clear = () => {
         </div>
       </div>
 
-      <!-- 输入区 -->
       <div class="tb-editor tb-mono">
         <span class="tb-editor-label">输入</span>
         <n-input
@@ -422,7 +411,6 @@ const clear = () => {
         />
       </div>
 
-      <!-- 主操作行 -->
       <div class="tb-action-row">
         <n-tooltip trigger="hover">
           <template #trigger>
@@ -442,7 +430,6 @@ const clear = () => {
         </n-tooltip>
       </div>
 
-      <!-- 输出区 -->
       <div class="tb-editor tb-mono">
         <span class="tb-editor-label">输出</span>
         <n-input

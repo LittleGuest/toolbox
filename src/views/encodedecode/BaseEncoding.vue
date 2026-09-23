@@ -10,7 +10,6 @@ const message = useMessage();
 
 const activeTab = ref("base64text");
 
-// ---------------- Base32 ----------------
 const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
 const base32Input = ref("");
@@ -62,7 +61,6 @@ const decodeBase32 = () => {
   }
 };
 
-// ---------------- Base58 ----------------
 const BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
 const base58Input = ref("");
@@ -120,7 +118,6 @@ const decodeBase58 = () => {
   }
 };
 
-// ---------------- 辅助操作 ----------------
 const paste = async (target: { value: string }) => {
   try {
     target.value = await readText();
@@ -148,11 +145,9 @@ const clear58 = () => {
   <div class="tb-page">
     <section class="tb-card">
       <n-tabs v-model:value="activeTab" type="line" animated>
-        <!-- Base64 文本 -->
         <n-tab-pane name="base64text" tab="Base64 文本"><Base64Text /></n-tab-pane>
         <n-tab-pane name="base64img" tab="Base64 图片"><Base64Image /></n-tab-pane>
 
-        <!-- Base32 -->
         <n-tab-pane name="base32" tab="Base32">
           <div class="tb-editor tb-mono">
             <span class="tb-editor-label">输入</span>
@@ -238,7 +233,6 @@ const clear58 = () => {
           </div>
         </n-tab-pane>
 
-        <!-- Base58 -->
         <n-tab-pane name="base58" tab="Base58">
           <div class="tb-editor tb-mono">
             <span class="tb-editor-label">输入</span>

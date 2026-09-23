@@ -226,7 +226,6 @@ impl TransformFiletype {
         }
     }
 
-    /// 反向转换：把输出区内容灌入输入区，交换源/目标格式，再触发一次转换
     fn reverse_convert(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let output = self.output_state.read(cx).value().to_string();
         if output.trim().is_empty() {
@@ -236,13 +235,11 @@ impl TransformFiletype {
         }
         self.error.clear();
 
-        // 把输出灌入输入
         self.input = output.clone();
         self.input_state.update(cx, |state, cx| {
             state.set_value(output, window, cx);
         });
 
-        // 交换格式
         std::mem::swap(&mut self.from_format, &mut self.to_format);
         let from_label = self.from_format.to_uppercase();
         let to_label = self.to_format.to_uppercase();
@@ -253,7 +250,6 @@ impl TransformFiletype {
             state.set_selected_value(&to_label, window, cx);
         });
 
-        // 触发转换
         self.convert(window, cx);
     }
 
@@ -288,7 +284,6 @@ impl Render for TransformFiletype {
         design::page()
             .child(design::page_header("文件格式转换", "转换各类文件格式", cx))
             .child(
-                // 配置卡片
                 design::card(cx)
                     .child(
                         design::toolbar()
@@ -307,7 +302,6 @@ impl Render for TransformFiletype {
                     ),
             )
             .child(
-                // 输入卡片
                 design::card(cx)
                     .child(
                         design::toolbar()
@@ -346,7 +340,6 @@ impl Render for TransformFiletype {
                     ),
             )
             .child(
-                // 转换操作行
                 design::action_row()
                     .child(
                         Button::new("convert")
@@ -382,7 +375,6 @@ impl Render for TransformFiletype {
                     }),
             )
             .child(
-                // 输出卡片
                 design::card(cx)
                     .child(
                         Textarea::new(&self.output_state)

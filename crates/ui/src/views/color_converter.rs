@@ -47,7 +47,6 @@ fn rgb_to_hex((r, g, b): Rgb) -> String {
     format!("#{:02x}{:02x}{:02x}", r, g, b)
 }
 
-// h: 0-360, s/v: 0-100
 fn rgb_to_hsv((r, g, b): Rgb) -> (f64, f64, f64) {
     let (rr, gg, bb) = (r as f64 / 255.0, g as f64 / 255.0, b as f64 / 255.0);
     let max = rr.max(gg).max(bb);
@@ -97,7 +96,6 @@ fn hsv_to_rgb(h: f64, s: f64, v: f64) -> Rgb {
     )
 }
 
-// h: 0-360, s/l: 0-100
 fn rgb_to_hsl((r, g, b): Rgb) -> (f64, f64, f64) {
     let (rr, gg, bb) = (r as f64 / 255.0, g as f64 / 255.0, b as f64 / 255.0);
     let max = rr.max(gg).max(bb);
@@ -152,7 +150,6 @@ fn hsl_to_rgb(h: f64, s: f64, l: f64) -> Rgb {
     )
 }
 
-// c/m/y/k: 0-100
 fn rgb_to_cmyk((r, g, b): Rgb) -> (f64, f64, f64, f64) {
     let (rr, gg, bb) = (r as f64 / 255.0, g as f64 / 255.0, b as f64 / 255.0);
     let k = 1.0 - rr.max(gg).max(bb);
@@ -275,7 +272,6 @@ impl ColorConverter {
             cmyk_state,
             _subscriptions,
         };
-        // 初始回填一次，保证各格式显示一致
         if let Some(rgb) = hex_to_rgb("#3498db") {
             this.fill_all(rgb, window, cx);
         }
@@ -391,7 +387,6 @@ impl Render for ColorConverter {
             .child(design::page_header("颜色转换", "HEX / RGB / HSL / CMYK", cx))
             .child(
                 design::card(cx)
-                    // 色块预览
                     .child(
                         div()
                             .flex()
@@ -415,7 +410,6 @@ impl Render for ColorConverter {
                                     .child(self.hex.clone()),
                             ),
                     )
-                    // 操作
                     .child(
                         design::toolbar()
                             .child(
@@ -435,7 +429,6 @@ impl Render for ColorConverter {
                                     })),
                             ),
                     )
-                    // 各格式
                     .child(fmt_row("HEX", &self.hex_state, "hex", cx))
                     .child(fmt_row("RGB", &self.rgb_state, "rgb", cx))
                     .child(fmt_row("HSL", &self.hsl_state, "hsl", cx))

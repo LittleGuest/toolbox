@@ -5,17 +5,12 @@ use chrono::offset::{LocalResult, TimeZone};
 use chrono::{DateTime, Datelike, Local, NaiveDate, Timelike};
 use serde::Serialize;
 
-/// 值集合：空集合表示「任意（*）」
 type ValueSet = BTreeSet<u32>;
 
-/// Cron 方言
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CronType {
-    /// Linux / Vixie cron：5 个字段（分 时 日 月 周），周 0-7（0 和 7 均为周日）
     Linux,
-    /// Spring @Scheduled：6 个字段（秒 分 时 日 月 周），周 0-7（0 和 7 均为周日）
     Spring,
-    /// Quartz：6-7 个字段（秒 分 时 日 月 周 [年]），周 1-7（1 为周日）
     Quartz,
 }
 
@@ -37,7 +32,6 @@ impl CronType {
         }
     }
 
-    /// 字段数量范围 (min, max)
     fn field_count(self) -> (usize, usize) {
         match self {
             CronType::Linux => (5, 5),
@@ -46,7 +40,6 @@ impl CronType {
         }
     }
 
-    /// 周字段允许的数值范围
     fn dow_range(self) -> (u32, u32) {
         match self {
             CronType::Linux | CronType::Spring => (0, 7),
@@ -54,7 +47,6 @@ impl CronType {
         }
     }
 
-    /// 周数值 → 星期索引（0=周日 .. 6=周六）
     fn normalize_dow(self, v: u32) -> u32 {
         match self {
             CronType::Linux | CronType::Spring => {
@@ -109,15 +101,10 @@ const MONTH_NAMES: &[(&str, u32)] = &[
 
 #[derive(Debug, Clone, Default)]
 struct DomField {
-    /// 显式日期（1-31）
     values: ValueSet,
-    /// L：当月最后一天
     last_day: bool,
-    /// L-n：当月倒数第 n 天（last_day 为 true 时生效，值为负数偏移）
     last_offset: i32,
-    /// nW：离 n 号最近的工作日
     weekday: Option<u32>,
-    /// LW：当月最后一个工作日
     last_weekday: bool,
 }
 
@@ -126,7 +113,6 @@ impl DomField {
         self.values.is_empty() && !self.last_day && self.weekday.is_none() && !self.last_weekday
     }
 
-    /// 解析出当月实际匹配的日期（受月份天数限制）
     fn resolve(&self, year: u32, month: u32, dim: u32) -> ValueSet {
         let mut days = self.values.clone();
         if self.last_day {
@@ -147,11 +133,8 @@ impl DomField {
 
 #[derive(Debug, Clone, Default)]
 struct DowField {
-    /// 星期索引集合（0=周日 .. 6=周六）
     values: ValueSet,
-    /// nL：当月最后一个星期 n
     last_x: Option<u32>,
-    /// n#m：当月第 m 个星期 n
     nth: Option<(u32, u32)>,
 }
 
@@ -202,7 +185,6 @@ pub struct CronParseResult {
     pub next_times: Vec<String>,
 }
 
-/// 解析 Cron 表达式并计算接下来 count 次执行时间
 pub fn parse_expression(expr: &str, count: u32, ty_str: &str) -> Result<CronParseResult> {
     let ty = CronType::parse(ty_str)?;
     let trimmed = expr.trim();
@@ -210,7 +192,6 @@ pub fn parse_expression(expr: &str, count: u32, ty_str: &str) -> Result<CronPars
         return Err(Error::msg("请输入 Cron 表达式"));
     }
 
-    // 宏展开
     let expanded = expand_macro(trimmed, ty)?;
     let effective = expanded.unwrap_or_else(|| trimmed.to_string());
 
@@ -230,7 +211,6 @@ pub fn parse_expression(expr: &str, count: u32, ty_str: &str) -> Result<CronPars
         )));
     }
 
-    // 统一映射到内部字段顺序：秒 分 时 日 月 周 [年]
     let (sec_s, min_s, hour_s, dom_s, month_s, dow_s, year_s) = match ty {
         CronType::Linux => ("0", parts[0], parts[1], parts[2], parts[3], parts[4], None),
         CronType::Spring => (
@@ -257,7 +237,6 @@ pub fn parse_expression(expr: &str, count: u32, ty_str: &str) -> Result<CronPars
     let mut minutes = parse_field(min_s, 0, 59, &[])?;
     let mut hours = parse_field(hour_s, 0, 23, &[])?;
     let mut months = parse_field(month_s, 1, 12, MONTH_NAMES)?;
-    // 完整范围等价于「任意」，压缩为空集合统一处理
     compact_all(&mut seconds, 0, 59);
     compact_all(&mut minutes, 0, 59);
     compact_all(&mut hours, 0, 23);
@@ -306,10 +285,8 @@ pub fn parse_expression(expr: &str, count: u32, ty_str: &str) -> Result<CronPars
     })
 }
 
-/// 展开 @ 宏；返回 None 表示不是宏
 fn expand_macro(expr: &str, ty: CronType) -> Result<Option<String>> {
     let lower = expr.trim().to_ascii_lowercase();
-    // (宏, linux 5 字段展开, spring 6 字段展开)
     let macros: [(&str, &str, &str); 7] = [
         ("@yearly", "0 0 1 1 *", "0 0 0 1 1 *"),
         ("@annually", "0 0 1 1 *", "0 0 0 1 1 *"),
@@ -340,7 +317,6 @@ fn expand_macro(expr: &str, ty: CronType) -> Result<Option<String>> {
     Ok(None)
 }
 
-/// 解析常规字段（支持列表、范围、步长、名称），不允许 ? L W # 等特殊字符
 fn parse_field(field: &str, min: u32, max: u32, names: &[(&str, u32)]) -> Result<ValueSet> {
     let field = field.trim().to_ascii_uppercase();
     if field.is_empty() {
@@ -380,7 +356,6 @@ fn parse_field(field: &str, min: u32, max: u32, names: &[(&str, u32)]) -> Result
     Ok(result)
 }
 
-/// 解析「日」字段（支持 ? L LW nW L-n）
 fn parse_dom(field: &str, ty: CronType) -> Result<DomField> {
     let mut dom = DomField::default();
     for item in field.split(',') {
@@ -436,7 +411,6 @@ fn parse_dom(field: &str, ty: CronType) -> Result<DomField> {
     Ok(dom)
 }
 
-/// 解析「周」字段（支持 ? L nL n#m）
 fn parse_dow(field: &str, ty: CronType) -> Result<DowField> {
     let mut dow = DowField::default();
     for item in field.split(',') {
@@ -454,7 +428,6 @@ fn parse_dow(field: &str, ty: CronType) -> Result<DowField> {
                 if ty == CronType::Linux {
                     return Err(Error::msg("Linux cron 不支持 'L' 字符"));
                 }
-                // 裸 L：Spring 中为周日(7)，Quartz 中为周六(7)
                 let v = if ty == CronType::Quartz { 6 } else { 0 };
                 dow.values.insert(v);
             }
@@ -492,7 +465,6 @@ fn parse_dow_values(field: &str, ty: CronType) -> Result<ValueSet> {
     Ok(raw.into_iter().map(|v| ty.normalize_dow(v)).collect())
 }
 
-/// 解析单个周数值或周名称（nL / n#m 中的 n）
 fn parse_dow_number(s: &str, ty: CronType) -> Result<u32> {
     if let Ok(n) = s.parse::<u32>() {
         let (min, max) = ty.dow_range();
@@ -523,7 +495,6 @@ fn parse_value(s: &str, names: &[(&str, u32)], min: u32, max: u32, what: &str) -
     }
 }
 
-/// 按前三个字母（不区分大小写）匹配名称
 fn name_value(s: &str, names: &[(&str, u32)]) -> Option<u32> {
     let upper = s.to_ascii_uppercase();
     let key = &upper[..upper.len().min(3)];
@@ -547,14 +518,12 @@ fn extend_step(set: &mut ValueSet, start: u32, end: u32, step: u32) {
     }
 }
 
-/// 若集合覆盖完整范围，则压缩为空集合（空集合表示「任意」）
 fn compact_all(set: &mut ValueSet, min: u32, max: u32) {
     if set.len() as u32 == max - min + 1 {
         set.clear();
     }
 }
 
-/// 计算从 from 之后（严格大于）的 count 次执行时间
 fn compute_next_times(schedule: &Schedule, from: &DateTime<Local>, count: usize) -> Vec<String> {
     let mut results = Vec::new();
     let mut cursor = from.clone();
@@ -571,7 +540,6 @@ fn compute_next_times(schedule: &Schedule, from: &DateTime<Local>, count: usize)
     results
 }
 
-/// 空集合表示「任意」：返回完整范围；否则返回集合本身
 fn iter_vals(set: &ValueSet, min: u32, max: u32) -> Vec<u32> {
     if set.is_empty() {
         (min..=max).collect()
@@ -580,7 +548,6 @@ fn iter_vals(set: &ValueSet, min: u32, max: u32) -> Vec<u32> {
     }
 }
 
-/// 空集合表示「任意」：返回 from..=max；否则返回集合中 >= from 的部分
 fn range_from(set: &ValueSet, min: u32, max: u32, from: u32) -> Vec<u32> {
     if set.is_empty() {
         (from.max(min)..=max).collect()
@@ -589,7 +556,6 @@ fn range_from(set: &ValueSet, min: u32, max: u32, from: u32) -> Vec<u32> {
     }
 }
 
-/// 查找 after 之后（严格大于）的第一个匹配时间
 fn find_next(schedule: &Schedule, after: &DateTime<Local>, start_year: u32) -> Option<DateTime<Local>> {
     let ay = after.year() as u32;
     let years: Vec<u32> = match &schedule.years {
@@ -665,7 +631,6 @@ fn build_dt(year: u32, month: u32, day: u32, hour: u32, minute: u32, sec: u32) -
     }
 }
 
-/// 计算某月内所有匹配的日期（日、周按 OR 语义匹配）
 fn matching_days(schedule: &Schedule, year: u32, month: u32, dim: u32) -> Vec<u32> {
     let dom_all = schedule.dom.is_all();
     let dow_all = schedule.dow.is_all();
@@ -679,7 +644,6 @@ fn matching_days(schedule: &Schedule, year: u32, month: u32, dim: u32) -> Vec<u3
         if dom_all {
             days.retain(|d| schedule.dow.matches(weekday_index(year, month, *d), *d, dim));
         } else {
-            // 日、周同时限制时按 OR 合并
             for d in 1..=dim {
                 if schedule.dow.matches(weekday_index(year, month, d), d, dim) {
                     days.insert(d);
@@ -690,7 +654,6 @@ fn matching_days(schedule: &Schedule, year: u32, month: u32, dim: u32) -> Vec<u3
     days.into_iter().collect()
 }
 
-/// 星期索引（0=周日 .. 6=周六）；无效日期返回 7（永不匹配）
 fn weekday_index(year: u32, month: u32, day: u32) -> u32 {
     match NaiveDate::from_ymd_opt(year as i32, month, day) {
         Some(d) => d.weekday().num_days_from_sunday() as u32,
@@ -698,7 +661,6 @@ fn weekday_index(year: u32, month: u32, day: u32) -> u32 {
     }
 }
 
-/// 离指定日期最近的工作日（周一至周五），不能越过月初/月末边界
 fn nearest_weekday(year: u32, month: u32, day: u32, dim: u32) -> u32 {
     let d = day.clamp(1, dim);
     match weekday_index(year, month, d) {
@@ -727,7 +689,6 @@ fn nearest_weekday(year: u32, month: u32, day: u32, dim: u32) -> u32 {
     }
 }
 
-/// 当月最后一个工作日
 fn last_weekday(year: u32, month: u32, dim: u32) -> u32 {
     let mut d = dim;
     while d >= 1 && weekday_index(year, month, d) > 4 {
@@ -745,8 +706,6 @@ fn days_in_month(month: u32, year: u32) -> u32 {
     }
 }
 
-// ---------------- 描述生成 ----------------
-
 const DOW_NAMES: [&str; 7] = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 
 fn fmt_list(set: &ValueSet) -> String {
@@ -756,7 +715,6 @@ fn fmt_list(set: &ValueSet) -> String {
         .join("、")
 }
 
-/// 检测「从最小值开始、步长一致的递增集合」，返回步长
 fn step_pattern(set: &ValueSet, min: u32, _max: u32) -> Option<u32> {
     if set.len() < 2 {
         return None;
@@ -802,11 +760,9 @@ fn describe_schedule(s: &Schedule) -> String {
 
     let sec_zero = !sec_all && s.seconds.len() == 1 && s.seconds.contains(&0);
     let min_zero = !min_all && s.minutes.len() == 1 && s.minutes.contains(&0);
-    // Linux 的秒字段固定为 0，视为「秒不限制」
     let sec_eff_all = sec_all || s.cron_type == CronType::Linux;
     let sec_whole = sec_eff_all || sec_zero;
 
-    // 纯频率（日期不限）
     if dom_all && dow_all && mon_all {
         if hour_all && min_all {
             if sec_eff_all {
@@ -841,7 +797,6 @@ fn describe_schedule(s: &Schedule) -> String {
         }
     }
 
-    // 日期部分
     let date_part = if !mon_all {
         let m = match step_pattern(&s.months, 1, 12) {
             Some(1) => "每月".to_string(),
@@ -853,7 +808,6 @@ fn describe_schedule(s: &Schedule) -> String {
         day_part(s, dom_all, dow_all)
     };
 
-    // 时间部分
     let time_part = if hour_all {
         if min_all && sec_all {
             String::new()
@@ -874,7 +828,6 @@ fn describe_schedule(s: &Schedule) -> String {
             format!("，每小时 {} 分", fmt_list(&s.minutes))
         }
     } else {
-        // Linux 的秒固定为 0，描述时不显示秒
         let secs = if s.cron_type == CronType::Linux {
             ValueSet::new()
         } else {
@@ -968,7 +921,6 @@ fn describe_dow(dow: &DowField) -> String {
     }
 }
 
-/// 固定时刻（小时受限）描述，如「08:00、20:00」
 fn fmt_times(hours: &ValueSet, minutes: &ValueSet, seconds: &ValueSet) -> String {
     let sec_all = seconds.is_empty();
     let min_all = minutes.is_empty();
@@ -1056,7 +1008,6 @@ mod tests {
 
     #[test]
     fn quartz_nth_weekday() {
-        // quartz 周 6 = 周五，6#3 = 每月第三个周五
         let r = parse_expression("0 0 10 ? * 6#3", 2, "quartz").unwrap();
         assert_eq!(r.next_times.len(), 2);
         assert!(r.description.unwrap().contains("周五"));
@@ -1064,7 +1015,6 @@ mod tests {
 
     #[test]
     fn spring_nth_weekday() {
-        // spring 周 5 = 周五，5#3 = 每月第三个周五
         let r = parse_expression("0 0 10 ? * 5#3", 2, "spring").unwrap();
         assert_eq!(r.next_times.len(), 2);
         assert!(r.description.unwrap().contains("周五"));
@@ -1072,7 +1022,6 @@ mod tests {
 
     #[test]
     fn spring_last_weekday() {
-        // spring 周 6 = 周六，6L = 每月最后一个周六
         let r = parse_expression("0 0 10 ? * 6L", 2, "spring").unwrap();
         assert_eq!(r.next_times.len(), 2);
         assert!(r.description.unwrap().contains("周六"));
@@ -1109,14 +1058,12 @@ mod tests {
 
     #[test]
     fn or_semantics() {
-        // 每月 1 日 或 每周一，00:00：应有 5 个结果
         let r = parse_expression("0 0 1 * 1", 5, "linux").unwrap();
         assert_eq!(r.next_times.len(), 5);
     }
 
     #[test]
     fn dom_l_offset() {
-        // 每月倒数第 3 天（Quartz L-3）
         let r = parse_expression("0 0 0 L-3 * ?", 1, "quartz").unwrap();
         assert_eq!(r.next_times.len(), 1);
         assert!(r.description.unwrap().contains("倒数第 3 天"));
@@ -1124,7 +1071,6 @@ mod tests {
 
     #[test]
     fn nearest_weekday_rule() {
-        // 1W：最近工作日描述
         let r = parse_expression("0 0 0 1W * ?", 2, "quartz").unwrap();
         assert_eq!(r.next_times.len(), 2);
         assert!(r.description.unwrap().contains("最近的工作日"));

@@ -30,16 +30,13 @@ enum FakerView {
 }
 
 pub struct FakeDataGenerator {
-    // 视图状态
     active_view: FakerView,
 
-    // 连接列表页相关
     conn_form: DatafakerDbForm,
     conn_driver: String,
     conn_driver_state: Entity<SelectState<Vec<String>>>,
     conn_edit_name: Option<String>,
 
-    // 画布配置页相关
     current_datasource: Option<DatasourceInfo>,
     all_tables: Vec<TablePreview>,
     table_filter: String,
@@ -47,7 +44,6 @@ pub struct FakeDataGenerator {
     show_run_log: bool,
     selected_column_name: Option<String>,
     generator_select_state: Entity<SelectState<SearchableVec<SelectGroup<GeneratorSelectItem>>>>,
-    // 生成器配置抽屉状态（对齐 Tauri SimplePreview/Number/Date 等配置组件的通用字段）
     gen_locale_state: Entity<SelectState<Vec<String>>>,
     gen_default_value_state: Entity<InputState>,
     gen_default_percentage_state: Entity<InputState>,
@@ -57,7 +53,6 @@ pub struct FakeDataGenerator {
     gen_include_null: bool,
     gen_unique: bool,
     gen_forbidden_links: bool,
-    // 生成器专属配置（Number: start/end, Date: startDate/endDate, Text: minLength/maxLength, Regex: pattern, Enum: values, Sequence: start/step）
     gen_number_start_state: Entity<InputState>,
     gen_number_end_state: Entity<InputState>,
     gen_date_start_state: Entity<InputState>,
@@ -68,10 +63,8 @@ pub struct FakeDataGenerator {
     gen_enum_values_state: Entity<InputState>,
     gen_seq_start_state: Entity<InputState>,
     gen_seq_step_state: Entity<InputState>,
-    // 生成器配置抽屉是否打开（改用 render 内条件渲染，cx.notify() 可触发重渲染）
     show_gen_dialog: bool,
 
-    // 共享状态
     driver: String,
     form: DatafakerDbForm,
     row_count_state: Entity<InputState>,
@@ -132,7 +125,6 @@ struct GeneratorConfig {
     null_percentage: f64,
     unique: bool,
     forbidden_links: bool,
-    // 专属配置字段（按生成器类型使用）
     number_start: f64,
     number_end: f64,
     date_start: String,
@@ -140,7 +132,7 @@ struct GeneratorConfig {
     text_min_length: usize,
     text_max_length: usize,
     regex_pattern: String,
-    enum_values: String,  // 逗号分隔
+    enum_values: String,
     seq_start: i64,
     seq_step: i64,
 }
@@ -188,7 +180,6 @@ impl FakeDataGenerator {
         let generator_select_state = cx.new(|cx| {
             SelectState::new(generator_select_items, None, window, cx).searchable(true)
         });
-        // 生成器配置抽屉的语言下拉（对齐 Tauri SimplePreview 的 localeOptions）
         let locale_items = vec![
             "简体中文".to_string(),
             "繁体中文".to_string(),
@@ -207,7 +198,6 @@ impl FakeDataGenerator {
         let gen_null_percentage_state =
             cx.new(|cx| InputState::new(window, cx).default_value("5"));
         let gen_preview_state = cx.new(|cx| InputState::new(window, cx).placeholder("预览值"));
-        // 生成器专属配置输入状态
         let gen_number_start_state = cx.new(|cx| InputState::new(window, cx).default_value("0"));
         let gen_number_end_state = cx.new(|cx| InputState::new(window, cx).default_value("1000"));
         let gen_date_start_state = cx.new(|cx| InputState::new(window, cx).default_value("2000-01-01"));
@@ -242,16 +232,13 @@ impl FakeDataGenerator {
                     }
                 },
             ),
-            // 抽屉内切换生成器：触发面板重渲染以更新条件渲染（对齐 Tauri watch(datafakerValue, hydrateConfig)）
             cx.subscribe_in(
                 &generator_select_state,
                 window,
                 move |this, _, _ev: &SelectEvent<SearchableVec<SelectGroup<GeneratorSelectItem>>>, window, cx| {
-                    // 切换生成器后清空预览值
                     this.gen_preview_state.update(cx, |state, cx| {
                         state.set_value(String::new(), window, cx);
                     });
-                    // 触发整个视图重渲染，使 gen_dialog_content 中的条件渲染重新求值
                     cx.notify();
                 },
             ),
@@ -311,13 +298,10 @@ impl FakeDataGenerator {
             _subscriptions,
         };
 
-        // 初始化时从 SQLite 加载已保存连接列表
         this.refresh_datasources(cx);
 
         this
     }
-
-    // ── 视图切换 ──
 
     fn go_to_generator(&mut self, name: String, window: &mut Window, cx: &mut Context<Self>) {
         let Some(ds) = self
@@ -349,10 +333,8 @@ impl FakeDataGenerator {
         self.status = format!("正在加载 {} 的表结构...", ds.name);
         cx.notify();
 
-        // 加载数据源的表列表并匹配生成器
         self.load_datasource_tables(cx);
 
-        // 自动加载已保存的画布配置（对齐 Tauri 的 init→loadConfig 行为）
         self.load_canvas(window, cx);
     }
 
@@ -402,8 +384,6 @@ impl FakeDataGenerator {
         .detach();
     }
 
-    // ── 连接列表页方法 ──
-
     fn open_conn_sheet(
         &mut self,
         edit_name: Option<String>,
@@ -413,7 +393,6 @@ impl FakeDataGenerator {
         self.conn_edit_name = edit_name.clone();
 
         if let Some(ref name) = edit_name {
-            // 编辑模式：从已保存列表加载数据
             if let Some(ds) = self.saved_datasources.iter().find(|d| d.name == *name) {
                 self.conn_driver = config_store::driver_label(&ds.driver);
                 self.conn_driver_state.update(cx, |state, cx| {
@@ -422,7 +401,6 @@ impl FakeDataGenerator {
                 self.conn_form.apply(ds, window, cx);
             }
         } else {
-            // 新建模式：清空表单
             self.conn_driver = "PostgreSQL".to_string();
             self.conn_driver_state.update(cx, |state, cx| {
                 state.set_selected_value(&"PostgreSQL".to_string(), window, cx);
@@ -595,8 +573,6 @@ impl FakeDataGenerator {
         .detach();
     }
 
-    // ── 画布配置页方法 ──
-
     fn add_table_to_canvas(&mut self, key: String, cx: &mut Context<Self>) {
         if self
             .canvas_nodes
@@ -661,7 +637,6 @@ impl FakeDataGenerator {
         cx.notify();
 
         cx.spawn(async move |this: WeakEntity<Self>, cx| {
-            // 逐表处理并实时推送日志（对齐 Tauri 的 datafaker-run-log 事件推送）
             let table_count = tables.len();
             for (ti, table) in tables.iter().enumerate() {
                 let table_label = format!("{}.{}", table.schema, table.table_name);
@@ -752,8 +727,6 @@ impl FakeDataGenerator {
         })
         .detach();
     }
-
-    // ── 保留的现有方法 ──
 
     fn datasource_info(&self, cx: &App) -> Result<DatasourceInfo, String> {
         self.form.to_info(&self.driver, cx)
@@ -997,7 +970,6 @@ impl FakeDataGenerator {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        // 优先从 canvas_nodes 查找（保留用户配置的生成器），否则从 tables 查找
         let table = self
             .canvas_nodes
             .iter()
@@ -1015,7 +987,6 @@ impl FakeDataGenerator {
             return;
         };
 
-        // 找到当前列及其生成器
         let column = table
             .columns
             .iter()
@@ -1030,14 +1001,11 @@ impl FakeDataGenerator {
         self.selected_table = Some(key.clone());
         self.selected_column_name = Some(column_name.clone());
 
-        // 初始化 Select：选中当前列的生成器
         let current_generator = column.generator.clone();
         self.generator_select_state.update(cx, |state, cx| {
             state.set_selected_value(&current_generator, window, cx);
         });
 
-        // 初始化通用配置（对齐 Tauri SimplePreview 的 setConfig 行为）
-        // 注意：仅首次打开时从 column.config 初始化，切换生成器后配置由用户控制
         let cfg = &column.config;
         let locale_label = match cfg.locale.as_str() {
             "zh_traditional" => "繁体中文",
@@ -1073,7 +1041,6 @@ impl FakeDataGenerator {
         self.gen_unique = cfg.unique;
         self.gen_forbidden_links = cfg.forbidden_links;
 
-        // 初始化专属配置字段
         self.gen_number_start_state.update(cx, |state, cx| {
             state.set_value(cfg.number_start.to_string(), window, cx);
         });
@@ -1173,7 +1140,6 @@ impl FakeDataGenerator {
                             .flex()
                             .flex_col()
                             .gap_3()
-                            // 生成器选择
                             .child(
                                 div()
                                     .flex()
@@ -1187,7 +1153,6 @@ impl FakeDataGenerator {
                                         ),
                                     ),
                             )
-                            // ── 生成器专属配置（每次 render 重新求值，切换生成器后自动更新）──
                             .child({
                                 let mut spec_div = div().flex().flex_col().gap_3();
                                 match gen_val.as_str() {
@@ -1223,7 +1188,6 @@ impl FakeDataGenerator {
                                 }
                                 spec_div
                             })
-                            // 语言选择
                             .child(
                                 div()
                                     .flex()
@@ -1234,7 +1198,6 @@ impl FakeDataGenerator {
                                         div().flex_1().child(Select::new(&self.gen_locale_state)),
                                     ),
                             )
-                            // 预览
                             .child(
                                 div()
                                     .flex()
@@ -1260,7 +1223,6 @@ impl FakeDataGenerator {
                                             ),
                                     ),
                             )
-                            // 包含默认值
                             .child(
                                 div()
                                     .flex()
@@ -1276,7 +1238,6 @@ impl FakeDataGenerator {
                                             })),
                                     ),
                             )
-                            // 默认值输入
                             .child(
                                 div()
                                     .flex()
@@ -1287,7 +1248,6 @@ impl FakeDataGenerator {
                                         div().flex_1().child(Input::new(&self.gen_default_value_state)),
                                     ),
                             )
-                            // 默认值百分比
                             .child(
                                 div()
                                     .flex()
@@ -1306,7 +1266,6 @@ impl FakeDataGenerator {
                                             .child(div().text_sm().child("%")),
                                     ),
                             )
-                            // 包含NULL值
                             .child(
                                 div()
                                     .flex()
@@ -1322,7 +1281,6 @@ impl FakeDataGenerator {
                                             })),
                                     ),
                             )
-                            // NULL值百分比
                             .child(
                                 div()
                                     .flex()
@@ -1341,7 +1299,6 @@ impl FakeDataGenerator {
                                             .child(div().text_sm().child("%")),
                                     ),
                             )
-                            // 唯一值
                             .child(
                                 div()
                                     .flex()
@@ -1357,7 +1314,6 @@ impl FakeDataGenerator {
                                             })),
                                     ),
                             )
-                            // 禁用字段之间数据链接
                             .child(
                                 div()
                                     .flex()
@@ -1373,7 +1329,6 @@ impl FakeDataGenerator {
                                             })),
                                     ),
                             )
-                            // 重置属性
                             .child(
                                 div()
                                     .flex()
@@ -1416,7 +1371,6 @@ impl FakeDataGenerator {
             )
     }
 
-    /// 获取当前选中列的 column_type（用于对话框标题）
     fn get_selected_column_type(&self) -> String {
         let key = match &self.selected_table {
             Some(k) => k.clone(),
@@ -1441,7 +1395,6 @@ impl FakeDataGenerator {
             .unwrap_or_default()
     }
 
-    // 预览当前生成器输出（对齐 Tauri SimplePreview 的 preview 函数）
     fn preview_generator(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(column_name) = self.selected_column_name.clone() else {
             return;
@@ -1468,7 +1421,6 @@ impl FakeDataGenerator {
         cx.notify();
     }
 
-    // 重置生成器配置为默认值（对齐 Tauri SimplePreview 的 reset 函数）
     fn reset_generator_config(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.gen_locale_state.update(cx, |state, cx| {
             state.set_selected_value(&"简体中文".to_string(), window, cx);
@@ -1503,7 +1455,6 @@ impl FakeDataGenerator {
         self.set_column_generator_with_config(table_key_value, column_name, generator, cfg, cx);
     }
 
-    // 保存生成器及完整配置（对齐 Tauri saveChanges：写入 datafaker + config）
     fn set_column_generator_with_config(
         &mut self,
         table_key_value: String,
@@ -1526,7 +1477,6 @@ impl FakeDataGenerator {
                 }
             }
         }
-        // 同步更新 canvas_nodes 中的对应字段（确保修改生效）
         for node in &mut self.canvas_nodes {
             if table_key(&node.table.schema, &node.table.table_name) != table_key_value {
                 continue;
@@ -1656,7 +1606,6 @@ impl FakeDataGenerator {
     }
 
     fn toggle_canvas_mode(&mut self, cx: &mut Context<Self>) {
-        // 不再使用，保留空方法以防编译错误
         cx.notify();
     }
 
@@ -1748,7 +1697,6 @@ impl FakeDataGenerator {
                 let new_canvas_x = (new_screen_x - self.canvas_viewport_x) / self.canvas_zoom;
                 let new_canvas_y = (new_screen_y - self.canvas_viewport_y) / self.canvas_zoom;
 
-                // 计算位移增量（对齐 Tauri onNodeDrag：同步移动同表的所有子节点）
                 let (delta_x, delta_y) = if let Some(node) = self.canvas_nodes.get(index) {
                     (new_canvas_x - node.x, new_canvas_y - node.y)
                 } else {
@@ -1764,7 +1712,6 @@ impl FakeDataGenerator {
                     offset_x,
                     offset_y,
                 });
-                // 记录位移用于后续同步（已经直接设置好了主节点，子节点在渲染时自动跟随）
                 let _ = delta_x;
                 let _ = delta_y;
                 cx.notify();
@@ -1814,7 +1761,6 @@ impl FakeDataGenerator {
             let old_zoom = self.canvas_zoom;
             self.canvas_zoom = (self.canvas_zoom + zoom_delta).clamp(0.1, 5.0);
             if (self.canvas_zoom - old_zoom).abs() > 0.001 {
-                // 以鼠标位置为中心缩放
                 let mouse_x = f32::from(event.position.x);
                 let mouse_y = f32::from(event.position.y);
                 let ratio = self.canvas_zoom / old_zoom;
@@ -1834,7 +1780,6 @@ impl FakeDataGenerator {
     }
 
     fn load_canvas(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        // 对齐 Tauri：根据当前数据源名称直接加载配置，不弹出对话框
         let ds_name = match &self.current_datasource {
             Some(ds) => ds.name.clone(),
             None => return,
@@ -2001,8 +1946,6 @@ impl FakeDataGenerator {
         cx.write_to_clipboard(ClipboardItem::new_string(self.output.clone()));
     }
 }
-
-// ── 渲染 ──
 
 impl Render for FakeDataGenerator {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -2178,7 +2121,6 @@ impl FakeDataGenerator {
             .flex()
             .flex_row()
             .relative()
-            // 左侧面板
             .child(
                 div()
                     .w(px(300.))
@@ -2258,14 +2200,12 @@ impl FakeDataGenerator {
                         },
                     )),
             )
-            // 右侧主区域
             .child(
                 div()
                     .flex_1()
                     .flex()
                     .flex_col()
                     .relative()
-                    // 工具栏（浮动在画布上方）
                     .child(
                         div()
                             .absolute()
@@ -2299,7 +2239,6 @@ impl FakeDataGenerator {
                                     .label("清空画布")
                                     .warning()
                                     .on_click(cx.listener(|this, _, window, cx| {
-                                        // 二次确认弹窗（对齐 Tauri n-popconfirm）
                                         let weak = cx.entity().downgrade();
                                         window.open_dialog(cx, move |dialog, _, _| {
                                             dialog
@@ -2361,7 +2300,6 @@ impl FakeDataGenerator {
                                 )
                             }),
                     )
-                    // 运行日志面板
                     .when(self.show_run_log && !self.run_logs.is_empty(), |el| {
                         el.child(
                             div()
@@ -2409,12 +2347,9 @@ impl FakeDataGenerator {
                                 ),
                         )
                     })
-                    // 画布区域
                     .child(self.render_canvas_area(cx)),
             )
-            // 生成器配置抽屉（条件渲染，每次 cx.notify() 重新求值）
             .when(self.show_gen_dialog, |el| {
-                // 构建标题
                 let column_name = self.selected_column_name.clone().unwrap_or_default();
                 let column_type = self.get_selected_column_type();
                 let title_text = format!("{} {} 生成器配置", column_name, column_type);
@@ -2431,7 +2366,6 @@ impl FakeDataGenerator {
                         .border_l_1()
                         .border_color(cx.theme().border)
                         .shadow_lg()
-                        // 阻止鼠标事件穿透到画布（防止在抽屉内移动鼠标时画布跟着平移）
                         .on_mouse_down(MouseButton::Left, |_, _, cx| {
                             cx.stop_propagation();
                         })
@@ -2444,7 +2378,6 @@ impl FakeDataGenerator {
                         .on_scroll_wheel(|_, _, cx| {
                             cx.stop_propagation();
                         })
-                        // 标题栏 + 关闭按钮
                         .child(
                             div()
                                 .flex()
@@ -2465,7 +2398,6 @@ impl FakeDataGenerator {
                                         })),
                                 ),
                         )
-                        // 面板内容
                         .child(self.gen_dialog_content(window, cx)),
                 )
             })
@@ -2475,7 +2407,6 @@ impl FakeDataGenerator {
         let dot_color = gpui_kit::hsla(0.0, 0.0, 0.85, 1.0);
         let dot_size = 1.5_f32;
 
-        // 捕获节点数据供连线绘制使用
         let nodes_for_lines = self.canvas_nodes.clone();
         let viewport_x = self.canvas_viewport_x;
         let viewport_y = self.canvas_viewport_y;
@@ -2509,13 +2440,11 @@ impl FakeDataGenerator {
                 this.canvas_scroll_wheel(event, window, cx);
             }));
 
-        // 点阵网格背景 + 连线
         canvas_div = canvas_div.child(
             canvas(
                 move |_, _, _| {},
                 move |bounds: Bounds<Pixels>, _, window: &mut Window, _| {
                     window.paint_quad(fill(bounds, gpui_kit::white()));
-                    // 点阵网格（缩放适配）
                     let step = 20.0_f32 * zoom;
                     if step > 2.0 {
                         let start_x = viewport_x.rem_euclid(step);
@@ -2536,7 +2465,6 @@ impl FakeDataGenerator {
                         }
                     }
 
-                    // 连线：datafaker → column，带箭头
                     for node in &nodes_for_lines {
                         let sx = node.x * zoom + viewport_x;
                         let sy = node.y * zoom + viewport_y;
@@ -2552,12 +2480,10 @@ impl FakeDataGenerator {
                             let end = bounds.origin
                                 + point(px(col_right_x), px(field_center_y));
 
-                            // 画线
                             let mut path = PathBuilder::stroke(px(1.5 * zoom));
                             path.move_to(start);
                             path.line_to(end);
 
-                            // 箭头（终点在 column 右侧）
                             let dx = f32::from(end.x - start.x);
                             let dy = f32::from(end.y - start.y);
                             let len = (dx * dx + dy * dy).sqrt().max(0.001);
@@ -2602,7 +2528,6 @@ impl FakeDataGenerator {
             return canvas_div;
         }
 
-        // 缩放百分比提示
         let zoom_pct = format!("{:.0}%", self.canvas_zoom * 100.0);
 
         for (index, node) in self.canvas_nodes.iter().enumerate() {
@@ -2610,7 +2535,6 @@ impl FakeDataGenerator {
             let screen_y = node.y * self.canvas_zoom + self.canvas_viewport_y;
             let title = node.table.table_name.clone();
 
-            // ── Table 头节点 ──
             let header_div = div()
                 .absolute()
                 .left(px(screen_x))
@@ -2654,7 +2578,6 @@ impl FakeDataGenerator {
                 );
             canvas_div = canvas_div.child(header_div);
 
-            // ── Column 节点列表 ──
             for (col_idx, column) in node.table.columns.iter().enumerate() {
                 let col_screen_y = screen_y
                     + TABLE_NODE_HEIGHT * self.canvas_zoom
@@ -2677,7 +2600,6 @@ impl FakeDataGenerator {
                 canvas_div = canvas_div.child(col_div);
             }
 
-            // ── Datafaker 节点列表 ──
             for (col_idx, column) in node.table.columns.iter().enumerate() {
                 let gen_screen_x = screen_x + GENERATOR_OFFSET_X * self.canvas_zoom;
                 let gen_screen_y = screen_y
@@ -2704,7 +2626,6 @@ impl FakeDataGenerator {
                     .overflow_hidden()
                     .id(("gen-canvas-node", index * 1000 + col_idx))
                     .cursor_pointer()
-                    // 阻止画布 pan 拖拽拦截节点的点击事件
                     .on_mouse_down(
                         MouseButton::Left,
                         cx.listener(|_, _, _, cx| {
@@ -2742,7 +2663,6 @@ impl FakeDataGenerator {
             }
         }
 
-        // 缩放百分比提示（右下角，MiniMap 上方）
         canvas_div = canvas_div.child(
             div()
                 .absolute()
@@ -2760,7 +2680,6 @@ impl FakeDataGenerator {
                 .child(zoom_pct),
         );
 
-        // MiniMap 缩略图（右下角，对齐 Tauri VueFlow 的 MiniMap）
         let minimap_nodes = self.canvas_nodes.clone();
         let minimap_viewport_x = self.canvas_viewport_x;
         let minimap_viewport_y = self.canvas_viewport_y;
@@ -2785,7 +2704,6 @@ impl FakeDataGenerator {
                         move |_, _, _| minimap_nodes.clone(),
                         move |bounds: Bounds<Pixels>, nodes, window: &mut Window, _| {
                             window.paint_quad(fill(bounds, minimap_bg));
-                            // 计算所有节点的边界
                             let mut min_x = f32::MAX;
                             let mut min_y = f32::MAX;
                             let mut max_x = f32::MIN;
@@ -2802,7 +2720,6 @@ impl FakeDataGenerator {
                             if min_x == f32::MAX {
                                 return;
                             }
-                            // 增加边距
                             min_x -= 40.0;
                             min_y -= 40.0;
                             max_x += 40.0;
@@ -2815,7 +2732,6 @@ impl FakeDataGenerator {
                             let offset_x = (f32::from(bounds.size.width) - content_w * scale) / 2.0;
                             let offset_y = (f32::from(bounds.size.height) - content_h * scale) / 2.0;
 
-                            // 绘制节点矩形
                             for node in &nodes {
                                 let rx = (node.x - min_x) * scale + offset_x;
                                 let ry = (node.y - min_y) * scale + offset_y;
@@ -2834,10 +2750,8 @@ impl FakeDataGenerator {
                                 );
                             }
 
-                            // 绘制当前视口矩形
                             let vp_left = (-minimap_viewport_x / minimap_zoom - min_x) * scale + offset_x;
                             let vp_top = (-minimap_viewport_y / minimap_zoom - min_y) * scale + offset_y;
-                            // 视口宽高（假设画布大约 800x600，这里用 bounds 反推）
                             let vp_w = f32::from(bounds.size.width) / minimap_zoom * scale;
                             let vp_h = f32::from(bounds.size.height) / minimap_zoom * scale;
                             let vp_bounds = Bounds::new(
@@ -2858,8 +2772,6 @@ impl FakeDataGenerator {
         canvas_div
     }
 }
-
-// ── DatafakerDbForm ──
 
 impl DatafakerDbForm {
     fn new(window: &mut Window, cx: &mut Context<FakeDataGenerator>) -> Self {
@@ -2941,8 +2853,6 @@ impl DatafakerDbForm {
         });
     }
 }
-
-// ── 异步操作 ──
 
 async fn load_table_previews(info: DatasourceInfo) -> Result<Vec<TablePreview>, String> {
     let tree = database::database_table_tree(info)
@@ -3113,7 +3023,6 @@ async fn run_fake_data_insert(
     Ok(logs.join("\n"))
 }
 
-/// 单表假数据插入（用于逐表实时推送日志）
 async fn run_fake_data_insert_single(
     info: &DatasourceInfo,
     table: &TablePreview,
@@ -3183,8 +3092,6 @@ async fn run_fake_data_insert_single(
     Ok(logs)
 }
 
-// ── SQL 生成 ──
-
 fn batch_insert_sql(
     driver: &Driver,
     table: &TablePreview,
@@ -3249,8 +3156,6 @@ fn sql_value(value: String) -> String {
     format!("'{}'", value.replace('\'', "''"))
 }
 
-// ── 辅助函数 ──
-
 fn upsert_datasource(items: &mut Vec<DatasourceInfo>, info: DatasourceInfo) {
     items.retain(|item| item.name != info.name);
     items.insert(0, info);
@@ -3265,7 +3170,6 @@ fn form_field(label: &'static str, input: impl IntoElement) -> Div {
         .child(div().flex_1().child(input))
 }
 
-/// 表单行：label(140px) + Input(Entity<InputState>)（对齐抽屉内配置面板标签宽度）
 fn form_field_entity(label: &str, state: &Entity<InputState>) -> Div {
     div()
         .flex()
@@ -3385,8 +3289,6 @@ fn csv_escape(value: &str) -> String {
         value.to_string()
     }
 }
-
-// ── 弹窗内容 ──
 
 fn canvas_load_dialog_content(
     configs: Vec<config_store::DatafakerConfigRecord>,

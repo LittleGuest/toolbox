@@ -26,45 +26,32 @@ pub struct DatabaseDiff {
     sql_output: String,
     check_output: Option<Vec<CheckReportBo>>,
     code_output: String,
-    /// 逆向生成：每个文件名 → 代码内容（保持插入顺序）
     generated_codes: Vec<(String, String)>,
-    /// 逆向生成：当前激活的 tab 索引
     code_active_tab: usize,
     table_output: String,
     status: String,
     is_running: bool,
     saved_datasources: Vec<DatasourceInfo>,
-    /// 差异报告行：基准库 / 变动库
     report_source_select: Entity<SelectState<Vec<String>>>,
     report_target_select: Entity<SelectState<Vec<String>>>,
-    /// 差异SQL行：基准库 / 变动库
     sql_source_select: Entity<SelectState<Vec<String>>>,
     sql_target_select: Entity<SelectState<Vec<String>>>,
-    /// 规范检查行：基准库
     check_source_select: Entity<SelectState<Vec<String>>>,
-    /// 逆向生成：数据源选择
     code_datasource_select: Entity<SelectState<Vec<String>>>,
-    /// 逆向生成：表选项列表 (key=schema.tableName, label=带注释的显示文本)
     code_table_options: Vec<(String, String)>,
-    /// 逆向生成：已选中的表
     code_selected_tables: HashSet<String>,
-    /// 逆向生成：表加载消息
     code_table_load_msg: String,
     code_language: String,
     code_file_types: Vec<String>,
-    /// 逆向生成：语言 RadioGroup 当前选中索引（0=Rust, 1=Java）
     code_language_index: usize,
     entity_package_state: Entity<InputState>,
     mapper_package_state: Entity<InputState>,
     service_package_state: Entity<InputState>,
     service_impl_package_state: Entity<InputState>,
     controller_package_state: Entity<InputState>,
-    /// 连接管理抽屉的表单
     conn_form: DbForm,
-    /// 连接管理抽屉的驱动选择
     conn_driver: String,
     conn_driver_state: Entity<SelectState<Vec<String>>>,
-    /// 编辑中的连接名称（None=新建）
     conn_edit_name: Option<String>,
     _subscriptions: Vec<Subscription>,
 }
@@ -200,7 +187,6 @@ impl DatabaseDiff {
             ),
         ];
 
-        // 初始化时自动加载已保存的数据源连接
         cx.spawn_in(window, async move |this: WeakEntity<Self>, cx| {
             let result = config_store::load_datasources().await;
             let _ = this.update_in(cx, |this, window, cx| {
@@ -255,7 +241,6 @@ impl DatabaseDiff {
         }
     }
 
-    /// 从 SelectState 读取选中连接，再从 saved_datasources 中按标签查找
     fn selected_datasource(
         &self,
         select: &Entity<SelectState<Vec<String>>>,
@@ -268,7 +253,6 @@ impl DatabaseDiff {
             .cloned()
     }
 
-    /// 刷新所有 Select 的选项列表
     fn refresh_select_options(
         &mut self,
         datasources: &[DatasourceInfo],
@@ -290,7 +274,6 @@ impl DatabaseDiff {
         }
     }
 
-    /// 打开连接管理抽屉（新建或编辑）
     fn open_conn_sheet(
         &mut self,
         edit_name: Option<String>,
@@ -300,7 +283,6 @@ impl DatabaseDiff {
         self.conn_edit_name = edit_name.clone();
 
         if let Some(ref name) = edit_name {
-            // 编辑模式：从已保存列表加载数据
             if let Some(ds) = self.saved_datasources.iter().find(|d| &d.name == name) {
                 self.conn_driver = config_store::driver_label(&ds.driver);
                 self.conn_driver_state.update(cx, |state, cx| {
@@ -309,7 +291,6 @@ impl DatabaseDiff {
                 self.conn_form.apply(ds, window, cx);
             }
         } else {
-            // 新建模式：清空表单
             self.conn_driver = "PostgreSQL".to_string();
             self.conn_driver_state.update(cx, |state, cx| {
                 state.set_selected_value(&"PostgreSQL".to_string(), window, cx);
@@ -401,7 +382,6 @@ impl DatabaseDiff {
         });
     }
 
-    /// 从连接管理表单保存连接
     fn save_conn(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let info = self.conn_form.to_info(&self.conn_driver, cx);
         let Ok(info) = info else {
@@ -420,7 +400,6 @@ impl DatabaseDiff {
         cx.notify();
 
         cx.spawn_in(window, async move |this: WeakEntity<Self>, cx| {
-            // save_datasource 内部用 ON CONFLICT(name) 做 upsert，新建和编辑统一走此路径
             let result = config_store::save_datasource(info).await;
             let _ = this.update_in(cx, |this, window, cx| {
                 this.status = match result {
@@ -443,7 +422,6 @@ impl DatabaseDiff {
         self.conn_edit_name = None;
     }
 
-    /// 从连接管理表单测试连接
     fn ping_conn(&mut self, cx: &mut Context<Self>) {
         let info = self.conn_form.to_info(&self.conn_driver, cx);
         let Ok(info) = info else {
@@ -514,7 +492,6 @@ impl DatabaseDiff {
         .detach();
     }
 
-    /// 根据名称删除已保存连接
     fn delete_datasource_by_name(
         &mut self,
         name: String,
@@ -694,8 +671,6 @@ impl DatabaseDiff {
         cx: &mut Context<Self>,
     ) {
         let this = cx.entity().downgrade();
-        // 共享选中状态：抽屉内 checkbox 与「保存」按钮共享
-        // 默认不选（对齐 Tauri：customStandardChecked = []）
         let selected: Rc<RefCell<HashSet<i32>>> = Rc::new(RefCell::new(HashSet::new()));
 
         window.open_sheet_at(Placement::Bottom, cx, move |sheet, _, cx| {
@@ -704,7 +679,6 @@ impl DatabaseDiff {
             let selected_clone = selected.clone();
             let source_clone = source.clone();
 
-            // 构建 checkbox 列表
             let mut checklist = div().flex().flex_col().gap_2();
             for (i, opt) in options_clone.iter().enumerate() {
                 let is_checked = selected_clone.borrow().contains(&opt.code);
@@ -816,7 +790,6 @@ impl DatabaseDiff {
     }
 
     fn on_language_radio_change(&mut self, index: usize, cx: &mut Context<Self>) {
-        // 顺序：0=Java, 1=Rust（对齐 Tauri）
         let lang_key = if index == 0 { "java" } else { "rust" };
         if lang_key != self.code_language {
             self.code_language = lang_key.to_string();
@@ -828,7 +801,6 @@ impl DatabaseDiff {
         }
     }
 
-    /// 逆向生成：数据源切换时重新加载表列表
     fn on_code_datasource_change(&mut self, cx: &mut Context<Self>) {
         let datasource = self.selected_datasource(&self.code_datasource_select, cx);
         let Some(datasource) = datasource else {
@@ -977,7 +949,6 @@ impl DatabaseDiff {
         .detach();
     }
 
-    /// 打开逆向生成代码的抽屉（匹配 Tauri DatabaseGeneratorCode.vue 的右侧抽屉）
     fn open_code_gen_drawer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let weak = cx.entity().downgrade();
         let datasource_state = self.code_datasource_select.clone();
@@ -997,7 +968,6 @@ impl DatabaseDiff {
         let is_java = code_language == "java";
         let available_types = available_file_types(&code_language);
 
-        // 共享选中状态：抽屉内 checkbox 与「生成代码」按钮共享
         let file_types_shared: Rc<RefCell<HashSet<String>>> =
             Rc::new(RefCell::new(code_file_types.iter().cloned().collect()));
         let tables_shared: Rc<RefCell<HashSet<String>>> =
@@ -1006,7 +976,6 @@ impl DatabaseDiff {
         window.open_sheet_at(Placement::Right, cx, move |sheet, window, cx| {
             let weak2 = weak.clone();
 
-            // 语言 RadioGroup（顺序：Java, Rust，对齐 Tauri）
             let language_radio = RadioGroup::horizontal("code-language")
                 .selected_index(Some(code_language_index))
                 .on_click(move |index: &usize, _, cx| {
@@ -1019,7 +988,6 @@ impl DatabaseDiff {
                 .child(Radio::new("lang-java").label("Java"))
                 .child(Radio::new("lang-rust").label("Rust"));
 
-            // 生成文件类型 checkbox 组
             let mut file_checkboxes = div().flex().flex_wrap().gap_3();
             for (i, ft) in available_types.iter().enumerate() {
                 let is_active = file_types_shared.borrow().contains(ft);
@@ -1040,7 +1008,6 @@ impl DatabaseDiff {
                 file_checkboxes = file_checkboxes.child(cb);
             }
 
-            // 表多选 checkbox 列表
             let mut table_list = div().flex().flex_col().gap_1().max_h(px(160.)).overflow_y_scrollbar();
             if code_table_options.is_empty() {
                 table_list = table_list.child(
@@ -1074,7 +1041,6 @@ impl DatabaseDiff {
                 }
             }
 
-            // 生成结果 TabBar
             let weak5 = weak.clone();
             let result_section = if generated_codes.is_empty() {
                 div()
@@ -1233,7 +1199,6 @@ impl DatabaseDiff {
                                         .on_click(move |_, window, cx| {
                                             if let Some(this) = weak.upgrade() {
                                                 this.update(cx, |this, cx| {
-                                                    // 从共享状态读取用户选择
                                                     this.code_file_types =
                                                         ft_shared.borrow().iter().cloned().collect();
                                                     this.code_selected_tables =
@@ -1268,7 +1233,6 @@ impl DatabaseDiff {
             let mut content = div().flex().flex_col().gap_4().p_3();
 
             if let Some(ref report) = report {
-                // 增加的表（info 蓝色，对齐 Tauri n-tag type="info"）
                 if !report.incres.is_empty() {
                     content = content.child(
                         div()
@@ -1282,7 +1246,6 @@ impl DatabaseDiff {
                             ),
                     );
                 }
-                // 删除的表（danger 红色，对齐 Tauri n-tag type="error"）
                 if !report.misses.is_empty() {
                     content = content.child(
                         div()
@@ -1296,7 +1259,6 @@ impl DatabaseDiff {
                             ),
                     );
                 }
-                // 变动的表
                 if !report.changes.is_empty() {
                     content = content.child(
                         div().text_base().font_semibold().mb_2().child("变动的表"),
@@ -1325,7 +1287,6 @@ impl DatabaseDiff {
                                     ),
                             );
 
-                        // 表注释变化（info 色 tag，对齐 Tauri n-tag type="info"）
                         if table.comment_change {
                             let src_label = format!("基准库：{}", table.source_comment);
                             let tgt_label = format!("变动库：{}", table.target_comment);
@@ -1336,7 +1297,6 @@ impl DatabaseDiff {
                             );
                         }
 
-                        // 增加的字段（warning 黄色，对齐 Tauri n-tag type="warning"）
                         if !table.incre_columns.is_empty() {
                             table_div = table_div.child(
                                 div().mb_2()
@@ -1348,7 +1308,6 @@ impl DatabaseDiff {
                             );
                         }
 
-                        // 缺失的字段（warning 黄色，对齐 Tauri n-tag type="warning"）
                         if !table.miss_columns.is_empty() {
                             table_div = table_div.child(
                                 div().mb_2()
@@ -1360,7 +1319,6 @@ impl DatabaseDiff {
                             );
                         }
 
-                        // 变动的字段
                         if !table.columns.is_empty() {
                             let mut cols_div = div().mb_2()
                                 .child(div().text_sm().font_semibold().mb_1().child("变动的字段"));
@@ -1391,7 +1349,6 @@ impl DatabaseDiff {
                             table_div = table_div.child(cols_div);
                         }
 
-                        // 增加的索引（success 绿色，对齐 Tauri n-tag type="success"）
                         if !table.incre_indexs.is_empty() {
                             table_div = table_div.child(
                                 div().mb_2()
@@ -1403,7 +1360,6 @@ impl DatabaseDiff {
                             );
                         }
 
-                        // 缺失的索引（success 绿色，对齐 Tauri n-tag type="success"）
                         if !table.miss_indexs.is_empty() {
                             table_div = table_div.child(
                                 div().mb_2()
@@ -1415,7 +1371,6 @@ impl DatabaseDiff {
                             );
                         }
 
-                        // 变动的索引
                         if !table.indexs.is_empty() {
                             let mut idx_div = div().mb_2()
                                 .child(div().text_sm().font_semibold().mb_1().child("变动的索引"));
@@ -1525,7 +1480,6 @@ impl DatabaseDiff {
 
             if let Some(ref reports) = report {
                 for (ri, item) in reports.iter().enumerate() {
-                    // 区块：带边框，内部留白（标题用默认色，对齐 Tauri n-tag 无 type）
                     let mut block = div()
                         .border_1()
                         .border_color(cx.theme().border)
@@ -1542,7 +1496,6 @@ impl DatabaseDiff {
                             )),
                         );
 
-                    // 建议列表（编号 + 描述，对齐 Tauri 无 show 过滤）
                     if !item.suggests.is_empty() {
                         let mut sugg_div = div().flex().flex_col().gap_1();
                         for (si, sugg) in item.suggests.iter().enumerate() {
@@ -1563,7 +1516,6 @@ impl DatabaseDiff {
                         block = block.child(sugg_div);
                     }
 
-                    // 子区块（缩进，标题用默认色）
                     for (ci, child) in item.children.iter().enumerate() {
                         let mut child_block = div()
                             .ml_8()
@@ -1636,7 +1588,6 @@ impl DatabaseDiff {
         });
     }
 
-    /// 执行全部规范检查（不打开选择弹窗）
     fn run_standard_check_all(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let source = self.selected_datasource(&self.check_source_select, cx);
         let Some(source) = source else {
@@ -1685,7 +1636,6 @@ impl Render for DatabaseDiff {
                             .flex()
                             .flex_col()
                             .gap_4()
-                            // 差异报告行
                             .child(
                                 div()
                                     .flex()
@@ -1715,7 +1665,6 @@ impl Render for DatabaseDiff {
                                 ),
                             ),
                     )
-                    // 差异SQL行
                     .child(
                         div()
                             .flex()
@@ -1743,7 +1692,6 @@ impl Render for DatabaseDiff {
                                 ),
                             ),
                     )
-                    // 规范检查行
                     .child(
                         div()
                             .flex()
@@ -1774,7 +1722,6 @@ impl Render for DatabaseDiff {
                                 ),
                             ),
                     )
-                    // 逆向生成行
                     .child(
                         div()
                             .flex()
@@ -1792,7 +1739,6 @@ impl Render for DatabaseDiff {
                                 ),
                             ),
                     )
-                    // 连接管理：匹配 Tauri 的 "新建连接" 按钮 + 数据表格布局
                     .child(
                         Button::new("new-conn")
                             .label("新建连接")
@@ -1801,7 +1747,6 @@ impl Render for DatabaseDiff {
                             })),
                     )
                     .child(saved_datasource_panel(self, cx))
-                    // 状态（仅显示运行中状态）
                     .when(!self.status.is_empty(), |this| {
                         this.child(
                             div()
@@ -1868,7 +1813,6 @@ async fn generate_code_async(
         return Err("未找到可生成的表，请先确认基准库表结构。".to_string());
     }
 
-    // 如果指定了表名，只生成选中的表
     let selected_tables: Vec<serde_json::Value> = if table_names.is_empty() {
         tables
     } else {
@@ -2416,14 +2360,12 @@ fn upsert_datasource(items: &mut Vec<DatasourceInfo>, info: DatasourceInfo) {
 }
 
 fn saved_datasource_panel(this: &DatabaseDiff, cx: &mut Context<DatabaseDiff>) -> Div {
-    // 匹配 Tauri 的 n-data-table 布局: 连接名称 | 主机 | 端口 | 数据库 | 操作
     let mut panel = div()
         .border_1()
         .border_color(cx.theme().border)
         .rounded_lg()
         .overflow_hidden();
 
-    // 表头
     let header = div()
         .flex()
         .items_center()
@@ -2643,7 +2585,6 @@ fn field(label: &'static str, input: impl IntoElement) -> Div {
         .child(div().flex_1().child(input))
 }
 
-/// 渲染标签（用于增加/缺失的表名、字段名等）
 fn tag(
     prefix: impl std::hash::Hash + std::fmt::Debug,
     index: usize,
@@ -2663,7 +2604,6 @@ fn tag(
         .child(label.to_string())
 }
 
-/// 渲染变化行（源值 变更为 目标值）
 fn change_row(label: &str, source: &str, target: &str) -> Div {
     div()
         .flex()

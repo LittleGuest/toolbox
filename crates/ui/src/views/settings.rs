@@ -4,18 +4,14 @@ use gpui_kit::component::{Theme, ThemeMode, button::*, select::*, switch::Switch
 use crate::config_store;
 use crate::design;
 
-/// 设置项的默认值
 const DEFAULT_LANGUAGE: &str = "zh_cn";
 const DEFAULT_THEME: &str = "light";
 const DEFAULT_FONT: &str = "system";
 
 pub struct SettingsView {
     theme_label: String,
-    /// 当前主题值："light" / "dark"
     theme_value: String,
-    /// 当前语言值："zh_cn" / "en_us"
     language_value: String,
-    /// 当前字体值："system" / "monospace" / "sans_cn"
     font_value: String,
     compact_mode: bool,
     smart_detect: bool,
@@ -111,7 +107,6 @@ impl SettingsView {
         view
     }
 
-    /// 从 SQLite 加载已保存的设置（使用 spawn_in 以获得 window 访问）
     fn load_settings(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.status = "正在加载设置...".to_string();
         cx.notify();
@@ -151,7 +146,6 @@ impl SettingsView {
                 this.compact_mode = compact;
                 this.smart_detect = smart_detect;
 
-                // 同步下拉框选中项（需要 window 访问）
                 if let Some(state) = &this.theme_state {
                     let label = if theme == "dark" { "深色" } else { "浅色" }.to_string();
                     state.update(cx, |s, cx| {
@@ -189,7 +183,6 @@ impl SettingsView {
         .detach();
     }
 
-    /// 应用当前主题到全局
     fn apply_theme(&mut self, cx: &mut Context<Self>) {
         let mode = if self.theme_value == "dark" {
             ThemeMode::Dark
@@ -210,7 +203,6 @@ impl SettingsView {
         cx.notify();
     }
 
-    /// 保存所有设置到 SQLite
     fn save_settings(&mut self, cx: &mut Context<Self>) {
         let theme = self.theme_value.clone();
         let language = self.language_value.clone();
@@ -241,7 +233,6 @@ impl SettingsView {
         .detach();
     }
 
-    /// 恢复默认设置
     fn reset_settings(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.theme_value = DEFAULT_THEME.to_string();
         self.language_value = DEFAULT_LANGUAGE.to_string();
@@ -275,14 +266,10 @@ impl Render for SettingsView {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme_state = self.theme_state.clone();
 
-        // 匹配 Tauri: n-card title="设置" + n-form label-placement="left" label-width="140"
-        // 仅显示"主题"（语言/字体/紧凑模式/智能检测在 Tauri 中已注释掉）
-        // 注意：main.rs 提供 .p_6() padding，此处不再添加
         design::page()
             .child(design::page_header("设置", "应用偏好设置", cx))
             .child(
                 design::card(cx)
-                    // 主题
                     .child(
                         h_flex()
                             .items_center()
@@ -294,7 +281,6 @@ impl Render for SettingsView {
                                     .children(theme_state.map(|s| Select::new(&s))),
                             ),
                     )
-                    // 操作按钮
                     .child(
                         design::action_row()
                             .child(
@@ -313,7 +299,6 @@ impl Render for SettingsView {
                                     })),
                             ),
                     )
-                    // 状态栏
                     .when(!self.status.is_empty(), |this| {
                         this.child(
                             div()

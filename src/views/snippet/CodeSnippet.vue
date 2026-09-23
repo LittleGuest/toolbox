@@ -12,37 +12,26 @@ import {
 import { Delete, Edit, Add, Upload, Download, Search, Reset, Close, Save } from "@vicons/carbon";
 import { useMessage } from "naive-ui";
 
-// 引入消息提示
 const message = useMessage();
 
-// 表单引用
 const formRef = ref(null);
 
-// 搜索词
 const search = ref("");
-// 选中的标签
 const selectedSnippetId = ref(null);
-// 选中的标签
 const selectedTags = ref([]);
-// 代码片段列表
 const snippets = ref([]);
-// 标签列表
 const tags = ref([]);
 const importInputRef = ref(null);
 
-// 当前片段
 const currentSnippet = ref({});
 
-// 过滤后的代码片段
 const filteredSnippets = computed(() => {
   let result = snippets.value;
-  // 根据标签过滤
   if (selectedTags.value.length > 0) {
     result = result.filter((snippet) =>
       selectedTags.value.every((tag) => snippet.tags.includes(tag))
     );
   }
-  // 根据搜索词过滤
   if (search.value) {
     const query = search.value.toLowerCase();
     result = result.filter(
@@ -54,19 +43,15 @@ const filteredSnippets = computed(() => {
   return result;
 });
 
-// 代码首行预览
 const firstLine = (code: string) =>
   String(code || "").split(/\r?\n/).find((l) => l.trim()) ?? "";
-// 代码行数
 const lineCount = (code: string) => (code ? String(code).split(/\r?\n/).length : 0);
 
-// 选择代码片段
 const selectSnippet = (snippet) => {
   selectedSnippetId.value = snippet.id;
   currentSnippet.value = { ...snippet };
 };
 
-// 切换标签选择状态
 const toggleTag = (tag) => {
   if (selectedTags.value.includes(tag)) {
     selectedTags.value = selectedTags.value.filter((t) => t !== tag);
@@ -75,14 +60,11 @@ const toggleTag = (tag) => {
   }
 };
 
-// 添加重置标签方法
 const resetSelectedTags = () => {
   selectedTags.value = [];
 };
 
-// 添加弹窗
 const showAddDialog = ref(false);
-// 添加片段
 const addSnippets = () => {
   form.value = {
     id: null,
@@ -121,10 +103,8 @@ const rules = {
   ],
 };
 
-// 提交表单
 const saveSnippet = async () => {
   try {
-    // 验证表单
     await formRef.value?.validate();
 
     let params = { ...form.value };
@@ -147,7 +127,6 @@ const saveSnippet = async () => {
     await getCodeSnippets();
     await getTags();
   } catch (error) {
-    // 验证失败，不执行保存操作
     console.error("表单验证失败:", error);
   }
 };
@@ -167,7 +146,6 @@ const handleClose = () => {
   };
 };
 
-// 获取代码片段
 const getCodeSnippets = async () => {
   const codeSnippets = await fetchCodeSnippetsApi();
   snippets.value = codeSnippets.map((cs) => {
@@ -176,14 +154,12 @@ const getCodeSnippets = async () => {
   });
 };
 
-// 获取标签
 const getTags = async () => {
   const tagList = (await fetchTagsApi()) || [];
   const tagSet = tagList.map((tag) => tag.tags.split(",")).flat();
   tags.value = [...new Set(tagSet)];
 };
 
-// 删除代码片段
 const deleteSnippet = async (id) => {
   await deleteCodeSnippetApi(id);
   await getCodeSnippets();
@@ -202,7 +178,6 @@ const normalizeTags = (value) => {
 };
 
 const importSnippets = () => {
-  // 实现导入逻辑
   importInputRef.value?.click();
 };
 
@@ -246,7 +221,6 @@ const handleImportFile = async (event) => {
   }
 };
 
-// 导出功能
 const exportSnippets = () => {
   const data = filteredSnippets.value.map((snippet) => ({
     language: snippet.language || "",
@@ -282,7 +256,6 @@ onMounted(() => {
 <template>
   <div class="tb-page">
     <div class="tb-card code-snippet-container">
-      <!-- 卡片头部 -->
       <div class="tb-card-header">
         <span class="tb-card-header-title">代码片段</span>
         <div class="tb-card-header-actions">
@@ -321,7 +294,6 @@ onMounted(() => {
           @change="handleImportFile" />
       </div>
 
-      <!-- 搜索 -->
       <div class="snippet-toolbar">
         <n-input v-model:value="search" placeholder="搜索标题或代码内容…" clearable class="snippet-search">
           <template #prefix><n-icon><Search /></n-icon></template>
@@ -329,9 +301,7 @@ onMounted(() => {
         <span class="snippet-count">{{ filteredSnippets.length }} 条</span>
       </div>
 
-      <!-- 主内容区域 -->
       <div class="main-content">
-        <!-- 左侧标签栏 -->
         <aside class="tag-sidebar" v-if="tags.length > 0">
           <div class="tag-sidebar-title">
             <span>标签</span>
@@ -350,7 +320,6 @@ onMounted(() => {
           </div>
         </aside>
 
-        <!-- 片段列表 -->
         <section class="snippet-content">
           <n-scrollbar class="snippet-scroll" v-if="filteredSnippets.length > 0">
             <div class="snippet-list">
@@ -403,7 +372,6 @@ onMounted(() => {
     </div>
   </div>
 
-  <!-- 添加/编辑代码片段弹窗 -->
   <n-drawer v-model:show="showAddDialog" placement="bottom" resizable :default-width="502" :default-height="'100%'"
     :height="'100%'" @update:show="handleClose">
     <n-drawer-content :title="form.id ? '编辑' : '添加'" closable>
@@ -412,9 +380,6 @@ onMounted(() => {
         <n-form-item path="title" label="一句话">
           <n-input placeholder="一句话描述" v-model:value="form.title" clearable />
         </n-form-item>
-        <!-- <n-form-item path="language" label="语言" v-if="false">
-          <n-input placeholder="请输入语言" v-model:value="form.language" clearable />
-        </n-form-item> -->
         <n-form-item path="tags" label="标签">
           <n-select v-model:value="form.tags" multiple filterable tag
             :options="tags.map(tag => ({ label: tag, value: tag }))" placeholder="输入或选择标签" />
@@ -447,7 +412,6 @@ onMounted(() => {
       </template>
     </n-drawer-content>
   </n-drawer>
-
 
 </template>
 
@@ -488,7 +452,6 @@ onMounted(() => {
   display: flex;
   overflow: hidden;
 
-  /* 左侧标签栏 */
   .tag-sidebar {
     flex-shrink: 0;
     width: 180px;
@@ -548,7 +511,6 @@ onMounted(() => {
     }
   }
 
-  /* 右侧片段列表 */
   .snippet-content {
     flex: 1;
     min-width: 0;
