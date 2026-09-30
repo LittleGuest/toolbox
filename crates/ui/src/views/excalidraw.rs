@@ -739,6 +739,24 @@ impl ExcalidrawView {
         }
     }
 
+    fn zoom_at(&mut self, factor: f32, cx: &mut Context<Self>) {
+        let old_zoom = self.zoom;
+        let new_zoom = (old_zoom * factor).clamp(0.1, 30.0);
+        if (new_zoom - old_zoom).abs() > 0.0001 {
+            self.zoom = new_zoom;
+            self.status = format!("缩放：{:.0}%", new_zoom * 100.0);
+            cx.notify();
+        }
+    }
+
+    fn zoom_reset(&mut self, cx: &mut Context<Self>) {
+        self.zoom = 1.0;
+        self.viewport_x = 0.0;
+        self.viewport_y = 0.0;
+        self.status = "缩放已重置为 100%。".to_string();
+        cx.notify();
+    }
+
     fn export_svg(&mut self, cx: &mut Context<Self>) {
         let mut svg = String::from(
             "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"800\" height=\"600\" viewBox=\"0 0 800 600\">\n",
@@ -794,79 +812,112 @@ impl ExcalidrawView {
     }
 }
 
-impl Render for ExcalidrawView {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        div()
-            .size_full()
-            .flex_col()
-            .gap_3()
-            .child(design::page_header("Excalidraw", "白板绘图", cx))
-            .child(
-                div()
-                    .relative()
-                    .flex_1()
-                    .child(canvas_container(self, cx))
-                    .child(
-                        div()
-                            .absolute()
-                            .top(px(8.0))
-                            .left(px(8.0))
-                            .flex()
-                            .flex_col()
-                            .gap_2()
-                            .child(toolbar(self, cx))
-                            .when(self.selection.is_some(), |el| {
-                                el.child(style_panel(self, cx))
-                            }),
-                    )
-                    .child(top_toolbar(self, cx))
-                    .child(
-                        div()
-                            .absolute()
-                            .bottom(px(8.0))
-                            .left(px(8.0))
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .px_2()
-                            .py_1()
-                            .rounded_md()
-                            .bg(cx.theme().background)
-                            .shadow_sm()
-                            .border_1()
-                            .border_color(cx.theme().border)
-                            .text_xs()
-                            .text_color(cx.theme().muted_foreground)
-                            .child(format!("缩放: {:.0}%", self.zoom * 100.0))
-                            .when(!self.status.is_empty(), |el| {
-                                el.child(format!("| {}", self.status))
-                            }),
-                    ),
-            )
+/// 状态文本配色（对齐内联 message 反馈：错误红 / 成功绿 / 进行中灰）
+fn status_color(status: &str, cx: &App) -> Hsla {
+    if status.contains("失败") || status.contains("无法") || status.contains("请输入") {
+        Hsla::from(rgb(design::ERROR_RED))
+    } else if status.starts_with("已") {
+        Hsla::from(rgb(design::OK_GREEN))
+    } else {
+        cx.theme().muted_foreground
     }
 }
 
-fn top_toolbar(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
+fn toolbar_separator(cx: &mut Context<ExcalidrawView>) -> Div {
     div()
-        .absolute()
-        .top(px(8.0))
-        .left(px(64.0))
-        .right(px(8.0))
+        .w(px(1.0))
+        .h(px(18.0))
+        .mx_1()
+        .rounded_full()
+        .bg(cx.theme().border)
+}
+
+impl Render for ExcalidrawView {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        // 对齐 Vue 原版：全屏铺满的画布容器（无页头、无卡片），岛式悬浮面板
+        div().size_full().child(
+            div()
+                .size_full()
+                .rounded(px(8.0))
+                .border_1()
+                .border_color(cx.theme().border)
+                .bg(cx.theme().popover)
+                .overflow_hidden()
+                .relative()
+                .child(canvas_container(self, cx))
+                // 左上：编辑/导出/文档 菜单岛
+                .child(
+                    div()
+                        .absolute()
+                        .top(px(12.0))
+                        .left(px(12.0))
+                        .child(menu_island(self, cx)),
+                )
+                // 左中：工具岛（垂直居中）
+                .child(
+                    div()
+                        .absolute()
+                        .left(px(12.0))
+                        .top_0()
+                        .bottom_0()
+                        .flex()
+                        .flex_col()
+                        .justify_center()
+                        .child(toolbar(self, cx)),
+                )
+                // 右侧：选中元素属性岛
+                .when(self.selection.is_some(), |el| {
+                    el.child(
+                        div()
+                            .absolute()
+                            .top(px(12.0))
+                            .right(px(12.0))
+                            .child(style_panel(self, cx)),
+                    )
+                })
+                // 左下：状态文本岛
+                .child(
+                    div()
+                        .absolute()
+                        .bottom(px(12.0))
+                        .left(px(12.0))
+                        .max_w(px(460.0))
+                        .child(status_island(self, cx)),
+                )
+                // 右下：缩放岛
+                .child(
+                    div()
+                        .absolute()
+                        .bottom(px(12.0))
+                        .right(px(12.0))
+                        .child(zoom_island(self, cx)),
+                ),
+        )
+    }
+}
+
+fn island_container(cx: &Context<ExcalidrawView>) -> Div {
+    div()
         .flex()
         .items_center()
         .gap_1()
         .p_1()
-        .rounded_md()
-        .bg(cx.theme().background)
-        .shadow_sm()
+        .rounded(px(10.0))
+        .bg(cx.theme().popover)
         .border_1()
         .border_color(cx.theme().border)
+        .shadow_lg()
+}
+
+fn menu_island(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
+    island_container(cx)
+        .flex_wrap()
         .child(
             Button::new("undo")
                 .small()
                 .ghost()
-                .icon(Icon::new(IconName::ArrowLeft))
-                .tooltip("撤销")
+                .icon(Icon::new(IconName::Undo))
+                .tooltip("撤销 (Ctrl+Z)")
                 .on_click(cx.listener(|this, _, _, cx| {
                     this.undo(cx);
                 })),
@@ -875,13 +926,13 @@ fn top_toolbar(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
             Button::new("redo")
                 .small()
                 .ghost()
-                .icon(Icon::new(IconName::ArrowRight))
-                .tooltip("重做")
+                .icon(Icon::new(IconName::Redo))
+                .tooltip("重做 (Ctrl+Shift+Z)")
                 .on_click(cx.listener(|this, _, _, cx| {
                     this.redo(cx);
                 })),
         )
-        .child(div().w(px(8.0)))
+        .child(toolbar_separator(cx))
         .child(
             Button::new("delete-selected")
                 .small()
@@ -902,7 +953,7 @@ fn top_toolbar(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
                     this.clear(cx);
                 })),
         )
-        .child(div().w(px(8.0)))
+        .child(toolbar_separator(cx))
         .child(
             Button::new("export-json")
                 .small()
@@ -933,10 +984,10 @@ fn top_toolbar(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
                     this.export_png(cx);
                 })),
         )
-        .child(div().flex_1())
+        .child(toolbar_separator(cx))
         .child(
             div()
-                .w(px(160.0))
+                .w(px(150.0))
                 .child(Input::new(&this.doc_name_state)),
         )
         .child(
@@ -953,10 +1004,74 @@ fn top_toolbar(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
             Button::new("load-doc")
                 .small()
                 .ghost()
-                .icon(Icon::new(IconName::Search))
+                .icon(Icon::new(IconName::FolderOpen))
                 .tooltip("加载文档")
                 .on_click(cx.listener(|this, _, window, cx| {
                     this.load_docs(window, cx);
+                })),
+        )
+}
+
+fn status_island(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
+    let status = this.status.clone();
+    island_container(cx)
+        .px_2()
+        .child(design::stat_pill(
+            format!("{}", this.elements.len()),
+            "元素",
+            cx.theme().muted_foreground,
+            cx,
+        ))
+        .child(
+            div()
+                .min_w_0()
+                .text_xs()
+                .text_color(status_color(&status, cx))
+                .truncate()
+                .child(status),
+        )
+}
+
+fn zoom_island(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
+    island_container(cx)
+        .child(
+            Button::new("zoom-out")
+                .ghost()
+                .compact()
+                .icon(Icon::new(IconName::Minus))
+                .tooltip("缩小")
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.zoom_at(1.0 / 1.2, cx);
+                })),
+        )
+        .child(
+            div()
+                .w(px(52.0))
+                .flex()
+                .justify_center()
+                .text_xs()
+                .font_family("monospace")
+                .text_color(cx.theme().muted_foreground)
+                .child(format!("{:.0}%", this.zoom * 100.0)),
+        )
+        .child(
+            Button::new("zoom-in")
+                .ghost()
+                .compact()
+                .icon(Icon::new(IconName::Plus))
+                .tooltip("放大")
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.zoom_at(1.2, cx);
+                })),
+        )
+        .child(
+            Button::new("zoom-reset")
+                .ghost()
+                .compact()
+                .label("1:1")
+                .tooltip("重置缩放与视图")
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.zoom_reset(cx);
                 })),
         )
 }
@@ -1013,11 +1128,11 @@ fn style_panel(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
         .gap_2()
         .p_2()
         .w(px(180.0))
-        .bg(cx.theme().background)
+        .bg(cx.theme().popover)
         .border_1()
         .border_color(cx.theme().border)
-        .rounded_md()
-        .shadow_sm();
+        .rounded(px(10.0))
+        .shadow_lg();
 
     panel = panel.child(div().text_xs().font_semibold().child("描边"));
     let stroke_color = this.stroke_color;
@@ -1289,7 +1404,7 @@ fn canvas_container(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> 
         .on_scroll_wheel(cx.listener(|this, event, window, cx| {
             this.canvas_scroll_wheel(event, window, cx);
         }))
-        .on_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
+        .on_key_down(cx.listener(|this, event: &KeyDownEvent, _window, cx| {
             let m = &event.keystroke.modifiers;
             let key = event.keystroke.key.as_str();
             match key {

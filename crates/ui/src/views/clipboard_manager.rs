@@ -1,7 +1,8 @@
+use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use gpui_kit::component::{
     button::*,
-    input::{Input, InputEvent, InputState, Textarea, TextareaState },
+    input::{Input, InputEvent, InputState, Textarea, TextareaState},
     scroll::ScrollableElement,
     *,
 };
@@ -22,9 +23,7 @@ pub struct ClipboardManager {
 impl ClipboardManager {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let input_state = cx.new(|cx| {
-            TextareaState::new(window, cx)
-                .placeholder("输入内容后复制并记录，或读取当前剪贴板加入历史")
-                
+            TextareaState::new(window, cx).placeholder("输入内容后复制，或读取当前剪贴板加入历史")
         });
         let keyword_state = cx.new(|cx| InputState::new(window, cx).placeholder("搜索历史内容"));
 
@@ -53,7 +52,7 @@ impl ClipboardManager {
             input: String::new(),
             keyword: String::new(),
             history: Vec::new(),
-            status: "剪贴板历史会保存到 SQLite。".to_string(),
+            status: String::new(),
             input_state,
             keyword_state,
             _subscriptions,
@@ -62,14 +61,11 @@ impl ClipboardManager {
 
     fn refresh_history(&mut self, cx: &mut Context<Self>) {
         let keyword = self.keyword.clone();
-        self.status = "正在加载剪贴板历史...".to_string();
-        cx.notify();
         cx.spawn(async move |this: WeakEntity<Self>, cx| {
             let result = config_store::load_clipboard_history(keyword).await;
             let _ = this.update(cx, |this, cx| {
                 match result {
                     Ok(history) => {
-                        this.status = format!("已加载 {} 条剪贴板历史。", history.len());
                         this.history = history;
                     }
                     Err(err) => {
@@ -84,12 +80,12 @@ impl ClipboardManager {
 
     fn read_current_clipboard(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(item) = cx.read_from_clipboard() else {
-            self.status = "当前剪贴板为空。".to_string();
+            self.status = "当前剪贴板为空".to_string();
             cx.notify();
             return;
         };
         let Some(text) = item.text() else {
-            self.status = "当前剪贴板不是文本内容。".to_string();
+            self.status = "当前剪贴板不是文本内容".to_string();
             cx.notify();
             return;
         };
@@ -104,7 +100,7 @@ impl ClipboardManager {
     fn copy_input(&mut self, cx: &mut Context<Self>) {
         let value = self.input.trim().to_string();
         if value.is_empty() {
-            self.status = "请输入要复制的内容。".to_string();
+            self.status = "请输入要复制的内容".to_string();
             cx.notify();
             return;
         }
@@ -114,12 +110,9 @@ impl ClipboardManager {
 
     fn copy_history(&mut self, content: String, cx: &mut Context<Self>) {
         cx.write_to_clipboard(ClipboardItem::new_string(content.clone()));
-        self.add_history(content, cx);
     }
 
     fn add_history(&mut self, content: String, cx: &mut Context<Self>) {
-        self.status = "正在保存剪贴板历史...".to_string();
-        cx.notify();
         let keyword = self.keyword.clone();
         cx.spawn(async move |this: WeakEntity<Self>, cx| {
             let result = config_store::add_clipboard_history(content).await;
@@ -130,7 +123,7 @@ impl ClipboardManager {
             let _ = this.update(cx, |this, cx| {
                 match history {
                     Ok(history) => {
-                        this.status = "已复制并记录到剪贴板历史。".to_string();
+                        this.status = "已复制并加入历史".to_string();
                         this.history = history;
                     }
                     Err(err) => {
@@ -144,8 +137,6 @@ impl ClipboardManager {
     }
 
     fn delete_history(&mut self, id: i64, cx: &mut Context<Self>) {
-        self.status = "正在删除剪贴板历史...".to_string();
-        cx.notify();
         let keyword = self.keyword.clone();
         cx.spawn(async move |this: WeakEntity<Self>, cx| {
             let result = config_store::delete_clipboard_history(id).await;
@@ -156,7 +147,6 @@ impl ClipboardManager {
             let _ = this.update(cx, |this, cx| {
                 match history {
                     Ok(history) => {
-                        this.status = "剪贴板历史已删除。".to_string();
                         this.history = history;
                     }
                     Err(err) => {
@@ -180,7 +170,7 @@ impl ClipboardManager {
                     div()
                         .py_4()
                         .text_sm()
-                        .child("确定要清空所有剪贴板历史吗？此操作不可撤销。"),
+                        .child("确定要清空剪贴板历史吗？此操作不可撤销。"),
                 )
                 .confirm()
                 .on_ok(move |_, _, cx| {
@@ -195,15 +185,13 @@ impl ClipboardManager {
     }
 
     fn confirm_clear_history(&mut self, cx: &mut Context<Self>) {
-        self.status = "正在清空剪贴板历史...".to_string();
-        cx.notify();
         cx.spawn(async move |this: WeakEntity<Self>, cx| {
             let result = config_store::clear_clipboard_history().await;
             let _ = this.update(cx, |this, cx| {
                 match result {
                     Ok(_) => {
                         this.history.clear();
-                        this.status = "剪贴板历史已清空。".to_string();
+                        this.status = "剪贴板历史已清空".to_string();
                     }
                     Err(err) => {
                         this.status = format!("清空剪贴板历史失败：{err}");
@@ -218,9 +206,12 @@ impl ClipboardManager {
 
 impl Render for ClipboardManager {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        if self.history.is_empty() && self.status == "剪贴板历史会保存到 SQLite。" {
+        if self.history.is_empty() && self.status.is_empty() {
             self.refresh_history(cx);
         }
+
+        let status = self.status.clone();
+        let empty = self.history.is_empty();
 
         let mut history_list = div()
             .h(px(360.0))
@@ -228,13 +219,8 @@ impl Render for ClipboardManager {
             .flex()
             .flex_col()
             .gap_2();
-        if self.history.is_empty() {
-            history_list = history_list.child(
-                div()
-                    .text_sm()
-                    .text_color(cx.theme().muted_foreground)
-                    .child("暂无剪贴板历史"),
-            );
+        if empty {
+            history_list = history_list.child(design::hint("暂无剪贴板历史", cx));
         } else {
             for item in self.history.clone() {
                 history_list = history_list.child(history_item(item, cx));
@@ -242,15 +228,17 @@ impl Render for ClipboardManager {
         }
 
         design::page()
-            .child(design::page_header("剪贴板管理", "剪贴板历史记录", cx))
+            .child(design::page_header("剪贴板管理", "复制内容并保留历史记录", cx))
             .child(
                 design::card(cx)
+                    .child(design::editor_label("输入", cx))
                     .child(Textarea::new(&self.input_state).h(px(140.0)))
                     .child(
-                        design::toolbar()
+                        design::action_row()
                             .child(
                                 Button::new("clipboard-copy-input")
                                     .primary()
+                                    .compact()
                                     .icon(Icon::new(IconName::Copy))
                                     .tooltip("复制并记录")
                                     .on_click(cx.listener(|this, _, _, cx| {
@@ -259,37 +247,33 @@ impl Render for ClipboardManager {
                             )
                             .child(
                                 Button::new("clipboard-read-current")
-                                    .icon(Icon::new(IconName::File))
+                                    .ghost()
+                                    .compact()
+                                    .icon(Icon::new(IconName::Inbox))
                                     .tooltip("读取当前剪贴板")
                                     .on_click(cx.listener(|this, _, window, cx| {
                                         this.read_current_clipboard(window, cx);
                                     })),
                             )
                             .child(
-                                Button::new("clipboard-refresh")
-                                    .icon(Icon::new(IconName::Search))
-                                    .tooltip("刷新历史")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.refresh_history(cx);
-                                    })),
-                            )
-                            .child(
                                 Button::new("clipboard-clear")
+                                    .danger()
+                                    .compact()
                                     .icon(Icon::new(IconName::Delete))
                                     .tooltip("清空历史")
                                     .on_click(cx.listener(|this, _, window, cx| {
                                         this.clear_history(window, cx);
                                     })),
                             )
-                            .child(div().flex_1()),
+                            .child(div().flex_1())
+                            .child(
+                                div().w(px(220.0)).child(Input::new(&self.keyword_state)),
+                            ),
                     )
-                    .child(Input::new(&self.keyword_state))
-                    .child(
-                        div()
-                            .text_sm()
-                            .text_color(cx.theme().muted_foreground)
-                            .child(self.status.clone()),
-                    )
+                    .when(!status.is_empty(), |this| {
+                        this.child(design::hint(status, cx))
+                    })
+                    .child(design::editor_label("历史记录", cx))
                     .child(history_list),
             )
     }
@@ -309,6 +293,7 @@ fn history_item(item: ClipboardHistoryItem, cx: &mut Context<ClipboardManager>) 
         .child(
             div()
                 .flex_1()
+                .min_w_0()
                 .flex()
                 .flex_col()
                 .gap_1()
@@ -329,15 +314,20 @@ fn history_item(item: ClipboardHistoryItem, cx: &mut Context<ClipboardManager>) 
             ButtonGroup::new(("clipboard-history-actions", item.id as u64))
                 .child(
                     Button::new(("clipboard-copy-history", item.id as u64))
+                        .ghost()
+                        .compact()
                         .icon(Icon::new(IconName::Copy))
                         .tooltip("复制")
                         .on_click(cx.listener(move |this, _, _, cx| {
-                            this.copy_history(content.clone(), cx);
+                            let content = content.clone();
+                            this.copy_history(content, cx);
                         })),
                 )
                 .child(
                     Button::new(("clipboard-delete-history", item.id as u64))
-                        .icon(Icon::new(IconName::Delete))
+                        .ghost()
+                        .compact()
+                        .icon(Icon::new(IconName::Close))
                         .tooltip("删除")
                         .on_click(cx.listener(move |this, _, _, cx| {
                             this.delete_history(item.id, cx);

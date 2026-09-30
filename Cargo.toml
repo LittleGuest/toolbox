@@ -6,7 +6,7 @@ members = [
   "crates/datafaker",
   "crates/base",
   "crates/monitor",
-  # "crates/ui",
+  "crates/ui",
   "src-tauri",
 ]
 
@@ -95,3 +95,9 @@ aes = "0.8"
 des = "0.8"
 ecb = { version = "0.1", features = ["alloc"] }
 cbc = { version = "0.1", features = ["alloc"] }
+
+# 系统 ulimit -v 限制 4GB 虚拟内存，rust-lld 链接全量 debuginfo 必然 OOM，
+# dev 构建关闭 debuginfo（调试反汇编仍可用 backtrace 行号定位）
+[profile.dev]
+debug = false
+

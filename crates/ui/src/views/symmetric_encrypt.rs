@@ -13,6 +13,8 @@ use gpui_kit::component::{
     *,
 };
 
+const FORMAT_OPTIONS: [&str; 2] = ["Base64", "Hex"];
+
 pub struct SymmetricEncryptor {
     algorithm: String,
     mode: String,
@@ -23,6 +25,7 @@ pub struct SymmetricEncryptor {
     cipher: String,
     output: String,
     error: String,
+    success: String,
     key_state: Entity<InputState>,
     iv_state: Entity<InputState>,
     plain_state: Entity<TextareaState>,
@@ -30,7 +33,6 @@ pub struct SymmetricEncryptor {
     output_state: Entity<TextareaState>,
     algorithm_state: Entity<SelectState<Vec<String>>>,
     mode_state: Entity<SelectState<Vec<String>>>,
-    format_state: Entity<SelectState<Vec<String>>>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -190,12 +192,11 @@ impl SymmetricEncryptor {
         let algorithm_items = vec![
             "AES".to_string(),
             "DES".to_string(),
-            "3DES".to_string(),
+            "TripleDES".to_string(),
             "RC4".to_string(),
             "Rabbit".to_string(),
         ];
         let mode_items = vec!["ECB".to_string(), "CBC".to_string()];
-        let format_items = vec!["Base64".to_string(), "Hex".to_string()];
 
         let algorithm_state = cx.new(|cx| {
             let mut state = SelectState::new(algorithm_items, None, window, cx);
@@ -205,11 +206,6 @@ impl SymmetricEncryptor {
         let mode_state = cx.new(|cx| {
             let mut state = SelectState::new(mode_items, None, window, cx);
             state.set_selected_value(&"CBC".to_string(), window, cx);
-            state
-        });
-        let format_state = cx.new(|cx| {
-            let mut state = SelectState::new(format_items, None, window, cx);
-            state.set_selected_value(&"Base64".to_string(), window, cx);
             state
         });
 
@@ -261,6 +257,7 @@ impl SymmetricEncryptor {
                     if let SelectEvent::Confirm(Some(value)) = ev {
                         this.algorithm = value.clone();
                         this.error.clear();
+                        this.success.clear();
                         cx.notify();
                     }
                 },
@@ -271,16 +268,6 @@ impl SymmetricEncryptor {
                 move |this, _, ev: &SelectEvent<Vec<String>>, _, cx| {
                     if let SelectEvent::Confirm(Some(value)) = ev {
                         this.mode = value.clone();
-                        cx.notify();
-                    }
-                },
-            ),
-            cx.subscribe_in(
-                &format_state,
-                window,
-                move |this, _, ev: &SelectEvent<Vec<String>>, _, cx| {
-                    if let SelectEvent::Confirm(Some(value)) = ev {
-                        this.format = value.clone();
                         cx.notify();
                     }
                 },
@@ -297,6 +284,7 @@ impl SymmetricEncryptor {
             cipher: String::new(),
             output: String::new(),
             error: String::new(),
+            success: String::new(),
             key_state,
             iv_state,
             plain_state,
@@ -304,13 +292,12 @@ impl SymmetricEncryptor {
             output_state,
             algorithm_state,
             mode_state,
-            format_state,
             _subscriptions,
         }
     }
 
     fn has_mode(&self) -> bool {
-        self.algorithm != "RC4" && self.algorithm != "Rabbit"
+        self.algorithm == "AES" || self.algorithm == "DES" || self.algorithm == "TripleDES"
     }
 
     fn format_bytes(&self, bytes: &[u8]) -> String {
@@ -392,7 +379,7 @@ impl SymmetricEncryptor {
                         .encrypt_padded_vec_mut::<Pkcs7>(plain))
                 }
             }
-            "3DES" => {
+            "TripleDES" => {
                 let key_buf = fit_bytes(&self.key, 24);
                 let key = GenericArray::from_slice(&key_buf);
                 if self.mode == "CBC" {
@@ -455,7 +442,7 @@ impl SymmetricEncryptor {
                 }
                 .map_err(|_| "解密失败，请检查密钥、IV 或密文格式".to_string())
             }
-            "3DES" => {
+            "TripleDES" => {
                 let key_buf = fit_bytes(&self.key, 24);
                 let key = GenericArray::from_slice(&key_buf);
                 if self.mode == "CBC" {
@@ -476,6 +463,7 @@ impl SymmetricEncryptor {
 
     fn encrypt(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.error.clear();
+        self.success.clear();
         if self.key.is_empty() {
             self.error = "请输入密钥".to_string();
             cx.notify();
@@ -489,17 +477,19 @@ impl SymmetricEncryptor {
         match self.encrypt_data() {
             Ok(bytes) => {
                 self.output = self.format_bytes(&bytes);
+                self.success = "加密成功".to_string();
                 self.output_state.update(cx, |state, cx| {
                     state.set_value(self.output.clone(), window, cx);
                 });
             }
-            Err(e) => self.error = format!("加密失败: {e}"),
+            Err(e) => self.error = format!("加密失败：{e}"),
         }
         cx.notify();
     }
 
     fn decrypt(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.error.clear();
+        self.success.clear();
         if self.key.is_empty() {
             self.error = "请输入密钥".to_string();
             cx.notify();
@@ -515,14 +505,19 @@ impl SymmetricEncryptor {
             .and_then(|ct| self.decrypt_data(&ct))
             .and_then(|pt| {
                 String::from_utf8(pt)
-                    .map_err(|_| "解密结果不是有效的 UTF-8 文本".to_string())
+                    .map_err(|_| "解密失败，请检查密钥、IV 或密文格式".to_string())
             });
         match result {
             Ok(text) => {
-                self.output = text.clone();
-                self.output_state.update(cx, |state, cx| {
-                    state.set_value(text, window, cx);
-                });
+                if text.is_empty() {
+                    self.error = "解密失败，请检查密钥、IV 或密文格式".to_string();
+                } else {
+                    self.output = text.clone();
+                    self.success = "解密成功".to_string();
+                    self.output_state.update(cx, |state, cx| {
+                        state.set_value(text, window, cx);
+                    });
+                }
             }
             Err(e) => self.error = e,
         }
@@ -534,6 +529,7 @@ impl SymmetricEncryptor {
         self.cipher.clear();
         self.output.clear();
         self.error.clear();
+        self.success.clear();
         self.plain_state.update(cx, |state, cx| {
             state.set_value("".to_string(), window, cx);
         });
@@ -549,6 +545,8 @@ impl SymmetricEncryptor {
     fn copy_output(&mut self, cx: &mut Context<Self>) {
         if !self.output.is_empty() {
             cx.write_to_clipboard(ClipboardItem::new_string(self.output.clone()));
+            self.success = "复制成功".to_string();
+            cx.notify();
         }
     }
 
@@ -563,12 +561,6 @@ impl SymmetricEncryptor {
         }
     }
 
-    fn copy_plain(&mut self, cx: &mut Context<Self>) {
-        if !self.plain.is_empty() {
-            cx.write_to_clipboard(ClipboardItem::new_string(self.plain.clone()));
-        }
-    }
-
     fn paste_cipher(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(item) = cx.read_from_clipboard() {
             if let Some(text) = item.text() {
@@ -580,155 +572,263 @@ impl SymmetricEncryptor {
         }
     }
 
-    fn copy_cipher(&mut self, cx: &mut Context<Self>) {
-        if !self.cipher.is_empty() {
-            cx.write_to_clipboard(ClipboardItem::new_string(self.cipher.clone()));
-        }
+    /// 分段选择器（对应 n-radio-button 组）
+    fn segmented_format(&self, cx: &mut Context<Self>) -> Div {
+        div()
+            .flex()
+            .rounded(px(6.0))
+            .border_1()
+            .border_color(cx.theme().border)
+            .overflow_hidden()
+            .bg(cx.theme().background)
+            .children(FORMAT_OPTIONS.iter().enumerate().map(|(i, opt)| {
+                let active = *opt == self.format;
+                div()
+                    .id(("format", i))
+                    .px_3()
+                    .py_1()
+                    .text_sm()
+                    .bg(if active {
+                        cx.theme().primary
+                    } else {
+                        gpui::black().opacity(0.0)
+                    })
+                    .text_color(if active {
+                        gpui::white()
+                    } else {
+                        cx.theme().muted_foreground
+                    })
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.format = opt.to_string();
+                        cx.notify();
+                    }))
+                    .child(opt.to_string())
+            }))
+    }
+
+    fn config_label(text: &'static str, cx: &App) -> Div {
+        div()
+            .w(px(72.0))
+            .flex_shrink_0()
+            .text_size(px(12.0))
+            .text_color(cx.theme().muted_foreground)
+            .child(text)
     }
 }
 
 impl Render for SymmetricEncryptor {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let label_w = px(120.0);
+        let error = self.error.clone();
+        let success = self.success.clone();
 
-        design::page()
-            .child(design::page_header("对称加密", "AES / DES / RC4 / Rabbit", cx))
+        // 明文编辑器（tb-editor）
+        let plain_editor = div()
+            .flex_col()
+            .flex_1()
+            .min_w(px(280.0))
+            .gap_1p5()
+            .child(design::editor_label("明文", cx))
             .child(
-                design::card(cx)
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(div().w(label_w).child(design::caption("算法", cx)))
-                            .child(Select::new(&self.algorithm_state)),
-                    )
-                    .when(self.has_mode(), |this| {
-                        this.child(
-                            div()
-                                .flex()
-                                .items_center()
-                                .gap_2()
-                                .child(div().w(label_w).child(design::caption("模式", cx)))
-                                .child(Select::new(&self.mode_state)),
-                        )
-                    })
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(div().w(label_w).child(design::caption("密钥", cx)))
-                            .child(div().flex_1().child(Input::new(&self.key_state))),
-                    )
-                    .when(self.has_mode() && self.mode == "CBC", |this| {
-                        this.child(
-                            div()
-                                .flex()
-                                .items_center()
-                                .gap_2()
-                                .child(div().w(label_w).child(design::caption("IV 向量", cx)))
-                                .child(div().flex_1().child(Input::new(&self.iv_state))),
-                        )
-                    })
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(div().w(label_w).child(design::caption("输出格式", cx)))
-                            .child(Select::new(&self.format_state)),
-                    ),
-            )
-            .child(
-                design::card(cx)
-                    .child(
-                        ButtonGroup::new("input-buttons")
-                    .child(
-                        Button::new("paste-plain")
-                            .icon(Icon::new(IconName::File))
-                            .tooltip("粘贴明文")
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.paste_plain(window, cx);
-                            })),
-                    )
-                    .child(
-                        Button::new("copy-plain")
-                            .icon(Icon::new(IconName::Copy))
-                            .tooltip("复制明文")
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.copy_plain(cx);
-                            })),
-                    )
-                    .child(
-                        Button::new("paste-cipher")
-                            .icon(Icon::new(IconName::File))
-                            .tooltip("粘贴密文")
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.paste_cipher(window, cx);
-                            })),
-                    )
-                    .child(
-                        Button::new("copy-cipher")
-                            .icon(Icon::new(IconName::Copy))
-                            .tooltip("复制密文")
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.copy_cipher(cx);
-                            })),
-                    )
-                    .child(
-                        Button::new("clear-all")
-                            .icon(Icon::new(IconName::Close))
-                            .tooltip("清空")
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.clear(window, cx);
-                            })),
-                    ),
-                    )
-                    .child(Textarea::new(&self.plain_state).h(px(120.0)).flex_1())
-                    .child(Textarea::new(&self.cipher_state).h(px(120.0)).flex_1()),
-            )
-            .child(
-                design::action_row()
-                    .child(
-                        Button::new("encrypt")
-                            .label("加密")
-                            .primary()
-                            .icon(Icon::new(IconName::ArrowDown))
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.encrypt(window, cx);
-                            })),
-                    )
-                    .child(
-                        Button::new("decrypt")
-                            .label("解密")
-                            .icon(Icon::new(IconName::ArrowUp))
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.decrypt(window, cx);
-                            })),
-                    )
-                    .when(!self.error.is_empty(), |this| {
-                        this.child(
-                            div()
-                                .text_xs()
-                                .text_color(cx.theme().danger)
-                                .child(self.error.clone()),
-                        )
-                    }),
-            )
-            .child(
-                design::card(cx)
-                    .child(Textarea::new(&self.output_state).h(px(120.0)).flex_1())
-                    .child(
-                        ButtonGroup::new("output-buttons").child(
-                    Button::new("copy-output")
-                        .icon(Icon::new(IconName::Copy))
-                        .tooltip("复制结果")
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            this.copy_output(cx);
+                design::toolbar().child(
+                    Button::new("paste-plain")
+                        .icon(Icon::new(IconName::Inbox))
+                        .tooltip("粘贴明文")
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            this.paste_plain(window, cx);
                         })),
                 ),
-                    ),
+            )
+            .child(Textarea::new(&self.plain_state).h(px(170.0)).font_family("monospace"));
+
+        // 密文编辑器（tb-editor）
+        let cipher_editor = div()
+            .flex_col()
+            .flex_1()
+            .min_w(px(280.0))
+            .gap_1p5()
+            .child(design::editor_label("密文", cx))
+            .child(
+                design::toolbar().child(
+                    Button::new("paste-cipher")
+                        .icon(Icon::new(IconName::Inbox))
+                        .tooltip("粘贴密文")
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            this.paste_cipher(window, cx);
+                        })),
+                ),
+            )
+            .child(Textarea::new(&self.cipher_state).h(px(170.0)).font_family("monospace"));
+
+        design::page()
+            .child(design::page_header("对称加密", "AES / DES / TripleDES / RC4 / Rabbit", cx))
+            .child(
+                design::card(cx)
+                    .child(design::card_header(
+                        IconName::Replace,
+                        "对称加密",
+                        "AES / DES / TripleDES / RC4 / Rabbit",
+                        cx,
+                    ))
+                    // 配置行（tb-config-row）
+                    .child(
+                        div()
+                            .flex()
+                            .flex_wrap()
+                            .items_center()
+                            .gap_3()
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap_2()
+                                    .child(Self::config_label("算法", cx))
+                                    .child(div().w(px(160.0)).child(Select::new(&self.algorithm_state))),
+                            )
+                            .when(self.has_mode(), |row| {
+                                row.child(
+                                    div()
+                                        .flex()
+                                        .items_center()
+                                        .gap_2()
+                                        .child(Self::config_label("模式", cx))
+                                        .child(
+                                            div()
+                                                .w(px(120.0))
+                                                .child(Select::new(&self.mode_state)),
+                                        ),
+                                )
+                            })
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap_2()
+                                    .child(Self::config_label("密钥", cx))
+                                    .child(
+                                        div()
+                                            .w(px(320.0))
+                                            .child(Input::new(&self.key_state)),
+                                    ),
+                            )
+                            .when(self.has_mode() && self.mode == "CBC", |row| {
+                                row.child(
+                                    div()
+                                        .flex()
+                                        .items_center()
+                                        .gap_2()
+                                        .child(Self::config_label("IV 向量", cx))
+                                        .child(
+                                            div()
+                                                .w(px(320.0))
+                                                .child(Input::new(&self.iv_state)),
+                                        ),
+                                )
+                            })
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap_2()
+                                    .child(Self::config_label("输出格式", cx))
+                                    .child(self.segmented_format(cx)),
+                            ),
+                    )
+                    // 明文 / 密文编辑区（tb-editor-grid）
+                    .child(
+                        div()
+                            .flex()
+                            .items_start()
+                            .gap_4()
+                            .child(plain_editor)
+                            .child(cipher_editor),
+                    )
+                    // 动作行（tb-action-row）
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(
+                                Button::new("encrypt")
+                                    .primary()
+                                    .icon(Icon::new(IconName::ArrowDown))
+                                    .tooltip("加密")
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.encrypt(window, cx);
+                                    })),
+                            )
+                            .child(
+                                Button::new("decrypt")
+                                    .primary()
+                                    .icon(Icon::new(IconName::ArrowUp))
+                                    .tooltip("解密")
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.decrypt(window, cx);
+                                    })),
+                            ),
+                    )
+                    // 结果编辑器
+                    .child(
+                        div()
+                            .flex_col()
+                            .gap_1p5()
+                            .child(design::editor_label("加密 / 解密结果", cx))
+                            .child(
+                                design::toolbar()
+                                    .child(
+                                        Button::new("paste-input")
+                                            .icon(Icon::new(IconName::Inbox))
+                                            .tooltip("粘贴输入")
+                                            .on_click(cx.listener(|this, _, window, cx| {
+                                                this.paste_plain(window, cx);
+                                            })),
+                                    )
+                                    .child(
+                                        Button::new("copy-output")
+                                            .icon(Icon::new(IconName::Copy))
+                                            .tooltip("复制输出")
+                                            .disabled(self.output.is_empty())
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.copy_output(cx);
+                                            })),
+                                    )
+                                    .child(
+                                        Button::new("clear-all")
+                                            .icon(Icon::new(IconName::Close))
+                                            .tooltip("清除")
+                                            .on_click(cx.listener(|this, _, window, cx| {
+                                                this.clear(window, cx);
+                                            })),
+                                    ),
+                            )
+                            .child(
+                                Textarea::new(&self.output_state)
+                                    .h(px(170.0))
+                                    .font_family("monospace"),
+                            ),
+                    )
+                    // 状态反馈（内联 message 替代）
+                    .when(!error.is_empty(), |card| {
+                        card.child(
+                            div()
+                                .text_size(px(12.5))
+                                .text_color(Hsla::from(rgb(design::ERROR_RED)))
+                                .child(error.clone()),
+                        )
+                    })
+                    .when(!success.is_empty() && error.is_empty(), |card| {
+                        card.child(
+                            div()
+                                .text_size(px(12.5))
+                                .text_color(Hsla::from(rgb(design::OK_GREEN)))
+                                .child(success),
+                        )
+                    })
+                    // 提示文本
+                    .child(design::hint(
+                        "提示：ECB 模式不推荐用于生产环境（相同明文块产生相同密文，易被模式分析攻击）；CBC 模式建议使用随机 IV 并妥善保存。解密失败常见原因：密钥或 IV 不一致、密文格式与「输出格式」不匹配、密文被截断或篡改（padding 校验失败）。",
+                        cx,
+                    )),
             )
     }
 }

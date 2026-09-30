@@ -25,6 +25,7 @@ pub enum ViewType {
     TransformTime,
     TransformBaseConversion,
     TransformCron,
+    TransformRmb,
     EncodeDecodeBase64,
     EncodeDecodeUrl,
     EncodeDecodeJwt,
@@ -56,6 +57,12 @@ pub enum ViewType {
     ColorConverter,
     NetworkIp,
     ImageExcalidraw,
+    ImageConvert,
+    PdfImagesToPdf,
+    PdfMerge,
+    PdfEdit,
+    PdfPageNumber,
+    PdfSplit,
     OtherQrCode,
     OtherClipboard,
     RegexVisualizer,
@@ -107,6 +114,13 @@ pub struct App {
     random_data: Option<Entity<RandomDataGenerator>>,
     bitwise_calculator: Option<Entity<BitwiseCalculator>>,
     color_converter: Option<Entity<ColorConverter>>,
+    rmb_case: Option<Entity<RmbCase>>,
+    image_convert: Option<Entity<ImageConvert>>,
+    pdf_images_to_pdf: Option<Entity<PdfFromFiles>>,
+    pdf_merge: Option<Entity<PdfFromFiles>>,
+    pdf_edit: Option<Entity<PdfEditTool>>,
+    pdf_page_number: Option<Entity<PdfPageNumberTool>>,
+    pdf_split: Option<Entity<PdfSplitTool>>,
 }
 
 impl App {
@@ -156,6 +170,13 @@ impl App {
             random_data: None,
             bitwise_calculator: None,
             color_converter: None,
+            rmb_case: None,
+            image_convert: None,
+            pdf_images_to_pdf: None,
+            pdf_merge: None,
+            pdf_edit: None,
+            pdf_page_number: None,
+            pdf_split: None,
         }
     }
 
@@ -252,6 +273,12 @@ impl Render for App {
                                             .active(current_view == ViewType::TransformCron)
                                             .on_click(cx.listener(|this, _, _, cx| {
                                                 this.set_view(ViewType::TransformCron, cx);
+                                            })),
+                                        SidebarMenuItem::new("人民币大小写")
+                                            .icon(Icon::new(IconName::ALargeSmall))
+                                            .active(current_view == ViewType::TransformRmb)
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.set_view(ViewType::TransformRmb, cx);
                                             })),
                                     ]),
                                 SidebarMenuItem::new("编码/解码")
@@ -487,12 +514,55 @@ impl Render for App {
                                 SidebarMenuItem::new("图像")
                                     .icon(Icon::new(IconName::Frame))
                                     .click_to_open(true)
-                                    .children([SidebarMenuItem::new("Excalidraw")
-                                        .icon(Icon::new(IconName::Frame))
-                                        .active(current_view == ViewType::ImageExcalidraw)
-                                        .on_click(cx.listener(|this, _, _, cx| {
-                                            this.set_view(ViewType::ImageExcalidraw, cx);
-                                        }))]),
+                                    .children([
+                                        SidebarMenuItem::new("图片格式转换")
+                                            .icon(Icon::new(IconName::Frame))
+                                            .active(current_view == ViewType::ImageConvert)
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.set_view(ViewType::ImageConvert, cx);
+                                            })),
+                                        SidebarMenuItem::new("Excalidraw")
+                                            .icon(Icon::new(IconName::Frame))
+                                            .active(current_view == ViewType::ImageExcalidraw)
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.set_view(ViewType::ImageExcalidraw, cx);
+                                            })),
+                                    ]),
+                                SidebarMenuItem::new("PDF")
+                                    .icon(Icon::new(IconName::File))
+                                    .click_to_open(true)
+                                    .children([
+                                        SidebarMenuItem::new("图片转 PDF")
+                                            .icon(Icon::new(IconName::File))
+                                            .active(current_view == ViewType::PdfImagesToPdf)
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.set_view(ViewType::PdfImagesToPdf, cx);
+                                            })),
+                                        SidebarMenuItem::new("PDF 合并")
+                                            .icon(Icon::new(IconName::File))
+                                            .active(current_view == ViewType::PdfMerge)
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.set_view(ViewType::PdfMerge, cx);
+                                            })),
+                                        SidebarMenuItem::new("PDF 编辑")
+                                            .icon(Icon::new(IconName::File))
+                                            .active(current_view == ViewType::PdfEdit)
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.set_view(ViewType::PdfEdit, cx);
+                                            })),
+                                        SidebarMenuItem::new("PDF 添加页码")
+                                            .icon(Icon::new(IconName::File))
+                                            .active(current_view == ViewType::PdfPageNumber)
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.set_view(ViewType::PdfPageNumber, cx);
+                                            })),
+                                        SidebarMenuItem::new("PDF 拆分")
+                                            .icon(Icon::new(IconName::File))
+                                            .active(current_view == ViewType::PdfSplit)
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.set_view(ViewType::PdfSplit, cx);
+                                            })),
+                                    ]),
                                 SidebarMenuItem::new("其它")
                                     .icon(Icon::new(IconName::Settings2))
                                     .click_to_open(true)
@@ -551,6 +621,7 @@ impl Render for App {
                                     render_base_converter_view(self, window, cx)
                                 }
                                 ViewType::TransformCron => render_cron_view(self, window, cx),
+                                ViewType::TransformRmb => render_rmb_case_view(self, window, cx),
                                 ViewType::EncodeDecodeBase64 => {
                                     render_base64_encoder_view(self, window, cx)
                                 }
@@ -634,6 +705,18 @@ impl Render for App {
                                 ViewType::ImageExcalidraw => {
                                     render_excalidraw_view(self, window, cx)
                                 }
+                                ViewType::ImageConvert => {
+                                    render_image_convert_view(self, window, cx)
+                                }
+                                ViewType::PdfImagesToPdf => {
+                                    render_pdf_images_to_pdf_view(self, cx)
+                                }
+                                ViewType::PdfMerge => render_pdf_merge_view(self, cx),
+                                ViewType::PdfEdit => render_pdf_edit_view(self, window, cx),
+                                ViewType::PdfPageNumber => {
+                                    render_pdf_page_number_view(self, window, cx)
+                                }
+                                ViewType::PdfSplit => render_pdf_split_view(self, window, cx),
                                 ViewType::OtherQrCode => {
                                     render_qrcode_generator_view(self, window, cx)
                                 }
@@ -662,6 +745,7 @@ fn render_home_view(cx: &mut Context<App>) -> Div {
         ("时间戳", "时间戳与日期互转", IconName::Calendar),
         ("进制转换", "十进制 / 十六进制 / 二进制", IconName::ALargeSmall),
         ("Cron 表达式", "解析与生成 Cron", IconName::Calendar),
+        ("人民币大小写", "金额与中文大写互转", IconName::ALargeSmall),
         ("Base64", "Base64 编码与解码", IconName::CaseSensitive),
         ("Base64 图片", "图片与 Base64 互转", IconName::Frame),
         ("URL", "URL 编码与解码", IconName::ExternalLink),
@@ -693,6 +777,12 @@ fn render_home_view(cx: &mut Context<App>) -> Div {
         ("按位计算器", "二进制位运算", IconName::SquareTerminal),
         ("颜色转换", "HEX / RGB / HSL / CMYK", IconName::Frame),
         ("Excalidraw", "白板绘图", IconName::Frame),
+        ("图片格式转换", "常见图片格式互转", IconName::Frame),
+        ("图片转 PDF", "图片合成为 PDF", IconName::File),
+        ("PDF 合并", "多个 PDF 合并", IconName::File),
+        ("PDF 编辑", "删除 / 旋转 / 排序页面", IconName::File),
+        ("PDF 添加页码", "添加页码或自定义文本", IconName::File),
+        ("PDF 拆分", "按页码范围拆分", IconName::File),
         ("二维码", "生成二维码", IconName::Frame),
         ("剪贴板管理", "剪贴板历史记录", IconName::Settings2),
         ("正则可视化", "正则表达式调试", IconName::Dash),
@@ -780,6 +870,7 @@ fn view_for_title(title: &str) -> Option<ViewType> {
         "时间戳" => Some(ViewType::TransformTime),
         "进制转换" => Some(ViewType::TransformBaseConversion),
         "Cron 表达式" => Some(ViewType::TransformCron),
+        "人民币大小写" => Some(ViewType::TransformRmb),
         "Base64" => Some(ViewType::EncodeDecodeBase64),
         "Base64 图片" => Some(ViewType::EncodeDecodeBase64Image),
         "URL" => Some(ViewType::EncodeDecodeUrl),
@@ -811,6 +902,12 @@ fn view_for_title(title: &str) -> Option<ViewType> {
         "按位计算器" => Some(ViewType::NumberBitwise),
         "颜色转换" => Some(ViewType::ColorConverter),
         "Excalidraw" => Some(ViewType::ImageExcalidraw),
+        "图片格式转换" => Some(ViewType::ImageConvert),
+        "图片转 PDF" => Some(ViewType::PdfImagesToPdf),
+        "PDF 合并" => Some(ViewType::PdfMerge),
+        "PDF 编辑" => Some(ViewType::PdfEdit),
+        "PDF 添加页码" => Some(ViewType::PdfPageNumber),
+        "PDF 拆分" => Some(ViewType::PdfSplit),
         "二维码" => Some(ViewType::OtherQrCode),
         "剪贴板管理" => Some(ViewType::OtherClipboard),
         "正则可视化" => Some(ViewType::RegexVisualizer),
@@ -1090,7 +1187,13 @@ fn render_regex_visualizer_view(app: &mut App, window: &mut Window, cx: &mut Con
     }
 
     if let Some(ref regex) = app.regex_visualizer {
-        div().p_6().child(regex.clone())
+        // 对齐 Vue：tb-page padding(16/20/24) + 卡片撑满剩余高度
+        div()
+            .h_full()
+            .pt(px(16.0))
+            .px(px(20.0))
+            .pb(px(24.0))
+            .child(regex.clone())
     } else {
         div().p_6().child("Loading...")
     }
@@ -1102,7 +1205,13 @@ fn render_excalidraw_view(app: &mut App, window: &mut Window, cx: &mut Context<A
     }
 
     if let Some(ref excalidraw) = app.excalidraw {
-        div().size_full().p_6().child(excalidraw.clone())
+        // 对齐 Vue excalidraw-page：padding 4px 12px 12px
+        div()
+            .size_full()
+            .pt(px(4.0))
+            .px(px(12.0))
+            .pb(px(12.0))
+            .child(excalidraw.clone())
     } else {
         div().size_full().p_6().child("Loading...")
     }
@@ -1115,6 +1224,92 @@ fn render_settings_view(app: &mut App, window: &mut Window, cx: &mut Context<App
 
     if let Some(ref settings) = app.settings {
         div().p_6().child(settings.clone())
+    } else {
+        div().p_6().child("Loading...")
+    }
+}
+
+fn render_rmb_case_view(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {
+    if app.rmb_case.is_none() {
+        app.rmb_case = Some(cx.new(|cx| RmbCase::new(window, cx)));
+    }
+
+    if let Some(ref view) = app.rmb_case {
+        div().p_6().child(view.clone())
+    } else {
+        div().p_6().child("Loading...")
+    }
+}
+
+fn render_image_convert_view(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {
+    if app.image_convert.is_none() {
+        app.image_convert = Some(cx.new(|cx| ImageConvert::new(window, cx)));
+    }
+
+    if let Some(ref view) = app.image_convert {
+        div().p_6().child(view.clone())
+    } else {
+        div().p_6().child("Loading...")
+    }
+}
+
+fn render_pdf_images_to_pdf_view(app: &mut App, cx: &mut Context<App>) -> Div {
+    if app.pdf_images_to_pdf.is_none() {
+        app.pdf_images_to_pdf = Some(cx.new(|_| {
+            PdfFromFiles::new(PdfFromFilesKind::ImagesToPdf)
+        }));
+    }
+
+    if let Some(ref view) = app.pdf_images_to_pdf {
+        div().p_6().child(view.clone())
+    } else {
+        div().p_6().child("Loading...")
+    }
+}
+
+fn render_pdf_merge_view(app: &mut App, cx: &mut Context<App>) -> Div {
+    if app.pdf_merge.is_none() {
+        app.pdf_merge = Some(cx.new(|_| PdfFromFiles::new(PdfFromFilesKind::Merge)));
+    }
+
+    if let Some(ref view) = app.pdf_merge {
+        div().p_6().child(view.clone())
+    } else {
+        div().p_6().child("Loading...")
+    }
+}
+
+fn render_pdf_edit_view(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {
+    if app.pdf_edit.is_none() {
+        app.pdf_edit = Some(cx.new(|cx| PdfEditTool::new(window, cx)));
+    }
+
+    if let Some(ref view) = app.pdf_edit {
+        div().p_6().child(view.clone())
+    } else {
+        div().p_6().child("Loading...")
+    }
+}
+
+fn render_pdf_page_number_view(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {
+    if app.pdf_page_number.is_none() {
+        app.pdf_page_number = Some(cx.new(|cx| PdfPageNumberTool::new(window, cx)));
+    }
+
+    if let Some(ref view) = app.pdf_page_number {
+        div().p_6().child(view.clone())
+    } else {
+        div().p_6().child("Loading...")
+    }
+}
+
+fn render_pdf_split_view(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {
+    if app.pdf_split.is_none() {
+        app.pdf_split = Some(cx.new(|cx| PdfSplitTool::new(window, cx)));
+    }
+
+    if let Some(ref view) = app.pdf_split {
+        div().p_6().child(view.clone())
     } else {
         div().p_6().child("Loading...")
     }

@@ -1,15 +1,12 @@
 use crate::design;
-use gpui_kit::{prelude::FluentBuilder as _, *};
+use gpui_kit::*;
 use gpui_kit::component::{
     button::*,
-    input::{Input, InputEvent, InputState, Textarea, TextareaState },
-    scroll::ScrollableElement,
+    input::{InputEvent, Textarea, TextareaState},
     select::{Select, SelectEvent, SelectState},
     switch::Switch,
     *,
 };
-
-use crate::views::syntax_highlight::{self, HighlightPalette};
 
 pub struct SqlFormatter {
     input: String,
@@ -324,38 +321,61 @@ impl Render for SqlFormatter {
                     .child(
                         div()
                             .flex()
+                            .flex_wrap()
                             .items_center()
-                            .gap_2()
-                            .child(div().w(px(100.0)).child(design::caption("缩进", cx)))
-                            .child(Select::new(&self.indent_state)),
+                            .gap_3()
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap_2()
+                                    .child(design::caption("缩进", cx))
+                                    .child(
+                                        div()
+                                            .w(px(140.0))
+                                            .child(Select::new(&self.indent_state)),
+                                    ),
+                            )
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap_2()
+                                    .child(design::caption("关键字大写", cx))
+                                    .child(
+                                        Switch::new("keyword-case")
+                                            .checked(self.keyword_case == "upper")
+                                            .on_click(cx.listener(|this, v: &bool, _, cx| {
+                                                this.keyword_case = if *v {
+                                                    "upper".to_string()
+                                                } else {
+                                                    "lower".to_string()
+                                                };
+                                                cx.notify();
+                                            })),
+                                    ),
+                            ),
                     )
                     .child(
                         div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(div().w(px(100.0)).child(design::caption("关键字大写", cx)))
+                            .flex_col()
+                            .gap_1p5()
+                            .child(design::editor_label("SQL 输入", cx))
                             .child(
-                                Switch::new("keyword-case")
-                                    .checked(self.keyword_case == "upper")
-                                    .on_click(cx.listener(|this, v: &bool, _, cx| {
-                                        this.keyword_case = if *v {
-                                            "upper".to_string()
-                                        } else {
-                                            "lower".to_string()
-                                        };
-                                        cx.notify();
-                                    })),
+                                Textarea::new(&self.input_state)
+                                    .h(px(400.0))
+                                    .font_family("monospace"),
                             ),
                     )
                     .child(
                         design::toolbar()
                             .child(
                                 Button::new("paste-input")
-                                    .icon(Icon::new(IconName::File))
+                                    .icon(Icon::new(IconName::Inbox))
                                     .tooltip("粘贴")
                                     .on_click(cx.listener(|this, _, window, cx| {
                                         this.paste(window, cx);
+                                        cx.notify();
                                     })),
                             )
                             .child(
@@ -368,18 +388,14 @@ impl Render for SqlFormatter {
                             )
                             .child(
                                 Button::new("format")
-                                    .label("格式化")
                                     .primary()
+                                    .icon(Icon::new(IconName::RotateCw))
+                                    .tooltip("格式化")
                                     .on_click(cx.listener(|this, _, window, cx| {
                                         this.format_sql(window, cx);
                                     })),
                             )
                             .child(div().flex_1()),
-                    )
-                    .child(
-                        Textarea::new(&self.input_state)
-                            .h(px(400.0))
-                            .font_family("monospace"),
                     ),
             )
     }

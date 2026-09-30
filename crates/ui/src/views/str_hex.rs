@@ -240,132 +240,174 @@ impl StrHexConverter {
 
 impl Render for StrHexConverter {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let error = self.error.clone();
+
         design::page()
-            .child(design::page_header("字符串进制转换", "字符串与十六进制互转", cx))
+            .child(design::page_header("字符串进制转换", "字符串与十六进制 / 二进制 / 十进制互转", cx))
             .child(
                 design::card(cx)
+                    .child(design::card_header(
+                        IconName::Replace,
+                        "字符串进制转换",
+                        "文本按所选进制编码 / 解码",
+                        cx,
+                    ))
+                    .child(
+                        div()
+                            .flex()
+                            .flex_wrap()
+                            .items_center()
+                            .gap_3()
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap_2()
+                                    .child(
+                                        div()
+                                            .text_size(px(13.0))
+                                            .text_color(cx.theme().muted_foreground)
+                                            .child("进制"),
+                                    )
+                                    .child(div().w(px(130.0)).child(Select::new(&self.radix_state))),
+                            )
+                            .when(self.radix == "hex", |row| {
+                                row.child(
+                                    Checkbox::new("hex-no-space")
+                                        .label("连续无空格")
+                                        .checked(self.hex_no_space)
+                                        .tooltip("勾选后编码结果不以空格分隔")
+                                        .on_click(cx.listener(|this, v: &bool, _, cx| {
+                                            this.hex_no_space = *v;
+                                            cx.notify();
+                                        })),
+                                )
+                            }),
+                    )
+                    .child(
+                        div()
+                            .flex_col()
+                            .gap_1p5()
+                            .child(design::editor_label("输入", cx))
+                            .child(
+                                Textarea::new(&self.input_state)
+                                    .h(design::CODE_BOX_HEIGHT)
+                                    .font_family("monospace"),
+                            )
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap_2()
+                                    .child(
+                                        Button::new("paste-input")
+                                            .ghost()
+                                            .compact()
+                                            .icon(Icon::new(IconName::Inbox))
+                                            .tooltip("粘贴输入")
+                                            .on_click(cx.listener(|this, _, window, cx| {
+                                                this.paste_input(window, cx);
+                                            })),
+                                    )
+                                    .child(
+                                        Button::new("copy-input")
+                                            .ghost()
+                                            .compact()
+                                            .icon(Icon::new(IconName::Copy))
+                                            .tooltip("复制输入")
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.copy_input(cx);
+                                            })),
+                                    )
+                                    .child(
+                                        Button::new("clear-input")
+                                            .ghost()
+                                            .compact()
+                                            .icon(Icon::new(IconName::Close))
+                                            .tooltip("清除")
+                                            .on_click(cx.listener(|this, _, window, cx| {
+                                                this.clear(window, cx);
+                                            })),
+                                    ),
+                            ),
+                    )
                     .child(
                         div()
                             .flex()
                             .items_center()
                             .gap_2()
-                            .child(div().w(px(80.0)).child(design::caption("进制", cx)))
-                            .child(Select::new(&self.radix_state)),
-                    )
-                    .when(self.radix == "hex", |this| {
-                        this.child(
-                            div()
-                                .flex()
-                                .items_center()
-                                .gap_2()
-                                .child(div().w(px(80.0)).child(design::caption("选项", cx)))
-                                .child(
-                                    Checkbox::new("hex-no-space")
-                                        .label("连续无空格")
-                                        .checked(self.hex_no_space)
-                                        .on_click(cx.listener(|this, v: &bool, _, cx| {
-                                            this.hex_no_space = *v;
-                                            cx.notify();
-                                        })),
-                                ),
-                        )
-                    })
-                    .child(
-                        design::toolbar()
                             .child(
-                                Button::new("paste-input")
-                                    .icon(Icon::new(IconName::File))
-                                    .tooltip("粘贴")
+                                Button::new("encode")
+                                    .primary()
+                                    .icon(Icon::new(IconName::ArrowDown))
+                                    .tooltip("编码")
                                     .on_click(cx.listener(|this, _, window, cx| {
-                                        this.paste_input(window, cx);
+                                        this.encode(window, cx);
                                     })),
                             )
                             .child(
-                                Button::new("copy-input")
-                                    .icon(Icon::new(IconName::Copy))
-                                    .tooltip("复制")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.copy_input(cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new("clear-input")
-                                    .icon(Icon::new(IconName::Close))
-                                    .tooltip("清空")
+                                Button::new("decode")
+                                    .icon(Icon::new(IconName::ArrowUp))
+                                    .tooltip("解码")
                                     .on_click(cx.listener(|this, _, window, cx| {
-                                        this.clear(window, cx);
+                                        this.decode(window, cx);
                                     })),
                             )
-                            .child(div().flex_1()),
+                            .when(!error.is_empty(), |row| {
+                                row.child(
+                                    div()
+                                        .text_size(px(12.5))
+                                        .text_color(Hsla::from(rgb(design::ERROR_RED)))
+                                        .child(error),
+                                )
+                            }),
                     )
                     .child(
-                        Textarea::new(&self.input_state)
-                            .h(design::CODE_BOX_HEIGHT)
-                            .font_family("monospace"),
-                    ),
-            )
-            .child(
-                design::action_row()
-                    .child(
-                        Button::new("encode")
-                            .label("编码")
-                            .primary()
-                            .icon(Icon::new(IconName::ArrowDown))
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.encode(window, cx);
-                            })),
-                    )
-                    .child(
-                        Button::new("decode")
-                            .label("解码")
-                            .icon(Icon::new(IconName::ArrowUp))
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.decode(window, cx);
-                            })),
-                    )
-                    .when(!self.error.is_empty(), |this| {
-                        this.child(
-                            div()
-                                .text_xs()
-                                .text_color(cx.theme().danger)
-                                .child(self.error.clone()),
-                        )
-                    }),
-            )
-            .child(
-                design::card(cx)
-                    .child(
-                        Textarea::new(&self.output_state)
-                            .h(design::CODE_BOX_HEIGHT)
-                            .font_family("monospace"),
-                    )
-                    .child(
-                        design::toolbar()
+                        div()
+                            .flex_col()
+                            .gap_1p5()
+                            .child(design::editor_label("输出", cx))
                             .child(
-                                Button::new("paste-output")
-                                    .icon(Icon::new(IconName::File))
-                                    .tooltip("粘贴")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.paste_output(window, cx);
-                                    })),
+                                Textarea::new(&self.output_state)
+                                    .h(design::CODE_BOX_HEIGHT)
+                                    .font_family("monospace"),
                             )
                             .child(
-                                Button::new("copy-output")
-                                    .icon(Icon::new(IconName::Copy))
-                                    .tooltip("复制")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.copy_output(cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new("clear-output")
-                                    .icon(Icon::new(IconName::Close))
-                                    .tooltip("清空")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.clear(window, cx);
-                                    })),
-                            )
-                            .child(div().flex_1()),
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap_2()
+                                    .child(
+                                        Button::new("paste-output")
+                                            .ghost()
+                                            .compact()
+                                            .icon(Icon::new(IconName::Inbox))
+                                            .tooltip("粘贴输出")
+                                            .on_click(cx.listener(|this, _, window, cx| {
+                                                this.paste_output(window, cx);
+                                            })),
+                                    )
+                                    .child(
+                                        Button::new("copy-output")
+                                            .ghost()
+                                            .compact()
+                                            .icon(Icon::new(IconName::Copy))
+                                            .tooltip("复制输出")
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.copy_output(cx);
+                                            })),
+                                    )
+                                    .child(
+                                        Button::new("clear-output")
+                                            .ghost()
+                                            .compact()
+                                            .icon(Icon::new(IconName::Close))
+                                            .tooltip("清除")
+                                            .on_click(cx.listener(|this, _, window, cx| {
+                                                this.clear(window, cx);
+                                            })),
+                                    ),
+                            ),
                     ),
             )
     }

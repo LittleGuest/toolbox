@@ -223,7 +223,7 @@ impl SettingsView {
             let has_err = r1.is_err() || r2.is_err() || r3.is_err() || r4.is_err() || r5.is_err();
             let _ = this.update(cx, |this, cx| {
                 if has_err {
-                    this.status = "保存设置部分失败，请重试。".to_string();
+                    this.status = "保存设置失败，请重试。".to_string();
                 } else {
                     this.status = "设置已保存。".to_string();
                 }
@@ -260,40 +260,90 @@ impl SettingsView {
         self.status = "已恢复默认设置，请点击「保存设置」以持久化。".to_string();
         cx.notify();
     }
+
+    fn config_row(label: &'static str, cx: &App) -> Div {
+        div()
+            .flex()
+            .items_center()
+            .gap_3()
+            .child(
+                div()
+                    .w(px(100.0))
+                    .flex_shrink_0()
+                    .text_size(px(13.0))
+                    .text_color(cx.theme().muted_foreground)
+                    .child(label),
+            )
+    }
 }
 
 impl Render for SettingsView {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme_state = self.theme_state.clone();
+        let language_state = self.language_state.clone();
+        let font_state = self.font_state.clone();
+        let status_ok = self.status.contains("失败");
 
         design::page()
             .child(design::page_header("设置", "应用偏好设置", cx))
             .child(
                 design::card(cx)
-                    .child(
-                        h_flex()
-                            .items_center()
-                            .gap_3()
-                            .child(div().w(px(140.)).child(design::caption("主题", cx)))
-                            .child(
-                                div()
-                                    .flex_1()
-                                    .children(theme_state.map(|s| Select::new(&s))),
-                            ),
-                    )
+                    .child(design::card_header(
+                        IconName::Settings,
+                        "设置",
+                        "应用偏好设置",
+                        cx,
+                    ))
+                    // 语言
+                    .child(Self::config_row("语言", cx).child(
+                        div()
+                            .w(px(220.0))
+                            .children(language_state.map(|s| Select::new(&s))),
+                    ))
+                    // 智能检测
+                    .child(Self::config_row("智能检测", cx).child(
+                        Switch::new("smart-detect")
+                            .checked(self.smart_detect)
+                            .on_click(cx.listener(|this, v: &bool, _, cx| {
+                                this.set_smart_detect(*v, cx);
+                            })),
+                    ))
+                    // 字体
+                    .child(Self::config_row("字体", cx).child(
+                        div()
+                            .w(px(220.0))
+                            .children(font_state.map(|s| Select::new(&s))),
+                    ))
+                    // 紧凑模式
+                    .child(Self::config_row("紧凑模式", cx).child(
+                        Switch::new("compact-mode")
+                            .checked(self.compact_mode)
+                            .on_click(cx.listener(|this, v: &bool, _, cx| {
+                                this.set_compact_mode(*v, cx);
+                            })),
+                    ))
+                    // 主题（GPUI 特有能力）
+                    .child(Self::config_row("主题", cx).child(
+                        div()
+                            .w(px(220.0))
+                            .children(theme_state.map(|s| Select::new(&s))),
+                    ))
+                    // 操作按钮（对应 Vue 保存设置 / 恢复默认）
                     .child(
                         design::action_row()
                             .child(
                                 Button::new("save-settings")
-                                    .label("保存设置")
                                     .primary()
+                                    .icon(Icon::new(IconName::Check))
+                                    .tooltip("保存设置")
                                     .on_click(cx.listener(|this, _, _, cx| {
                                         this.save_settings(cx);
                                     })),
                             )
                             .child(
                                 Button::new("reset-settings")
-                                    .label("恢复默认")
+                                    .icon(Icon::new(IconName::RotateCw))
+                                    .tooltip("恢复默认")
                                     .on_click(cx.listener(|this, _, window, cx| {
                                         this.reset_settings(window, cx);
                                     })),
@@ -302,8 +352,12 @@ impl Render for SettingsView {
                     .when(!self.status.is_empty(), |this| {
                         this.child(
                             div()
-                                .text_sm()
-                                .text_color(cx.theme().muted_foreground)
+                                .text_size(px(12.5))
+                                .text_color(if status_ok {
+                                    Hsla::from(rgb(design::ERROR_RED))
+                                } else {
+                                    cx.theme().muted_foreground
+                                })
                                 .child(self.status.clone()),
                         )
                     }),

@@ -1,13 +1,17 @@
 use crate::design;
+use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use gpui_kit::component::{
     button::*,
+    color_picker::{ColorPicker, ColorPickerEvent, ColorPickerState},
     input::{Input, InputEvent, InputState},
     *,
 };
 use rand::Rng;
 
 type Rgb = (u8, u8, u8);
+
+const INIT_HEX: &str = "#3498db";
 
 fn clamp(v: f64, min: f64, max: f64) -> f64 {
     v.max(min).min(max)
@@ -47,6 +51,12 @@ fn rgb_to_hex((r, g, b): Rgb) -> String {
     format!("#{:02x}{:02x}{:02x}", r, g, b)
 }
 
+/// Hsla → "#rrggbb"（取色器回调使用）
+fn hsla_to_hex(color: Hsla) -> String {
+    let v = u32::from(Rgba::from(color));
+    format!("#{:06x}", v & 0xffffff)
+}
+
 fn rgb_to_hsv((r, g, b): Rgb) -> (f64, f64, f64) {
     let (rr, gg, bb) = (r as f64 / 255.0, g as f64 / 255.0, b as f64 / 255.0);
     let max = rr.max(gg).max(bb);
@@ -76,60 +86,6 @@ fn hsv_to_rgb(h: f64, s: f64, v: f64) -> Rgb {
     let c = vv * ss;
     let x = c * (1.0 - (((hh / 60.0) % 2.0) - 1.0).abs());
     let m = vv - c;
-    let (r, g, b) = if hh < 60.0 {
-        (c, x, 0.0)
-    } else if hh < 120.0 {
-        (x, c, 0.0)
-    } else if hh < 180.0 {
-        (0.0, c, x)
-    } else if hh < 240.0 {
-        (0.0, x, c)
-    } else if hh < 300.0 {
-        (c, 0.0, x)
-    } else {
-        (x, 0.0, c)
-    };
-    (
-        ((r + m) * 255.0).round() as u8,
-        ((g + m) * 255.0).round() as u8,
-        ((b + m) * 255.0).round() as u8,
-    )
-}
-
-fn rgb_to_hsl((r, g, b): Rgb) -> (f64, f64, f64) {
-    let (rr, gg, bb) = (r as f64 / 255.0, g as f64 / 255.0, b as f64 / 255.0);
-    let max = rr.max(gg).max(bb);
-    let min = rr.min(gg).min(bb);
-    let d = max - min;
-    let l = (max + min) / 2.0;
-    let mut h = 0.0;
-    if d != 0.0 {
-        if max == rr {
-            h = 60.0 * (((gg - bb) / d) % 6.0);
-        } else if max == gg {
-            h = 60.0 * ((bb - rr) / d + 2.0);
-        } else {
-            h = 60.0 * ((rr - gg) / d + 4.0);
-        }
-    }
-    if h < 0.0 {
-        h += 360.0;
-    }
-    let s = if d == 0.0 {
-        0.0
-    } else {
-        d / (1.0 - (2.0 * l - 1.0).abs()) * 100.0
-    };
-    (h, s, l * 100.0)
-}
-
-fn hsl_to_rgb(h: f64, s: f64, l: f64) -> Rgb {
-    let hh = ((h % 360.0) + 360.0) % 360.0;
-    let ss = clamp(s, 0.0, 100.0) / 100.0;
-    let ll = clamp(l, 0.0, 100.0) / 100.0;
-    let c = (1.0 - (2.0 * ll - 1.0).abs()) * ss;
-    let x = c * (1.0 - (((hh / 60.0) % 2.0) - 1.0).abs());
-    let m = ll - c / 2.0;
     let (r, g, b) = if hh < 60.0 {
         (c, x, 0.0)
     } else if hh < 120.0 {
@@ -215,16 +171,15 @@ fn parse_cmyk(input: &str) -> Option<(f64, f64, f64, f64)> {
 pub struct ColorConverter {
     hex: String,
     rgb: String,
-    hsl: String,
     hsv: String,
     cmyk: String,
     current_rgb: Option<Rgb>,
     invalid: Option<&'static str>,
     hex_state: Entity<InputState>,
     rgb_state: Entity<InputState>,
-    hsl_state: Entity<InputState>,
     hsv_state: Entity<InputState>,
     cmyk_state: Entity<InputState>,
+    picker_state: Entity<ColorPickerState>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -235,18 +190,20 @@ impl ColorConverter {
         };
         let hex_state = input(window, cx, "#rrggbb 或 #rgb");
         let rgb_state = input(window, cx, "r, g, b（0-255）");
-        let hsl_state = input(window, cx, "h, s, l（0-360, 0-100, 0-100）");
         let hsv_state = input(window, cx, "h, s, v（0-360, 0-100, 0-100）");
         let cmyk_state = input(window, cx, "c, m, y, k（0-100）");
+
+        let picker_state = cx.new(|cx| {
+            ColorPickerState::new(window, cx).default_value(Hsla::from(rgb(0x3498db)))
+        });
 
         let sources: Vec<(&'static str, Entity<InputState>)> = vec![
             ("hex", hex_state.clone()),
             ("rgb", rgb_state.clone()),
-            ("hsl", hsl_state.clone()),
             ("hsv", hsv_state.clone()),
             ("cmyk", cmyk_state.clone()),
         ];
-        let _subscriptions = sources
+        let mut _subscriptions = sources
             .into_iter()
             .map(|(source, state)| {
                 cx.subscribe_in(&state, window, move |this, _, ev: &InputEvent, window, cx| {
@@ -255,24 +212,37 @@ impl ColorConverter {
                     }
                 })
             })
-            .collect();
+            .collect::<Vec<_>>();
+
+        _subscriptions.push(cx.subscribe_in(
+            &picker_state,
+            window,
+            move |this, _, ev: &ColorPickerEvent, window, cx| {
+                if let ColorPickerEvent::Change(Some(color)) = ev {
+                    let hex = hsla_to_hex(*color);
+                    this.hex_state.update(cx, |state, cx| {
+                        state.set_value(hex, window, cx);
+                    });
+                    this.recompute("hex", window, cx);
+                }
+            },
+        ));
 
         let mut this = Self {
             hex: String::new(),
             rgb: String::new(),
-            hsl: String::new(),
             hsv: String::new(),
             cmyk: String::new(),
             current_rgb: None,
             invalid: None,
             hex_state,
             rgb_state,
-            hsl_state,
             hsv_state,
             cmyk_state,
+            picker_state,
             _subscriptions,
         };
-        if let Some(rgb) = hex_to_rgb("#3498db") {
+        if let Some(rgb) = hex_to_rgb(INIT_HEX) {
             this.fill_all(rgb, window, cx);
         }
         this
@@ -285,15 +255,12 @@ impl ColorConverter {
         self.rgb = format!("{}, {}, {}", rgb.0, rgb.1, rgb.2);
         let (h, s, v) = rgb_to_hsv(rgb);
         self.hsv = format!("{}, {}, {}", fmt_num(h), fmt_num(s), fmt_num(v));
-        let (h, s, l) = rgb_to_hsl(rgb);
-        self.hsl = format!("{}, {}, {}", fmt_num(h), fmt_num(s), fmt_num(l));
         let (c, m, y, k) = rgb_to_cmyk(rgb);
         self.cmyk = format!("{}, {}, {}, {}", fmt_num(c), fmt_num(m), fmt_num(y), fmt_num(k));
 
         let values = [
             (self.hex_state.clone(), self.hex.clone()),
             (self.rgb_state.clone(), self.rgb.clone()),
-            (self.hsl_state.clone(), self.hsl.clone()),
             (self.hsv_state.clone(), self.hsv.clone()),
             (self.cmyk_state.clone(), self.cmyk.clone()),
         ];
@@ -310,7 +277,6 @@ impl ColorConverter {
         let rgb: Option<Rgb> = match source {
             "hex" => hex_to_rgb(&read(&self.hex_state)),
             "rgb" => parse_rgb(&read(&self.rgb_state)),
-            "hsl" => parse_hsv(&read(&self.hsl_state)).map(|(h, s, l)| hsl_to_rgb(h, s, l)),
             "hsv" => parse_hsv(&read(&self.hsv_state)).map(|(h, s, v)| hsv_to_rgb(h, s, v)),
             "cmyk" => parse_cmyk(&read(&self.cmyk_state)).map(|(c, m, y, k)| cmyk_to_rgb(c, m, y, k)),
             _ => None,
@@ -343,7 +309,7 @@ impl ColorConverter {
 
 impl Render for ColorConverter {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let label_w = px(64.0);
+        let label_w = px(56.0);
         let current = self.current_rgb.unwrap_or((255, 255, 255));
         let (r, g, b) = current;
         let luminance = 0.299 * r as f64 + 0.587 * g as f64 + 0.114 * b as f64;
@@ -352,70 +318,77 @@ impl Render for ColorConverter {
         } else {
             rgb(0xffffff)
         };
-
-        let invalid_hint = |field: &'static str| -> Option<AnyElement> {
-            if self.invalid == Some(field) {
-                Some(
-                    div()
-                        .text_xs()
-                        .text_color(rgb(0xef4444))
-                        .child("格式无效")
-                        .into_any_element(),
-                )
-            } else {
-                None
-            }
+        let preview_hex = if self.hex.is_empty() {
+            "#ffffff".to_string()
+        } else {
+            self.hex.clone()
         };
 
         let fmt_row = |label: &'static str,
                        state: &Entity<InputState>,
                        field: &'static str,
                        cx: &mut Context<Self>| {
-            let mut row = div()
+            let invalid = self.invalid == Some(field);
+            div()
                 .flex()
-                .items_center()
-                .gap_2()
-                .child(design::caption(label, cx).w(label_w))
-                .child(div().flex_1().child(Input::new(state)));
-            if let Some(hint) = invalid_hint(field) {
-                row = row.child(hint);
-            }
-            row
+                .items_start()
+                .gap_3()
+                .child(design::editor_label(label, cx).w(label_w))
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w_0()
+                        .flex_col()
+                        .gap_1()
+                        .child(Input::new(state))
+                        .when(invalid, |this| {
+                            this.child(
+                                div()
+                                    .text_xs()
+                                    .text_color(Hsla::from(rgb(design::ERROR_RED)))
+                                    .child("格式无效"),
+                            )
+                        }),
+                )
         };
 
         design::page()
-            .child(design::page_header("颜色转换", "HEX / RGB / HSL / CMYK", cx))
+            .child(design::page_header("颜色转换", "HEX / RGB / HSV / CMYK 互转", cx))
             .child(
                 design::card(cx)
+                    // 预览色块（preview-block）
                     .child(
                         div()
+                            .h(px(110.0))
+                            .rounded(px(12.0))
+                            .border_1()
+                            .border_color(cx.theme().border)
+                            .bg(rgb(((r as u32) << 16) | ((g as u32) << 8) | b as u32))
                             .flex()
-                            .items_start()
-                            .gap_2()
+                            .items_center()
+                            .justify_center()
+                            .text_color(text_color)
+                            .font_family("monospace")
+                            .text_size(px(16.0))
+                            .font_semibold()
+                            .child(preview_hex),
+                    )
+                    // 取色器行（preview-actions）
+                    .child(
+                        design::action_row()
+                            .mt_3()
                             .child(
                                 div()
-                                    .flex_1()
-                                    .h(px(110.0))
-                                    .rounded_lg()
-                                    .border_1()
-                                    .border_color(cx.theme().border)
-                                    .bg(rgb(((r as u32) << 16) | ((g as u32) << 8) | b as u32))
-                                    .flex()
-                                    .items_center()
-                                    .justify_center()
-                                    .text_color(text_color)
-                                    .font_family("monospace")
-                                    .text_size(px(16.0))
-                                    .font_medium()
-                                    .child(self.hex.clone()),
-                            ),
-                    )
-                    .child(
-                        design::toolbar()
+                                    .text_size(px(13.0))
+                                    .text_color(cx.theme().muted_foreground)
+                                    .child("取色器"),
+                            )
+                            .child(ColorPicker::new(&self.picker_state))
                             .child(
                                 Button::new("random-color")
-                                    .label("随机颜色")
                                     .primary()
+                                    .icon(Icon::new(IconName::RotateCw))
+                                    .tooltip("随机颜色")
                                     .on_click(cx.listener(|this, _, window, cx| {
                                         this.random_color(window, cx);
                                     })),
@@ -429,11 +402,16 @@ impl Render for ColorConverter {
                                     })),
                             ),
                     )
-                    .child(fmt_row("HEX", &self.hex_state, "hex", cx))
-                    .child(fmt_row("RGB", &self.rgb_state, "rgb", cx))
-                    .child(fmt_row("HSL", &self.hsl_state, "hsl", cx))
-                    .child(fmt_row("HSV", &self.hsv_state, "hsv", cx))
-                    .child(fmt_row("CMYK", &self.cmyk_state, "cmyk", cx)),
+                    .child(
+                        div()
+                            .mt_3()
+                            .flex_col()
+                            .gap_2p5()
+                            .child(fmt_row("HEX", &self.hex_state, "hex", cx))
+                            .child(fmt_row("RGB", &self.rgb_state, "rgb", cx))
+                            .child(fmt_row("HSV", &self.hsv_state, "hsv", cx))
+                            .child(fmt_row("CMYK", &self.cmyk_state, "cmyk", cx)),
+                    ),
             )
     }
 }

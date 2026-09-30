@@ -3,10 +3,26 @@ use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use gpui_kit::component::{
     button::*,
-    input::{Input, InputState},
+    input::{Input, InputEvent, InputState},
     select::{Select, SelectEvent, SelectState},
     *,
 };
+
+const BASE_OPTIONS: [&str; 3] = ["十进制", "十六进制", "二进制"];
+const BIT_WIDTHS: [&str; 4] = ["8 位", "16 位", "32 位", "64 位"];
+
+const OPERATIONS: [(&str, &str, &str, bool); 9] = [
+    // (op, symbol, label, needs_b)
+    ("and", "&", "AND", true),
+    ("or", "|", "OR", true),
+    ("xor", "^", "XOR", true),
+    ("nand", "~&", "NAND", true),
+    ("nor", "~|", "NOR", true),
+    ("xnor", "~^", "XNOR", true),
+    ("not", "~", "NOT(A)", false),
+    ("shl", "<<", "左移", false),
+    ("shr", ">>", "右移", false),
+];
 
 fn parse_operand(text: &str, base: &str, width: u32) -> Option<u64> {
     let s = text.trim();
@@ -52,7 +68,6 @@ pub struct BitwiseCalculator {
     a_state: Entity<InputState>,
     b_state: Entity<InputState>,
     shift_state: Entity<InputState>,
-    bits_state: Entity<SelectState<Vec<String>>>,
     a_base_state: Entity<SelectState<Vec<String>>>,
     b_base_state: Entity<SelectState<Vec<String>>>,
     bits: u32,
@@ -74,20 +89,13 @@ impl BitwiseCalculator {
         let b_state = cx.new(|cx| {
             InputState::new(window, cx).placeholder("单目运算（NOT、移位）可留空")
         });
-        let shift_state = cx.new(|cx| InputState::new(window, cx).placeholder("移位位数"));
+        let shift_state = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder("1")
+                .default_value("1".to_string())
+        });
 
-        let base_items = vec![
-            "十进制".to_string(),
-            "十六进制".to_string(),
-            "二进制".to_string(),
-        ];
-        let bits_items = vec![
-            "8 位".to_string(),
-            "16 位".to_string(),
-            "32 位".to_string(),
-            "64 位".to_string(),
-        ];
-
+        let base_items: Vec<String> = BASE_OPTIONS.iter().map(|s| s.to_string()).collect();
         let a_base_state = cx.new(|cx| {
             let mut state = SelectState::new(base_items.clone(), None, window, cx);
             state.set_selected_value(&"十进制".to_string(), window, cx);
@@ -98,30 +106,8 @@ impl BitwiseCalculator {
             state.set_selected_value(&"十进制".to_string(), window, cx);
             state
         });
-        let bits_state = cx.new(|cx| {
-            let mut state = SelectState::new(bits_items, None, window, cx);
-            state.set_selected_value(&"32 位".to_string(), window, cx);
-            state
-        });
 
         let _subscriptions = vec![
-            cx.subscribe_in(
-                &bits_state,
-                window,
-                move |this, _, ev: &SelectEvent<Vec<String>>, _, cx| {
-                    if let SelectEvent::Confirm(Some(value)) = ev {
-                        this.bits = match value.trim_end_matches(" 位").parse::<u32>() {
-                            Ok(v) => v,
-                            Err(_) => 32,
-                        };
-                        this.res_expr.clear();
-                        this.res_dec.clear();
-                        this.res_hex.clear();
-                        this.res_bin.clear();
-                        cx.notify();
-                    }
-                },
-            ),
             cx.subscribe_in(
                 &a_base_state,
                 window,
@@ -152,13 +138,17 @@ impl BitwiseCalculator {
                     }
                 },
             ),
+            cx.subscribe_in(&a_state, window, move |this, _, ev: &InputEvent, _, cx| {
+                if let InputEvent::PressEnter { .. } = ev {
+                    this.calc("and", cx);
+                }
+            }),
         ];
 
         Self {
             a_state,
             b_state,
             shift_state,
-            bits_state,
             a_base_state,
             b_base_state,
             bits: 32,
@@ -261,48 +251,112 @@ impl BitwiseCalculator {
             cx.write_to_clipboard(ClipboardItem::new_string(text));
         }
     }
+
+    /// 分段选择器（对应 n-radio-button 组）
+    fn segmented(
+        &self,
+        options: &[&'static str],
+        selected: u32,
+        cx: &mut Context<Self>,
+    ) -> Div {
+        div()
+            .flex()
+            .rounded(px(6.0))
+            .border_1()
+            .border_color(cx.theme().border)
+            .overflow_hidden()
+            .bg(cx.theme().background)
+            .children(options.iter().enumerate().map(|(i, opt)| {
+                let active = (i as u32 + 1) * 8 == selected;
+                div()
+                    .id(("bits", i))
+                    .px_3()
+                    .py_1()
+                    .text_sm()
+                    .bg(if active {
+                        cx.theme().primary
+                    } else {
+                        gpui::black().opacity(0.0)
+                    })
+                    .text_color(if active {
+                        gpui::white()
+                    } else {
+                        cx.theme().muted_foreground
+                    })
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.bits = (i as u32 + 1) * 8;
+                        this.res_expr.clear();
+                        this.res_dec.clear();
+                        this.res_hex.clear();
+                        this.res_bin.clear();
+                        cx.notify();
+                    }))
+                    .child(opt.to_string())
+            }))
+    }
 }
 
 impl Render for BitwiseCalculator {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let label_w = px(80.0);
+        let status = self.status.clone();
+        let res_expr = self.res_expr.clone();
+        let res_dec = self.res_dec.clone();
+        let res_hex = self.res_hex.clone();
+        let res_bin = self.res_bin.clone();
 
-        let op_button =
-            |id: &'static str, symbol: &'static str, tooltip: &'static str, cx: &mut Context<Self>| {
-                Button::new(id)
+        let op_buttons = OPERATIONS
+            .iter()
+            .map(|(op, symbol, label, _)| {
+                let op = op.to_string();
+                Button::new(ElementId::Name(format!("op-{}", op).into()))
+                    .primary()
                     .child(
                         div()
                             .font_family("monospace")
                             .text_sm()
                             .font_medium()
-                            .child(symbol),
+                            .child(symbol.to_string()),
                     )
-                    .tooltip(tooltip)
+                    .tooltip(label.to_string())
                     .on_click(cx.listener(move |this, _, _, cx| {
-                        this.calc(op_for_id(id), cx);
+                        let op = op.clone();
+                        this.calc(&op, cx);
                     }))
-            };
+            })
+            .collect::<Vec<_>>();
 
-        let result_row = |label: &'static str,
+        let result_row = |id: &'static str,
+                          label: &'static str,
                           value: String,
-                          copy_id: &'static str,
                           cx: &mut Context<Self>| {
             div()
                 .flex()
                 .items_center()
                 .gap_2()
-                .child(div().w(label_w).text_sm().child(label))
+                .child(
+                    div()
+                        .w(label_w)
+                        .flex_shrink_0()
+                        .text_sm()
+                        .text_color(cx.theme().muted_foreground)
+                        .child(label),
+                )
                 .child(
                     div()
                         .flex_1()
+                        .min_w_0()
+                        .text_size(px(13.0))
                         .font_family("monospace")
-                        .text_sm()
                         .child(value.clone()),
                 )
                 .child(
-                    Button::new(copy_id)
+                    Button::new(id)
+                        .ghost()
+                        .compact()
                         .icon(Icon::new(IconName::Copy))
                         .tooltip("复制")
+                        .disabled(value.is_empty())
                         .on_click(cx.listener(move |this, _, _, cx| {
                             let text = value.clone();
                             this.copy(text, cx);
@@ -311,105 +365,112 @@ impl Render for BitwiseCalculator {
         };
 
         design::page()
-            .child(design::page_header("按位计算器", "二进制位运算", cx))
+            .child(design::page_header("按位计算器", "AND / OR / XOR / 移位等二进制位运算", cx))
             .child(
                 design::card(cx)
                     .child(
                         div()
                             .flex()
+                            .flex_wrap()
                             .items_center()
-                            .gap_2()
-                            .child(div().w(label_w).child(design::caption("位宽", cx)))
-                            .child(Select::new(&self.bits_state)),
-                    )
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(div().w(label_w).child(design::caption("操作数 A", cx)))
-                            .child(div().flex_1().child(Input::new(&self.a_state)))
-                            .child(div().w(px(110.0)).child(Select::new(&self.a_base_state))),
-                    )
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(div().w(label_w).child(design::caption("操作数 B", cx)))
-                            .child(div().flex_1().child(Input::new(&self.b_state)))
-                            .child(div().w(px(110.0)).child(Select::new(&self.b_base_state))),
-                    )
-                    .child(
-                        div()
-                            .flex()
-                            .items_start()
                             .gap_2()
                             .child(
                                 div()
-                                    .flex()
-                                    .flex_wrap()
-                                    .items_center()
-                                    .gap_2()
-                                    .child(op_button("op-and", "&", "AND", cx))
-                                    .child(op_button("op-or", "|", "OR", cx))
-                                    .child(op_button("op-xor", "^", "XOR", cx))
-                                    .child(op_button("op-nand", "~&", "NAND", cx))
-                                    .child(op_button("op-nor", "~|", "NOR", cx))
-                                    .child(op_button("op-xnor", "~^", "XNOR", cx))
-                                    .child(op_button("op-not", "~", "NOT(A)", cx))
-                                    .child(op_button("op-shl", "<<", "左移", cx))
-                                    .child(op_button("op-shr", ">>", "右移", cx))
-                                    .child(
-                                        div()
-                                            .w(px(90.0))
-                                            .ml_2()
-                                            .child(Input::new(&self.shift_state)),
-                                    )
-                                    .child(
-                                        div().text_xs().text_color(cx.theme().muted_foreground).child("移位位数"),
-                                    ),
+                                    .w(label_w)
+                                    .text_size(px(13.0))
+                                    .text_color(cx.theme().muted_foreground)
+                                    .child("位宽"),
+                            )
+                            .child(self.segmented(&BIT_WIDTHS, self.bits, cx)),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .flex_wrap()
+                            .items_center()
+                            .gap_2()
+                            .child(
+                                div()
+                                    .w(label_w)
+                                    .text_size(px(13.0))
+                                    .text_color(cx.theme().muted_foreground)
+                                    .child("操作数 A"),
+                            )
+                            .child(div().flex_1().min_w(px(220.0)).child(Input::new(&self.a_state)))
+                            .child(
+                                div()
+                                    .w(px(110.0))
+                                    .child(Select::new(&self.a_base_state)),
                             ),
                     )
-                    .when(!self.status.is_empty(), |this| {
+                    .child(
+                        div()
+                            .flex()
+                            .flex_wrap()
+                            .items_center()
+                            .gap_2()
+                            .child(
+                                div()
+                                    .w(label_w)
+                                    .text_size(px(13.0))
+                                    .text_color(cx.theme().muted_foreground)
+                                    .child("操作数 B"),
+                            )
+                            .child(div().flex_1().min_w(px(220.0)).child(Input::new(&self.b_state)))
+                            .child(
+                                div()
+                                    .w(px(110.0))
+                                    .child(Select::new(&self.b_base_state)),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .flex_wrap()
+                            .items_center()
+                            .gap_2()
+                            .mt_1()
+                            .children(op_buttons)
+                            .child(
+                                div()
+                                    .w(px(90.0))
+                                    .ml_2()
+                                    .child(Input::new(&self.shift_state)),
+                            )
+                            .child(
+                                div()
+                                    .text_xs()
+                                    .text_color(cx.theme().muted_foreground)
+                                    .child("移位位数"),
+                            ),
+                    )
+                    .when(!status.is_empty(), |this| {
                         this.child(
                             div()
-                                .flex()
-                                .items_center()
+                                .text_size(px(12.5))
+                                .text_color(Hsla::from(rgb(design::ERROR_RED)))
+                                .child(status),
+                        )
+                    })
+                    .when(!res_expr.is_empty(), |this| {
+                        this.child(
+                            div()
+                                .mt_2()
+                                .border_t_1()
+                                .border_color(cx.theme().border),
+                        )
+                        .child(
+                            div()
+                                .mt_3()
+                                .flex_col()
                                 .gap_2()
-                                .child(div().w(label_w))
-                                .child(
-                                    div()
-                                        .text_xs()
-                                        .text_color(rgb(0xef4444))
-                                        .child(self.status.clone()),
-                                ),
+                                .child(design::editor_label("结果", cx))
+                                .child(result_row("copy-expr", "说明", res_expr, cx))
+                                .child(result_row("copy-dec", "十进制", res_dec, cx))
+                                .child(result_row("copy-hex", "十六进制", res_hex, cx))
+                                .child(result_row("copy-bin", "二进制", res_bin, cx)),
                         )
                     }),
             )
-            .when(!self.res_expr.is_empty(), |this| {
-                this.child(
-                    design::card(cx)
-                        .child(result_row("说明", self.res_expr.clone(), "copy-expr", cx))
-                        .child(result_row("十进制", self.res_dec.clone(), "copy-dec", cx))
-                        .child(result_row("十六进制", self.res_hex.clone(), "copy-hex", cx))
-                        .child(result_row("二进制", self.res_bin.clone(), "copy-bin", cx)),
-                )
-            })
-    }
-}
-
-fn op_for_id(id: &str) -> &'static str {
-    match id {
-        "op-and" => "and",
-        "op-or" => "or",
-        "op-xor" => "xor",
-        "op-nand" => "nand",
-        "op-nor" => "nor",
-        "op-xnor" => "xnor",
-        "op-not" => "not",
-        "op-shl" => "shl",
-        "op-shr" => "shr",
-        _ => "and",
     }
 }

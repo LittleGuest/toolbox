@@ -28,17 +28,54 @@ fn file_name(path: &str) -> String {
 
 fn chunk_lines(s: &str, width: usize, max_lines: usize) -> Vec<String> {
     let chars: Vec<char> = s.chars().collect();
-    let lines: Vec<String> = chars
+    chars
         .chunks(width)
         .take(max_lines)
         .map(|c| c.iter().collect())
-        .collect();
-    lines
+        .collect()
+}
+
+/// 信息标签（对应 info-tags：n-tag mime + n-tag size）
+fn info_tags(mime: &str, size: &str, cx: &App) -> Div {
+    div()
+        .flex()
+        .items_center()
+        .gap_2()
+        .child(design::mini_tag(
+            mime,
+            design::tint(design::ACCENT, 0.12),
+            Hsla::from(rgb(design::ACCENT)),
+        ))
+        .child(design::mini_tag(
+            format_size(size),
+            Hsla::from(rgb(0xeef0f5)),
+            cx.theme().muted_foreground,
+        ))
+}
+
+/// 预览框（对应 .preview：虚线边框 + 内容）
+fn preview_box(children: impl IntoIterator<Item = AnyElement>, cx: &App) -> Div {
+    div()
+        .w_full()
+        .flex_col()
+        .items_center()
+        .justify_center()
+        .min_h(px(96.0))
+        .p_2()
+        .gap_0p5()
+        .border_dashed()
+        .border_1()
+        .border_color(cx.theme().border)
+        .rounded(px(6.0))
+        .bg(gpui::black().opacity(0.02))
+        .overflow_hidden()
+        .children(children)
 }
 
 pub struct Base64ImageConverter {
     file_path: String,
     encode_result: Option<HashMap<String, String>>,
+    encode_loading: bool,
     encode_error: String,
     decode_input: String,
     decode_result: Option<HashMap<String, String>>,
@@ -58,8 +95,7 @@ impl Base64ImageConverter {
             let decode_input_state = decode_input_state.clone();
             move |this, _, ev: &InputEvent, _, cx| {
                 if let InputEvent::Change = ev {
-                    let value = decode_input_state.read(cx).value();
-                    this.decode_input = value.to_string();
+                    this.decode_input = decode_input_state.read(cx).value().to_string();
                     cx.notify();
                 }
             }
@@ -68,6 +104,7 @@ impl Base64ImageConverter {
         Self {
             file_path: String::new(),
             encode_result: None,
+            encode_loading: false,
             encode_error: String::new(),
             decode_input: String::new(),
             decode_result: None,
@@ -111,11 +148,20 @@ impl Base64ImageConverter {
                             this.encode_error = e.to_string();
                         }
                     }
+                    this.encode_loading = false;
+                    cx.notify();
+                });
+            } else {
+                let _ = this.update(cx, |this, cx| {
+                    this.encode_loading = false;
                     cx.notify();
                 });
             }
         })
         .detach();
+
+        self.encode_loading = true;
+        cx.notify();
     }
 
     fn clear_encode(&mut self, cx: &mut Context<Self>) {
@@ -125,17 +171,17 @@ impl Base64ImageConverter {
         cx.notify();
     }
 
-    fn copy_encode(&mut self, cx: &mut Context<Self>) {
-        if let Some(map) = &self.encode_result {
-            if let Some(data_url) = map.get("dataUrl") {
-                cx.write_to_clipboard(ClipboardItem::new_string(data_url.clone()));
-            }
+    fn copy_data_url(&self, map: Option<&HashMap<String, String>>, cx: &mut Context<Self>) {
+        if let Some(data_url) = map.and_then(|m| m.get("dataUrl")) {
+            cx.write_to_clipboard(ClipboardItem::new_string(data_url.clone()));
         }
     }
 
     fn decode(&mut self, cx: &mut Context<Self>) {
         let input = self.decode_input.trim().to_string();
         if input.is_empty() {
+            self.status = "请输入 Base64 或 Data URL".to_string();
+            cx.notify();
             return;
         }
         match ::base::decode_base64_image(&input) {
@@ -145,7 +191,7 @@ impl Base64ImageConverter {
             }
             Err(e) => {
                 self.decode_result = None;
-                self.status = format!("解码失败: {e}");
+                self.status = e.to_string();
             }
         }
         cx.notify();
@@ -165,6 +211,8 @@ impl Base64ImageConverter {
 
     fn save_image(&mut self, cx: &mut Context<Self>) {
         if self.decode_result.is_none() {
+            self.status = "请先解码".to_string();
+            cx.notify();
             return;
         }
         let mime = self
@@ -185,11 +233,13 @@ impl Base64ImageConverter {
             return;
         }
 
+        let file_name = format!("image-{}", chrono_millis());
+        let ext_clone = ext.clone();
         let task = cx.background_executor().spawn(async move {
             rfd::AsyncFileDialog::new()
                 .set_title("保存图片")
-                .add_filter("图片", &[ext.as_str()])
-                .set_file_name(format!("image.{ext}"))
+                .add_filter("图片", &[ext_clone.as_str()])
+                .set_file_name(file_name)
                 .save_file()
                 .await
         });
@@ -204,23 +254,19 @@ impl Base64ImageConverter {
                     .await;
 
                 let _ = this.update(cx, |this, cx| {
-                    this.status = match result {
-                        Ok(_) => format!("图片已保存: {path}"),
-                        Err(e) => format!("保存失败: {e}"),
-                    };
+                    match result {
+                        Ok(_) => {
+                            this.status = format!("图片已保存: {path}");
+                        }
+                        Err(e) => {
+                            this.status = format!("保存失败: {e}");
+                        }
+                    }
                     cx.notify();
                 });
             }
         })
         .detach();
-    }
-
-    fn copy_decode(&mut self, cx: &mut Context<Self>) {
-        if let Some(map) = &self.decode_result {
-            if let Some(data_url) = map.get("dataUrl") {
-                cx.write_to_clipboard(ClipboardItem::new_string(data_url.clone()));
-            }
-        }
     }
 
     fn clear_decode(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -230,207 +276,255 @@ impl Base64ImageConverter {
         self.decode_input_state.update(cx, |state, cx| {
             state.set_value("".to_string(), window, cx);
         });
+        cx.notify();
     }
+}
+
+fn chrono_millis() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0)
 }
 
 impl Render for Base64ImageConverter {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let encode_info = self.encode_result.as_ref().map(|map| {
-            (
-                map.get("mime").cloned().unwrap_or_default(),
-                map.get("size").cloned().unwrap_or_default(),
-            )
-        });
+        let encode_mime = self
+            .encode_result
+            .as_ref()
+            .and_then(|m| m.get("mime").cloned())
+            .unwrap_or_default();
+        let encode_size = self
+            .encode_result
+            .as_ref()
+            .and_then(|m| m.get("size").cloned())
+            .unwrap_or_default();
         let encode_lines = self
             .encode_result
             .as_ref()
-            .and_then(|map| map.get("dataUrl").cloned())
-            .map(|url| chunk_lines(&url, 76, 60));
-        let encode_char_count = self
+            .and_then(|m| m.get("dataUrl").cloned())
+            .map(|url| chunk_lines(&url, 72, 5));
+        let encode_chars = self
             .encode_result
             .as_ref()
-            .and_then(|map| map.get("dataUrl"))
+            .and_then(|m| m.get("dataUrl"))
             .map(|url| url.chars().count())
             .unwrap_or(0);
 
-        let decode_info = self.decode_result.as_ref().map(|map| {
-            (
-                map.get("mime").cloned().unwrap_or_default(),
-                map.get("size").cloned().unwrap_or_default(),
+        let decode_mime = self
+            .decode_result
+            .as_ref()
+            .and_then(|m| m.get("mime").cloned())
+            .unwrap_or_default();
+        let decode_size = self
+            .decode_result
+            .as_ref()
+            .and_then(|m| m.get("size").cloned())
+            .unwrap_or_default();
+
+        let file_label = if self.file_path.is_empty() {
+            "未选择".to_string()
+        } else {
+            file_name(&self.file_path)
+        };
+        let encode_error = self.encode_error.clone();
+        let encode_loading = self.encode_loading;
+        let status = self.status.clone();
+        let status_error = status.contains("失败");
+        let status_warn = status.starts_with("请");
+
+        // 左栏：图片 → Base64
+        let left = div()
+            .flex_col()
+            .gap_2p5()
+            .child(design::editor_label("图片 → Base64", cx))
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .child(
+                        Button::new("select-image")
+                            .success()
+                            .icon(Icon::new(IconName::Frame))
+                            .tooltip("选择图片")
+                            .loading(encode_loading)
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.select_file(cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("clear-encode")
+                            .ghost()
+                            .icon(Icon::new(IconName::Close))
+                            .tooltip("清除")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.clear_encode(cx);
+                            })),
+                    )
+                    .child(
+                        div()
+                            .max_w(px(220.0))
+                            .flex_1()
+                            .min_w_0()
+                            .text_size(px(13.0))
+                            .text_color(cx.theme().muted_foreground)
+                            .truncate()
+                            .child(file_label),
+                    ),
             )
-        });
+            .when_some(encode_lines, |this, lines| {
+                this.child(
+                    preview_box(
+                        lines
+                            .into_iter()
+                            .map(|line| {
+                                div()
+                                    .w_full()
+                                    .text_xs()
+                                    .font_family("monospace")
+                                    .truncate()
+                                    .child(line)
+                                    .into_any_element()
+                            })
+                            .chain(std::iter::once(
+                                div()
+                                    .text_xs()
+                                    .text_color(cx.theme().muted_foreground)
+                                    .child(format!("……共 {encode_chars} 字符，可复制查看全部"))
+                                    .into_any_element(),
+                            )),
+                        cx,
+                    ),
+                )
+                .child(info_tags(&encode_mime, &encode_size, cx))
+                .child(
+                    div().flex().items_center().gap_2().child(
+                        Button::new("copy-encode")
+                            .ghost()
+                            .icon(Icon::new(IconName::Copy))
+                            .tooltip("复制 Data URL")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                let map = this.encode_result.clone();
+                                this.copy_data_url(map.as_ref(), cx);
+                            })),
+                    ),
+                )
+            })
+            .when(!encode_error.is_empty(), |this| {
+                this.child(
+                    div()
+                        .text_size(px(12.5))
+                        .text_color(Hsla::from(rgb(design::ERROR_RED)))
+                        .child(encode_error),
+                )
+            });
+
+        // 右栏：Base64 → 图片
+        let right = div()
+            .flex_col()
+            .gap_2p5()
+            .child(design::editor_label("Base64 → 图片", cx))
+            .child(
+                Textarea::new(&self.decode_input_state)
+                    .h(px(140.0))
+                    .font_family("monospace"),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .child(
+                        Button::new("decode")
+                            .primary()
+                            .icon(Icon::new(IconName::ArrowDown))
+                            .tooltip("解码")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.decode(cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("paste-decode")
+                            .ghost()
+                            .icon(Icon::new(IconName::Inbox))
+                            .tooltip("粘贴")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.paste_decode(window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("clear-decode")
+                            .ghost()
+                            .icon(Icon::new(IconName::Close))
+                            .tooltip("清除")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.clear_decode(window, cx);
+                            })),
+                    ),
+            )
+            .when(self.decode_result.is_some(), |this| {
+                this.child(preview_box(
+                    std::iter::once(
+                        div()
+                            .text_xs()
+                            .text_color(cx.theme().muted_foreground)
+                            .child("图片已解码（保存后可查看）")
+                            .into_any_element(),
+                    ),
+                    cx,
+                ))
+                .child(info_tags(&decode_mime, &decode_size, cx))
+                .child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap_2()
+                        .child(
+                            Button::new("save-image")
+                                .ghost()
+                                .icon(Icon::new(IconName::ArrowDown))
+                                .tooltip("保存图片")
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.save_image(cx);
+                                })),
+                        )
+                        .child(
+                            Button::new("copy-decode")
+                                .ghost()
+                                .icon(Icon::new(IconName::Copy))
+                                .tooltip("复制 Data URL")
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    let map = this.decode_result.clone();
+                                    this.copy_data_url(map.as_ref(), cx);
+                                })),
+                        ),
+                )
+            });
 
         design::page()
-            .child(design::page_header("Base64 图片", "图片与 Base64 互转", cx))
+            .child(design::page_header("Base64 图片", "图片与 Base64 / Data URL 互转", cx))
             .child(
                 design::card(cx)
-                    .child(
-                        design::toolbar()
-                            .child(
-                                Button::new("select-image")
-                                    .icon(Icon::new(IconName::File))
-                                    .tooltip("选择图片")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.select_file(cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new("clear-encode")
-                                    .icon(Icon::new(IconName::Close))
-                                    .tooltip("清除")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.clear_encode(cx);
-                                    })),
-                            )
-                            .child(
-                                div()
-                                    .text_sm()
-                                    .text_color(cx.theme().muted_foreground)
-                                    .child(if self.file_path.is_empty() {
-                                        "未选择".to_string()
-                                    } else {
-                                        file_name(&self.file_path)
-                                    }),
-                            )
-                            .child(div().flex_1()),
-                    )
-                    .when_some(encode_info.clone(), |this, (mime, size)| {
+                    .child(design::card_header(
+                        IconName::Frame,
+                        "Base64 图片",
+                        "图片编码为 Base64，或将 Base64 解码为图片",
+                        cx,
+                    ))
+                    .child(div().grid().grid_cols(2).gap_6().child(left).child(right))
+                    .when(!status.is_empty(), |this| {
                         this.child(
                             div()
-                                .flex()
-                                .items_center()
-                                .gap_2()
-                                .child(div().text_sm().child(mime))
-                                .child(
-                                    div()
-                                        .text_sm()
-                                        .text_color(cx.theme().muted_foreground)
-                                        .child(format_size(&size)),
-                                ),
-                        )
-                    })
-                    .when_some(encode_lines, |this, lines| {
-                        this.child(
-                            div()
-                                .flex()
-                                .items_start()
-                                .gap_2()
-                                .child(
-                                    div()
-                                        .flex_1()
-                                        .flex()
-                                        .flex_col()
-                                        .border_1()
-                                        .border_color(cx.theme().border)
-                                        .rounded_md()
-                                        .p_2()
-                                        .gap_0p5()
-                                        .overflow_hidden()
-                                        .children(lines.into_iter().map(|line| {
-                                            div().text_xs().child(line)
-                                        }))
-                                        .child(
-                                            div()
-                                                .text_xs()
-                                                .text_color(cx.theme().muted_foreground)
-                                                .child(format!(
-                                                    "……共 {} 字符，可复制查看全部",
-                                                    encode_char_count
-                                                )),
-                                        ),
-                                )
-                                .child(
-                                    Button::new("copy-encode")
-                                        .icon(Icon::new(IconName::Copy))
-                                        .tooltip("复制 Data URL")
-                                        .on_click(cx.listener(|this, _, _, cx| {
-                                            this.copy_encode(cx);
-                                        })),
-                                ),
-                        )
-                    })
-                    .when(!self.encode_error.is_empty(), |this| {
-                        this.child(
-                            div()
-                                .text_sm()
-                                .text_color(cx.theme().danger)
-                                .child(self.encode_error.clone()),
-                        )
-                    })
-                    .child(
-                        Textarea::new(&self.decode_input_state)
-                            .h(design::CODE_BOX_HEIGHT)
-                            .font_family("monospace"),
-                    )
-                    .child(
-                        design::toolbar()
-                            .child(
-                                Button::new("decode")
-                                    .label("解码")
-                                    .primary()
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.decode(cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new("paste-decode")
-                                    .icon(Icon::new(IconName::File))
-                                    .tooltip("粘贴")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.paste_decode(window, cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new("save-image")
-                                    .label("保存图片")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.save_image(cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new("copy-decode")
-                                    .icon(Icon::new(IconName::Copy))
-                                    .tooltip("复制 Data URL")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.copy_decode(cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new("clear-decode")
-                                    .icon(Icon::new(IconName::Close))
-                                    .tooltip("清除")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.clear_decode(window, cx);
-                                    })),
-                            ),
-                    )
-                    .when_some(decode_info, |this, (mime, size)| {
-                        this.child(
-                            div()
-                                .flex()
-                                .items_center()
-                                .gap_2()
-                                .child(div().text_sm().child(mime))
-                                .child(
-                                    div()
-                                        .text_sm()
-                                        .text_color(cx.theme().muted_foreground)
-                                        .child(format_size(&size)),
-                                ),
-                        )
-                    })
-                    .when(!self.status.is_empty(), |this| {
-                        this.child(
-                            div()
-                                .text_sm()
-                                .text_color(if self.status.starts_with("保存失败")
-                                            || self.status.starts_with("解码失败")
-                                        {
-                                            cx.theme().danger
-                                        } else {
-                                            cx.theme().muted_foreground
-                                        })
-                                        .child(self.status.clone()),
+                                .text_size(px(12.5))
+                                .text_color(if status_error {
+                                    Hsla::from(rgb(design::ERROR_RED))
+                                } else if status_warn {
+                                    Hsla::from(rgb(design::WARN_AMBER))
+                                } else {
+                                    Hsla::from(rgb(design::OK_GREEN))
+                                })
+                                .child(status),
                         )
                     }),
             )

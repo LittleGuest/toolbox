@@ -1154,7 +1154,11 @@ impl FakeDataGenerator {
                                     ),
                             )
                             .child({
-                                let mut spec_div = div().flex().flex_col().gap_3();
+                                let mut spec_div = div()
+                                    .flex()
+                                    .flex_col()
+                                    .gap_3()
+                                    .child(design::editor_label("特殊配置", cx));
                                 match gen_val.as_str() {
                                     "number" => {
                                         spec_div = spec_div
@@ -1216,13 +1220,17 @@ impl FakeDataGenerator {
                                             )
                                             .child(
                                                 Button::new("refresh-preview")
-                                                    .label("刷新")
-                                                    .on_click(cx.listener(|this, _, window, cx| {
-                                                        this.preview_generator(window, cx);
-                                                    })),
+                                                    .icon(Icon::new(IconName::RotateCw))
+                                                    .tooltip("生成预览")
+                                                    .on_click(cx.listener(
+                                                        |this, _, window, cx| {
+                                                            this.preview_generator(window, cx);
+                                                        },
+                                                    )),
                                             ),
                                     ),
                             )
+                            .child(design::editor_label("通用选项", cx))
                             .child(
                                 div()
                                     .flex()
@@ -1337,7 +1345,8 @@ impl FakeDataGenerator {
                                     .child(div().w(label_w))
                                     .child(
                                         Button::new("reset-gen-config")
-                                            .label("重置属性")
+                                            .icon(Icon::new(IconName::RotateCw))
+                                            .tooltip("重置属性")
                                             .on_click(cx.listener(|this, _, window, cx| {
                                                 this.reset_generator_config(window, cx);
                                             })),
@@ -1961,31 +1970,28 @@ impl Render for FakeDataGenerator {
 
 impl FakeDataGenerator {
     fn render_connection_list(&mut self, cx: &mut Context<Self>) -> Div {
-        div()
-            .size_full()
-            .flex()
-            .flex_col()
-            .gap_4()
-            .child(
-                div().flex().items_center().justify_between().child(
-                    Button::new("new-conn")
-                        .label("新建连接")
-                        .on_click(cx.listener(|this, _, window, cx| {
-                            this.open_conn_sheet(None, window, cx);
-                        })),
+        let status = self.status.clone();
+        let status_error = status_is_error(&status);
+
+        design::page().child(
+            design::card(cx)
+                .child(
+                    design::card_header(IconName::HardDrive, "数据源连接", "", cx).child(
+                        Button::new("new-conn")
+                            .icon(Icon::new(IconName::Plus))
+                            .tooltip("新建连接")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.open_conn_sheet(None, window, cx);
+                            })),
+                    ),
+                )
+                .child(self.render_datasource_table(cx))
+                .child(
+                    design::hint(status.clone(), cx).when(status_error, |el| {
+                        el.text_color(Hsla::from(rgb(design::ERROR_RED)))
+                    }),
                 ),
-            )
-            .child(self.render_datasource_table(cx))
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(if self.is_running {
-                        cx.theme().warning
-                    } else {
-                        cx.theme().muted_foreground
-                    })
-                    .child(self.status.clone()),
-            )
+        )
     }
 
     fn render_datasource_table(&mut self, cx: &mut Context<Self>) -> Div {
@@ -2000,14 +2006,43 @@ impl FakeDataGenerator {
             .child(
                 div()
                     .w(px(120.))
-                    .text_sm()
+                    .text_xs()
                     .font_semibold()
+                    .text_color(cx.theme().muted_foreground)
                     .child("连接名称"),
             )
-            .child(div().w(px(140.)).text_sm().font_semibold().child("主机"))
-            .child(div().w(px(60.)).text_sm().font_semibold().child("端口"))
-            .child(div().flex_1().text_sm().font_semibold().child("数据库"))
-            .child(div().w(px(200.)).text_sm().font_semibold().child("操作"));
+            .child(
+                div()
+                    .w(px(140.))
+                    .text_xs()
+                    .font_semibold()
+                    .text_color(cx.theme().muted_foreground)
+                    .child("主机"),
+            )
+            .child(
+                div()
+                    .w(px(60.))
+                    .text_xs()
+                    .font_semibold()
+                    .text_color(cx.theme().muted_foreground)
+                    .child("端口"),
+            )
+            .child(
+                div()
+                    .flex_1()
+                    .text_xs()
+                    .font_semibold()
+                    .text_color(cx.theme().muted_foreground)
+                    .child("数据库"),
+            )
+            .child(
+                div()
+                    .w(px(200.))
+                    .text_xs()
+                    .font_semibold()
+                    .text_color(cx.theme().muted_foreground)
+                    .child("操作"),
+            );
 
         let mut rows_div = div().flex().flex_col();
 
@@ -2138,8 +2173,10 @@ impl FakeDataGenerator {
                             .gap_2()
                             .child(
                                 Button::new("go-back")
-                                    .label("返回上一页")
+                                    .secondary()
                                     .w_full()
+                                    .icon(Icon::new(IconName::ArrowLeft))
+                                    .tooltip("返回上一页")
                                     .on_click(cx.listener(|this, _, window, cx| {
                                         this.go_back(window, cx);
                                     })),
@@ -2229,15 +2266,18 @@ impl FakeDataGenerator {
                             .child(div().text_sm().child("行"))
                             .child(
                                 Button::new("save-canvas")
-                                    .label("保存配置")
+                                    .icon(Icon::new(IconName::Check))
+                                    .tooltip("保存配置")
                                     .on_click(cx.listener(|this, _, _, cx| {
                                         this.save_generator_config(cx);
                                     })),
                             )
                             .child(
                                 Button::new("clear-canvas")
-                                    .label("清空画布")
+                                    .secondary()
                                     .warning()
+                                    .icon(Icon::new(IconName::Delete))
+                                    .tooltip("清空画布")
                                     .on_click(cx.listener(|this, _, window, cx| {
                                         let weak = cx.entity().downgrade();
                                         window.open_dialog(cx, move |dialog, _, _| {
@@ -2283,8 +2323,10 @@ impl FakeDataGenerator {
                             .child(
                                 Button::new("run-canvas")
                                     .primary()
-                                    .label("运行配置")
-                                    .when(self.is_running, |btn| btn.disabled(true))
+                                    .icon(Icon::new(IconName::Play))
+                                    .tooltip("运行配置")
+                                    .loading(self.is_running)
+                                    .disabled(self.is_running)
                                     .on_click(cx.listener(|this, _, _, cx| {
                                         this.run_canvas_config(cx);
                                     })),
@@ -2329,7 +2371,8 @@ impl FakeDataGenerator {
                                             Button::new("close-run-log")
                                                 .ghost()
                                                 .xsmall()
-                                                .label("关闭")
+                                                .icon(Icon::new(IconName::Close))
+                                                .tooltip("关闭")
                                                 .on_click(cx.listener(|this, _, _, cx| {
                                                     this.show_run_log = false;
                                                     cx.notify();
@@ -3189,6 +3232,10 @@ fn empty_to_none(value: String) -> Option<String> {
     } else {
         Some(value)
     }
+}
+
+fn status_is_error(status: &str) -> bool {
+    status.contains("失败") || status.contains("错误") || status.contains("不存在")
 }
 
 fn table_key(schema: &str, table_name: &str) -> String {

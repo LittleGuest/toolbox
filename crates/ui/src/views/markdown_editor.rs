@@ -1,14 +1,17 @@
 use crate::design;
-use gpui_kit::*;
+use gpui_kit::{prelude::FluentBuilder as _, *};
 use gpui_kit::component::{
     button::*,
-    input::{Input, InputEvent, InputState, Textarea, TextareaState },
+    input::{InputEvent, Textarea, TextareaState},
     scroll::ScrollableElement,
     *,
 };
 
 pub struct MarkdownEditor {
     content: String,
+    show_preview: bool,
+    status: String,
+    error: String,
     input_state: Entity<TextareaState>,
     _subscriptions: Vec<Subscription>,
 }
@@ -70,9 +73,7 @@ fn find_closing_backtick(chars: &[char], start: usize) -> Option<usize> {
 impl MarkdownEditor {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let input_state = cx.new(|cx| {
-            TextareaState::new(window, cx)
-                .placeholder("请输入 Markdown 内容...")
-                
+            TextareaState::new(window, cx).placeholder("请输入 Markdown 内容...")
         });
 
         let _subscriptions = vec![cx.subscribe_in(&input_state, window, {
@@ -88,6 +89,9 @@ impl MarkdownEditor {
 
         Self {
             content: String::new(),
+            show_preview: true,
+            status: String::new(),
+            error: String::new(),
             input_state,
             _subscriptions,
         }
@@ -105,6 +109,7 @@ impl MarkdownEditor {
         self.input_state.update(cx, |state, cx| {
             state.set_value(self.content.clone(), window, cx);
         });
+        cx.notify();
     }
 
     fn add_heading1(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -121,6 +126,10 @@ impl MarkdownEditor {
 
     fn add_bold(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.insert_markdown("**", "**", window, cx);
+    }
+
+    fn add_underline(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.insert_markdown("<u>", "</u>", window, cx);
     }
 
     fn add_italic(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -169,6 +178,7 @@ impl MarkdownEditor {
         self.input_state.update(cx, |state, cx| {
             state.set_value(self.content.clone(), window, cx);
         });
+        cx.notify();
     }
 
     fn clear(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -176,6 +186,7 @@ impl MarkdownEditor {
         self.input_state.update(cx, |state, cx| {
             state.set_value("".to_string(), window, cx);
         });
+        cx.notify();
     }
 
     fn paste(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -185,6 +196,7 @@ impl MarkdownEditor {
                 self.input_state.update(cx, |state, cx| {
                     state.set_value(text.to_string(), window, cx);
                 });
+                cx.notify();
             }
         }
     }
@@ -192,7 +204,57 @@ impl MarkdownEditor {
     fn copy(&mut self, cx: &mut Context<Self>) {
         if !self.content.is_empty() {
             cx.write_to_clipboard(ClipboardItem::new_string(self.content.clone()));
+            self.status = "复制成功".to_string();
+            self.error.clear();
+            cx.notify();
+        } else {
+            self.error = "内容为空".to_string();
+            self.status.clear();
+            cx.notify();
         }
+    }
+
+    /// 保存为 .md 文件（对应 md-editor-v3 工具栏的保存动作）
+    fn save_to_file(&mut self, cx: &mut Context<Self>) {
+        if self.content.is_empty() {
+            self.error = "内容为空，无法保存".to_string();
+            self.status.clear();
+            cx.notify();
+            return;
+        }
+        self.error.clear();
+        self.status.clear();
+        cx.notify();
+
+        let content = self.content.clone();
+        let task = cx.background_executor().spawn(async move {
+            rfd::AsyncFileDialog::new()
+                .set_title("保存 Markdown")
+                .add_filter("Markdown", &["md", "markdown", "txt"])
+                .set_file_name("untitled.md")
+                .save_file()
+                .await
+                .map(|f| f.path().to_string_lossy().to_string())
+        });
+
+        cx.spawn(async move |this: WeakEntity<Self>, cx| {
+            if let Some(path) = task.await {
+                let result = std::fs::write(&path, content);
+                let _ = this.update(cx, |this, cx| match result {
+                    Ok(()) => {
+                        this.status = format!("已保存到 {}", path);
+                        this.error.clear();
+                        cx.notify();
+                    }
+                    Err(e) => {
+                        this.error = e.to_string();
+                        this.status.clear();
+                        cx.notify();
+                    }
+                });
+            }
+        })
+        .detach();
     }
 
     fn render_preview(content: &str, cx: &mut Context<Self>) -> Div {
@@ -283,7 +345,8 @@ impl MarkdownEditor {
                 let mut table_content = Vec::new();
 
                 for (idx, tbl_line) in table_lines.iter().enumerate() {
-                    let cells: Vec<&str> = tbl_line.split('|').filter(|c| !c.is_empty()).collect();
+                    let cells: Vec<&str> =
+                        tbl_line.split('|').filter(|c| !c.is_empty()).collect();
 
                     if idx == 1 && cells.iter().all(|c| c.trim().matches('-').count() > 0) {
                         continue;
@@ -332,7 +395,8 @@ impl MarkdownEditor {
                     let alt: String = chars[alt_start..end_bracket].iter().collect();
                     if end_bracket + 1 < len && chars[end_bracket + 1] == '(' {
                         if let Some(end_paren) = find_closing_paren(&chars, end_bracket + 1) {
-                            let url: String = chars[end_bracket + 2..end_paren].iter().collect();
+                            let url: String =
+                                chars[end_bracket + 2..end_paren].iter().collect();
                             let url_for_tooltip = url.clone();
                             let idx = span_index;
                             span_index += 1;
@@ -364,7 +428,8 @@ impl MarkdownEditor {
                     let link_text: String = chars[pos + 1..end_bracket].iter().collect();
                     if end_bracket + 1 < len && chars[end_bracket + 1] == '(' {
                         if let Some(end_paren) = find_closing_paren(&chars, end_bracket + 1) {
-                            let url: String = chars[end_bracket + 2..end_paren].iter().collect();
+                            let url: String =
+                                chars[end_bracket + 2..end_paren].iter().collect();
                             let url_for_tooltip = url.clone();
                             let idx = span_index;
                             span_index += 1;
@@ -413,7 +478,12 @@ impl MarkdownEditor {
             if chars[pos] == '~' && pos + 1 < len && chars[pos + 1] == '~' {
                 if let Some(end) = find_closing_marker(&chars, pos + 2, '~', '~') {
                     let strike_text: String = chars[pos + 2..end].iter().collect();
-                    children.push(div().line_through().child(strike_text).into_any_element());
+                    children.push(
+                        div()
+                            .line_through()
+                            .child(strike_text)
+                            .into_any_element(),
+                    );
                     pos = end + 2;
                     continue;
                 }
@@ -464,207 +534,339 @@ impl MarkdownEditor {
 }
 
 impl Render for MarkdownEditor {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let content = self.content.clone();
+        let status = self.status.clone();
+        let error = self.error.clone();
+        let show_preview = self.show_preview;
+        let char_count = content.chars().count();
+        let line_count = if content.is_empty() {
+            0
+        } else {
+            content.lines().count()
+        };
 
-        design::page()
-            .child(design::page_header("Markdown", "Markdown 编辑与预览", cx))
+        // 工具栏（对齐 md-editor-v3：加粗/下划线/斜体/删除线 · 标题 · 引用/列表 · 代码 · 链接/图片 · 表格/分割线 · 操作）
+        let toolbar = div()
+            .flex()
+            .flex_wrap()
+            .items_center()
+            .gap_2()
+            .pb_3()
+            .mb_3()
+            .border_b_1()
+            .border_color(cx.theme().border)
             .child(
-                design::card(cx)
+                Button::new("md-h1")
+                    .compact()
+                    .label("H1")
+                    .tooltip("一级标题")
+                    .on_click(cx.listener(|this, _, window, cx| {
+                        this.add_heading1(window, cx);
+                    })),
+            )
+            .child(
+                Button::new("md-h2")
+                    .compact()
+                    .label("H2")
+                    .tooltip("二级标题")
+                    .on_click(cx.listener(|this, _, window, cx| {
+                        this.add_heading2(window, cx);
+                    })),
+            )
+            .child(
+                Button::new("md-h3")
+                    .compact()
+                    .label("H3")
+                    .tooltip("三级标题")
+                    .on_click(cx.listener(|this, _, window, cx| {
+                        this.add_heading3(window, cx);
+                    })),
+            )
+            .child(
+                ButtonGroup::new("md-format-group")
                     .child(
-                        div()
-                            .flex()
-                            .flex_wrap()
-                            .gap_2()
-                    .child(
-                        ButtonGroup::new("heading-buttons")
-                            .child(
-                                Button::new("h1")
-                                    .icon(Icon::new(IconName::ALargeSmall))
-                                    .tooltip("标题1")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.add_heading1(window, cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new("h2")
-                                    .icon(Icon::new(IconName::ALargeSmall))
-                                    .tooltip("标题2")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.add_heading2(window, cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new("h3")
-                                    .icon(Icon::new(IconName::ALargeSmall))
-                                    .tooltip("标题3")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.add_heading3(window, cx);
-                                    })),
-                            ),
+                        Button::new("md-bold")
+                            .compact()
+                            .label("B")
+                            .font_bold()
+                            .tooltip("粗体")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.add_bold(window, cx);
+                            })),
                     )
                     .child(
-                        ButtonGroup::new("format-buttons")
-                            .child(
-                                Button::new("bold")
-                                    .icon(Icon::new(IconName::Asterisk))
-                                    .tooltip("粗体")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.add_bold(window, cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new("italic")
-                                    .icon(Icon::new(IconName::Asterisk))
-                                    .tooltip("斜体")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.add_italic(window, cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new("strikethrough")
-                                    .icon(Icon::new(IconName::Minus))
-                                    .tooltip("删除线")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.add_strikethrough(window, cx);
-                                    })),
-                            ),
+                        Button::new("md-underline")
+                            .compact()
+                            .label("U")
+                            .underline()
+                            .tooltip("下划线")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.add_underline(window, cx);
+                            })),
                     )
                     .child(
-                        ButtonGroup::new("code-buttons")
-                            .child(
-                                Button::new("code")
-                                    .icon(Icon::new(IconName::SquareTerminal))
-                                    .tooltip("行内代码")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.add_code(window, cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new("code-block")
-                                    .icon(Icon::new(IconName::File))
-                                    .tooltip("代码块")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.add_code_block(window, cx);
-                                    })),
-                            ),
+                        Button::new("md-italic")
+                            .compact()
+                            .label("I")
+                            .italic()
+                            .tooltip("斜体")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.add_italic(window, cx);
+                            })),
                     )
                     .child(
-                        ButtonGroup::new("link-buttons")
-                            .child(
-                                Button::new("link")
-                                    .icon(Icon::new(IconName::ArrowRight))
-                                    .tooltip("链接")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.add_link(window, cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new("image")
-                                    .icon(Icon::new(IconName::File))
-                                    .tooltip("图片")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.add_image(window, cx);
-                                    })),
-                            ),
-                    )
-                    .child(
-                        ButtonGroup::new("list-buttons")
-                            .child(
-                                Button::new("quote")
-                                    .icon(Icon::new(IconName::BookOpen))
-                                    .tooltip("引用")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.add_quote(window, cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new("bullet-list")
-                                    .icon(Icon::new(IconName::Plus))
-                                    .tooltip("无序列表")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.add_bullet_list(window, cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new("numbered-list")
-                                    .icon(Icon::new(IconName::SortAscending))
-                                    .tooltip("有序列表")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.add_numbered_list(window, cx);
-                                    })),
-                            ),
-                    )
-                    .child(
-                        ButtonGroup::new("extra-buttons")
-                            .child(
-                                Button::new("table")
-                                    .icon(Icon::new(IconName::File))
-                                    .tooltip("表格")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.add_table(window, cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new("hr")
-                                    .icon(Icon::new(IconName::Minus))
-                                    .tooltip("分割线")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.add_horizontal_rule(window, cx);
-                                    })),
-                            ),
-                    )
-                    .child(
-                        ButtonGroup::new("action-buttons")
-                            .child(
-                                Button::new("paste")
-                                    .icon(Icon::new(IconName::File))
-                                    .tooltip("粘贴")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.paste(window, cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new("copy")
-                                    .icon(Icon::new(IconName::Copy))
-                                    .tooltip("复制")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.copy(cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new("clear")
-                                    .icon(Icon::new(IconName::Delete))
-                                    .tooltip("清空")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.clear(window, cx);
-                                    })),
-                            ),
-                    ),
+                        Button::new("md-strike")
+                            .compact()
+                            .label("S")
+                            .line_through()
+                            .tooltip("删除线")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.add_strikethrough(window, cx);
+                            })),
                     ),
             )
             .child(
-                div()
-                    .grid()
-                    .grid_cols(2)
-                    .gap_4()
+                ButtonGroup::new("md-quote-group")
                     .child(
-                        design::card(cx)
-                            .child(Textarea::new(&self.input_state).h(px(400.0))),
+                        Button::new("md-quote")
+                            .compact()
+                            .icon(Icon::new(IconName::BookOpen))
+                            .tooltip("引用")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.add_quote(window, cx);
+                            })),
                     )
                     .child(
-                        design::card(cx)
+                        Button::new("md-ul")
+                            .compact()
+                            .icon(Icon::new(IconName::Plus))
+                            .tooltip("无序列表")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.add_bullet_list(window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("md-ol")
+                            .compact()
+                            .icon(Icon::new(IconName::SortAscending))
+                            .tooltip("有序列表")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.add_numbered_list(window, cx);
+                            })),
+                    ),
+            )
+            .child(
+                ButtonGroup::new("md-code-group")
+                    .child(
+                        Button::new("md-code")
+                            .compact()
+                            .icon(Icon::new(IconName::SquareTerminal))
+                            .tooltip("行内代码")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.add_code(window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("md-code-block")
+                            .compact()
+                            .icon(Icon::new(IconName::File))
+                            .tooltip("代码块")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.add_code_block(window, cx);
+                            })),
+                    ),
+            )
+            .child(
+                ButtonGroup::new("md-link-group")
+                    .child(
+                        Button::new("md-link")
+                            .compact()
+                            .icon(Icon::new(IconName::ExternalLink))
+                            .tooltip("链接")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.add_link(window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("md-image")
+                            .compact()
+                            .icon(Icon::new(IconName::Frame))
+                            .tooltip("图片")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.add_image(window, cx);
+                            })),
+                    ),
+            )
+            .child(
+                ButtonGroup::new("md-extra-group")
+                    .child(
+                        Button::new("md-table")
+                            .compact()
+                            .icon(Icon::new(IconName::LayoutDashboard))
+                            .tooltip("表格")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.add_table(window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("md-hr")
+                            .compact()
+                            .icon(Icon::new(IconName::Minus))
+                            .tooltip("分割线")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.add_horizontal_rule(window, cx);
+                            })),
+                    ),
+            )
+            .child(
+                ButtonGroup::new("md-action-group")
+                    .child(
+                        Button::new("md-paste")
+                            .compact()
+                            .icon(Icon::new(IconName::Inbox))
+                            .tooltip("粘贴")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.paste(window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("md-copy")
+                            .compact()
+                            .icon(Icon::new(IconName::Copy))
+                            .tooltip("复制")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.copy(cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("md-save")
+                            .compact()
+                            .label("保存")
+                            .tooltip("保存为 .md 文件")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.save_to_file(cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("md-preview")
+                            .compact()
+                            .icon(Icon::new(if show_preview {
+                                IconName::EyeOff
+                            } else {
+                                IconName::Eye
+                            }))
+                            .tooltip(if show_preview { "隐藏预览" } else { "显示预览" })
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.show_preview = !this.show_preview;
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        Button::new("md-clear")
+                            .compact()
+                            .icon(Icon::new(IconName::Close))
+                            .tooltip("清空")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.clear(window, cx);
+                            })),
+                    ),
+            );
+
+        // 编辑 / 预览 分栏（md-editor-v3 单卡片双栏）
+        let editor_col = div()
+            .flex_col()
+            .gap_1p5()
+            .min_w_0()
+            .child(design::editor_label("编辑", cx))
+            .child(
+                Textarea::new(&self.input_state)
+                    .h(px(560.0))
+                    .font_family("monospace"),
+            );
+
+        let preview_col = div()
+            .flex_col()
+            .gap_1p5()
+            .min_w_0()
+            .border_l_1()
+            .border_color(cx.theme().border)
+            .pl_4()
+            .child(design::editor_label("预览", cx))
+            .child(
+                div()
+                    .h(px(560.0))
+                    .overflow_y_scrollbar()
+                    .child(if content.is_empty() {
+                        design::hint("预览将显示在这里...", cx)
+                    } else {
+                        Self::render_preview(&content, cx)
+                    }),
+            );
+
+        let body = if show_preview {
+            div()
+                .grid()
+                .grid_cols(2)
+                .gap_4()
+                .child(editor_col)
+                .child(preview_col)
+        } else {
+            editor_col
+        };
+
+        design::page()
+            .child(design::page_header("Markdown", "Markdown 编辑与实时预览", cx))
+            .child(
+                design::card(cx)
+                    .child(design::card_header(
+                        IconName::FileText,
+                        "Markdown 编辑器",
+                        "工具栏插入语法，右侧实时预览",
+                        cx,
+                    ))
+                    .child(toolbar)
+                    .when(!error.is_empty(), |card| {
+                        card.child(
+                            div()
+                                .text_size(px(12.5))
+                                .text_color(Hsla::from(rgb(design::ERROR_RED)))
+                                .child(error),
+                        )
+                    })
+                    .when(!status.is_empty(), |card| {
+                        card.child(
+                            div()
+                                .text_size(px(12.5))
+                                .text_color(Hsla::from(rgb(design::OK_GREEN)))
+                                .child(status),
+                        )
+                    })
+                    .child(body)
+                    .child(
+                        div()
+                            .mt_2()
+                            .pt_2()
+                            .border_t_1()
+                            .border_color(cx.theme().border)
+                            .flex()
+                            .items_center()
+                            .justify_between()
                             .child(
                                 div()
-                                    .h(px(400.0))
-                                    .overflow_y_scrollbar()
-                                    .child(if content.is_empty() {
-                                        div()
-                                            .text_color(cx.theme().muted_foreground)
-                                            .child("预览将显示在这里...")
-                                    } else {
-                                        Self::render_preview(&content, cx)
-                                    }),
+                                    .text_size(px(12.0))
+                                    .text_color(cx.theme().muted_foreground)
+                                    .child("支持标题、粗体、斜体、删除线、引用、列表、代码、链接、图片、表格与分割线"),
+                            )
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap_2()
+                                    .text_size(px(12.0))
+                                    .text_color(cx.theme().muted_foreground)
+                                    .font_family("monospace")
+                                    .child(format!("字符 {} · 行数 {}", char_count, line_count)),
                             ),
                     ),
             )

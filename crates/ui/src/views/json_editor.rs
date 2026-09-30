@@ -4,12 +4,10 @@ use std::collections::HashSet;
 use gpui_kit::{prelude::FluentBuilder as _, *};
 use gpui_kit::component::{
     button::*,
-    input::{Input, InputEvent, InputState, Textarea, TextareaState },
+    input::{InputEvent, TextareaState},
     scroll::ScrollableElement,
     *,
 };
-
-use crate::views::syntax_highlight::{self, HighlightPalette};
 
 #[derive(Clone, Copy, Default)]
 struct TreeOptions {
@@ -220,18 +218,28 @@ fn leaf_display(value: &serde_json::Value) -> String {
 
 impl Render for JsonEditor {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let tree_error = self.tree_error.clone();
+
         design::page()
             .child(design::page_header("JSON Editor", "JSON 格式化与编辑", cx))
             .child(
                 design::card(cx)
                     .child(
+                        div()
+                            .flex_col()
+                            .gap_1p5()
+                            .child(design::editor_label("JSON", cx))
+                            .child(tree_viewer_panel(self, cx)),
+                    )
+                    .child(
                         design::toolbar()
                             .child(
                                 Button::new("paste-input")
-                                    .icon(Icon::new(IconName::File))
+                                    .icon(Icon::new(IconName::Inbox))
                                     .tooltip("粘贴")
                                     .on_click(cx.listener(|this, _, window, cx| {
                                         this.paste(window, cx);
+                                        cx.notify();
                                     })),
                             )
                             .child(
@@ -242,9 +250,16 @@ impl Render for JsonEditor {
                                         this.copy_input(cx);
                                     })),
                             )
-                            .child(div().flex_1()),
-                    )
-                    .child(tree_viewer_panel(self, cx)),
+                            .child(div().flex_1())
+                            .when(!tree_error.is_empty(), |this| {
+                                this.child(
+                                    div()
+                                        .text_size(px(12.5))
+                                        .text_color(Hsla::from(rgb(design::ERROR_RED)))
+                                        .child(tree_error.clone()),
+                                )
+                            }),
+                    ),
             )
     }
 }
@@ -346,6 +361,7 @@ fn render_tree_viewer(this: &JsonEditor, cx: &mut Context<JsonEditor>) -> Div {
         .border_1()
         .border_color(cx.theme().border)
         .rounded_lg()
+        .bg(cx.theme().background)
         .h(px(280.0))
         .child(inner)
 }

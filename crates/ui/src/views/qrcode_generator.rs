@@ -3,7 +3,6 @@ use gpui_kit::*;
 use gpui_kit::component::{
     button::*,
     input::{Input, InputEvent, InputState, NumberInput, NumberInputEvent, StepAction, Textarea, TextareaState },
-    radio::{Radio, RadioGroup},
     slider::{Slider, SliderEvent, SliderState},
     *,
 };
@@ -51,9 +50,10 @@ pub struct QrCodeGenerator {
     ecc_level: EccLevel,
     dark_color: String,
     light_color: String,
-    svg: String,
+    matrix: Vec<Vec<bool>>,
     png_data: Option<Vec<u8>>,
     error: String,
+    status: String,
     input_state: Entity<TextareaState>,
     size_slider: Entity<SliderState>,
     margin_state: Entity<InputState>,
@@ -68,7 +68,6 @@ impl QrCodeGenerator {
             TextareaState::new(window, cx)
                 .placeholder("输入文本、链接或其它需要编码的内容...")
                 .default_value("https://github.com/")
-                
         });
 
         let size_slider = cx.new(|_| {
@@ -123,9 +122,8 @@ impl QrCodeGenerator {
                 }
             }),
             cx.subscribe_in(&margin_state, window, {
-                let margin_state = margin_state.clone();
                 move |this, state, ev: &NumberInputEvent, window, cx| {
-                    if let NumberInputEvent::Step(action) = ev {
+                    let NumberInputEvent::Step(action) = ev;
                         let text = state.read(cx).value();
                         let mut val = text.parse::<usize>().unwrap_or(2);
                         match action {
@@ -138,7 +136,6 @@ impl QrCodeGenerator {
                         this.margin = val;
                         this.generate();
                         cx.notify();
-                    }
                 }
             }),
             cx.subscribe_in(&dark_color_state, window, {
@@ -170,9 +167,10 @@ impl QrCodeGenerator {
             ecc_level: EccLevel::Medium,
             dark_color: "#000000".to_string(),
             light_color: "#ffffff".to_string(),
-            svg: String::new(),
+            matrix: Vec::new(),
             png_data: None,
             error: String::new(),
+            status: String::new(),
             input_state,
             size_slider,
             margin_state,
@@ -186,25 +184,26 @@ impl QrCodeGenerator {
 
     fn generate(&mut self) {
         self.error.clear();
+        self.status.clear();
         if self.text.trim().is_empty() {
-            self.svg.clear();
+            self.matrix.clear();
             self.png_data = None;
             return;
         }
 
         let ecc = self.ecc_level.to_ecc();
-        let size = self.size.max(120);
 
-        match qrcode_generator::to_svg_to_string_from_str(&self.text, ecc, size, None::<&str>) {
-            Ok(svg) => self.svg = svg,
+        match qrcode_generator::to_matrix_from_str(&self.text, ecc) {
+            Ok(matrix) => self.matrix = matrix,
             Err(err) => {
-                self.svg.clear();
+                self.matrix.clear();
                 self.png_data = None;
                 self.error = err.to_string();
                 return;
             }
         }
 
+        let size = self.size.max(120);
         match qrcode_generator::to_png_to_vec_from_str(&self.text, ecc, size) {
             Ok(data) => self.png_data = Some(data),
             Err(err) => {
@@ -228,23 +227,33 @@ impl QrCodeGenerator {
     }
 
     fn copy_data_url(&mut self, cx: &mut Context<Self>) {
-        if let Some(ref png_data) = self.png_data {
-            let data_url = format!("data:image/png;base64,{}", base64_encode(png_data));
-            cx.write_to_clipboard(ClipboardItem::new_string(data_url));
+        match &self.png_data {
+            Some(png_data) => {
+                let data_url = format!("data:image/png;base64,{}", base64_encode(png_data));
+                cx.write_to_clipboard(ClipboardItem::new_string(data_url));
+                self.status = "已复制二维码 Data URL".to_string();
+            }
+            None => {
+                self.status = "请先生成二维码".to_string();
+            }
         }
-    }
-
-    fn copy_svg(&mut self, cx: &mut Context<Self>) {
-        if !self.svg.is_empty() {
-            cx.write_to_clipboard(ClipboardItem::new_string(self.svg.clone()));
-        }
+        cx.notify();
     }
 
     fn download_png(&mut self, cx: &mut Context<Self>) {
         let Some(ref png_data) = self.png_data else {
+            self.status = "请先生成二维码".to_string();
+            cx.notify();
             return;
         };
         let png_data = png_data.clone();
+        let default_name = format!(
+            "qrcode-{}.png",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis())
+                .unwrap_or(0)
+        );
 
         cx.spawn(async move |_, cx| {
             let file_path = cx
@@ -252,7 +261,7 @@ impl QrCodeGenerator {
                 .spawn(async move {
                     rfd::AsyncFileDialog::new()
                         .add_filter("PNG", &["png"])
-                        .set_file_name("qrcode.png")
+                        .set_file_name(&default_name)
                         .save_file()
                         .await
                 })
@@ -270,18 +279,55 @@ impl QrCodeGenerator {
 
     fn clear(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.text.clear();
-        self.svg.clear();
+        self.matrix.clear();
         self.png_data = None;
         self.error.clear();
+        self.status.clear();
         self.input_state.update(cx, |state, cx| {
             state.set_value(String::new(), window, cx);
         });
+        self.generate();
+        cx.notify();
     }
 
     fn set_ecc_level(&mut self, level: EccLevel, cx: &mut Context<Self>) {
         self.ecc_level = level;
         self.generate();
         cx.notify();
+    }
+
+    /// 分段选择器（对应 n-radio-button 组）
+    fn segmented(&self, cx: &mut Context<Self>) -> Div {
+        div()
+            .flex()
+            .rounded(px(6.0))
+            .border_1()
+            .border_color(cx.theme().border)
+            .overflow_hidden()
+            .bg(cx.theme().background)
+            .children(ECC_LEVELS.iter().enumerate().map(|(i, level)| {
+                let active = *level == self.ecc_level;
+                let level = *level;
+                div()
+                    .id(("ecc", i))
+                    .px_3()
+                    .py_1()
+                    .text_sm()
+                    .bg(if active {
+                        cx.theme().primary
+                    } else {
+                        gpui::black().opacity(0.0)
+                    })
+                    .text_color(if active {
+                        gpui::white()
+                    } else {
+                        cx.theme().muted_foreground
+                    })
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.set_ecc_level(level, cx);
+                    }))
+                    .child(level.label().to_string())
+            }))
     }
 }
 
@@ -342,9 +388,23 @@ fn hex_to_hsla(hex: &str) -> Option<Hsla> {
 
 impl Render for QrCodeGenerator {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let ecc_index = ECC_LEVELS.iter().position(|&l| l == self.ecc_level);
+        let status_color = if self.error.is_empty() && !self.status.is_empty() {
+            Hsla::from(rgb(design::OK_GREEN))
+        } else if !self.status.is_empty() {
+            Hsla::from(rgb(design::WARN_AMBER))
+        } else {
+            Hsla::from(rgb(design::ERROR_RED))
+        };
+        let feedback = if !self.error.is_empty() {
+            Some(self.error.clone())
+        } else if !self.status.is_empty() {
+            Some(self.status.clone())
+        } else {
+            None
+        };
 
-        let preview = if self.svg.is_empty() {
+        // 预览：矩阵自绘（支持边距与前景/背景色）
+        let preview = if self.matrix.is_empty() {
             div()
                 .flex()
                 .items_center()
@@ -352,12 +412,13 @@ impl Render for QrCodeGenerator {
                 .size_full()
                 .text_sm()
                 .text_color(cx.theme().muted_foreground)
-                .child("点击生成按钮生成二维码...")
+                .child("输入内容后自动生成二维码")
         } else {
-            let svg = self.svg.clone();
+            let matrix = self.matrix.clone();
+            let qr_size = self.size.max(120) as f32;
+            let margin = self.margin as f32;
             let dark_color = hex_to_hsla(&self.dark_color).unwrap_or(gpui_kit::black());
             let light_color = hex_to_hsla(&self.light_color).unwrap_or(gpui_kit::white());
-            let qr_size = self.size;
 
             div()
                 .flex()
@@ -370,41 +431,29 @@ impl Render for QrCodeGenerator {
                         move |bounds, _window, window, _cx| {
                             window.paint_quad(fill(bounds, light_color));
 
-                            let viewbox_size = qr_size as f32;
-                            let scale = f32::from(bounds.size.width) / viewbox_size;
+                            let modules = matrix.len() as f32;
+                            if modules <= 0.0 {
+                                return;
+                            }
+                            let total = modules + margin * 2.0;
+                            let module_vu = qr_size / total;
+                            let scale = f32::from(bounds.size.width) / qr_size;
 
-                            for line in svg.lines() {
-                                let line = line.trim();
-                                if !line.starts_with('<') || !line.contains("rect") {
-                                    continue;
-                                }
-                                let mut x: Option<f32> = None;
-                                let mut y: Option<f32> = None;
-                                let mut w: Option<f32> = None;
-                                let mut h: Option<f32> = None;
-
-                                for part in line.split_whitespace() {
-                                    if let Some(val) = part.strip_prefix("x=\"") {
-                                        x = val.trim_end_matches('"').parse().ok();
-                                    } else if let Some(val) = part.strip_prefix("y=\"") {
-                                        y = val.trim_end_matches('"').parse().ok();
-                                    } else if let Some(val) = part.strip_prefix("width=\"") {
-                                        w = val.trim_end_matches('"').parse().ok();
-                                    } else if let Some(val) = part.strip_prefix("height=\"") {
-                                        h = val.trim_end_matches('"').parse().ok();
+                            for (i, row) in matrix.iter().enumerate() {
+                                for (j, &on) in row.iter().enumerate() {
+                                    if !on {
+                                        continue;
                                     }
-                                }
-
-                                if let (Some(rx), Some(ry), Some(rw), Some(rh)) = (x, y, w, h) {
-                                    let px_x = f32::from(bounds.origin.x) + rx * scale;
-                                    let px_y = f32::from(bounds.origin.y) + ry * scale;
-                                    let px_w = rw * scale;
-                                    let px_h = rh * scale;
-                                    let rect_bounds = Bounds::new(
-                                        point(px(px_x), px(px_y)),
-                                        size(px(px_w), px(px_h)),
+                                    let vx = (margin + j as f32) * module_vu;
+                                    let vy = (margin + i as f32) * module_vu;
+                                    let rect = Bounds::new(
+                                        point(
+                                            px(f32::from(bounds.origin.x) + vx * scale),
+                                            px(f32::from(bounds.origin.y) + vy * scale),
+                                        ),
+                                        size(px(module_vu * scale), px(module_vu * scale)),
                                     );
-                                    window.paint_quad(fill(rect_bounds, dark_color));
+                                    window.paint_quad(fill(rect, dark_color));
                                 }
                             }
                         },
@@ -413,174 +462,185 @@ impl Render for QrCodeGenerator {
                 )
         };
 
-        let error_msg = if self.error.is_empty() {
-            None
-        } else {
-            Some(
-                div()
-                    .text_sm()
-                    .text_color(cx.theme().danger)
-                    .child(self.error.clone()),
-            )
-        };
-
-        design::page()
-            .child(design::page_header("二维码", "生成二维码", cx))
+        // 表单列（对应 qr-form）
+        let form = div()
+            .flex()
+            .flex_col()
+            .gap_3()
+            .min_w(px(300.0))
             .child(
-                design::card(cx)
+                div()
+                    .flex()
+                    .items_start()
+                    .gap_2()
+                    .child(design::caption("内容", cx).w(px(80.0)).pt(px(6.0)))
                     .child(
                         div()
-                            .grid()
-                            .grid_cols(2)
-                            .gap_4()
+                            .flex_1()
                             .child(
-                                div()
-                                    .flex()
-                                    .flex_col()
-                                    .gap_3()
-                                    .min_w(px(320.))
-                                    .child(
-                                        div()
-                                            .flex()
-                                            .items_start()
-                                            .gap_2()
-                                            .child(design::caption("内容", cx).w(px(110.0)))
-                                            .child(
-                                                div()
-                                                    .flex_1()
-                                                    .child(
-                                                        Textarea::new(&self.input_state)
-                                                            .h(design::CODE_BOX_HEIGHT)
-                                                            .font_family("monospace"),
-                                                    ),
-                                            ),
-                                    )
-                                    .child(
-                                        div()
-                                            .flex()
-                                            .items_center()
-                                            .gap_2()
-                                            .child(design::caption("尺寸", cx).w(px(110.0)))
-                                            .child(div().flex_1().child(Slider::new(&self.size_slider))),
-                                    )
-                                    .child(
-                                        div()
-                                            .flex()
-                                            .items_center()
-                                            .gap_2()
-                                            .child(design::caption("边距", cx).w(px(110.0)))
-                                            .child(
-                                                div().flex_1().child(NumberInput::new(&self.margin_state)),
-                                            ),
-                                    )
-                                    .child(
-                                        div()
-                                            .flex()
-                                            .items_center()
-                                            .gap_2()
-                                            .child(design::caption("纠错级别", cx).w(px(110.0)))
-                                            .child(
-                                                RadioGroup::horizontal("ecc-group")
-                                                    .selected_index(ecc_index)
-                                                    .on_click(cx.listener(|this, idx: &usize, _, cx| {
-                                                        if let Some(level) = ECC_LEVELS.get(*idx) {
-                                                            this.set_ecc_level(*level, cx);
-                                                        }
-                                                    }))
-                                                    .children(
-                                                        ECC_LEVELS.iter().map(|l| Radio::new(l.label())),
-                                                    ),
-                                            ),
-                                    )
-                                    .child(
-                                        div()
-                                            .flex()
-                                            .items_center()
-                                            .gap_2()
-                                            .child(design::caption("前景色", cx).w(px(110.0)))
-                                            .child(
-                                                div()
-                                                    .w(px(20.0))
-                                                    .h(px(20.0))
-                                                    .rounded_md()
-                                                    .border_1()
-                                                    .border_color(cx.theme().border)
-                                                    .bg(hex_to_hsla(&self.dark_color)
-                                                        .unwrap_or(gpui_kit::black())),
-                                            )
-                                            .child(
-                                                div().flex_1().child(Input::new(&self.dark_color_state)),
-                                            ),
-                                    )
-                                    .child(
-                                        div()
-                                            .flex()
-                                            .items_center()
-                                            .gap_2()
-                                            .child(design::caption("背景色", cx).w(px(110.0)))
-                                            .child(
-                                                div()
-                                                    .w(px(20.0))
-                                                    .h(px(20.0))
-                                                    .rounded_md()
-                                                    .border_1()
-                                                    .border_color(cx.theme().border)
-                                                    .bg(hex_to_hsla(&self.light_color)
-                                                        .unwrap_or(gpui_kit::white())),
-                                            )
-                                            .child(
-                                                div().flex_1().child(Input::new(&self.light_color_state)),
-                                            ),
-                                    )
-                                    .child(
-                                        design::toolbar()
-                                            .child(
-                                                Button::new("generate")
-                                                    .label("生成")
-                                                    .primary()
-                                                    .icon(Icon::new(IconName::Plus))
-                                                    .on_click(cx.listener(|this, _, _, cx| {
-                                                        this.generate();
-                                                        cx.notify();
-                                                    })),
-                                            )
-                                            .child(
-                                                Button::new("paste")
-                                                    .icon(Icon::new(IconName::File))
-                                                    .tooltip("粘贴内容")
-                                                    .on_click(cx.listener(|this, _, window, cx| {
-                                                        this.paste(window, cx);
-                                                    })),
-                                            )
-                                            .child(
-                                                Button::new("copy-data-url")
-                                                    .icon(Icon::new(IconName::Copy))
-                                                    .tooltip("复制 Data URL")
-                                                    .on_click(cx.listener(|this, _, _, cx| {
-                                                        this.copy_data_url(cx);
-                                                    })),
-                                            )
-                                            .child(
-                                                Button::new("download-png")
-                                                    .icon(Icon::new(IconName::ArrowDown))
-                                                    .tooltip("下载 PNG")
-                                                    .on_click(cx.listener(|this, _, _, cx| {
-                                                        this.download_png(cx);
-                                                    })),
-                                            ),
-                                    )
-                                    .children(error_msg),
-                            )
-                            .child(
-                                div()
-                                    .border_1()
-                                    .border_color(cx.theme().border)
-                                    .rounded_lg()
-                                    .p_3()
-                                    .h(px(360.0))
-                                    .child(preview),
+                                Textarea::new(&self.input_state)
+                                    .h(px(160.0))
+                                    .font_family("monospace"),
                             ),
                     ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .child(design::caption("尺寸", cx).w(px(80.0)))
+                    .child(div().flex_1().child(Slider::new(&self.size_slider))),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .child(design::caption("边距", cx).w(px(80.0)))
+                    .child(
+                        div().w(px(120.0)).child(NumberInput::new(&self.margin_state)),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .child(design::caption("纠错级别", cx).w(px(80.0)))
+                    .child(self.segmented(cx)),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .child(design::caption("前景色", cx).w(px(80.0)))
+                    .child(
+                        div()
+                            .w(px(20.0))
+                            .h(px(20.0))
+                            .rounded_md()
+                            .border_1()
+                            .border_color(cx.theme().border)
+                            .bg(hex_to_hsla(&self.dark_color).unwrap_or(gpui_kit::black())),
+                    )
+                    .child(div().flex_1().child(Input::new(&self.dark_color_state))),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .child(design::caption("背景色", cx).w(px(80.0)))
+                    .child(
+                        div()
+                            .w(px(20.0))
+                            .h(px(20.0))
+                            .rounded_md()
+                            .border_1()
+                            .border_color(cx.theme().border)
+                            .bg(hex_to_hsla(&self.light_color).unwrap_or(gpui_kit::white())),
+                    )
+                    .child(div().flex_1().child(Input::new(&self.light_color_state))),
+            );
+
+        design::page()
+            .child(design::page_header("二维码生成", "生成二维码", cx))
+            .child(
+                design::card(cx)
+                    .child(design::card_header(
+                        IconName::Frame,
+                        "二维码生成",
+                        "生成二维码",
+                        cx,
+                    ))
+                    // 头部动作行（tb-card-header-actions）
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .justify_end()
+                            .gap_2()
+                            .child(
+                                Button::new("generate")
+                                    .primary()
+                                    .icon(Icon::new(IconName::Asterisk))
+                                    .tooltip("生成")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.generate();
+                                        cx.notify();
+                                    })),
+                            )
+                            .child(
+                                Button::new("paste")
+                                    .icon(Icon::new(IconName::Inbox))
+                                    .tooltip("粘贴内容")
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.paste(window, cx);
+                                    })),
+                            )
+                            .child(
+                                Button::new("copy-data-url")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制 Data URL")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.copy_data_url(cx);
+                                    })),
+                            )
+                            .child(
+                                Button::new("download-png")
+                                    .icon(Icon::new(IconName::ArrowDown))
+                                    .tooltip("下载 PNG")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.download_png(cx);
+                                    })),
+                            )
+                            .child(
+                                Button::new("clear")
+                                    .icon(Icon::new(IconName::Close))
+                                    .tooltip("清除")
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.clear(window, cx);
+                                    })),
+                            ),
+                    )
+                    // 双栏主体（qr-body：表单 | 预览）
+                    .child(
+                        div()
+                            .flex()
+                            .items_start()
+                            .gap_4()
+                            .child(form)
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .min_w(px(280.0))
+                                    .flex_col()
+                                    .min_h(px(360.0))
+                                    .border_1()
+                                    .border_dashed()
+                                    .border_color(cx.theme().border)
+                                    .rounded(px(10.0))
+                                    .bg(cx.theme().background)
+                                    .p(px(14.0))
+                                    .child(
+                                        div()
+                                            .text_xs()
+                                            .font_semibold()
+                                            .text_color(cx.theme().muted_foreground)
+                                            .mb_2()
+                                            .child("预览"),
+                                    )
+                                    .child(div().flex_1().min_h(px(300.0)).child(preview)),
+                            ),
+                    )
+                    .children(feedback.map(|text| {
+                        div()
+                            .text_size(px(12.5))
+                            .text_color(status_color)
+                            .child(text)
+                    })),
             )
     }
 }

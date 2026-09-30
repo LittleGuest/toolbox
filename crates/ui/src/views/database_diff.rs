@@ -5,7 +5,7 @@ use std::{
     rc::Rc,
 };
 
-use database::{CheckReportBo, DatasourceInfo, DiffReport, Driver};
+use database::{CheckReportBo, ColumnType, DatasourceInfo, DiffReport, Driver};
 use gpui_kit::{prelude::FluentBuilder as _, *};
 use gpui_kit::component::{
     WindowExt,
@@ -25,10 +25,8 @@ pub struct DatabaseDiff {
     report_output: Option<DiffReport>,
     sql_output: String,
     check_output: Option<Vec<CheckReportBo>>,
-    code_output: String,
     generated_codes: Vec<(String, String)>,
     code_active_tab: usize,
-    table_output: String,
     status: String,
     is_running: bool,
     saved_datasources: Vec<DatasourceInfo>,
@@ -209,10 +207,8 @@ impl DatabaseDiff {
             report_output: None,
             sql_output: String::new(),
             check_output: None,
-            code_output: String::new(),
             generated_codes: Vec::new(),
             code_active_tab: 0,
-            table_output: String::new(),
             status: "请选择基准库和变动库连接。".to_string(),
             is_running: false,
             saved_datasources: Vec::new(),
@@ -352,7 +348,7 @@ impl DatabaseDiff {
                                 .child({
                                     let weak = weak.clone();
                                     Button::new("conn-sheet-ping")
-                                        .icon(Icon::new(IconName::ArrowRight))
+                                        .icon(Icon::new(IconName::Play))
                                         .tooltip("测试连接")
                                         .on_click(move |_, _, cx| {
                                             if let Some(this) = weak.upgrade() {
@@ -513,62 +509,6 @@ impl DatabaseDiff {
                     Ok(false) => format!("未找到连接 {name}。"),
                     Err(err) => format!("删除连接失败：{err}"),
                 };
-                cx.notify();
-            });
-        })
-        .detach();
-    }
-
-    fn load_tables(&mut self, cx: &mut Context<Self>) {
-        let source = self.selected_datasource(&self.report_source_select, cx);
-        let target = self.selected_datasource(&self.report_target_select, cx);
-        let (Some(source), Some(target)) = (source, target) else {
-            self.status = "请先选择基准库和变动库连接。".to_string();
-            cx.notify();
-            return;
-        };
-
-        self.is_running = true;
-        self.status = "正在加载数据源表...".to_string();
-        cx.notify();
-
-        cx.spawn(async move |this: WeakEntity<Self>, cx| {
-            let source_tables = database::database_tables(source).await;
-            let target_tables = database::database_tables(target).await;
-            let output = match (source_tables, target_tables) {
-                (Ok(source_tables), Ok(target_tables)) => {
-                    let source_lines = source_tables
-                        .into_iter()
-                        .map(|table| {
-                            format!(
-                                "基准库 | {}.{} | {}",
-                                table.schema, table.name, table.comment
-                            )
-                        })
-                        .collect::<Vec<_>>();
-                    let target_lines = target_tables
-                        .into_iter()
-                        .map(|table| {
-                            format!(
-                                "变动库 | {}.{} | {}",
-                                table.schema, table.name, table.comment
-                            )
-                        })
-                        .collect::<Vec<_>>();
-                    source_lines
-                        .into_iter()
-                        .chain(target_lines)
-                        .collect::<Vec<_>>()
-                        .join("\n")
-                }
-                (Err(err), _) => format!("加载基准库表失败：{err}"),
-                (_, Err(err)) => format!("加载变动库表失败：{err}"),
-            };
-
-            let _ = this.update(cx, |this, cx| {
-                this.is_running = false;
-                this.table_output = output;
-                this.status = "数据源表加载完成".to_string();
                 cx.notify();
             });
         })
@@ -951,38 +891,40 @@ impl DatabaseDiff {
 
     fn open_code_gen_drawer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let weak = cx.entity().downgrade();
-        let datasource_state = self.code_datasource_select.clone();
-        let code_language = self.code_language.clone();
-        let code_language_index = self.code_language_index;
-        let code_file_types = self.code_file_types.clone();
-        let code_table_options = self.code_table_options.clone();
-        let code_selected_tables = self.code_selected_tables.clone();
-        let code_table_load_msg = self.code_table_load_msg.clone();
-        let generated_codes = self.generated_codes.clone();
-        let code_active_tab = self.code_active_tab;
-        let entity_state = self.entity_package_state.clone();
-        let mapper_state = self.mapper_package_state.clone();
-        let service_state = self.service_package_state.clone();
-        let service_impl_state = self.service_impl_package_state.clone();
-        let controller_state = self.controller_package_state.clone();
-        let is_java = code_language == "java";
-        let available_types = available_file_types(&code_language);
-
-        let file_types_shared: Rc<RefCell<HashSet<String>>> =
-            Rc::new(RefCell::new(code_file_types.iter().cloned().collect()));
-        let tables_shared: Rc<RefCell<HashSet<String>>> =
-            Rc::new(RefCell::new(code_selected_tables.iter().cloned().collect()));
 
         window.open_sheet_at(Placement::Right, cx, move |sheet, window, cx| {
-            let weak2 = weak.clone();
+            // 每次渲染实时读取实体状态（对应 Vue 的响应式 form）
+            let Some(entity) = weak.upgrade() else {
+                return sheet;
+            };
+            let (code_language, code_language_index, code_file_types, code_table_options, code_selected_tables, code_table_load_msg, generated_codes, code_active_tab, is_running) = {
+                let this = entity.read(cx);
+                (
+                    this.code_language.clone(),
+                    this.code_language_index,
+                    this.code_file_types.clone(),
+                    this.code_table_options.clone(),
+                    this.code_selected_tables.clone(),
+                    this.code_table_load_msg.clone(),
+                    this.generated_codes.clone(),
+                    this.code_active_tab,
+                    this.is_running,
+                )
+            };
+
+            let is_java = code_language == "java";
+            let available_types = available_file_types(&code_language);
 
             let language_radio = RadioGroup::horizontal("code-language")
                 .selected_index(Some(code_language_index))
-                .on_click(move |index: &usize, _, cx| {
-                    if let Some(this) = weak2.upgrade() {
-                        this.update(cx, |this, cx| {
-                            this.on_language_radio_change(*index, cx);
-                        });
+                .on_click({
+                    let weak = weak.clone();
+                    move |index: &usize, _, cx| {
+                        if let Some(this) = weak.upgrade() {
+                            this.update(cx, |this, cx| {
+                                this.on_language_radio_change(*index, cx);
+                            });
+                        }
                     }
                 })
                 .child(Radio::new("lang-java").label("Java"))
@@ -990,25 +932,26 @@ impl DatabaseDiff {
 
             let mut file_checkboxes = div().flex().flex_wrap().gap_3();
             for (i, ft) in available_types.iter().enumerate() {
-                let is_active = file_types_shared.borrow().contains(ft);
+                let is_active = code_file_types.contains(ft);
                 let label = file_type_label(ft);
                 let ft_clone = ft.clone();
-                let sel = file_types_shared.clone();
                 let cb = Checkbox::new(("code-ft", i))
                     .label(label)
                     .checked(is_active)
-                    .on_click(move |checked: &bool, _, _| {
-                        let mut sel = sel.borrow_mut();
-                        if *checked {
-                            sel.insert(ft_clone.clone());
-                        } else {
-                            sel.remove(&ft_clone);
+                    .on_click({
+                        let weak = weak.clone();
+                        move |_: &bool, _, cx: &mut App| {
+                            if let Some(this) = weak.upgrade() {
+                                this.update(cx, |this, cx| {
+                                    this.toggle_file_type(&ft_clone, cx);
+                                });
+                            }
                         }
                     });
                 file_checkboxes = file_checkboxes.child(cb);
             }
 
-            let mut table_list = div().flex().flex_col().gap_1().max_h(px(160.)).overflow_y_scrollbar();
+            let mut table_list = div().flex().flex_col().gap_1().max_h(px(200.)).overflow_y_scrollbar();
             if code_table_options.is_empty() {
                 table_list = table_list.child(
                     div()
@@ -1022,54 +965,91 @@ impl DatabaseDiff {
                 );
             } else {
                 for (i, (table_key, table_label)) in code_table_options.iter().enumerate() {
-                    let is_checked = tables_shared.borrow().contains(table_key);
+                    let is_checked = code_selected_tables.contains(table_key);
                     let table_key_clone = table_key.clone();
-                    let table_label_clone = table_label.clone();
-                    let sel = tables_shared.clone();
                     let cb = Checkbox::new(("code-table", i))
-                        .label(table_label_clone)
+                        .label(table_label.clone())
                         .checked(is_checked)
-                        .on_click(move |checked: &bool, _, _| {
-                            let mut sel = sel.borrow_mut();
-                            if *checked {
-                                sel.insert(table_key_clone.clone());
-                            } else {
-                                sel.remove(&table_key_clone);
+                        .on_click({
+                            let weak = weak.clone();
+                            move |_: &bool, _, cx: &mut App| {
+                                if let Some(this) = weak.upgrade() {
+                                    this.update(cx, |this, cx| {
+                                        this.toggle_table_selection(&table_key_clone, cx);
+                                    });
+                                }
                             }
                         });
                     table_list = table_list.child(cb);
                 }
             }
 
-            let weak5 = weak.clone();
+            // 包名输入：只显示已勾选的 .java 文件类型（对应 packageFileTypes）
+            let mut package_fields = div().flex().flex_col().gap_2();
+            if is_java {
+                let package_defs = [
+                    (
+                        "entity.java",
+                        "entity.java 包名",
+                        &entity.read(cx).entity_package_state,
+                    ),
+                    (
+                        "mapper.java",
+                        "mapper.java 包名",
+                        &entity.read(cx).mapper_package_state,
+                    ),
+                    (
+                        "service.java",
+                        "service.java 包名",
+                        &entity.read(cx).service_package_state,
+                    ),
+                    (
+                        "serviceImpl.java",
+                        "serviceImpl.java 包名",
+                        &entity.read(cx).service_impl_package_state,
+                    ),
+                    (
+                        "controller.java",
+                        "controller.java 包名",
+                        &entity.read(cx).controller_package_state,
+                    ),
+                ];
+                for (_key, label, state) in package_defs
+                    .into_iter()
+                    .filter(|(key, _, _)| code_file_types.iter().any(|f| f == key))
+                {
+                    package_fields = package_fields.child(field(label, Input::new(state)));
+                }
+            }
+
             let result_section = if generated_codes.is_empty() {
                 div()
                     .text_sm()
                     .text_color(cx.theme().muted_foreground)
                     .child("暂无生成结果")
             } else {
+                let weak5 = weak.clone();
                 let mut tab_bar = TabBar::new("code-tabs")
                     .underline()
                     .selected_index(code_active_tab)
-                    .on_click(move |index: &usize, _, cx| {
-                        if let Some(this) = weak5.upgrade() {
-                            this.update(cx, |this, cx| {
-                                this.code_active_tab = *index;
-                                cx.notify();
-                            });
+                    .on_click({
+                        let weak5 = weak5.clone();
+                        move |index: &usize, _, cx| {
+                            if let Some(this) = weak5.upgrade() {
+                                this.update(cx, |this, cx| {
+                                    this.code_active_tab = *index;
+                                    cx.notify();
+                                });
+                            }
                         }
                     });
                 for (file_name, _) in generated_codes.iter() {
                     tab_bar = tab_bar.child(Tab::new().label(file_name.clone()));
                 }
 
-                let active_code = generated_codes
+                let (active_file, active_code) = generated_codes
                     .get(code_active_tab)
-                    .map(|(_, code)| code.clone())
-                    .unwrap_or_default();
-                let active_file = generated_codes
-                    .get(code_active_tab)
-                    .map(|(file, _)| file.clone())
+                    .cloned()
                     .unwrap_or_default();
 
                 div()
@@ -1078,22 +1058,22 @@ impl DatabaseDiff {
                     .gap_2()
                     .child(tab_bar)
                     .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .justify_end()
-                            .gap_2()
+                        design::action_row()
                             .child(
                                 div()
                                     .text_xs()
+                                    .px_2()
+                                    .py_1()
+                                    .rounded_sm()
+                                    .bg(cx.theme().muted)
                                     .text_color(cx.theme().muted_foreground)
                                     .child(file_language_tag(&active_file)),
                             )
                             .child({
                                 let code = active_code.clone();
                                 Button::new("copy-code-tab")
-                                    .label("复制")
-                                    .small()
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制")
                                     .on_click(move |_, _, cx| {
                                         cx.write_to_clipboard(ClipboardItem::new_string(
                                             code.clone(),
@@ -1111,14 +1091,14 @@ impl DatabaseDiff {
                             .text_sm()
                             .font_family("monospace")
                             .text_color(rgb(0xe2e8f0))
-                            .child(active_code.clone()),
+                            .child(active_code),
                     )
             };
 
             sheet
                 .overlay(true)
                 .overlay_closable(true)
-                .size(px(900.0))
+                .size(window.viewport_size().width * 0.7)
                 .title("数据库代码生成")
                 .child(
                     div()
@@ -1128,16 +1108,29 @@ impl DatabaseDiff {
                         .p_4()
                         .h_full()
                         .overflow_y_scrollbar()
-                        .child(field("数据源", Select::new(&datasource_state)))
+                        .child(field("数据源", Select::new(&entity.read(cx).code_datasource_select)))
                         .child(field("语言", language_radio))
                         .child(
                             div()
                                 .flex()
                                 .flex_col()
                                 .gap_1()
-                                .child(div().w(px(90.0)).text_sm().child("表"))
+                                .child(
+                                    div()
+                                        .flex()
+                                        .items_center()
+                                        .gap_2()
+                                        .child(div().w(px(72.0)).text_sm().child("表"))
+                                        .child(
+                                            div()
+                                                .text_xs()
+                                                .text_color(cx.theme().muted_foreground)
+                                                .child("请选择表，不选择则生成全部表"),
+                                        ),
+                                )
                                 .child(table_list)
-                                .when(!code_table_load_msg.is_empty(), |this| {
+                                .when(!code_table_load_msg.is_empty()
+                                    && !code_table_options.is_empty(), |this| {
                                     this.child(
                                         div()
                                             .text_xs()
@@ -1151,22 +1144,10 @@ impl DatabaseDiff {
                                 .flex()
                                 .items_start()
                                 .gap_2()
-                                .child(div().w(px(90.0)).text_sm().pt_1().child("生成文件"))
+                                .child(div().w(px(72.0)).text_sm().pt_1().child("生成文件"))
                                 .child(file_checkboxes),
                         )
-                        .when(is_java, |this| {
-                            this.child(
-                                div()
-                                    .flex()
-                                    .flex_col()
-                                    .gap_2()
-                                    .child(field("entity.java 包名", Input::new(&entity_state)))
-                                    .child(field("mapper.java 包名", Input::new(&mapper_state)))
-                                    .child(field("service.java 包名", Input::new(&service_state)))
-                                    .child(field("serviceImpl.java 包名", Input::new(&service_impl_state)))
-                                    .child(field("controller.java 包名", Input::new(&controller_state))),
-                            )
-                        })
+                        .when(is_java, |this| this.child(package_fields))
                         .child(
                             div()
                                 .mt_2()
@@ -1174,96 +1155,97 @@ impl DatabaseDiff {
                                 .border_color(cx.theme().border)
                                 .pt_3()
                                 .child(result_section),
+                        ),
+                )
+                .footer(
+                    h_flex()
+                        .justify_end()
+                        .gap_2()
+                        .child(
+                            Button::new("code-gen-cancel")
+                                .icon(Icon::new(IconName::Close))
+                                .tooltip("取消")
+                                .on_click(|_, window, cx| {
+                                    window.close_sheet(cx);
+                                }),
                         )
                         .child(
-                            div()
-                                .flex()
-                                .justify_end()
-                                .gap_2()
-                                .mt_2()
-                                .child({
-                                    let _ = weak.clone();
-                                    Button::new("code-gen-cancel")
-                                        .label("取消")
-                                        .on_click(move |_, window, cx| {
-                                            window.close_sheet(cx);
-                                        })
-                                })
-                                .child({
+                            Button::new("code-gen-run")
+                                .primary()
+                                .icon(Icon::new(IconName::Replace))
+                                .tooltip("生成代码")
+                                .loading(is_running)
+                                .on_click({
                                     let weak = weak.clone();
-                                    let ft_shared = file_types_shared.clone();
-                                    let tbl_shared = tables_shared.clone();
-                                    Button::new("code-gen-run")
-                                        .primary()
-                                        .label("生成代码")
-                                        .on_click(move |_, window, cx| {
-                                            if let Some(this) = weak.upgrade() {
-                                                this.update(cx, |this, cx| {
-                                                    this.code_file_types =
-                                                        ft_shared.borrow().iter().cloned().collect();
-                                                    this.code_selected_tables =
-                                                        tbl_shared.borrow().iter().cloned().collect();
-                                                    this.generate_code(window, cx);
-                                                });
-                                            }
-                                        })
+                                    move |_, window, cx| {
+                                        if let Some(this) = weak.upgrade() {
+                                            this.update(cx, |this, cx| {
+                                                this.generate_code(window, cx);
+                                            });
+                                        }
+                                    }
                                 }),
                         ),
                 )
         });
     }
 
-    fn clear_outputs(&mut self, cx: &mut Context<Self>) {
-        self.report_output = None;
-        self.sql_output.clear();
-        self.check_output = None;
-        self.code_output.clear();
-        self.generated_codes.clear();
-        self.code_active_tab = 0;
-        self.table_output.clear();
-        self.status = "结果已清空。".to_string();
-        cx.notify();
-    }
-
     fn open_report_drawer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let report = self.report_output.clone();
         let scroll_handle = ScrollHandle::default();
+        // 折叠状态（对应 Vue 的 item.close / closeColumn）
+        let collapsed: Rc<RefCell<HashSet<usize>>> = Rc::new(RefCell::new(HashSet::new()));
+
         window.open_sheet_at(Placement::Right, cx, move |sheet, window, cx| {
+            let sheet_w = window.viewport_size().width * 0.5;
             let content_h = window.viewport_size().height - px(130.0);
-            let mut content = div().flex().flex_col().gap_4().p_3();
+            let mut content = div().flex().flex_col().gap_4().pt_3();
 
             if let Some(ref report) = report {
                 if !report.incres.is_empty() {
-                    content = content.child(
-                        div()
-                            .child(div().text_base().font_semibold().mb_2().child("增加的表"))
-                            .child(
-                                div().flex().flex_wrap().gap_2().children(
-                                    report.incres.iter().enumerate().map(|(i, name)| {
-                                        tag("incre", i, name, cx.theme().info)
-                                    }),
-                                ),
-                            ),
-                    );
+                    content = content.child(report_tag_block(
+                        "增加的表",
+                        &report.incres,
+                        cx.theme().info,
+                        cx,
+                    ));
                 }
                 if !report.misses.is_empty() {
-                    content = content.child(
-                        div()
-                            .child(div().text_base().font_semibold().mb_2().child("删除的表"))
-                            .child(
-                                div().flex().flex_wrap().gap_2().children(
-                                    report.misses.iter().enumerate().map(|(i, name)| {
-                                        tag("miss", i, name, cx.theme().danger)
-                                    }),
-                                ),
-                            ),
-                    );
+                    content = content.child(report_tag_block(
+                        "删除的表",
+                        &report.misses,
+                        cx.theme().danger,
+                        cx,
+                    ));
                 }
                 if !report.changes.is_empty() {
                     content = content.child(
-                        div().text_base().font_semibold().mb_2().child("变动的表"),
+                        div()
+                            .text_base()
+                            .font_semibold()
+                            .mb_1()
+                            .child("变动的表"),
                     );
                     for (ti, table) in report.changes.iter().enumerate() {
+                        let is_collapsed = collapsed.borrow().contains(&ti);
+                        let toggle = {
+                            let collapsed = collapsed.clone();
+                            Button::new(("report-toggle", ti))
+                                .ghost()
+                                .compact()
+                                .label(if is_collapsed { "展开" } else { "收起" })
+                                .on_click(move |_, window, _| {
+                                    let mut state = collapsed.borrow_mut();
+                                    if state.contains(&ti) {
+                                        state.remove(&ti);
+                                    } else {
+                                        state.insert(ti);
+                                    }
+                                    drop(state);
+                                    window.refresh();
+                                })
+                        };
+
                         let mut table_div = div()
                             .border_1()
                             .border_color(cx.theme().border)
@@ -1275,133 +1257,199 @@ impl DatabaseDiff {
                                     .flex()
                                     .items_center()
                                     .justify_between()
+                                    .gap_2()
+                                    .pb_2()
                                     .mb_2()
+                                    .border_b_1()
+                                    .border_color(cx.theme().border)
                                     .child(
                                         div()
                                             .px_2()
                                             .py_1()
                                             .rounded_sm()
-                                            .bg(cx.theme().warning)
+                                            .bg(cx.theme().warning.opacity(0.15))
+                                            .border_1()
+                                            .border_color(cx.theme().warning.opacity(0.5))
                                             .text_sm()
+                                            .text_color(cx.theme().warning)
                                             .child(table.table_name.clone()),
-                                    ),
+                                    )
+                                    .child(toggle),
                             );
 
-                        if table.comment_change {
-                            let src_label = format!("基准库：{}", table.source_comment);
-                            let tgt_label = format!("变动库：{}", table.target_comment);
-                            table_div = table_div.child(
-                                div().mb_2().flex().flex_col().gap_1()
-                                    .child(tag(("tc-src-comment", ti), 0, &src_label, cx.theme().info))
-                                    .child(tag(("tc-tgt-comment", ti), 0, &tgt_label, cx.theme().info)),
-                            );
-                        }
-
-                        if !table.incre_columns.is_empty() {
-                            table_div = table_div.child(
-                                div().mb_2()
-                                    .child(div().text_sm().font_semibold().mb_1().child("增加的字段"))
-                                    .child(div().flex().flex_wrap().gap_1()
-                                        .children(table.incre_columns.iter().enumerate().map(|(i, c)| {
-                                            tag(("tc-incre", ti), i, c, cx.theme().warning)
-                                        })))
-                            );
-                        }
-
-                        if !table.miss_columns.is_empty() {
-                            table_div = table_div.child(
-                                div().mb_2()
-                                    .child(div().text_sm().font_semibold().mb_1().child("缺失的字段"))
-                                    .child(div().flex().flex_wrap().gap_1()
-                                        .children(table.miss_columns.iter().enumerate().map(|(i, c)| {
-                                            tag(("tc-miss", ti), i, c, cx.theme().warning)
-                                        })))
-                            );
-                        }
-
-                        if !table.columns.is_empty() {
-                            let mut cols_div = div().mb_2()
-                                .child(div().text_sm().font_semibold().mb_1().child("变动的字段"));
-                            for (ci, col) in table.columns.iter().enumerate() {
-                                cols_div = cols_div.child(
-                                    div().border_1().border_color(cx.theme().border).rounded_sm().p_2().mb_1()
-                                        .child(div().text_sm().font_semibold().child(col.name.clone()))
-                                        .when(col.field_type_change, |this| this.child(change_row("类型",
-                                            &col.source_field_type.map(|t| format!("{t:?}")).unwrap_or_default(),
-                                            &col.target_field_type.map(|t| format!("{t:?}")).unwrap_or_default())))
-                                        .when(col.length_change, |this| this.child(change_row("长度",
-                                            &col.source_length.map(|l| l.to_string()).unwrap_or_default(),
-                                            &col.target_length.map(|l| l.to_string()).unwrap_or_default())))
-                                        .when(col.scale_change, |this| this.child(change_row("小数位",
-                                            &col.source_scale.map(|l| l.to_string()).unwrap_or_default(),
-                                            &col.target_scale.map(|l| l.to_string()).unwrap_or_default())))
-                                        .when(col.null_change, |this| this.child(change_row("为空",
-                                            &col.source_null.to_string(), &col.target_null.to_string())))
-                                        .when(col.unsigned_change, |this| this.child(change_row("无符号",
-                                            &col.source_unsigned.to_string(), &col.target_unsigned.to_string())))
-                                        .when(col.default_change, |this| this.child(change_row("默认值",
-                                            col.source_default.as_deref().unwrap_or(""),
-                                            col.target_default.as_deref().unwrap_or(""))))
-                                        .when(col.comment_change, |this| this.child(change_row("注释",
-                                            &col.source_comment, &col.target_comment)))
-                                );
+                        if !is_collapsed {
+                            if table.comment_change {
+                                let src_label = format!("基准库：{}", table.source_comment);
+                                let tgt_label = format!("变动库：{}", table.target_comment);
+                                table_div = table_div.child(report_tag_block(
+                                    "表注释变化",
+                                    &[src_label, tgt_label],
+                                    cx.theme().info,
+                                    cx,
+                                ));
                             }
-                            table_div = table_div.child(cols_div);
-                        }
 
-                        if !table.incre_indexs.is_empty() {
-                            table_div = table_div.child(
-                                div().mb_2()
-                                    .child(div().text_sm().font_semibold().mb_1().child("增加的索引"))
-                                    .child(div().flex().flex_wrap().gap_1()
-                                        .children(table.incre_indexs.iter().enumerate().map(|(i, c)| {
-                                            tag(("tc-ix-incre", ti), i, c, cx.theme().success)
-                                        })))
-                            );
-                        }
-
-                        if !table.miss_indexs.is_empty() {
-                            table_div = table_div.child(
-                                div().mb_2()
-                                    .child(div().text_sm().font_semibold().mb_1().child("缺失的索引"))
-                                    .child(div().flex().flex_wrap().gap_1()
-                                        .children(table.miss_indexs.iter().enumerate().map(|(i, c)| {
-                                            tag(("tc-ix-miss", ti), i, c, cx.theme().success)
-                                        })))
-                            );
-                        }
-
-                        if !table.indexs.is_empty() {
-                            let mut idx_div = div().mb_2()
-                                .child(div().text_sm().font_semibold().mb_1().child("变动的索引"));
-                            for (ii, idx) in table.indexs.iter().enumerate() {
-                                idx_div = idx_div.child(
-                                    div().border_1().border_color(cx.theme().border).rounded_sm().p_2().mb_1()
-                                        .child(div().text_sm().font_semibold().child(idx.name.clone()))
-                                        .when(idx.non_unique_change, |this| this.child(change_row("唯一性",
-                                            &idx.source_non_unique.to_string(), &idx.target_non_unique.to_string())))
-                                        .when(idx.column_name_change, |this| this.child(change_row("列名",
-                                            &idx.source_column_name, &idx.target_column_name)))
-                                        .when(idx.index_type_change, |this| this.child(change_row("索引类型",
-                                            &idx.source_index_type, &idx.target_index_type)))
-                                        .when(idx.index_comment_change, |this| this.child(change_row("索引注释",
-                                            &idx.source_index_comment, &idx.target_index_comment)))
-                                );
+                            if !table.incre_columns.is_empty() {
+                                table_div = table_div.child(report_tag_block(
+                                    "增加的字段",
+                                    &table.incre_columns,
+                                    cx.theme().warning,
+                                    cx,
+                                ));
                             }
-                            table_div = table_div.child(idx_div);
+                            if !table.miss_columns.is_empty() {
+                                table_div = table_div.child(report_tag_block(
+                                    "缺失的字段",
+                                    &table.miss_columns,
+                                    cx.theme().warning,
+                                    cx,
+                                ));
+                            }
+                            if !table.columns.is_empty() {
+                                let rows = table
+                                    .columns
+                                    .iter()
+                                    .map(|col| {
+                                        vec![
+                                            col.name.clone(),
+                                            change_text(
+                                                col.field_type_change,
+                                                type_text(&col.source_field_type),
+                                                type_text(&col.target_field_type),
+                                            ),
+                                            change_text(
+                                                col.length_change,
+                                                opt_num(col.source_length),
+                                                opt_num(col.target_length),
+                                            ),
+                                            change_text(
+                                                col.scale_change,
+                                                opt_num(col.source_scale),
+                                                opt_num(col.target_scale),
+                                            ),
+                                            change_text(
+                                                col.null_change,
+                                                col.source_null.to_string(),
+                                                col.target_null.to_string(),
+                                            ),
+                                            change_text(
+                                                col.unsigned_change,
+                                                col.source_unsigned.to_string(),
+                                                col.target_unsigned.to_string(),
+                                            ),
+                                            change_text(
+                                                col.default_change,
+                                                col.source_default.clone().unwrap_or_default(),
+                                                col.target_default.clone().unwrap_or_default(),
+                                            ),
+                                            change_text(
+                                                col.comment_change,
+                                                col.source_comment.clone(),
+                                                col.target_comment.clone(),
+                                            ),
+                                        ]
+                                    })
+                                    .collect();
+                                table_div = table_div.child(report_table_block(
+                                    "变动的字段",
+                                    &[
+                                        ("字段名称", 110.0),
+                                        ("类型", 130.0),
+                                        ("长度", 80.0),
+                                        ("小数位", 70.0),
+                                        ("为空", 70.0),
+                                        ("无符号", 70.0),
+                                        ("默认值", 100.0),
+                                        ("注释", 110.0),
+                                    ],
+                                    rows,
+                                    cx,
+                                ));
+                            }
+
+                            if !table.incre_indexs.is_empty() {
+                                table_div = table_div.child(report_tag_block(
+                                    "增加的索引",
+                                    &table.incre_indexs,
+                                    cx.theme().success,
+                                    cx,
+                                ));
+                            }
+                            if !table.miss_indexs.is_empty() {
+                                table_div = table_div.child(report_tag_block(
+                                    "缺失的索引",
+                                    &table.miss_indexs,
+                                    cx.theme().success,
+                                    cx,
+                                ));
+                            }
+                            if !table.indexs.is_empty() {
+                                let rows = table
+                                    .indexs
+                                    .iter()
+                                    .map(|idx| {
+                                        vec![
+                                            idx.name.clone(),
+                                            change_text(
+                                                idx.index_type_change,
+                                                idx.source_index_type.clone(),
+                                                idx.target_index_type.clone(),
+                                            ),
+                                            change_text(
+                                                idx.non_unique_change,
+                                                idx.source_non_unique.to_string(),
+                                                idx.target_non_unique.to_string(),
+                                            ),
+                                            change_text(
+                                                idx.column_name_change,
+                                                idx.source_column_name.clone(),
+                                                idx.target_column_name.clone(),
+                                            ),
+                                            change_text(
+                                                idx.index_comment_change,
+                                                idx.source_index_comment.clone(),
+                                                idx.target_index_comment.clone(),
+                                            ),
+                                        ]
+                                    })
+                                    .collect();
+                                table_div = table_div.child(report_table_block(
+                                    "变动的索引",
+                                    &[
+                                        ("索引名称", 120.0),
+                                        ("索引类型", 130.0),
+                                        ("能否重复", 90.0),
+                                        ("列名", 130.0),
+                                        ("注释", 130.0),
+                                    ],
+                                    rows,
+                                    cx,
+                                ));
+                            }
                         }
 
                         content = content.child(table_div);
                     }
                 }
             } else {
-                content = content.child(div().text_sm().text_color(cx.theme().muted_foreground).child("暂无数据"));
+                content = content.child(
+                    div()
+                        .text_sm()
+                        .text_color(cx.theme().muted_foreground)
+                        .child("暂无数据"),
+                );
             }
+
+            // 下载内容（报告文本）
+            let report_text = report
+                .as_ref()
+                .map(|r| serde_json::to_string_pretty(r).unwrap_or_default())
+                .unwrap_or_default();
 
             sheet
                 .overlay(true)
                 .overlay_closable(true)
-                .size(px(600.0))
+                .size(sheet_w)
                 .p_0()
                 .title("数据库差异报告")
                 .child(
@@ -1414,8 +1462,45 @@ impl DatabaseDiff {
                                 .h(content_h)
                                 .overflow_y_scroll()
                                 .track_scroll(&scroll_handle)
+                                .px_3()
                                 .child(content)
                                 .vertical_scrollbar(&scroll_handle),
+                        ),
+                )
+                .footer(
+                    h_flex()
+                        .justify_end()
+                        .gap_2()
+                        .child({
+                            let collapsed = collapsed.clone();
+                            let all_count = report
+                                .as_ref()
+                                .map(|r| r.changes.len())
+                                .unwrap_or(0);
+                            Button::new("report-toggle-all")
+                                .icon(Icon::new(IconName::Maximize))
+                                .tooltip("展开/收起")
+                                .on_click(move |_, window, _| {
+                                    let mut state = collapsed.borrow_mut();
+                                    let collapse_all = state.len() < all_count;
+                                    state.clear();
+                                    if collapse_all {
+                                        for i in 0..all_count {
+                                            state.insert(i);
+                                        }
+                                    }
+                                    drop(state);
+                                    window.refresh();
+                                })
+                        })
+                        .child(
+                            Button::new("report-download")
+                                .icon(Icon::new(IconName::ArrowDown))
+                                .tooltip("下载")
+                                .disabled(report_text.is_empty())
+                                .on_click(move |_, _, cx| {
+                                    save_text_file("数据库差异报告.json", report_text.clone(), cx);
+                                }),
                         ),
                 )
         });
@@ -1424,12 +1509,13 @@ impl DatabaseDiff {
     fn open_sql_drawer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let content = self.sql_output.clone();
         let scroll_handle = ScrollHandle::default();
-        window.open_sheet_at(Placement::Right, cx, move |sheet, window, cx| {
+        window.open_sheet_at(Placement::Right, cx, move |sheet, window, _cx| {
+            let sheet_w = window.viewport_size().width * 0.5;
             let content_h = window.viewport_size().height - px(130.0);
             sheet
                 .overlay(true)
                 .overlay_closable(true)
-                .size(px(560.0))
+                .size(sheet_w)
                 .p_0()
                 .title("数据库差异SQL")
                 .child(
@@ -1447,26 +1533,33 @@ impl DatabaseDiff {
                                 .font_family("monospace")
                                 .child(content.clone())
                                 .vertical_scrollbar(&scroll_handle),
-                        )
-                        .child(
-                            h_flex()
-                                .justify_end()
-                                .gap_2()
-                                .p_3()
-                                .border_t_1()
-                                .border_color(cx.theme().border)
-                                .child({
-                                    let content = content.clone();
-                                    Button::new("copy-sql")
-                                        .icon(Icon::new(IconName::Copy))
-                                        .tooltip("复制")
-                                        .on_click(move |_, _, cx| {
-                                            cx.write_to_clipboard(ClipboardItem::new_string(
-                                                content.clone(),
-                                            ));
-                                        })
-                                }),
                         ),
+                )
+                .footer(
+                    h_flex()
+                        .justify_end()
+                        .gap_2()
+                        .child({
+                            let content = content.clone();
+                            Button::new("copy-sql")
+                                .icon(Icon::new(IconName::Copy))
+                                .tooltip("复制")
+                                .on_click(move |_, _, cx| {
+                                    cx.write_to_clipboard(ClipboardItem::new_string(
+                                        content.clone(),
+                                    ));
+                                })
+                        })
+                        .child({
+                            let download_content = content.clone();
+                            Button::new("download-sql")
+                                .icon(Icon::new(IconName::ArrowDown))
+                                .tooltip("下载")
+                                .disabled(content.is_empty())
+                                .on_click(move |_, _, cx| {
+                                    save_text_file("数据库差异SQL.sql", download_content.clone(), cx);
+                                })
+                        }),
                 )
         });
     }
@@ -1565,10 +1658,15 @@ impl DatabaseDiff {
                 );
             }
 
+            let check_text = report
+                .as_ref()
+                .map(|c| serde_json::to_string_pretty(c).unwrap_or_default())
+                .unwrap_or_default();
+
             sheet
                 .overlay(true)
                 .overlay_closable(true)
-                .size(px(600.0))
+                .size(window.viewport_size().width * 0.5)
                 .p_0()
                 .title("数据库规范检查")
                 .child(
@@ -1584,6 +1682,17 @@ impl DatabaseDiff {
                                 .child(content)
                                 .vertical_scrollbar(&scroll_handle),
                         ),
+                )
+                .footer(
+                    h_flex().justify_end().gap_2().child(
+                        Button::new("check-download")
+                            .icon(Icon::new(IconName::ArrowDown))
+                            .tooltip("下载")
+                            .disabled(check_text.is_empty())
+                            .on_click(move |_, _, cx| {
+                                save_text_file("数据库规范检查.json", check_text.clone(), cx);
+                            }),
+                    ),
                 )
         });
     }
@@ -1627,173 +1736,123 @@ impl DatabaseDiff {
 
 impl Render for DatabaseDiff {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let running = self.is_running;
+        let status = self.status.clone();
+
         design::page()
-            .child(design::page_header("数据库差异", "对比两个数据库结构", cx))
+            .child(design::page_header("数据库差异", "数据库结构对比、差异 SQL、规范检查与代码生成", cx))
+            .when(!status.is_empty(), |this| {
+                this.child(
+                    div()
+                        .text_size(px(12.5))
+                        .text_color(if running {
+                            Hsla::from(rgb(design::WARN_AMBER))
+                        } else if status.contains("失败") {
+                            Hsla::from(rgb(design::ERROR_RED))
+                        } else {
+                            cx.theme().muted_foreground
+                        })
+                        .child(status),
+                )
+            })
+            // 卡片一：差异报告（头部右侧 新建连接）
             .child(
                 design::card(cx)
                     .child(
-                        div()
-                            .flex()
-                            .flex_col()
-                            .gap_4()
+                        design::card_header(IconName::HardDrive, "差异报告", "", cx).child(
+                            Button::new("new-conn")
+                                .icon(Icon::new(IconName::Plus))
+                                .tooltip("新建连接")
+                                .on_click(cx.listener(|this, _, window, cx| {
+                                    this.open_conn_sheet(None, window, cx);
+                                })),
+                        ),
+                    )
+                    .child(
+                        config_row()
+                            .child(row_title(
+                                "差异报告",
+                                "对比两个数据库之间的差异变化，用于评审检查数据库的变动",
+                            ))
+                            .child(select_field("基准库", &self.report_source_select))
+                            .child(select_field("变动库", &self.report_target_select))
                             .child(
-                                div()
-                                    .flex()
-                                    .items_center()
-                                    .gap_2()
-                                    .child(title_with_tooltip(
-                                        "差异报告",
-                                        "对比两个数据库之间的差异变化，用于评审检查数据库的变动",
-                                    ))
-                            .child(div().text_sm().child("基准库"))
-                            .child(
-                                div()
-                                    .w(px(250.0))
-                                    .child(Select::new(&self.report_source_select)),
-                            )
-                            .child(div().text_sm().child("变动库"))
-                            .child(
-                                div()
-                                    .w(px(250.0))
-                                    .child(Select::new(&self.report_target_select)),
-                            )
-                            .child(
-                                Button::new("db-diff-report").label("生成").on_click(
-                                    cx.listener(|this, _, window, cx| {
+                                Button::new("db-diff-report")
+                                    .icon(Icon::new(IconName::Replace))
+                                    .tooltip("生成")
+                                    .loading(running)
+                                    .on_click(cx.listener(|this, _, window, cx| {
                                         this.generate_report(window, cx);
-                                    }),
-                                ),
+                                    })),
                             ),
-                    )
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(title_with_tooltip(
-                                "差异SQL",
-                                "对比基准库之后,生成的差异sql，在变化库上执行即可补齐差异。\n（注意：sql语句仅供参考，执行前应当检查一下sql，出现数据丢失一概不负责）",
-                            ))
-                            .child(div().text_sm().child("基准库"))
-                            .child(
-                                div()
-                                    .w(px(250.0))
-                                    .child(Select::new(&self.sql_source_select)),
-                            )
-                            .child(div().text_sm().child("变动库"))
-                            .child(
-                                div().w(px(250.0)).child(Select::new(&self.sql_target_select)),
-                            )
-                            .child(
-                                Button::new("db-diff-sql").label("结构差异").on_click(
-                                    cx.listener(|this, _, window, cx| {
-                                        this.generate_sql(window, cx);
-                                    }),
-                                ),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(title_with_tooltip(
-                                "规范检查",
-                                "对基准库的数据库设计进行规范检查",
-                            ))
-                            .child(div().text_sm().child("基准库"))
-                            .child(
-                                div()
-                                    .w(px(250.0))
-                                    .child(Select::new(&self.check_source_select)),
-                            )
-                            .child(
-                                Button::new("db-standard-check").label("检查").on_click(
-                                    cx.listener(|this, _, window, cx| {
-                                        this.run_standard_check_all(window, cx);
-                                    }),
-                                ),
-                            )
-                            .child(
-                                Button::new("db-custom-check").label("自定义检查").on_click(
-                                    cx.listener(|this, _, window, cx| {
-                                        this.open_standard_check_dialog(window, cx);
-                                    }),
-                                ),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(title_with_tooltip(
-                                "逆向生成",
-                                "一键生成entity.java，mapper.java，mapper.xml，service.java，serviceImpl.java，controller.java文件",
-                            ))
-                            .child(
-                                Button::new("db-generate-code").label("生成").on_click(
-                                    cx.listener(|this, _, window, cx| {
-                                        this.open_code_gen_drawer(window, cx);
-                                    }),
-                                ),
-                            ),
-                    )
-                    .child(
-                        Button::new("new-conn")
-                            .label("新建连接")
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.open_conn_sheet(None, window, cx);
-                            })),
-                    )
-                    .child(saved_datasource_panel(self, cx))
-                    .when(!self.status.is_empty(), |this| {
-                        this.child(
-                            div()
-                                .text_sm()
-                                .text_color(if self.is_running {
-                                    cx.theme().warning
-                                } else {
-                                    cx.theme().muted_foreground
-                                })
-                                .child(self.status.clone()),
-                        )
-                    }),
+                    ),
             )
-    )
-    }
-}
-
-impl DatabaseDiff {
-    fn all_outputs(&self) -> String {
-        let report = self
-            .report_output
-            .as_ref()
-            .map(|r| serde_json::to_string_pretty(r).unwrap_or_default())
-            .unwrap_or_default();
-        let check = self
-            .check_output
-            .as_ref()
-            .map(|c| serde_json::to_string_pretty(c).unwrap_or_default())
-            .unwrap_or_default();
-        let code = self
-            .generated_codes
-            .iter()
-            .map(|(file, content)| format!("// ===== {file} =====\n{content}"))
-            .collect::<Vec<_>>()
-            .join("\n\n");
-        [
-            ("数据源表", self.table_output.as_str()),
-            ("差异报告", report.as_str()),
-            ("差异 SQL", self.sql_output.as_str()),
-            ("规范检查", check.as_str()),
-            ("逆向生成", code.as_str()),
-        ]
-        .into_iter()
-        .filter(|(_, value)| !value.trim().is_empty())
-        .map(|(title, value)| format!("## {title}\n{value}"))
-        .collect::<Vec<_>>()
-        .join("\n\n")
+            // 卡片二：差异 SQL
+            .child(
+                design::card(cx).child(
+                    config_row()
+                        .child(row_title(
+                            "差异SQL",
+                            "对比基准库之后,生成的差异sql，在变化库上执行即可补齐差异。（注意：sql语句仅供参考，执行前应当检查一下sql，出现数据丢失一概不负责）",
+                        ))
+                        .child(select_field("基准库", &self.sql_source_select))
+                        .child(select_field("变动库", &self.sql_target_select))
+                        .child(
+                            Button::new("db-diff-sql")
+                                .icon(Icon::new(IconName::RotateCw))
+                                .tooltip("结构差异")
+                                .loading(running)
+                                .on_click(cx.listener(|this, _, window, cx| {
+                                    this.generate_sql(window, cx);
+                                })),
+                        ),
+                ),
+            )
+            // 卡片三：规范检查
+            .child(
+                design::card(cx).child(
+                    config_row()
+                        .child(row_title("规范检查", "对基准库的数据库设计进行规范检查"))
+                        .child(select_field("基准库", &self.check_source_select))
+                        .child(
+                            Button::new("db-standard-check")
+                                .icon(Icon::new(IconName::Check))
+                                .tooltip("检查")
+                                .loading(running)
+                                .on_click(cx.listener(|this, _, window, cx| {
+                                    this.run_standard_check_all(window, cx);
+                                })),
+                        )
+                        .child(
+                            Button::new("db-custom-check")
+                                .icon(Icon::new(IconName::Search))
+                                .tooltip("自定义检查")
+                                .on_click(cx.listener(|this, _, window, cx| {
+                                    this.open_standard_check_dialog(window, cx);
+                                })),
+                        ),
+                ),
+            )
+            // 卡片四：逆向生成
+            .child(
+                design::card(cx).child(
+                    config_row()
+                        .child(row_title(
+                            "逆向生成",
+                            "一键生成entity.java，mapper.java，mapper.xml，service.java，serviceImpl.java，controller.java文件",
+                        ))
+                        .child(
+                            Button::new("db-generate-code")
+                                .icon(Icon::new(IconName::GalleryVerticalEnd))
+                                .tooltip("生成")
+                                .on_click(cx.listener(|this, _, window, cx| {
+                                    this.open_code_gen_drawer(window, cx);
+                                })),
+                        ),
+                ),
+            )
+            // 卡片五：连接列表
+            .child(design::card(cx).child(saved_datasource_panel(self, cx)))
     }
 }
 
@@ -2123,13 +2182,6 @@ fn default_file_types(language: &str) -> Vec<String> {
     }
 }
 
-fn language_key(label: &str) -> String {
-    match label {
-        "Java" => "java".to_string(),
-        _ => "rust".to_string(),
-    }
-}
-
 fn language_label(key: &str) -> &'static str {
     match key {
         "java" => "Java",
@@ -2370,41 +2422,40 @@ fn saved_datasource_panel(this: &DatabaseDiff, cx: &mut Context<DatabaseDiff>) -
         .flex()
         .items_center()
         .bg(cx.theme().muted)
+        .text_xs()
+        .font_semibold()
+        .text_color(cx.theme().muted_foreground)
         .border_b_1()
         .border_color(cx.theme().border)
         .child(
             div()
                 .w(px(140.))
-                .p_2()
-                .text_sm()
-                .font_semibold()
+                .px_2()
+                .py_1p5()
                 .child("连接名称"),
         )
         .child(
             div()
                 .w(px(160.))
-                .p_2()
-                .text_sm()
-                .font_semibold()
+                .px_2()
+                .py_1p5()
                 .child("主机"),
         )
         .child(
             div()
                 .w(px(80.))
-                .p_2()
-                .text_sm()
-                .font_semibold()
+                .px_2()
+                .py_1p5()
                 .child("端口"),
         )
         .child(
             div()
                 .w(px(140.))
-                .p_2()
-                .text_sm()
-                .font_semibold()
+                .px_2()
+                .py_1p5()
                 .child("数据库"),
         )
-        .child(div().flex_1().p_2().text_sm().font_semibold().child("操作"));
+        .child(div().flex_1().px_2().py_1p5().child("操作"));
     panel = panel.child(header);
 
     if this.saved_datasources.is_empty() {
@@ -2428,33 +2479,39 @@ fn saved_datasource_panel(this: &DatabaseDiff, cx: &mut Context<DatabaseDiff>) -
                 .child(
                     div()
                         .w(px(140.))
-                        .p_2()
+                        .px_2()
+                        .py_1p5()
                         .text_sm()
                         .child(datasource.name.clone()),
                 )
                 .child(
                     div()
                         .w(px(160.))
-                        .p_2()
+                        .px_2()
+                        .py_1p5()
                         .text_sm()
+                        .truncate()
                         .child(datasource.host.clone()),
                 )
                 .child(
                     div()
                         .w(px(80.))
-                        .p_2()
+                        .px_2()
+                        .py_1p5()
                         .text_sm()
                         .child(datasource.port.map(|p| p.to_string()).unwrap_or_default()),
                 )
                 .child(
                     div()
                         .w(px(140.))
-                        .p_2()
+                        .px_2()
+                        .py_1p5()
                         .text_sm()
+                        .truncate()
                         .child(datasource.database.clone().unwrap_or_default()),
                 )
                 .child(
-                    div().flex_1().p_2().child(
+                    div().flex_1().px_2().py_1p5().child(
                         ButtonGroup::new(("ds-ops", index))
                             .child(
                                 Button::new(("ds-test", index))
@@ -2548,18 +2605,162 @@ fn standard_check_option(
     Some(StandardCheckOption { code, desc })
 }
 
-fn title_with_tooltip(title: &'static str, tooltip_text: &'static str) -> Div {
+/// 配置行（对应 tb-config-row）
+fn config_row() -> Div {
+    div().flex().flex_wrap().items_center().gap_3()
+}
+
+/// 行标题 + 帮助提示图标（对应 n-form-item 内的标题 + n-tooltip 问号）
+fn row_title(title: &'static str, tooltip_text: &'static str) -> Div {
     div()
         .flex()
         .items_center()
         .gap_1()
-        .child(div().text_sm().font_semibold().child(title))
+        .child(div().text_sm().child(title))
         .child(
             Button::new(title)
                 .icon(Icon::new(IconName::Info))
                 .ghost()
+                .compact()
                 .tooltip(tooltip_text),
         )
+}
+
+/// 标签 + 下拉选择（对应 n-form-item label + n-select 250px）
+fn select_field(label: &'static str, state: &Entity<SelectState<Vec<String>>>) -> Div {
+    div()
+        .flex()
+        .items_center()
+        .gap_2()
+        .child(div().text_sm().child(label))
+        .child(div().w(px(250.0)).child(Select::new(state)))
+}
+
+/// 差异报告小节：标题 + 标签组
+fn report_tag_block(title: &str, items: &[String], color: Hsla, cx: &App) -> Div {
+    div()
+        .border_1()
+        .border_color(cx.theme().border)
+        .rounded_md()
+        .p_3()
+        .child(
+            div()
+                .text_sm()
+                .font_semibold()
+                .mb_2()
+                .text_color(color)
+                .child(title.to_string()),
+        )
+        .child(div().flex().flex_wrap().gap_2().children(
+            items
+                .iter()
+                .enumerate()
+                .map(|(i, item)| tag((title, i), 0, item, color)),
+        ))
+}
+
+/// 差异报告小节：标题 + 数据表格（对应 n-data-table）
+fn report_table_block(
+    title: &str,
+    headers: &[(&str, f32)],
+    rows: Vec<Vec<String>>,
+    cx: &App,
+) -> Div {
+    let mut header_row = div()
+        .flex()
+        .text_xs()
+        .font_semibold()
+        .text_color(cx.theme().muted_foreground)
+        .bg(cx.theme().muted)
+        .border_b_1()
+        .border_color(cx.theme().border);
+    for (name, width) in headers {
+        header_row = header_row.child(
+            div()
+                .w(px(*width))
+                .flex_shrink_0()
+                .px_2()
+                .py_1p5()
+                .child(name.to_string()),
+        );
+    }
+
+    let mut table = div()
+        .border_1()
+        .border_color(cx.theme().border)
+        .rounded_md()
+        .overflow_hidden()
+        .child(header_row);
+    for row in rows {
+        let mut row_div = div()
+            .flex()
+            .text_sm()
+            .border_b_1()
+            .border_color(cx.theme().border);
+        for (i, cell) in row.iter().enumerate() {
+            let width = headers.get(i).map(|(_, w)| *w).unwrap_or(100.0);
+            row_div = row_div.child(
+                div()
+                    .w(px(width))
+                    .flex_shrink_0()
+                    .px_2()
+                    .py_1p5()
+                    .truncate()
+                    .child(cell.clone()),
+            );
+        }
+        table = table.child(row_div);
+    }
+
+    div()
+        .mb_2()
+        .child(
+            div()
+                .text_sm()
+                .font_semibold()
+                .mb_1()
+                .child(title.to_string()),
+        )
+        .child(table)
+}
+
+/// "A 变更为 B"（仅变化时显示，对应 Vue getContent）
+fn change_text(changed: bool, source: String, target: String) -> String {
+    if changed {
+        format!("{source} 变更为 {target}")
+    } else {
+        String::new()
+    }
+}
+
+fn type_text(value: &Option<ColumnType>) -> String {
+    value
+        .as_ref()
+        .map(|t| t.to_string())
+        .unwrap_or_default()
+}
+
+fn opt_num(value: Option<i32>) -> String {
+    value.map(|v| v.to_string()).unwrap_or_default()
+}
+
+/// 通过系统对话框保存文本（对应 Vue 的下载按钮）
+fn save_text_file(default_name: &str, content: String, cx: &App) {
+    if content.is_empty() {
+        return;
+    }
+    let default_name = default_name.to_string();
+    cx.background_executor()
+        .spawn(async move {
+            if let Some(handle) = rfd::AsyncFileDialog::new()
+                .set_file_name(&default_name)
+                .save_file()
+                .await
+            {
+                let _ = handle.write(content.as_bytes()).await;
+            }
+        })
+        .detach();
 }
 
 fn datasource_label(ds: &DatasourceInfo) -> String {
@@ -2602,16 +2803,4 @@ fn tag(
         .border_color(color.opacity(0.5))
         .text_color(color)
         .child(label.to_string())
-}
-
-fn change_row(label: &str, source: &str, target: &str) -> Div {
-    div()
-        .flex()
-        .items_center()
-        .gap_1()
-        .text_xs()
-        .child(div().w(px(60.0)).text_color(rgba(0x7c7c7cff)).child(label.to_string()))
-        .child(div().child(source.to_string()))
-        .child(div().text_color(rgba(0x7c7c7cff)).child("变更为"))
-        .child(div().child(target.to_string()))
 }

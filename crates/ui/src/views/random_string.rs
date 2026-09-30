@@ -1,10 +1,9 @@
 use crate::design;
-use gpui_kit::prelude::FluentBuilder as _;
-use gpui_kit::*;
+use gpui_kit::{prelude::FluentBuilder as _, *};
 use gpui_kit::component::{
     button::*,
     checkbox::Checkbox,
-    input::{Input, InputState, Textarea, TextareaState},
+    input::{Input, InputEvent, InputState, Textarea, TextareaState},
     *,
 };
 use rand::Rng;
@@ -17,6 +16,21 @@ const SIMILAR_CHARS: &[char] = &['O', '0', 'I', 'l', '1'];
 const MAX_LENGTH: usize = 10000;
 const MAX_COUNT: usize = 1000;
 
+/// 配置项：12px 灰色 label + 控件（对应 tb-config-item）
+fn config_item(label: &'static str, control: Div) -> Div {
+    div()
+        .flex()
+        .items_center()
+        .gap_2()
+        .child(
+            div()
+                .text_size(px(12.0))
+                .text_color(rgb(0x5b6478))
+                .child(label),
+        )
+        .child(control)
+}
+
 pub struct RandomStringGenerator {
     length_state: Entity<InputState>,
     count_state: Entity<InputState>,
@@ -27,20 +41,38 @@ pub struct RandomStringGenerator {
     use_symbol: bool,
     exclude_similar: bool,
     password_mode: bool,
-    output: String,
     output_state: Entity<TextareaState>,
     status: String,
+    _subscriptions: Vec<Subscription>,
 }
 
 impl RandomStringGenerator {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let length_state = cx.new(|cx| InputState::new(window, cx).placeholder("1-10000"));
-        let count_state = cx.new(|cx| InputState::new(window, cx).placeholder("1-1000"));
-        let custom_charset_state =
-            cx.new(|cx| InputState::new(window, cx).placeholder("填写后覆盖上方字符集选择，如 abcXYZ0123"));
+        let length_state =
+            cx.new(|cx| InputState::new(window, cx).default_value("16".to_string()));
+        let count_state =
+            cx.new(|cx| InputState::new(window, cx).default_value("5".to_string()));
+        let custom_charset_state = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder("填写后覆盖上方字符集选择，如 abcXYZ0123")
+        });
         let output_state = cx.new(|cx| {
             TextareaState::new(window, cx).placeholder("生成结果（每行一个）")
         });
+
+        // 对齐 Vue watch：任意配置变化即时重新生成
+        let mut _subscriptions = Vec::new();
+        for state in [&length_state, &count_state, &custom_charset_state] {
+            _subscriptions.push(cx.subscribe_in(
+                state,
+                window,
+                move |this, _, ev: &InputEvent, window, cx| {
+                    if let InputEvent::Change = ev {
+                        this.generate(window, cx);
+                    }
+                },
+            ));
+        }
 
         Self {
             length_state,
@@ -52,9 +84,9 @@ impl RandomStringGenerator {
             use_symbol: true,
             exclude_similar: false,
             password_mode: false,
-            output: String::new(),
             output_state,
             status: String::new(),
+            _subscriptions,
         }
     }
 
@@ -99,6 +131,9 @@ impl RandomStringGenerator {
         let charset = self.merged_charset(cx);
         if charset.is_empty() {
             self.status = "请选择至少一种字符集或填写自定义字符集".to_string();
+            self.output_state.update(cx, |state, cx| {
+                state.set_value("".to_string(), window, cx);
+            });
             cx.notify();
             return;
         }
@@ -111,16 +146,25 @@ impl RandomStringGenerator {
             if self.password_mode && self.custom_charset_state.read(cx).value().trim().is_empty() {
                 let mut parts: Vec<char> = Vec::new();
                 if self.use_lower {
-                    parts.push(CHARSET_LOWER.as_bytes()[rng.random_range(0..CHARSET_LOWER.len())] as char);
+                    parts.push(
+                        CHARSET_LOWER.as_bytes()[rng.random_range(0..CHARSET_LOWER.len())] as char,
+                    );
                 }
                 if self.use_upper {
-                    parts.push(CHARSET_UPPER.as_bytes()[rng.random_range(0..CHARSET_UPPER.len())] as char);
+                    parts.push(
+                        CHARSET_UPPER.as_bytes()[rng.random_range(0..CHARSET_UPPER.len())] as char,
+                    );
                 }
                 if self.use_digit {
-                    parts.push(CHARSET_DIGIT.as_bytes()[rng.random_range(0..CHARSET_DIGIT.len())] as char);
+                    parts.push(
+                        CHARSET_DIGIT.as_bytes()[rng.random_range(0..CHARSET_DIGIT.len())] as char,
+                    );
                 }
                 if self.use_symbol {
-                    parts.push(CHARSET_SYMBOL.as_bytes()[rng.random_range(0..CHARSET_SYMBOL.len())] as char);
+                    parts.push(
+                        CHARSET_SYMBOL.as_bytes()[rng.random_range(0..CHARSET_SYMBOL.len())]
+                            as char,
+                    );
                 }
                 while parts.len() < length {
                     parts.push(charset[rng.random_range(0..charset.len())]);
@@ -139,186 +183,217 @@ impl RandomStringGenerator {
             }
         }
 
-        self.output = lines.join("\n");
         self.status.clear();
+        let output = lines.join("\n");
         self.output_state.update(cx, |state, cx| {
-            state.set_value(self.output.clone(), window, cx);
+            state.set_value(output, window, cx);
         });
+        cx.notify();
     }
 
     fn copy_output(&mut self, cx: &mut Context<Self>) {
-        if !self.output.is_empty() {
-            cx.write_to_clipboard(ClipboardItem::new_string(self.output.clone()));
+        let text = self.output_state.read(cx).value().to_string();
+        if !text.is_empty() {
+            cx.write_to_clipboard(ClipboardItem::new_string(text));
         }
     }
 
     fn clear(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.output.clear();
         self.status.clear();
         self.output_state.update(cx, |state, cx| {
             state.set_value("".to_string(), window, cx);
         });
+        cx.notify();
     }
 }
 
 impl Render for RandomStringGenerator {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let label_w = px(80.0);
+        let status = self.status.clone();
 
         design::page()
-            .child(design::page_header("随机字符串", "生成随机字符串", cx))
+            .child(design::page_header(
+                "随机字符串",
+                "自定义字符集批量生成随机串 / 密码",
+                cx,
+            ))
             .child(
                 design::card(cx)
+                    .child(design::card_header(
+                        IconName::Asterisk,
+                        "随机字符串",
+                        "字符集自由组合，支持密码模式",
+                        cx,
+                    ))
+                    // tb-config-row：长度 / 数量
                     .child(
                         div()
                             .flex()
+                            .flex_wrap()
                             .items_center()
-                            .gap_2()
-                            .child(div().w(label_w).child(design::caption("长度", cx)))
-                            .child(div().w(px(160.0)).child(Input::new(&self.length_state))),
-                    )
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(div().w(label_w).child(design::caption("数量", cx)))
-                            .child(div().w(px(160.0)).child(Input::new(&self.count_state))),
-                    )
-                    .child(
-                        div()
-                            .flex()
-                            .items_start()
-                            .gap_2()
-                            .child(div().w(label_w).mt_1().child(design::caption("字符集", cx)))
+                            .gap_4()
                             .child(
-                                div()
-                                    .flex()
-                                    .flex_wrap()
-                                    .gap_4()
-                                    .child(
-                                        Checkbox::new("use-lower")
-                                            .label("小写字母")
-                                            .checked(self.use_lower)
-                                            .on_click(cx.listener(|this, v: &bool, _, cx| {
-                                                this.use_lower = *v;
-                                                cx.notify();
-                                            })),
-                                    )
-                                    .child(
-                                        Checkbox::new("use-upper")
-                                            .label("大写字母")
-                                            .checked(self.use_upper)
-                                            .on_click(cx.listener(|this, v: &bool, _, cx| {
-                                                this.use_upper = *v;
-                                                cx.notify();
-                                            })),
-                                    )
-                                    .child(
-                                        Checkbox::new("use-digit")
-                                            .label("数字")
-                                            .checked(self.use_digit)
-                                            .on_click(cx.listener(|this, v: &bool, _, cx| {
-                                                this.use_digit = *v;
-                                                cx.notify();
-                                            })),
-                                    )
-                                    .child(
-                                        Checkbox::new("use-symbol")
-                                            .label("特殊符号")
-                                            .checked(self.use_symbol)
-                                            .on_click(cx.listener(|this, v: &bool, _, cx| {
-                                                this.use_symbol = *v;
-                                                cx.notify();
-                                            })),
-                                    ),
+                                config_item(
+                                    "长度",
+                                    div()
+                                        .w(px(160.0))
+                                        .child(Input::new(&self.length_state)),
+                                ),
+                            )
+                            .child(
+                                config_item(
+                                    "数量",
+                                    div().w(px(160.0)).child(Input::new(&self.count_state)),
+                                ),
                             ),
                     )
+                    // tb-config-row：字符集
                     .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(div().w(label_w).child(design::caption("自定义字符集", cx)))
-                            .child(div().flex_1().child(Input::new(&self.custom_charset_state))),
-                    )
-                    .child(
-                        div()
-                            .flex()
-                            .items_start()
-                            .gap_2()
-                            .child(div().w(label_w).mt_1().child(design::caption("选项", cx)))
-                            .child(
-                                div()
-                                    .flex()
-                                    .flex_wrap()
-                                    .gap_4()
-                                    .child(
-                                        Checkbox::new("exclude-similar")
-                                            .label("排除相似字符（O0Il1）")
-                                            .checked(self.exclude_similar)
-                                            .on_click(cx.listener(|this, v: &bool, _, cx| {
-                                                this.exclude_similar = *v;
-                                                cx.notify();
-                                            })),
-                                    )
-                                    .child(
-                                        Checkbox::new("password-mode")
-                                            .label("密码模式（每类至少一个字符并打乱）")
-                                            .checked(self.password_mode)
-                                            .on_click(cx.listener(|this, v: &bool, _, cx| {
-                                                this.password_mode = *v;
-                                                cx.notify();
-                                            })),
-                                    ),
-                            ),
-                    ),
-            )
-            .child(
-                design::action_row()
-                    .child(
-                        Button::new("generate")
-                            .label("生成")
-                            .primary()
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.generate(window, cx);
-                            })),
-                    )
-                    .when(!self.status.is_empty(), |this| {
-                        this.child(
+                        config_item(
+                            "字符集",
                             div()
-                                .text_xs()
-                                .text_color(rgb(0xef4444))
-                                .child(self.status.clone()),
-                        )
-                    }),
-            )
-            .child(
-                design::card(cx)
-                    .child(
-                        Textarea::new(&self.output_state)
-                            .h(design::CODE_BOX_HEIGHT)
-                            .font_family("monospace"),
+                                .flex()
+                                .flex_wrap()
+                                .items_center()
+                                .gap_4()
+                                .child(
+                                    Checkbox::new("use-lower")
+                                        .label("小写字母")
+                                        .checked(self.use_lower)
+                                        .on_click(cx.listener(
+                                            |this, v: &bool, window, cx| {
+                                                this.use_lower = *v;
+                                                this.generate(window, cx);
+                                            },
+                                        )),
+                                )
+                                .child(
+                                    Checkbox::new("use-upper")
+                                        .label("大写字母")
+                                        .checked(self.use_upper)
+                                        .on_click(cx.listener(
+                                            |this, v: &bool, window, cx| {
+                                                this.use_upper = *v;
+                                                this.generate(window, cx);
+                                            },
+                                        )),
+                                )
+                                .child(
+                                    Checkbox::new("use-digit")
+                                        .label("数字")
+                                        .checked(self.use_digit)
+                                        .on_click(cx.listener(
+                                            |this, v: &bool, window, cx| {
+                                                this.use_digit = *v;
+                                                this.generate(window, cx);
+                                            },
+                                        )),
+                                )
+                                .child(
+                                    Checkbox::new("use-symbol")
+                                        .label("特殊符号")
+                                        .checked(self.use_symbol)
+                                        .on_click(cx.listener(
+                                            |this, v: &bool, window, cx| {
+                                                this.use_symbol = *v;
+                                                this.generate(window, cx);
+                                            },
+                                        )),
+                                ),
+                        ),
                     )
+                    // tb-config-row：自定义字符集
+                    .child(config_item(
+                        "自定义字符集",
+                        div()
+                            .w(px(340.0))
+                            .child(Input::new(&self.custom_charset_state)),
+                    ))
+                    // tb-config-row：排除相似 / 密码模式 / 生成
                     .child(
-                        design::toolbar()
+                        div()
+                            .flex()
+                            .flex_wrap()
+                            .items_center()
+                            .gap_4()
                             .child(
-                                Button::new("copy-output")
-                                    .icon(Icon::new(IconName::Copy))
-                                    .tooltip("复制全部")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.copy_output(cx);
+                                Checkbox::new("exclude-similar")
+                                    .label("排除相似字符（O0Il1）")
+                                    .checked(self.exclude_similar)
+                                    .on_click(cx.listener(|this, v: &bool, window, cx| {
+                                        this.exclude_similar = *v;
+                                        this.generate(window, cx);
                                     })),
                             )
                             .child(
-                                Button::new("clear-output")
-                                    .icon(Icon::new(IconName::Close))
-                                    .tooltip("清除")
+                                Checkbox::new("password-mode")
+                                    .label("密码模式（每类至少一个字符并打乱）")
+                                    .checked(self.password_mode)
+                                    .on_click(cx.listener(|this, v: &bool, window, cx| {
+                                        this.password_mode = *v;
+                                        this.generate(window, cx);
+                                    })),
+                            )
+                            .child(
+                                Button::new("generate")
+                                    .primary()
+                                    .icon(Icon::new(IconName::Play))
+                                    .tooltip("生成")
                                     .on_click(cx.listener(|this, _, window, cx| {
-                                        this.clear(window, cx);
+                                        this.generate(window, cx);
                                     })),
                             )
-                            .child(div().flex_1()),
+                            .when(!status.is_empty(), |this| {
+                                this.child(
+                                    div()
+                                        .text_size(px(12.5))
+                                        .text_color(Hsla::from(rgb(design::WARN_AMBER)))
+                                        .child(status),
+                                )
+                            }),
+                    )
+                    // tb-editor：输出 + 重新生成 / 复制全部 / 清除
+                    .child(
+                        div()
+                            .flex_col()
+                            .gap_1p5()
+                            .child(design::editor_label("输出", cx))
+                            .child(
+                                Textarea::new(&self.output_state)
+                                    .h(px(220.0))
+                                    .font_family("monospace"),
+                            )
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap_2()
+                                    .mt_2()
+                                    .child(
+                                        Button::new("regen-output")
+                                            .icon(Icon::new(IconName::RotateCw))
+                                            .tooltip("重新生成")
+                                            .on_click(cx.listener(|this, _, window, cx| {
+                                                this.generate(window, cx);
+                                            })),
+                                    )
+                                    .child(
+                                        Button::new("copy-output")
+                                            .icon(Icon::new(IconName::Copy))
+                                            .tooltip("复制全部")
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.copy_output(cx);
+                                            })),
+                                    )
+                                    .child(
+                                        Button::new("clear-output")
+                                            .icon(Icon::new(IconName::Close))
+                                            .tooltip("清除")
+                                            .on_click(cx.listener(|this, _, window, cx| {
+                                                this.clear(window, cx);
+                                            })),
+                                    ),
+                            ),
                     ),
             )
     }

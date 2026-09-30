@@ -2,7 +2,7 @@ use crate::design;
 use gpui_kit::{prelude::FluentBuilder as _, *};
 use gpui_kit::component::{
     button::*,
-    input::{Input, InputEvent, InputState, Textarea, TextareaState },
+    input::{InputEvent, Textarea, TextareaState},
     scroll::ScrollableElement,
     *,
 };
@@ -22,9 +22,7 @@ pub struct JwtDecoder {
 impl JwtDecoder {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let token_state = cx.new(|cx| {
-            TextareaState::new(window, cx)
-                .placeholder("粘贴 JWT Token...")
-                
+            TextareaState::new(window, cx).placeholder("粘贴 JWT Token")
         });
         let _subscriptions = vec![cx.subscribe_in(&token_state, window, {
             let token_state = token_state.clone();
@@ -38,18 +36,24 @@ impl JwtDecoder {
 
         Self {
             token: String::new(),
-            header: "{}".to_string(),
-            payload: "{}".to_string(),
-            decoded: "{}".to_string(),
+            header: String::new(),
+            payload: String::new(),
+            decoded: String::new(),
             error: String::new(),
             token_state,
             _subscriptions,
         }
     }
 
-    fn decode(&mut self) {
+    fn decode(&mut self, cx: &mut Context<Self>) {
+        let token = self.token.trim().to_string();
+        if token.is_empty() {
+            self.error = "请输入 JWT Token".to_string();
+            cx.notify();
+            return;
+        }
         self.error.clear();
-        match ::base::decode_jwt(self.token.trim()) {
+        match ::base::decode_jwt(&token) {
             Ok(value) => {
                 self.decoded = value.clone();
                 match serde_json::from_str::<serde_json::Value>(&value) {
@@ -69,12 +73,13 @@ impl JwtDecoder {
                 }
             }
             Err(err) => {
-                self.header = "{}".to_string();
-                self.payload = "{}".to_string();
-                self.decoded = "{}".to_string();
+                self.header.clear();
+                self.payload.clear();
+                self.decoded.clear();
                 self.error = err.to_string();
             }
         }
+        cx.notify();
     }
 
     fn paste(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -84,100 +89,111 @@ impl JwtDecoder {
                 self.token_state.update(cx, |state, cx| {
                     state.set_value(self.token.clone(), window, cx);
                 });
-                self.decode();
+                self.decode(cx);
             }
         }
     }
 
-    fn clear(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.token.clear();
-        self.header = "{}".to_string();
-        self.payload = "{}".to_string();
-        self.decoded = "{}".to_string();
-        self.error.clear();
-        self.token_state.update(cx, |state, cx| {
-            state.set_value(String::new(), window, cx);
-        });
+    fn copy(&self, value: &str, cx: &mut Context<Self>) {
+        if !value.is_empty() {
+            cx.write_to_clipboard(ClipboardItem::new_string(value.to_string()));
+        }
     }
 }
 
 impl Render for JwtDecoder {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let token_empty = self.token.trim().is_empty();
+        let error = self.error.clone();
+        let header = self.header.clone();
+        let payload = self.payload.clone();
+        let decoded = self.decoded.clone();
+
         design::page()
-            .child(design::page_header("JWT 解析", "解析与校验 JWT", cx))
+            .child(design::page_header(
+                "JWT 解析",
+                "解码并查看 JWT 的 Header / Payload",
+                cx,
+            ))
             .child(
                 design::card(cx)
+                    .child(design::card_header(
+                        IconName::Info,
+                        "JWT 解析",
+                        "解码并查看 JWT 的 Header / Payload",
+                        cx,
+                    ))
+                    // Token 编辑器（tb-editor：标签 + 文本域 + 动作行）
                     .child(
-                        design::toolbar()
+                        div()
+                            .flex_col()
+                            .gap_1p5()
+                            .child(design::editor_label("Token", cx))
                             .child(
-                                Button::new("paste")
-                                    .label("粘贴并解码")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.paste(window, cx);
-                                        cx.notify();
-                                    })),
+                                Textarea::new(&self.token_state)
+                                    .h(px(150.0))
+                                    .font_family("monospace"),
                             )
                             .child(
-                                Button::new("copy-token")
-                                    .disabled(token_empty)
-                                    .label("复制 Token")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        cx.write_to_clipboard(ClipboardItem::new_string(
-                                            this.token.clone(),
-                                        ));
-                                    })),
-                            )
-                            .child(div().flex_1()),
+                                design::action_row()
+                                    .child(
+                                        Button::new("decode")
+                                            .primary()
+                                            .icon(Icon::new(IconName::Play))
+                                            .tooltip("解码")
+                                            .disabled(token_empty)
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.decode(cx);
+                                            })),
+                                    )
+                                    .child(
+                                        Button::new("paste")
+                                            .icon(Icon::new(IconName::Inbox))
+                                            .tooltip("粘贴并解码")
+                                            .on_click(cx.listener(|this, _, window, cx| {
+                                                this.paste(window, cx);
+                                            })),
+                                    )
+                                    .child(
+                                        Button::new("copy-token")
+                                            .icon(Icon::new(IconName::Copy))
+                                            .tooltip("复制 Token")
+                                            .disabled(token_empty)
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                let token = this.token.clone();
+                                                this.copy(&token, cx);
+                                            })),
+                                    ),
+                            ),
                     )
-                    .child(Textarea::new(&self.token_state).h(px(130.0))),
-            )
-            .child(
-                design::action_row()
-                    .child(
-                        Button::new("decode")
-                            .primary()
-                            .disabled(token_empty)
-                            .label("解码")
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.decode();
-                                cx.notify();
-                            })),
-                    ),
-            )
-            .when(!self.error.is_empty(), |this| {
-                this.child(
-                    div()
-                        .text_sm()
-                        .text_color(cx.theme().danger)
-                        .child(self.error.clone()),
-                )
-            })
-            .child(
-                design::card(cx)
+                    .when(!error.is_empty(), |card| {
+                        card.child(
+                            div()
+                                .text_size(px(12.5))
+                                .text_color(Hsla::from(rgb(design::ERROR_RED)))
+                                .child(error),
+                        )
+                    })
+                    // Header / Payload 双栏（tb-editor-grid）
                     .child(
                         div()
                             .flex()
                             .gap_4()
-                            .child(div().flex_1().child(json_panel(
+                            .child(json_panel(
                                 "Header",
                                 "copy-header",
-                                self.header.clone(),
+                                header,
                                 cx,
-                            )))
-                            .child(div().flex_1().child(json_panel(
+                            ))
+                            .child(json_panel(
                                 "Payload",
                                 "copy-payload",
-                                self.payload.clone(),
+                                payload,
                                 cx,
-                            ))),
+                            )),
                     )
-                    .child(json_panel(
-                        "完整解码结果",
-                        "copy-decoded",
-                        self.decoded.clone(),
-                        cx,
-                    )),
+                    // 完整解码结果
+                    .child(json_panel("完整解码结果", "copy-decoded", decoded, cx)),
             )
     }
 }
@@ -188,28 +204,34 @@ fn json_panel(
     value: String,
     cx: &mut Context<JwtDecoder>,
 ) -> Div {
+    let display = if value.is_empty() {
+        "{}".to_string()
+    } else {
+        value.clone()
+    };
     let palette = HighlightPalette::default_light();
-    let highlights = syntax_highlight::json_highlights(&value, &palette);
-    let styled = syntax_highlight::styled_text(&value, highlights);
+    let highlights = syntax_highlight::json_highlights(&display, &palette);
+    let styled = syntax_highlight::styled_text(&display, highlights);
     div()
         .flex()
         .flex_col()
         .gap_2()
+        .min_w_0()
         .child(
             div()
                 .flex()
                 .items_center()
                 .justify_between()
-                .child(div().text_sm().font_semibold().child(title))
+                .child(design::editor_label(title, cx))
                 .child(
                     Button::new(id)
+                        .ghost()
+                        .compact()
                         .icon(Icon::new(IconName::Copy))
                         .tooltip("复制")
-                        .on_click(cx.listener({
-                            let value = value.clone();
-                            move |_, _, _, cx| {
-                                cx.write_to_clipboard(ClipboardItem::new_string(value.clone()));
-                            }
+                        .disabled(value.is_empty())
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.copy(&value, cx);
                         })),
                 ),
         )
@@ -221,7 +243,7 @@ fn json_panel(
                 .p_3()
                 .text_sm()
                 .font_family("monospace")
-                .h(px(200.0))
+                .h(px(220.0))
                 .overflow_y_scrollbar()
                 .child(styled),
         )

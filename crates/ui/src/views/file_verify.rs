@@ -2,11 +2,38 @@ use crate::design;
 use gpui_kit::{prelude::FluentBuilder as _, *};
 use gpui_kit::component::{
     button::*,
-    input::{Input, InputEvent, InputState, Textarea, TextareaState },
-    scroll::ScrollableElement,
+    input::{InputEvent, Textarea, TextareaState},
     select::{Select, SelectEvent, SelectState},
     *,
 };
+
+/// （显示名, base 类型值）：对齐 Vue checksumOptions
+const ALGORITHMS: [(&str, &str); 9] = [
+    ("md5sum", "md5sum"),
+    ("sha1sum", "sha1sum"),
+    ("sha224sum", "sha2_224sum"),
+    ("sha256sum", "sha2_256sum"),
+    ("sha384sum", "sha2_384sum"),
+    ("sha512sum", "sha2_512sum"),
+    ("sha3_256sum", "sha3_256sum"),
+    ("sha3_384sum", "sha3_384sum"),
+    ("sha3_512sum", "sha3_512sum"),
+];
+
+/// 配置项：12px 灰色 label + 控件（对应 tb-config-item）
+fn config_item(label: &'static str, control: Div) -> Div {
+    div()
+        .flex()
+        .items_center()
+        .gap_2()
+        .child(
+            div()
+                .text_size(px(12.0))
+                .text_color(rgb(0x5b6478))
+                .child(label),
+        )
+        .child(control)
+}
 
 pub struct FileVerify {
     file_path: String,
@@ -14,6 +41,7 @@ pub struct FileVerify {
     valid_value: String,
     algorithm: String,
     is_calculating: bool,
+    error: String,
     algorithm_state: Entity<SelectState<Vec<String>>>,
     valid_value_state: Entity<TextareaState>,
     _subscriptions: Vec<Subscription>,
@@ -21,17 +49,8 @@ pub struct FileVerify {
 
 impl FileVerify {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let algorithm_items = vec![
-            "md5sum".to_string(),
-            "sha1sum".to_string(),
-            "sha2_224sum".to_string(),
-            "sha2_256sum".to_string(),
-            "sha2_384sum".to_string(),
-            "sha2_512sum".to_string(),
-            "sha3_256sum".to_string(),
-            "sha3_384sum".to_string(),
-            "sha3_512sum".to_string(),
-        ];
+        let algorithm_items: Vec<String> =
+            ALGORITHMS.iter().map(|(l, _)| l.to_string()).collect();
 
         let algorithm_state = cx.new(|cx| {
             let mut state = SelectState::new(algorithm_items, None, window, cx);
@@ -40,9 +59,7 @@ impl FileVerify {
         });
 
         let valid_value_state = cx.new(|cx| {
-            TextareaState::new(window, cx)
-                .placeholder("输入对比值...")
-                
+            TextareaState::new(window, cx).placeholder("输入对比值...")
         });
 
         let _subscriptions = vec![
@@ -50,18 +67,22 @@ impl FileVerify {
                 &algorithm_state,
                 window,
                 move |this, _, ev: &SelectEvent<Vec<String>>, _, cx| {
-                    if let SelectEvent::Confirm(Some(value)) = ev {
-                        this.algorithm = value.clone();
-                        cx.notify();
+                    if let SelectEvent::Confirm(Some(label)) = ev {
+                        if let Some((_, v)) = ALGORITHMS.iter().find(|(l, _)| l == label) {
+                            this.algorithm = v.to_string();
+                            cx.notify();
+                        }
                     }
                 },
             ),
             cx.subscribe_in(&valid_value_state, window, {
                 let valid_value_state = valid_value_state.clone();
-                move |this, _, _ev: &InputEvent, _window, cx| {
-                    let value = valid_value_state.read(cx).value();
-                    this.valid_value = value.to_string();
-                    cx.notify();
+                move |this, _, ev: &InputEvent, _window, cx| {
+                    if let InputEvent::Change = ev {
+                        let value = valid_value_state.read(cx).value();
+                        this.valid_value = value.to_string();
+                        cx.notify();
+                    }
                 }
             }),
         ];
@@ -72,6 +93,7 @@ impl FileVerify {
             valid_value: String::new(),
             algorithm: "md5sum".to_string(),
             is_calculating: false,
+            error: String::new(),
             algorithm_state,
             valid_value_state,
             _subscriptions,
@@ -91,6 +113,8 @@ impl FileVerify {
                 let path = file.path().to_string_lossy().to_string();
                 let _ = this.update(cx, |this, cx| {
                     this.file_path = path;
+                    this.checksum.clear();
+                    this.error.clear();
                     cx.notify();
                 });
             }
@@ -98,31 +122,16 @@ impl FileVerify {
         .detach();
     }
 
-    fn paste_file_path(&mut self, cx: &mut Context<Self>) {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                self.file_path = text.to_string();
-                cx.notify();
-            }
-        }
-    }
-
-    fn paste_checksum(&mut self, cx: &mut Context<Self>) {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                self.checksum = text.trim().to_string();
-                cx.notify();
-            }
-        }
-    }
-
     fn calculate(&mut self, cx: &mut Context<Self>) {
         if self.file_path.is_empty() {
+            self.error = "请先选择文件".to_string();
+            cx.notify();
             return;
         }
 
         self.is_calculating = true;
         self.checksum.clear();
+        self.error.clear();
         cx.notify();
 
         let file_path = self.file_path.clone();
@@ -132,8 +141,11 @@ impl FileVerify {
             let result = ::base::checksum(&algorithm, &file_path).await;
 
             let _ = this.update(cx, |this, cx| {
-                this.checksum = result.unwrap_or_default();
                 this.is_calculating = false;
+                match result {
+                    Ok(sum) => this.checksum = sum,
+                    Err(e) => this.error = e.to_string(),
+                }
                 cx.notify();
             });
         })
@@ -143,10 +155,11 @@ impl FileVerify {
     fn paste_valid_value(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(item) = cx.read_from_clipboard() {
             if let Some(text) = item.text() {
-                self.valid_value = text.to_string();
+                self.valid_value = text.trim().to_string();
                 self.valid_value_state.update(cx, |state, cx| {
                     state.set_value(self.valid_value.clone(), window, cx);
                 });
+                cx.notify();
             }
         }
     }
@@ -162,17 +175,6 @@ impl FileVerify {
             cx.write_to_clipboard(ClipboardItem::new_string(self.valid_value.clone()));
         }
     }
-
-    fn clear(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.file_path.clear();
-        self.checksum.clear();
-        self.valid_value.clear();
-        self.is_calculating = false;
-        self.valid_value_state.update(cx, |state, cx| {
-            state.set_value("".to_string(), window, cx);
-        });
-        cx.notify();
-    }
 }
 
 impl Render for FileVerify {
@@ -180,106 +182,101 @@ impl Render for FileVerify {
         let checksum = self.checksum.clone();
         let valid_value = self.valid_value.clone();
         let is_calculating = self.is_calculating;
-        let is_matched = !checksum.is_empty() && !valid_value.is_empty() && checksum == valid_value;
-        let is_not_matched =
-            !checksum.is_empty() && !valid_value.is_empty() && checksum != valid_value;
+        let error = self.error.clone();
+        // 对齐 Vue checksumMatched：有对比值即比较
+        let matched = checksum == valid_value;
+        let show_match = !valid_value.is_empty();
 
         design::page()
-            .child(design::page_header("文件校验", "校验文件散列值", cx))
+            .child(design::page_header("文件校验", "计算文件散列值并与对比值比对", cx))
             .child(
                 design::card(cx)
+                    .child(design::card_header(
+                        IconName::FileText,
+                        "文件校验",
+                        "md5 / sha1 / sha2 / sha3 全家桶",
+                        cx,
+                    ))
+                    // tb-config-row：文件 + 选择按钮 + 路径
                     .child(
                         div()
                             .flex()
+                            .flex_wrap()
                             .items_center()
-                            .gap_2()
+                            .gap_3()
                             .child(
-                                Button::new("select_file")
-                                    .primary()
-                                    .icon(Icon::new(IconName::File))
-                                    .tooltip("选择文件")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.select_file(cx);
-                                    })),
+                                config_item(
+                                    "文件",
+                                    div().child(
+                                        Button::new("select-file")
+                                            .icon(Icon::new(IconName::FolderOpen))
+                                            .tooltip("选择")
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.select_file(cx);
+                                            })),
+                                    ),
+                                ),
                             )
                             .child(
                                 div()
                                     .flex_1()
-                                    .border_1()
-                                    .border_color(cx.theme().border)
-                                    .rounded_md()
-                                    .px_3()
-                                    .py_2()
-                                    .text_sm()
+                                    .min_w_0()
+                                    .text_size(px(13.0))
                                     .font_family("monospace")
-                                    .overflow_x_scrollbar()
+                                    .text_color(if self.file_path.is_empty() {
+                                        cx.theme().muted_foreground
+                                    } else {
+                                        cx.theme().foreground
+                                    })
+                                    .truncate()
                                     .child(if self.file_path.is_empty() {
-                                        "请选择文件...".to_string()
+                                        "尚未选择文件".to_string()
                                     } else {
                                         self.file_path.clone()
                                     }),
                             ),
                     )
+                    // tb-config-row：校验算法 + 计算
                     .child(
                         div()
                             .flex()
+                            .flex_wrap()
                             .items_center()
-                            .gap_2()
-                            .child(div().w(px(80.0)).child(design::caption("校验算法", cx)))
-                            .child(Select::new(&self.algorithm_state))
-                            .child(div().flex_1())
+                            .gap_3()
+                            .child(
+                                config_item(
+                                    "校验算法",
+                                    div()
+                                        .w(px(160.0))
+                                        .child(Select::new(&self.algorithm_state)),
+                                ),
+                            )
                             .child(
                                 Button::new("calculate")
-                                    .primary()
                                     .icon(Icon::new(IconName::Asterisk))
                                     .tooltip("计算")
-                                    .disabled(is_calculating || self.file_path.is_empty())
+                                    .loading(is_calculating)
+                                    .disabled(is_calculating)
                                     .on_click(cx.listener(|this, _, _, cx| {
                                         this.calculate(cx);
                                     })),
                             ),
                     )
+                    // tb-editor：校验值（只读展示） + 复制
                     .child(
                         div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(div().w(px(80.0)).child(design::caption("校验值", cx)))
-                            .child(
-                                design::toolbar()
-                                    .child(
-                                        Button::new("paste_checksum")
-                                            .icon(Icon::new(IconName::File))
-                                            .tooltip("粘贴")
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.paste_checksum(cx);
-                                            })),
-                                    )
-                                    .child(
-                                        Button::new("copy_checksum")
-                                            .icon(Icon::new(IconName::Copy))
-                                            .tooltip("复制")
-                                            .disabled(checksum.is_empty())
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.copy_checksum(cx);
-                                            })),
-                                    ),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .flex()
-                            .items_start()
-                            .gap_2()
+                            .flex_col()
+                            .gap_1p5()
+                            .child(design::editor_label("校验值", cx))
                             .child(
                                 div()
-                                    .flex_1()
+                                    .min_h(px(72.0))
+                                    .rounded(px(6.0))
                                     .border_1()
                                     .border_color(cx.theme().border)
-                                    .rounded_md()
+                                    .bg(cx.theme().background)
                                     .px_3()
                                     .py_2()
-                                    .min_h(px(80.0))
                                     .text_sm()
                                     .font_family("monospace")
                                     .child(if is_calculating {
@@ -289,26 +286,51 @@ impl Render for FileVerify {
                                     } else {
                                         checksum.clone()
                                     }),
+                            )
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap_2()
+                                    .mt_2()
+                                    .child(
+                                        Button::new("copy-checksum")
+                                            .icon(Icon::new(IconName::Copy))
+                                            .tooltip("复制")
+                                            .disabled(checksum.is_empty())
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.copy_checksum(cx);
+                                            })),
+                                    ),
                             ),
                     )
+                    // tb-editor：对比值 + 粘贴 / 复制
                     .child(
                         div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(div().w(px(80.0)).child(design::caption("对比值", cx)))
+                            .flex_col()
+                            .gap_1p5()
+                            .child(design::editor_label("对比值", cx))
                             .child(
-                                design::toolbar()
+                                Textarea::new(&self.valid_value_state)
+                                    .h(px(72.0))
+                                    .font_family("monospace"),
+                            )
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap_2()
+                                    .mt_2()
                                     .child(
-                                        Button::new("paste_valid")
-                                            .icon(Icon::new(IconName::File))
+                                        Button::new("paste-valid")
+                                            .icon(Icon::new(IconName::Inbox))
                                             .tooltip("粘贴")
                                             .on_click(cx.listener(|this, _, window, cx| {
                                                 this.paste_valid_value(window, cx);
                                             })),
                                     )
                                     .child(
-                                        Button::new("copy_valid")
+                                        Button::new("copy-valid")
                                             .icon(Icon::new(IconName::Copy))
                                             .tooltip("复制")
                                             .disabled(valid_value.is_empty())
@@ -318,36 +340,28 @@ impl Render for FileVerify {
                                     ),
                             ),
                     )
-                    .child(
-                        div()
-                            .flex()
-                            .items_start()
-                            .gap_2()
-                            .child(
+                    // tb-action-row：比对结果大字（24px 绿/红）
+                    .when(show_match, |card| {
+                        card.child(
+                            div().flex().items_center().gap_2().child(
                                 div()
-                                    .flex_1()
-                                    .child(Textarea::new(&self.valid_value_state).min_h(px(80.0))),
+                                    .text_size(px(24.0))
+                                    .font_semibold()
+                                    .text_color(if matched {
+                                        Hsla::from(rgb(design::OK_GREEN))
+                                    } else {
+                                        Hsla::from(rgb(design::ERROR_RED))
+                                    })
+                                    .child(if matched { "一致" } else { "不一致" }),
                             ),
-                    )
-                    .when(!checksum.is_empty() && !valid_value.is_empty(), |this| {
-                        this.child(
+                        )
+                    })
+                    .when(!error.is_empty(), |card| {
+                        card.child(
                             div()
-                                .flex()
-                                .items_center()
-                                .gap_2()
-                                .child(if is_matched {
-                                    div()
-                                        .text_xl()
-                                        .text_color(gpui_kit::rgb(0x18a058))
-                                        .child("一致")
-                                } else if is_not_matched {
-                                    div()
-                                        .text_xl()
-                                        .text_color(gpui_kit::rgb(0xd03050))
-                                        .child("不一致")
-                                } else {
-                                    div()
-                                }),
+                                .text_size(px(12.5))
+                                .text_color(Hsla::from(rgb(design::ERROR_RED)))
+                                .child(error),
                         )
                     }),
             )

@@ -7,6 +7,10 @@ use gpui_kit::component::{
     *,
 };
 
+const DEFAULT_LINUX_EXPR: &str = "*/5 * * * *";
+const DEFAULT_SPRING_EXPR: &str = "0 */5 * * * *";
+const DEFAULT_QUARTZ_EXPR: &str = "0 */5 * * * * ?";
+
 const LINUX_PRESETS: &[(&str, &str)] = &[
     ("每分钟", "* * * * *"),
     ("每 5 分钟", "*/5 * * * *"),
@@ -431,13 +435,10 @@ impl FieldGen {
 pub struct CronConverter {
     expr: String,
     cron_type: String,
-    count: u32,
     active_tab: Tab,
     result: Option<::base::CronParseResult>,
     error: String,
     expr_state: Entity<InputState>,
-    count_state: Entity<InputState>,
-    type_state: Entity<SelectState<Vec<String>>>,
     gen_fields: Vec<FieldGen>,
     _subscriptions: Vec<Subscription>,
 }
@@ -445,22 +446,9 @@ pub struct CronConverter {
 impl CronConverter {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let expr_state = cx.new(|cx| {
-            InputState::new(window, cx).placeholder("如 */5 * * * * 或 0 */5 * * * * *")
-        });
-        let count_state = cx.new(|cx| {
-            let mut state = InputState::new(window, cx).placeholder("解析次数");
-            state.set_value("10".to_string(), window, cx);
-            state
-        });
-
-        let type_items = vec![
-            "Linux".to_string(),
-            "Java Spring".to_string(),
-            "Java Quartz".to_string(),
-        ];
-        let type_state = cx.new(|cx| {
-            let mut state = SelectState::new(type_items, None, window, cx);
-            state.set_selected_value(&"Linux".to_string(), window, cx);
+            let mut state =
+                InputState::new(window, cx).placeholder("如 */5 * * * *（分 时 日 月 周）");
+            state.set_value(DEFAULT_LINUX_EXPR.to_string(), window, cx);
             state
         });
 
@@ -469,44 +457,16 @@ impl CronConverter {
             gen_fields.push(FieldGen::new(key, window, cx));
         }
 
-        let mut _subscriptions = vec![
-            cx.subscribe_in(&expr_state, window, {
-                let expr_state = expr_state.clone();
-                move |this, _, ev: &InputEvent, _, cx| {
-                    if let InputEvent::Change = ev {
-                        let value = expr_state.read(cx).value();
-                        this.expr = value.to_string();
-                        cx.notify();
-                    }
+        let mut _subscriptions = vec![cx.subscribe_in(&expr_state, window, {
+            let expr_state = expr_state.clone();
+            move |this, _, ev: &InputEvent, _, cx| {
+                if let InputEvent::Change = ev {
+                    let value = expr_state.read(cx).value();
+                    this.expr = value.to_string();
+                    cx.notify();
                 }
-            }),
-            cx.subscribe_in(&count_state, window, {
-                let count_state = count_state.clone();
-                move |this, _, ev: &InputEvent, _, cx| {
-                    if let InputEvent::Change = ev {
-                        let value = count_state.read(cx).value();
-                        this.count = value.trim().parse::<u32>().unwrap_or(10);
-                        cx.notify();
-                    }
-                }
-            }),
-            cx.subscribe_in(
-                &type_state,
-                window,
-                move |this, _, ev: &SelectEvent<Vec<String>>, window, cx| {
-                    if let SelectEvent::Confirm(Some(value)) = ev {
-                        this.cron_type = match value.as_str() {
-                            "Java Spring" => "spring",
-                            "Java Quartz" => "quartz",
-                            _ => "linux",
-                        }
-                        .to_string();
-                        this.on_cron_type_changed(window, cx);
-                        cx.notify();
-                    }
-                },
-            ),
-        ];
+            }
+        })];
 
         for i in 0..GEN_KEYS.len() {
             let key = GEN_KEYS[i];
@@ -656,15 +616,12 @@ impl CronConverter {
         }
 
         Self {
-            expr: String::new(),
+            expr: DEFAULT_LINUX_EXPR.to_string(),
             cron_type: "linux".to_string(),
-            count: 10,
             active_tab: Tab::Parse,
             result: None,
             error: String::new(),
             expr_state,
-            count_state,
-            type_state,
             gen_fields,
             _subscriptions,
         }
@@ -719,8 +676,27 @@ impl CronConverter {
         parts.join(" ")
     }
 
+    fn type_label(&self) -> &'static str {
+        match self.cron_type.as_str() {
+            "spring" => "Java Spring",
+            "quartz" => "Java Quartz",
+            _ => "Linux",
+        }
+    }
+
     fn on_cron_type_changed(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let cron_type = self.cron_type.clone();
+
+        // Vue watch(cronType)：重置默认表达式
+        let default_expr = match cron_type.as_str() {
+            "spring" => DEFAULT_SPRING_EXPR,
+            "quartz" => DEFAULT_QUARTZ_EXPR,
+            _ => DEFAULT_LINUX_EXPR,
+        };
+        self.expr = default_expr.to_string();
+        self.expr_state.update(cx, |state, cx| {
+            state.set_value(default_expr.to_string(), window, cx);
+        });
 
         for key in [GenFieldKey::Dom, GenFieldKey::Dow] {
             let field = self.field_mut(key);
@@ -751,10 +727,13 @@ impl CronConverter {
                 }
             });
         }
+
+        cx.notify();
     }
 
     fn hint(&self) -> &'static str {
         match self.cron_type.as_str() {
+            "linux" => "5 个字段；周 0-7（0 和 7 均为周日）；支持 @ 宏",
             "spring" => "6 个字段；周 0-7（0 和 7 均为周日）；支持 ? L W # 与 @ 宏",
             "quartz" => "6-7 个字段；周 1-7（1 为周日）；支持 ? L W # 与年份字段",
             _ => "5 个字段；周 0-7（0 和 7 均为周日）；支持 @ 宏",
@@ -772,9 +751,12 @@ impl CronConverter {
     fn parse(&mut self, cx: &mut Context<Self>) {
         let expression = self.expr.trim().to_string();
         if expression.is_empty() {
+            self.error = "请输入 Cron 表达式".to_string();
+            self.result = None;
+            cx.notify();
             return;
         }
-        match ::base::cron_parse(&expression, self.count, &self.cron_type) {
+        match ::base::cron_parse(&expression, 10, &self.cron_type) {
             Ok(result) => {
                 self.error.clear();
                 self.result = Some(result);
@@ -798,6 +780,7 @@ impl CronConverter {
     fn parse_generated(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let expression = self.generated_expr();
         self.expr = expression.clone();
+        self.active_tab = Tab::Parse;
         self.expr_state.update(cx, |state, cx| {
             state.set_value(expression, window, cx);
         });
@@ -814,15 +797,6 @@ impl CronConverter {
     fn copy_expression(&mut self, cx: &mut Context<Self>) {
         if let Some(result) = &self.result {
             cx.write_to_clipboard(ClipboardItem::new_string(result.expression.clone()));
-        }
-    }
-
-    fn copy_times(&mut self, cx: &mut Context<Self>) {
-        if let Some(result) = &self.result {
-            let text = result.next_times.join("\n");
-            if !text.is_empty() {
-                cx.write_to_clipboard(ClipboardItem::new_string(text));
-            }
         }
     }
 
@@ -847,10 +821,12 @@ impl CronConverter {
         div()
             .px_3()
             .py_1()
+            .border_dashed()
             .border_1()
             .border_color(cx.theme().border)
             .rounded_sm()
             .font_family("monospace")
+            .text_size(px(16.0))
             .text_color(cx.theme().muted_foreground)
             .child("*")
     }
@@ -863,10 +839,11 @@ impl CronConverter {
             .items_center()
             .justify_between()
             .gap_2()
+            .mb_2()
             .child(
                 div()
-                    .text_sm()
-                    .font_medium()
+                    .text_size(px(13.0))
+                    .font_semibold()
                     .child(field.label.to_string()),
             )
             .child(
@@ -969,48 +946,377 @@ impl CronConverter {
         div()
             .w(px(320.0))
             .p_3()
-            .rounded_lg()
+            .rounded_md()
             .border_1()
             .border_color(cx.theme().border)
+            .bg(cx.theme().background)
             .flex()
             .flex_col()
-            .gap_2()
+            .gap_1()
             .child(head)
             .child(body)
+    }
+
+    fn render_result(&self, cx: &Context<Self>) -> Div {
+        let mut container = div().flex().flex_col().gap_3().mt_2();
+
+        if !self.error.is_empty() {
+            // n-alert error："表达式无效" + 描述，可关闭
+            return container.child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap_1()
+                    .p_3()
+                    .rounded_md()
+                    .border_1()
+                    .border_color(Hsla::from(rgb(design::ERROR_RED)))
+                    .bg(design::tint(design::ERROR_RED, 0.06))
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .justify_between()
+                            .gap_2()
+                            .child(
+                                div()
+                                    .text_sm()
+                                    .font_semibold()
+                                    .text_color(Hsla::from(rgb(design::ERROR_RED)))
+                                    .child("表达式无效"),
+                            )
+                            .child(
+                                Button::new("clear-error")
+                                    .icon(Icon::new(IconName::Close))
+                                    .compact()
+                                    .tooltip("关闭")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.clear_result(cx);
+                                    })),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .text_sm()
+                            .text_color(Hsla::from(rgb(design::ERROR_RED)))
+                            .child(self.error.clone()),
+                    ),
+            );
+        }
+
+        let Some(result) = self.result.as_ref() else {
+            return container;
+        };
+
+        if !result.valid {
+            let error_text = result
+                .error
+                .clone()
+                .unwrap_or_else(|| "表达式无效".to_string());
+            return container.child(
+                div()
+                    .flex()
+                    .items_start()
+                    .justify_between()
+                    .gap_2()
+                    .p_3()
+                    .rounded_md()
+                    .border_1()
+                    .border_color(Hsla::from(rgb(design::ERROR_RED)))
+                    .bg(design::tint(design::ERROR_RED, 0.06))
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap_1()
+                            .child(
+                                div()
+                                    .text_sm()
+                                    .font_semibold()
+                                    .text_color(Hsla::from(rgb(design::ERROR_RED)))
+                                    .child("表达式无效"),
+                            )
+                            .child(
+                                div()
+                                    .text_sm()
+                                    .text_color(Hsla::from(rgb(design::ERROR_RED)))
+                                    .child(error_text),
+                            ),
+                    )
+                    .child(
+                        Button::new("clear-invalid")
+                            .icon(Icon::new(IconName::Close))
+                            .compact()
+                            .tooltip("清除")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.clear_result(cx);
+                            })),
+                    ),
+            );
+        }
+
+        // result-banner：类型 tag + 表达式 + 描述 + 复制/清除
+        let type_label = match result.cron_type.as_str() {
+            "linux" => "Linux",
+            "spring" => "Java Spring",
+            _ => "Java Quartz",
+        };
+        let ok_green = Hsla::from(rgb(design::OK_GREEN));
+        let banner = div()
+            .w_full()
+            .flex()
+            .items_start()
+            .justify_between()
+            .flex_wrap()
+            .gap_4()
+            .p_4()
+            .rounded(px(12.0))
+            .border_1()
+            .border_color(cx.theme().border)
+            .bg(cx.theme().background)
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap_1()
+                    .min_w_0()
+                    .child(design::mini_tag(type_label, design::tint(design::OK_GREEN, 0.12), ok_green))
+                    .child(
+                        div()
+                            .font_family("monospace")
+                            .text_size(px(16.0))
+                            .mt_1()
+                            .child(result.expression.clone()),
+                    )
+                    .child(
+                        div()
+                            .text_size(px(13.0))
+                            .text_color(cx.theme().muted_foreground)
+                            .child(
+                                result
+                                    .description
+                                    .clone()
+                                    .unwrap_or_else(|| "无描述".to_string()),
+                            ),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .child(
+                        Button::new("copy-expr")
+                            .icon(Icon::new(IconName::Copy))
+                            .tooltip("复制")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.copy_expression(cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("clear-result")
+                            .icon(Icon::new(IconName::Close))
+                            .tooltip("清除")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.clear_result(cx);
+                            })),
+                    ),
+            );
+        container = container.child(banner);
+
+        // 接下来 10 次执行时间
+        container = container.child(design::editor_label("接下来 10 次执行时间", cx));
+        let time_chips = result
+            .next_times
+            .iter()
+            .enumerate()
+            .map(|(i, t)| {
+                let first = i == 0;
+                let mut chip = div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .px_3()
+                    .py_2()
+                    .rounded_md()
+                    .border_1()
+                    .font_family("monospace")
+                    .text_size(px(13.0))
+                    .border_color(if first {
+                        cx.theme().primary
+                    } else {
+                        cx.theme().border
+                    })
+                    .text_color(if first {
+                        cx.theme().primary
+                    } else {
+                        cx.theme().foreground
+                    });
+                if first {
+                    chip = chip.font_semibold().child(
+                        div()
+                            .px_2()
+                            .py(px(1.0))
+                            .rounded_full()
+                            .bg(cx.theme().primary)
+                            .text_color(gpui::white())
+                            .text_size(px(11.0))
+                            .font_semibold()
+                            .child("下次"),
+                    );
+                }
+                chip.child(t.clone())
+            })
+            .collect::<Vec<_>>();
+        container.child(div().grid().grid_cols(2).gap_2().children(time_chips))
     }
 }
 
 impl Render for CronConverter {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let label_w = px(80.0);
         let is_generate = self.active_tab == Tab::Generate;
 
-        let presets = self.presets();
-        let preset_buttons = presets
-            .iter()
-            .enumerate()
-            .map(|(i, (label, value))| {
-                let value = value.to_string();
-                Button::new(SharedString::from(format!("preset-{i}")))
+        // kind-switch：三张方言单选卡
+        let type_cards: [(&str, &str, &str); 3] = [
+            ("linux", "Linux", "5 字段 · 无秒"),
+            ("spring", "Java Spring", "6 字段 · 秒级"),
+            ("quartz", "Java Quartz", "6-7 字段 · 可含年"),
+        ];
+        let kind_switch = div()
+            .grid()
+            .grid_cols(3)
+            .gap_3()
+            .children(type_cards.iter().enumerate().map(|(i, (key, title, sub))| {
+                let active = self.cron_type == *key;
+                let key = key.to_string();
+                div()
+                    .id(("kind-card", i))
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .pl_3()
+                    .pr_4()
+                    .py(px(14.0))
+                    .rounded(px(12.0))
+                    .border_1()
+                    .bg(if active {
+                        design::tint(0x4f6ef7, 0.05)
+                    } else {
+                        cx.theme().background
+                    })
+                    .border_color(if active {
+                        cx.theme().primary
+                    } else {
+                        cx.theme().border
+                    })
+                    .hover(|s| s.border_color(cx.theme().primary))
+                    .on_click(cx.listener(move |this, _, window, cx| {
+                        if this.cron_type != key {
+                            this.cron_type = key.clone();
+                            this.on_cron_type_changed(window, cx);
+                        }
+                    }))
+                    .child(
+                        div()
+                            .w(px(3.0))
+                            .h(px(30.0))
+                            .rounded_full()
+                            .bg(if active {
+                                cx.theme().primary
+                            } else {
+                                gpui::black().opacity(0.0)
+                            }),
+                    )
                     .child(
                         div()
                             .flex()
                             .flex_col()
-                            .items_start()
-                            .child(div().text_sm().child(label.to_string()))
+                            .gap(px(2.0))
+                            .child(
+                                div()
+                                    .text_size(px(15.0))
+                                    .font_semibold()
+                                    .text_color(cx.theme().foreground)
+                                    .child(title.to_string()),
+                            )
                             .child(
                                 div()
                                     .text_xs()
                                     .text_color(cx.theme().muted_foreground)
-                                    .child(value.clone()),
+                                    .child(sub.to_string()),
                             ),
                     )
-                    .on_click(cx.listener(move |this, _, window, cx| {
-                        this.apply_preset(&value, window, cx);
-                    }))
-            })
-            .collect::<Vec<_>>();
+            }));
 
+        // kind-hint：信息图标 + 当前方言提示
+        let kind_hint = div()
+            .flex()
+            .items_center()
+            .gap(px(6.0))
+            .mt_1()
+            .child(
+                Icon::new(IconName::Info)
+                    .size(px(15.0))
+                    .text_color(cx.theme().primary)
+                    .opacity(0.8),
+            )
+            .child(
+                div()
+                    .text_xs()
+                    .text_color(cx.theme().muted_foreground)
+                    .child(self.hint()),
+            );
+
+        // 预设 chip（preset-chip：label + mono 表达式，当前输入高亮）
+        let presets = self.presets();
+        let preset_grid = div()
+            .grid()
+            .grid_cols(3)
+            .gap_2()
+            .children(presets.iter().enumerate().map(|(i, (label, value))| {
+                let active = self.expr.trim() == *value;
+                let value = value.to_string();
+                let value_for_click = value.clone();
+                div()
+                    .id(("preset", i))
+                    .flex()
+                    .flex_col()
+                    .items_start()
+                    .gap(px(4.0))
+                    .px_3()
+                    .py_2()
+                    .rounded_md()
+                    .border_1()
+                    .bg(if active {
+                        design::tint(0x4f6ef7, 0.06)
+                    } else {
+                        gpui::black().opacity(0.0)
+                    })
+                    .border_color(if active {
+                        cx.theme().primary
+                    } else {
+                        cx.theme().border
+                    })
+                    .hover(|s| s.border_color(cx.theme().primary))
+                    .on_click(cx.listener(move |this, _, window, cx| {
+                        this.apply_preset(&value_for_click, window, cx);
+                    }))
+                    .child(
+                        div()
+                            .text_size(px(13.0))
+                            .font_semibold()
+                            .child(label.to_string()),
+                    )
+                    .child(
+                        div()
+                            .text_xs()
+                            .font_family("monospace")
+                            .text_color(cx.theme().muted_foreground)
+                            .child(value.clone()),
+                    )
+            }));
+
+        // 生成字段卡
         let gen_cards = self
             .visible_keys()
             .iter()
@@ -1019,258 +1325,130 @@ impl Render for CronConverter {
 
         let generated = self.generated_expr();
 
-        design::page()
-            .child(design::page_header("Cron 表达式", "解析与生成 Cron", cx))
+        // expr-bar：生成的表达式 + 解析预览 + 复制
+        let expr_bar = div()
+            .flex()
+            .flex_wrap()
+            .items_center()
+            .justify_between()
+            .gap_3()
+            .mt_2()
+            .px(px(14.0))
+            .py_3()
+            .rounded_md()
+            .border_1()
+            .border_color(cx.theme().border)
+            .bg(cx.theme().background)
             .child(
-                design::card(cx)
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .flex_1()
+                    .min_w(px(200.0))
+                    .child(
+                        Icon::new(IconName::Frame)
+                            .size(px(16.0))
+                            .text_color(cx.theme().primary),
+                    )
                     .child(
                         div()
-                            .flex()
-                            .flex_col()
-                            .gap_3()
+                            .font_family("monospace")
+                            .text_sm()
+                            .font_semibold()
+                            .text_color(cx.theme().primary)
+                            .child(generated.clone()),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .child(
+                        Button::new("parse-preview")
+                            .primary()
+                            .icon(Icon::new(IconName::Play))
+                            .tooltip("解析预览")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.parse_generated(window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("copy-generated")
+                            .icon(Icon::new(IconName::Copy))
+                            .tooltip("复制")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.copy_generated(cx);
+                            })),
+                    ),
+            );
+
+        let result_panel = self.render_result(cx);
+
+        design::page()
+            .child(design::page_header("Cron 表达式", "解析、生成 Cron 表达式", cx))
+            .child(kind_switch)
+            .child(kind_hint)
+            .child(
+                design::card(cx)
+                    .p(px(22.0))
+                    .child(
+                        ButtonGroup::new("cron-tabs")
                             .child(
-                                div()
-                                    .flex()
-                                    .items_center()
-                                    .gap_2()
-                                    .child(div().w(label_w).text_sm().child("方言"))
-                        .child(Select::new(&self.type_state))
-                        .child(
-                            div()
-                                .text_xs()
-                                .text_color(cx.theme().muted_foreground)
-                                .child(self.hint()),
-                        ),
-                )
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(div().w(label_w).text_sm().child("功能"))
-                        .child(
-                            ButtonGroup::new("cron-tabs")
-                                .child(
-                                    Button::new("tab-parse")
-                                        .label("解析")
-                                        .selected(!is_generate)
-                                        .on_click(cx.listener(|this, _, _, cx| {
-                                            this.active_tab = Tab::Parse;
-                                            cx.notify();
-                                        })),
-                                )
-                                .child(
-                                    Button::new("tab-generate")
-                                        .label("生成")
-                                        .selected(is_generate)
-                                        .on_click(cx.listener(|this, _, _, cx| {
-                                            this.active_tab = Tab::Generate;
-                                            cx.notify();
-                                        })),
-                                ),
-                        ),
-                )
-                .when(self.active_tab == Tab::Parse, |this| {
-                    this
-                        .child(
+                                Button::new("tab-parse")
+                                    .label("解析")
+                                    .selected(!is_generate)
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.active_tab = Tab::Parse;
+                                        cx.notify();
+                                    })),
+                            )
+                            .child(
+                                Button::new("tab-generate")
+                                    .label("生成")
+                                    .selected(is_generate)
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.active_tab = Tab::Generate;
+                                        cx.notify();
+                                    })),
+                            ),
+                    )
+                    .when(self.active_tab == Tab::Parse, |this| {
+                        this.child(
                             div()
                                 .flex()
                                 .items_center()
-                                .gap_2()
-                                .child(div().w(label_w).text_sm().child("表达式"))
-                                .child(div().flex_1().child(Input::new(&self.expr_state)))
+                                .gap(px(10.0))
+                                .child(
+                                    div()
+                                        .flex_1()
+                                        .child(Input::new(&self.expr_state)),
+                                )
                                 .child(
                                     Button::new("parse")
                                         .primary()
-                                        .child("解析")
+                                        .icon(Icon::new(IconName::Play))
+                                        .label("解析")
                                         .on_click(cx.listener(|this, _, _, cx| {
                                             this.parse(cx);
                                         })),
                                 ),
                         )
-                        .child(
-                            div()
-                                .flex()
-                                .items_center()
-                                .gap_2()
-                                .child(div().w(label_w).text_sm().child("次数"))
-                                .child(
-                                    div()
-                                        .w(px(120.0))
-                                        .child(Input::new(&self.count_state)),
-                                ),
-                        )
-                        .child(
-                            div()
-                                .flex()
-                                .items_start()
-                                .gap_2()
-                                .child(div().w(label_w).text_sm().mt_1().child("常用预设"))
-                                .child(
-                                    div()
-                                        .flex()
-                                        .flex_wrap()
-                                        .gap_1()
-                                        .children(preset_buttons),
-                                ),
-                        )
-                })
-                .when(self.active_tab == Tab::Generate, |this| {
-                    this
-                        .child(
+                        .child(design::editor_label("常用预设", cx).mt_3())
+                        .child(preset_grid)
+                    })
+                    .when(self.active_tab == Tab::Generate, |this| {
+                        this.child(
                             div()
                                 .flex()
                                 .flex_wrap()
                                 .gap_3()
                                 .children(gen_cards),
                         )
-                        .child(
-                            div()
-                                .flex()
-                                .flex_wrap()
-                                .items_center()
-                                .gap_2()
-                                .p_3()
-                                .rounded_lg()
-                                .border_1()
-                                .border_color(cx.theme().primary)
-                                .child(
-                                    div()
-                                        .flex_1()
-                                        .min_w(px(200.0))
-                                        .font_family("monospace")
-                                        .text_sm()
-                                        .text_color(cx.theme().primary)
-                                        .child(generated.clone()),
-                                )
-                                .child(
-                                    Button::new("parse-preview")
-                                        .primary()
-                                        .child("解析预览")
-                                        .on_click(cx.listener(|this, _, window, cx| {
-                                            this.parse_generated(window, cx);
-                                        })),
-                                )
-                                .child(
-                                    Button::new("copy-generated")
-                                        .icon(Icon::new(IconName::Copy))
-                                        .tooltip("复制表达式")
-                                        .on_click(cx.listener(|this, _, _, cx| {
-                                            this.copy_generated(cx);
-                                        })),
-                                ),
-                        )
-                })
-                .when(!self.error.is_empty(), |this| {
-                    this.child(
-                        div()
-                            .text_sm()
-                            .text_color(cx.theme().danger)
-                            .child(self.error.clone()),
-                    )
-                })
-                .when_some(self.result.as_ref(), |this, result| {
-                    if !result.valid {
-                        return this.child(
-                            div()
-                                .text_sm()
-                                .text_color(cx.theme().danger)
-                                .child(
-                                    result
-                                        .error
-                                        .clone()
-                                        .unwrap_or_else(|| "表达式无效".to_string()),
-                                ),
-                        );
-                    }
-
-                    let time_rows = result
-                        .next_times
-                        .iter()
-                        .enumerate()
-                        .map(|(i, t)| {
-                            div()
-                                .flex()
-                                .items_center()
-                                .gap_2()
-                                .child(
-                                    div()
-                                        .text_xs()
-                                        .w(px(32.0))
-                                        .text_color(cx.theme().muted_foreground)
-                                        .child(format!("{}", i + 1)),
-                                )
-                                .child(div().text_sm().child(t.clone()))
-                        })
-                        .collect::<Vec<_>>();
-
-                    this.child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(div().flex_1().text_sm().child(result.expression.clone()))
-                            .child(
-                                Button::new("copy-expr")
-                                    .icon(Icon::new(IconName::Copy))
-                                    .tooltip("复制表达式")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.copy_expression(cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new("clear-result")
-                                    .icon(Icon::new(IconName::Close))
-                                    .tooltip("清除")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.clear_result(cx);
-                                    })),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .flex()
-                            .items_start()
-                            .gap_2()
-                            .child(div().w(label_w).text_sm().child("描述"))
-                            .child(
-                                div()
-                                    .flex_1()
-                                    .text_sm()
-                                    .text_color(cx.theme().muted_foreground)
-                                    .child(
-                                        result
-                                            .description
-                                            .clone()
-                                            .unwrap_or_else(|| "无描述".to_string()),
-                                    ),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .flex()
-                            .items_start()
-                            .gap_2()
-                            .child(div().w(label_w).text_sm().child("执行时间"))
-                            .child(
-                                div()
-                                    .flex()
-                                    .flex_col()
-                                    .gap_1()
-                                    .flex_1()
-                                    .children(time_rows)
-                                    .child(
-                                        Button::new("copy-times")
-                                            .icon(Icon::new(IconName::Copy))
-                                            .tooltip("复制执行时间")
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.copy_times(cx);
-                                            })),
-                                    ),
-                            ),
-                    )
-                }),
+                        .child(expr_bar)
+                    })
+                    .child(result_panel),
             )
-    )
     }
 }

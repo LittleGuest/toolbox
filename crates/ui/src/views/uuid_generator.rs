@@ -1,54 +1,61 @@
 use crate::design;
-use gpui_kit::{prelude::FluentBuilder as _, *};
+use gpui_kit::*;
 use gpui_kit::component::{
     button::*,
-    input::{Input, InputEvent, InputState, NumberInput, NumberInputEvent, StepAction},
-    scroll::ScrollableElement,
+    input::{InputEvent, InputState, NumberInput, NumberInputEvent, StepAction, Textarea, TextareaState},
     select::{Select, SelectEvent, SelectState},
     switch::Switch,
     *,
 };
 
+const VERSIONS: [(&str, u8); 7] = [
+    ("v1", 1),
+    ("v3", 3),
+    ("v4", 4),
+    ("v5", 5),
+    ("v6", 6),
+    ("v7", 7),
+    ("v8", 8),
+];
+
+/// 配置项：12px 灰色 label + 控件（对应 tb-config-item）
+fn config_item(label: &'static str, control: Div) -> Div {
+    div()
+        .flex()
+        .items_center()
+        .gap_2()
+        .child(
+            div()
+                .text_size(px(12.0))
+                .text_color(rgb(0x5b6478))
+                .child(label),
+        )
+        .child(control)
+}
+
 pub struct UuidGenerator {
     uppercase: bool,
     remove_connector: bool,
-    version: u32,
-    number: u32,
-    uuids: String,
+    version: u8,
     version_state: Entity<SelectState<Vec<String>>>,
     number_state: Entity<InputState>,
-    namespace_state: Entity<InputState>,
-    name_state: Entity<InputState>,
+    uuids_state: Entity<TextareaState>,
     _subscriptions: Vec<Subscription>,
 }
 
 impl UuidGenerator {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let version_items = vec![
-            "V1".to_string(),
-            "V3".to_string(),
-            "V4".to_string(),
-            "V5".to_string(),
-            "V6".to_string(),
-            "V7".to_string(),
-            "V8".to_string(),
-        ];
+        let version_items: Vec<String> = VERSIONS.iter().map(|(l, _)| l.to_string()).collect();
 
         let version_state = cx.new(|cx| {
             let mut state = SelectState::new(version_items, None, window, cx);
-            state.set_selected_value(&"V4".to_string(), window, cx);
+            state.set_selected_value(&"v4".to_string(), window, cx);
             state
         });
-        let number_state = cx.new(|cx| InputState::new(window, cx).default_value("5"));
-        let namespace_state = cx.new(|cx| {
-            InputState::new(window, cx)
-                .default_value("dns")
-                .placeholder("namespace")
-        });
-        let name_state = cx.new(|cx| {
-            InputState::new(window, cx)
-                .default_value("name")
-                .placeholder("name")
+        let number_state =
+            cx.new(|cx| InputState::new(window, cx).default_value("5".to_string()));
+        let uuids_state = cx.new(|cx| {
+            TextareaState::new(window, cx).placeholder("点击上方生成按钮生成 UUID")
         });
 
         let _subscriptions = vec![
@@ -56,51 +63,45 @@ impl UuidGenerator {
                 &version_state,
                 window,
                 move |this, _, ev: &SelectEvent<Vec<String>>, _, cx| {
-                    if let SelectEvent::Confirm(Some(value)) = ev {
-                        let version = match value.as_str() {
-                            "V1" => 1,
-                            "V3" => 3,
-                            "V4" => 4,
-                            "V5" => 5,
-                            "V6" => 6,
-                            "V7" => 7,
-                            "V8" => 8,
-                            _ => 4,
-                        };
-                        this.set_version(version, cx);
-                        cx.notify();
-                    }
-                },
-            ),
-            cx.subscribe_in(
-                &number_state,
-                window,
-                move |this, state, ev: &InputEvent, _, cx| {
-                    if let InputEvent::Blur = ev {
-                        let text = state.read(cx).value();
-                        let value = text.parse::<u32>().unwrap_or(5);
-                        this.set_number(value);
-                        cx.notify();
-                    }
-                },
-            ),
-            cx.subscribe_in(
-                &number_state,
-                window,
-                move |this, state, ev: &NumberInputEvent, window, cx| {
-                    if let NumberInputEvent::Step(action) = ev {
-                        let text = state.read(cx).value();
-                        let mut value = text.parse::<u32>().unwrap_or(5);
-                        match action {
-                            StepAction::Increment => value = value.saturating_add(1),
-                            StepAction::Decrement => value = value.saturating_sub(1),
+                    if let SelectEvent::Confirm(Some(label)) = ev {
+                        if let Some((_, v)) = VERSIONS.iter().find(|(l, _)| l == label) {
+                            this.version = *v;
+                            cx.notify();
                         }
-                        state.update(cx, |state, cx| {
-                            state.set_value(value.to_string(), window, cx);
-                        });
-                        this.set_number(value);
+                    }
+                },
+            ),
+            cx.subscribe_in(
+                &number_state,
+                window,
+                move |_this, state, ev: &InputEvent, window, cx| {
+                    if let InputEvent::Blur = ev {
+                        let text = state.read(cx).value().trim().to_string();
+                        let value = text.parse::<u16>().unwrap_or(5).max(1);
+                        if text != value.to_string() {
+                            state.update(cx, |state, cx| {
+                                state.set_value(value.to_string(), window, cx);
+                            });
+                        }
                         cx.notify();
                     }
+                },
+            ),
+            cx.subscribe_in(
+                &number_state,
+                window,
+                move |_this, state, ev: &NumberInputEvent, window, cx| {
+                    let NumberInputEvent::Step(action) = ev;
+                    let text = state.read(cx).value();
+                    let mut value = text.parse::<u16>().unwrap_or(5);
+                    match action {
+                        StepAction::Increment => value = value.saturating_add(1),
+                        StepAction::Decrement => value = value.saturating_sub(1).max(1),
+                    }
+                    state.update(cx, |state, cx| {
+                        state.set_value(value.to_string(), window, cx);
+                    });
+                    cx.notify();
                 },
             ),
         ];
@@ -109,76 +110,44 @@ impl UuidGenerator {
             uppercase: false,
             remove_connector: false,
             version: 4,
-            number: 5,
-            uuids: String::new(),
             version_state,
             number_state,
-            namespace_state,
-            name_state,
+            uuids_state,
             _subscriptions,
         }
     }
 
-    fn generate(&mut self, cx: &mut Context<Self>) {
-        self.number = self
+    fn generate(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let number = self
             .number_state
             .read(cx)
             .value()
-            .parse::<u32>()
-            .unwrap_or(5);
+            .trim()
+            .parse::<u16>()
+            .unwrap_or(5)
+            .max(1);
 
-        let namespace = self.namespace_state.read(cx).value().to_string();
-        let name = self.name_state.read(cx).value().to_string();
-
-        let mut results = Vec::new();
-        for _ in 0..self.number {
-            let uuid_str = match self.version {
-                1 => ::base::uuid::uuid_v1().unwrap_or_default(),
-                3 => ::base::uuid::uuid_v3(&namespace, &name).unwrap_or_default(),
-                4 => ::base::uuid::uuid_v4().unwrap_or_default(),
-                5 => ::base::uuid::uuid_v5(&namespace, &name).unwrap_or_default(),
-                6 => ::base::uuid::uuid_v6().unwrap_or_default(),
-                7 => ::base::uuid::uuid_v7().unwrap_or_default(),
-                8 => ::base::uuid::uuid_v8().unwrap_or_default(),
-                _ => ::base::uuid::uuid_v4().unwrap_or_default(),
-            };
-
-            let mut uuid_str = uuid_str;
-            if self.uppercase {
-                uuid_str = uuid_str.to_uppercase();
+        match ::base::uuid(None, self.uppercase, self.remove_connector, self.version, number) {
+            Ok(uuids) => {
+                let text = uuids.join("\n");
+                self.uuids_state.update(cx, |state, cx| {
+                    state.set_value(text, window, cx);
+                });
             }
-            if self.remove_connector {
-                uuid_str = uuid_str.replace("-", "");
+            Err(e) => {
+                self.uuids_state.update(cx, |state, cx| {
+                    state.set_value(e.to_string(), window, cx);
+                });
             }
-            results.push(uuid_str);
         }
-
-        self.uuids = results.join("\n");
-    }
-
-    fn clear(&mut self) {
-        self.uuids.clear();
+        cx.notify();
     }
 
     fn copy(&mut self, cx: &mut Context<Self>) {
-        cx.write_to_clipboard(ClipboardItem::new_string(self.uuids.clone()));
-    }
-
-    fn set_uppercase(&mut self, uppercase: bool) {
-        self.uppercase = uppercase;
-    }
-
-    fn set_remove_connector(&mut self, remove_connector: bool) {
-        self.remove_connector = remove_connector;
-    }
-
-    fn set_version(&mut self, version: u32, cx: &mut Context<Self>) {
-        self.version = version;
-        self.generate(cx);
-    }
-
-    fn set_number(&mut self, number: u32) {
-        self.number = number;
+        let text = self.uuids_state.read(cx).value().to_string();
+        if !text.is_empty() {
+            cx.write_to_clipboard(ClipboardItem::new_string(text));
+        }
     }
 }
 
@@ -187,118 +156,110 @@ impl Render for UuidGenerator {
         let uppercase = self.uppercase;
         let remove_connector = self.remove_connector;
 
-        let uuids_text = if self.uuids.is_empty() {
-            "点击生成按钮生成UUID...".to_string()
-        } else {
-            self.uuids.clone()
-        };
-
         design::page()
-            .child(design::page_header("UUID 生成", "生成多种 UUID", cx))
+            .child(design::page_header("UUID 生成", "批量生成多种版本的 UUID", cx))
             .child(
                 design::card(cx)
+                    .child(design::card_header(
+                        IconName::Asterisk,
+                        "UUID 生成",
+                        "支持 v1 / v3 / v4 / v5 / v6 / v7 / v8",
+                        cx,
+                    ))
+                    // tb-config-row：大写 / 去掉连接符 / 版本 / 生成数量
                     .child(
                         div()
                             .flex()
+                            .flex_wrap()
                             .items_center()
-                            .gap_2()
-                            .child(div().w(px(85.0)).text_sm().child("大写"))
+                            .gap_4()
                             .child(
-                                Switch::new("uppercase")
-                                    .checked(uppercase)
-                                    .on_click(cx.listener(|this, checked: &bool, _, cx| {
-                                        this.set_uppercase(*checked);
-                                        cx.notify();
-                                    })),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(div().w(px(85.0)).text_sm().child("去掉连接符"))
-                            .child(
-                                Switch::new("remove-connector")
-                                    .checked(remove_connector)
-                                    .on_click(cx.listener(|this, checked: &bool, _, cx| {
-                                        this.set_remove_connector(*checked);
-                                        cx.notify();
-                                    })),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(div().w(px(85.0)).text_sm().child("UUID版本"))
-                            .child(Select::new(&self.version_state)),
-                    )
-                    .when(self.version == 3 || self.version == 5, |this| {
-                        this.child(
-                            div()
-                                .flex()
-                                .items_center()
-                                .gap_2()
-                                .child(div().w(px(85.0)).text_sm().child("namespace"))
-                                .child(div().flex_1().child(Input::new(&self.namespace_state))),
-                        )
-                        .child(
-                            div()
-                                .flex()
-                                .items_center()
-                                .gap_2()
-                                .child(div().w(px(85.0)).text_sm().child("name"))
-                                .child(div().flex_1().child(Input::new(&self.name_state))),
-                        )
-                    })
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(div().w(px(85.0)).text_sm().child("生成数量"))
-                            .child(NumberInput::new(&self.number_state)),
-                    ),
-            )
-            .child(
-                design::action_row()
-                    .child(
-                        Button::new("generate")
-                            .primary()
-                            .label("生成")
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.generate(cx);
-                                cx.notify();
-                            })),
-                    ),
-            )
-            .child(
-                design::card(cx)
-                    .child(
-                        div()
-                            .min_h(px(300.0))
-                            .border_1()
-                            .border_color(cx.theme().border)
-                            .rounded_lg()
-                            .p_2()
-                            .overflow_y_scrollbar()
-                            .text_sm()
-                            .font_family("monospace")
-                            .child(uuids_text),
-                    )
-                    .child(
-                        design::toolbar()
-                            .child(
-                                Button::new("copy")
-                                    .icon(Icon::new(IconName::Copy))
-                                    .tooltip("复制")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.copy(cx);
-                                    })),
+                                config_item(
+                                    "大写",
+                                    div().child(
+                                        Switch::new("uppercase")
+                                            .checked(uppercase)
+                                            .on_click(cx.listener(
+                                                |this, checked: &bool, _, cx| {
+                                                    this.uppercase = *checked;
+                                                    cx.notify();
+                                                },
+                                            )),
+                                    ),
+                                ),
                             )
-                            .child(div().flex_1()),
+                            .child(
+                                config_item(
+                                    "去掉连接符",
+                                    div().child(
+                                        Switch::new("remove-connector")
+                                            .checked(remove_connector)
+                                            .on_click(cx.listener(
+                                                |this, checked: &bool, _, cx| {
+                                                    this.remove_connector = *checked;
+                                                    cx.notify();
+                                                },
+                                            )),
+                                    ),
+                                ),
+                            )
+                            .child(
+                                config_item(
+                                    "UUID版本",
+                                    div().w(px(140.0)).child(Select::new(&self.version_state)),
+                                ),
+                            )
+                            .child(
+                                config_item(
+                                    "生成数量",
+                                    div()
+                                        .w(px(140.0))
+                                        .child(NumberInput::new(&self.number_state)),
+                                ),
+                            ),
+                    )
+                    // tb-action-row：生成（主色图标按钮）
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(
+                                Button::new("generate")
+                                    .primary()
+                                    .icon(Icon::new(IconName::Asterisk))
+                                    .tooltip("生成")
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.generate(window, cx);
+                                    })),
+                            ),
+                    )
+                    // tb-editor：UUID 列表 + 复制
+                    .child(
+                        div()
+                            .flex_col()
+                            .gap_1p5()
+                            .child(design::editor_label("UUID 列表", cx))
+                            .child(
+                                Textarea::new(&self.uuids_state)
+                                    .h(px(220.0))
+                                    .font_family("monospace"),
+                            )
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap_2()
+                                    .mt_2()
+                                    .child(
+                                        Button::new("copy-uuids")
+                                            .icon(Icon::new(IconName::Copy))
+                                            .tooltip("复制")
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.copy(cx);
+                                            })),
+                                    ),
+                            ),
                     ),
             )
     }

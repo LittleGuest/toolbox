@@ -13,6 +13,8 @@ const HTML_UNESCAPE: &[(&str, &str)] = &[
     ("gt", ">"),
     ("quot", "\""),
     ("apos", "'"),
+    ("#39", "'"),
+    ("#x27", "'"),
 ];
 
 const XML_UNESCAPE: &[(&str, &str)] = &[
@@ -363,8 +365,7 @@ impl EscapeTools {
                 let input_state = input_state.clone();
                 move |this, _, ev: &InputEvent, _, cx| {
                     if let InputEvent::Change = ev {
-                        let value = input_state.read(cx).value();
-                        this.input = value.to_string();
+                        this.input = input_state.read(cx).value().to_string();
                         cx.notify();
                     }
                 }
@@ -409,9 +410,7 @@ impl EscapeTools {
         }
         self.output = escape_by_mode(&self.mode, &self.input);
         self.error.clear();
-        self.output_state.update(cx, |state, cx| {
-            state.set_value(self.output.clone(), window, cx);
-        });
+        self.sync_output(window, cx);
         cx.notify();
     }
 
@@ -424,14 +423,17 @@ impl EscapeTools {
                 self.output = result;
                 self.error.clear();
             }
-            Err(e) => {
-                self.error = e;
-            }
+            Err(e) => self.error = e,
         }
-        self.output_state.update(cx, |state, cx| {
-            state.set_value(self.output.clone(), window, cx);
-        });
+        self.sync_output(window, cx);
         cx.notify();
+    }
+
+    fn sync_output(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let output = self.output.clone();
+        self.output_state.update(cx, |state, cx| {
+            state.set_value(output, window, cx);
+        });
     }
 
     fn paste_input(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -441,6 +443,7 @@ impl EscapeTools {
                 self.input_state.update(cx, |state, cx| {
                     state.set_value(self.input.clone(), window, cx);
                 });
+                cx.notify();
             }
         }
     }
@@ -449,9 +452,8 @@ impl EscapeTools {
         if let Some(item) = cx.read_from_clipboard() {
             if let Some(text) = item.text() {
                 self.output = text.to_string();
-                self.output_state.update(cx, |state, cx| {
-                    state.set_value(self.output.clone(), window, cx);
-                });
+                self.sync_output(window, cx);
+                cx.notify();
             }
         }
     }
@@ -472,95 +474,142 @@ impl EscapeTools {
         self.output_state.update(cx, |state, cx| {
             state.set_value("".to_string(), window, cx);
         });
+        cx.notify();
     }
 }
 
 impl Render for EscapeTools {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let error = self.error.clone();
+        let output_empty = self.output.is_empty();
+
         design::page()
-            .child(design::page_header("转义工具", "HTML / 字符串转义", cx))
+            .child(design::page_header(
+                "转义工具",
+                "HTML / XML / JSON / JS / CSV / SQL 转义与反转义",
+                cx,
+            ))
             .child(
                 design::card(cx)
+                    .child(design::card_header(
+                        IconName::SquareTerminal,
+                        "转义工具",
+                        "多语言字符串转义与反转义",
+                        cx,
+                    ))
+                    // 配置行：模式
                     .child(
-                        design::toolbar()
-                            .child(design::caption("类型", cx))
-                            .child(Select::new(&self.mode_state)),
-                    )
-                    .child(
-                        design::toolbar()
+                        div()
+                            .flex()
+                            .flex_wrap()
+                            .items_center()
+                            .gap_3()
                             .child(
-                                Button::new("paste-input")
-                                    .icon(Icon::new(IconName::File))
-                                    .tooltip("粘贴输入")
+                                div()
+                                    .text_size(px(13.0))
+                                    .text_color(gpui::black().opacity(0.65))
+                                    .child("模式"),
+                            )
+                            .child(
+                                div()
+                                    .w(px(260.0))
+                                    .child(Select::new(&self.mode_state)),
+                            ),
+                    )
+                    // 输入编辑器（Vue 原版输入区无工具行）
+                    .child(
+                        div()
+                            .flex_col()
+                            .gap_1p5()
+                            .child(design::editor_label("输入", cx))
+                            .child(
+                                Textarea::new(&self.input_state)
+                                    .h(design::CODE_BOX_HEIGHT)
+                                    .font_family("monospace"),
+                            ),
+                    )
+                    // 转义 / 反转义动作行
+                    .child(
+                        design::action_row()
+                            .child(
+                                Button::new("escape")
+                                    .primary()
+                                    .icon(Icon::new(IconName::ArrowDown))
+                                    .tooltip("转义")
                                     .on_click(cx.listener(|this, _, window, cx| {
-                                        this.paste_input(window, cx);
+                                        this.do_escape(window, cx);
                                     })),
                             )
                             .child(
-                                Button::new("paste-output")
-                                    .icon(Icon::new(IconName::File))
-                                    .tooltip("粘贴输出")
+                                Button::new("unescape")
+                                    .primary()
+                                    .icon(Icon::new(IconName::ArrowUp))
+                                    .tooltip("反转义")
                                     .on_click(cx.listener(|this, _, window, cx| {
-                                        this.paste_output(window, cx);
+                                        this.do_unescape(window, cx);
                                     })),
+                            ),
+                    )
+                    // 输出编辑器
+                    .child(
+                        div()
+                            .flex_col()
+                            .gap_1p5()
+                            .child(design::editor_label("输出", cx))
+                            .child(
+                                Textarea::new(&self.output_state)
+                                    .h(design::CODE_BOX_HEIGHT)
+                                    .font_family("monospace"),
                             )
                             .child(
-                                Button::new("copy-output")
-                                    .icon(Icon::new(IconName::Copy))
-                                    .tooltip("复制输出")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.copy_output(cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new("clear")
-                                    .icon(Icon::new(IconName::Close))
-                                    .tooltip("清除")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.clear(window, cx);
-                                    })),
-                            )
-                            .child(div().flex_1()),
+                                design::toolbar()
+                                    .child(
+                                        Button::new("paste-input")
+                                            .icon(Icon::new(IconName::Inbox))
+                                            .tooltip("粘贴输入")
+                                            .on_click(cx.listener(
+                                                |this, _, window, cx| {
+                                                    this.paste_input(window, cx);
+                                                },
+                                            )),
+                                    )
+                                    .child(
+                                        Button::new("paste-output")
+                                            .icon(Icon::new(IconName::Inbox))
+                                            .tooltip("粘贴输出")
+                                            .on_click(cx.listener(
+                                                |this, _, window, cx| {
+                                                    this.paste_output(window, cx);
+                                                },
+                                            )),
+                                    )
+                                    .child(
+                                        Button::new("copy-output")
+                                            .icon(Icon::new(IconName::Copy))
+                                            .tooltip("复制输出")
+                                            .disabled(output_empty)
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.copy_output(cx);
+                                            })),
+                                    )
+                                    .child(
+                                        Button::new("clear")
+                                            .icon(Icon::new(IconName::Close))
+                                            .tooltip("清除")
+                                            .on_click(cx.listener(
+                                                |this, _, window, cx| {
+                                                    this.clear(window, cx);
+                                                },
+                                            )),
+                                    ),
+                            ),
                     )
-                    .child(
-                        Textarea::new(&self.input_state)
-                            .h(design::CODE_BOX_HEIGHT)
-                            .font_family("monospace"),
-                    ),
-            )
-            .child(
-                design::action_row()
-                    .child(
-                        Button::new("escape")
-                            .label("转义")
-                            .primary()
-                            .icon(Icon::new(IconName::ArrowDown))
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.do_escape(window, cx);
-                            })),
-                    )
-                    .child(
-                        Button::new("unescape")
-                            .label("反转义")
-                            .icon(Icon::new(IconName::ArrowUp))
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.do_unescape(window, cx);
-                            })),
-                    ),
-            )
-            .child(
-                design::card(cx)
-                    .child(
-                        Textarea::new(&self.output_state)
-                            .h(design::CODE_BOX_HEIGHT)
-                            .font_family("monospace"),
-                    )
-                    .when(!self.error.is_empty(), |this| {
-                        this.child(
+                    .when(!error.is_empty(), |card| {
+                        card.child(
                             div()
-                                .text_sm()
-                                .text_color(cx.theme().danger)
-                                .child(self.error.clone()),
+                                .text_size(px(12.5))
+                                .text_color(Hsla::from(rgb(design::ERROR_RED)))
+                                .child(error),
                         )
                     }),
             )

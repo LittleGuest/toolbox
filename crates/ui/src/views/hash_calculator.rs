@@ -1,9 +1,8 @@
 use crate::design;
-use gpui_kit::*;
+use gpui_kit::{prelude::FluentBuilder as _, *};
 use gpui_kit::component::{
     button::*,
-    input::{Input, InputEvent, InputState, Textarea, TextareaState },
-    select::{SelectEvent, SelectState},
+    input::{InputEvent, Textarea, TextareaState},
     *,
 };
 
@@ -17,57 +16,27 @@ pub struct HashCalculator {
     sha3_512: String,
     is_calculating: bool,
     generation: u64,
-    uppercase: bool,
-    output_type: String,
-    hmac_mode: bool,
     input_state: Entity<TextareaState>,
-    secret_state: Entity<InputState>,
-    output_type_state: Entity<SelectState<Vec<String>>>,
     _subscriptions: Vec<Subscription>,
 }
 
 impl HashCalculator {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let input_state = cx.new(|cx| {
-            TextareaState::new(window, cx)
-                .placeholder("请输入文本...")
-                
-        });
-        let secret_state = cx.new(|cx| InputState::new(window, cx).placeholder("HMAC 密钥..."));
-
-        let output_type_items = vec!["十六进制(Hex)".to_string(), "Base64".to_string()];
-        let output_type_state = cx.new(|cx| {
-            let mut state = SelectState::new(output_type_items, None, window, cx);
-            state.set_selected_value(&"十六进制(Hex)".to_string(), window, cx);
-            state
+            TextareaState::new(window, cx).placeholder("请输入文本...")
         });
 
-        let _subscriptions = vec![
-            cx.subscribe_in(&input_state, window, {
-                let input_state = input_state.clone();
-                move |this, _, _ev: &InputEvent, _window, cx| {
+        let _subscriptions = vec![cx.subscribe_in(&input_state, window, {
+            let input_state = input_state.clone();
+            move |this, _, ev: &InputEvent, _window, cx| {
+                if let InputEvent::Change = ev {
                     let value = input_state.read(cx).value();
                     this.input = value.to_string();
                     this.calculate(cx);
                     cx.notify();
                 }
-            }),
-            cx.subscribe_in(
-                &output_type_state,
-                window,
-                move |this, _, ev: &SelectEvent<Vec<String>>, _, cx| {
-                    if let SelectEvent::Confirm(Some(value)) = ev {
-                        this.output_type = match value.as_str() {
-                            "Base64" => "base64",
-                            _ => "hex",
-                        }
-                        .to_string();
-                        this.calculate(cx);
-                        cx.notify();
-                    }
-                },
-            ),
-        ];
+            }
+        })];
 
         Self {
             input: String::new(),
@@ -79,24 +48,23 @@ impl HashCalculator {
             sha3_512: String::new(),
             is_calculating: false,
             generation: 0,
-            uppercase: false,
-            output_type: "hex".to_string(),
-            hmac_mode: false,
             input_state,
-            secret_state,
-            output_type_state,
             _subscriptions,
         }
     }
 
+    fn clear_results(&mut self) {
+        self.md5.clear();
+        self.sha1.clear();
+        self.sha256.clear();
+        self.sha512.clear();
+        self.sha3_256.clear();
+        self.sha3_512.clear();
+    }
+
     fn calculate(&mut self, cx: &mut Context<Self>) {
         if self.input.is_empty() {
-            self.md5.clear();
-            self.sha1.clear();
-            self.sha256.clear();
-            self.sha512.clear();
-            self.sha3_256.clear();
-            self.sha3_512.clear();
+            self.clear_results();
             self.is_calculating = false;
             return;
         }
@@ -105,30 +73,12 @@ impl HashCalculator {
         self.generation = self.generation.wrapping_add(1);
         let generation = self.generation;
         let input = self.input.clone();
-        let uppercase = self.uppercase;
-        let output_type = self.output_type.clone();
-        let hmac_mode = self.hmac_mode;
-        let secret = self.secret_state.read(cx).value().to_string();
         cx.notify();
 
         cx.spawn(async move |this: WeakEntity<Self>, cx| {
-            let result = ::base::hash(
-                uppercase,
-                if output_type == "base64" {
-                    Some("base64")
-                } else {
-                    None
-                },
-                hmac_mode,
-                if hmac_mode {
-                    Some(secret.as_str())
-                } else {
-                    None
-                },
-                Some(&input),
-            )
-            .await
-            .unwrap_or_default();
+            let result = ::base::hash(false, None, false, None, Some(&input))
+                .await
+                .unwrap_or_default();
             let _ = this.update(cx, |this, cx| {
                 if this.generation != generation {
                     return;
@@ -151,7 +101,7 @@ impl HashCalculator {
             if let Some(text) = item.text() {
                 self.input = text.to_string();
                 self.input_state.update(cx, |state, cx| {
-                    state.set_value(self.input.clone(), window, cx);
+                    state.set_value(text.to_string(), window, cx);
                 });
                 self.calculate(cx);
             }
@@ -166,12 +116,7 @@ impl HashCalculator {
 
     fn clear(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.input.clear();
-        self.md5.clear();
-        self.sha1.clear();
-        self.sha256.clear();
-        self.sha512.clear();
-        self.sha3_256.clear();
-        self.sha3_512.clear();
+        self.clear_results();
         self.is_calculating = false;
         self.input_state.update(cx, |state, cx| {
             state.set_value("".to_string(), window, cx);
@@ -179,14 +124,65 @@ impl HashCalculator {
         cx.notify();
     }
 
-    fn set_uppercase(&mut self, uppercase: bool, cx: &mut Context<Self>) {
-        self.uppercase = uppercase;
-        self.calculate(cx);
+    fn copy_value(&self, value: &str, cx: &mut Context<Self>) {
+        if !value.is_empty() {
+            cx.write_to_clipboard(ClipboardItem::new_string(value.to_string()));
+        }
     }
 
-    fn set_hmac_mode(&mut self, hmac_mode: bool, cx: &mut Context<Self>) {
-        self.hmac_mode = hmac_mode;
-        self.calculate(cx);
+    /// hash-row：88px 算法名 + 只读散列值 + 复制按钮
+    fn hash_row(
+        &self,
+        id: &'static str,
+        label: &'static str,
+        value: &str,
+        cx: &mut Context<Self>,
+    ) -> Div {
+        let value = value.to_string();
+        let display = if value.is_empty() {
+            "-".to_string()
+        } else {
+            value.clone()
+        };
+        div()
+            .flex()
+            .items_center()
+            .gap_2p5()
+            .child(
+                div()
+                    .w(px(88.0))
+                    .flex_shrink_0()
+                    .text_size(px(13.0))
+                    .font_family("monospace")
+                    .text_color(cx.theme().muted_foreground)
+                    .child(label.to_string()),
+            )
+            .child(
+                div()
+                    .flex_1()
+                    .min_w_0()
+                    .rounded(px(6.0))
+                    .border_1()
+                    .border_color(cx.theme().border)
+                    .bg(cx.theme().background)
+                    .px_3()
+                    .py_1p5()
+                    .text_sm()
+                    .font_family("monospace")
+                    .truncate()
+                    .child(display),
+            )
+            .child(
+                Button::new(id)
+                    .ghost()
+                    .compact()
+                    .icon(Icon::new(IconName::Copy))
+                    .tooltip("复制")
+                    .disabled(value.is_empty())
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.copy_value(&value, cx);
+                    })),
+            )
     }
 }
 
@@ -200,103 +196,76 @@ impl Render for HashCalculator {
         let sha3_512 = self.sha3_512.clone();
 
         design::page()
-            .child(design::page_header("文本 Hash", "计算文本散列值", cx))
+            .child(design::page_header("文本 Hash", "计算文本 MD5 / SHA / SHA3 散列值", cx))
             .child(
                 design::card(cx)
+                    .child(design::card_header(
+                        IconName::Asterisk,
+                        "文本 Hash",
+                        "输入即时计算，支持 MD5 / SHA1 / SHA2 / SHA3",
+                        cx,
+                    ))
+                    // tb-editor：输入
                     .child(
-                        design::toolbar()
+                        div()
+                            .flex_col()
+                            .gap_1p5()
+                            .child(design::editor_label("输入", cx))
                             .child(
-                                Button::new("paste-input")
-                                    .icon(Icon::new(IconName::File))
-                                    .tooltip("粘贴")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.paste_input(window, cx);
-                                    })),
+                                Textarea::new(&self.input_state)
+                                    .h(px(120.0))
+                                    .font_family("monospace"),
                             )
                             .child(
-                                Button::new("copy-input")
-                                    .icon(Icon::new(IconName::Copy))
-                                    .tooltip("复制")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.copy_input(cx);
-                                    })),
-                            )
-                            .child(div().flex_1()),
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap_2()
+                                    .mt_2()
+                                    .child(
+                                        Button::new("paste-input")
+                                            .icon(Icon::new(IconName::Inbox))
+                                            .tooltip("粘贴")
+                                            .on_click(cx.listener(|this, _, window, cx| {
+                                                this.paste_input(window, cx);
+                                            })),
+                                    )
+                                    .child(
+                                        Button::new("copy-input")
+                                            .icon(Icon::new(IconName::Copy))
+                                            .tooltip("复制")
+                                            .disabled(self.input.is_empty())
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.copy_input(cx);
+                                            })),
+                                    )
+                                    .child(
+                                        Button::new("clear-input")
+                                            .icon(Icon::new(IconName::Close))
+                                            .tooltip("清除")
+                                            .on_click(cx.listener(|this, _, window, cx| {
+                                                this.clear(window, cx);
+                                            })),
+                                    ),
+                            ),
                     )
+                    // tb-editor：结果
                     .child(
-                        Textarea::new(&self.input_state)
-                            .h(px(100.0))
-                            .font_family("monospace"),
+                        div()
+                            .flex_col()
+                            .gap_2p5()
+                            .mt_2()
+                            .child(design::editor_label("结果", cx))
+                            .child(self.hash_row("copy-md5", "MD5", &md5, cx))
+                            .child(self.hash_row("copy-sha1", "SHA1", &sha1, cx))
+                            .child(self.hash_row("copy-sha256", "SHA256", &sha256, cx))
+                            .child(self.hash_row("copy-sha512", "SHA512", &sha512, cx))
+                            .child(self.hash_row("copy-sha3-256", "SHA3 256", &sha3_256, cx))
+                            .child(self.hash_row("copy-sha3-512", "SHA3 512", &sha3_512, cx))
+                            .when(self.is_calculating, |this| {
+                                this.child(design::hint("计算中…", cx))
+                            }),
                     ),
             )
-            .child(
-                design::card(cx)
-                    .child(hash_row(cx, "MD5", md5, "copy_md5", |this, cx| {
-                        cx.write_to_clipboard(ClipboardItem::new_string(this.md5.clone()));
-                    }))
-                    .child(hash_row(cx, "SHA1", sha1, "copy_sha1", |this, cx| {
-                        cx.write_to_clipboard(ClipboardItem::new_string(this.sha1.clone()));
-                    }))
-                    .child(hash_row(cx, "SHA256", sha256, "copy_sha256", |this, cx| {
-                        cx.write_to_clipboard(ClipboardItem::new_string(this.sha256.clone()));
-                    }))
-                    .child(hash_row(cx, "SHA512", sha512, "copy_sha512", |this, cx| {
-                        cx.write_to_clipboard(ClipboardItem::new_string(this.sha512.clone()));
-                    }))
-                    .child(hash_row(
-                        cx,
-                        "SHA3 256",
-                        sha3_256,
-                        "copy_sha3_256",
-                        |this, cx| {
-                            cx.write_to_clipboard(ClipboardItem::new_string(this.sha3_256.clone()));
-                        },
-                    ))
-                    .child(hash_row(
-                        cx,
-                        "SHA3 512",
-                        sha3_512,
-                        "copy_sha3_512",
-                        |this, cx| {
-                            cx.write_to_clipboard(ClipboardItem::new_string(this.sha3_512.clone()));
-                        },
-                    )),
-            )
     }
-}
-
-fn hash_row(
-    cx: &mut Context<HashCalculator>,
-    label: &'static str,
-    value: String,
-    copy_id: &'static str,
-    on_copy: fn(&mut HashCalculator, &mut Context<HashCalculator>),
-) -> Div {
-    div()
-        .flex()
-        .items_center()
-        .gap_2()
-        .child(div().w(px(80.0)).text_sm().child(label))
-        .child(
-            div()
-                .flex_1()
-                .border_1()
-                .border_color(cx.theme().border)
-                .rounded_md()
-                .px_2()
-                .py_1()
-                .text_sm()
-                .font_family("monospace")
-                .child(if value.is_empty() {
-                    "-".to_string()
-                } else {
-                    value
-                }),
-        )
-        .child(
-            Button::new(copy_id)
-                .icon(Icon::new(IconName::Copy))
-                .tooltip("复制")
-                .on_click(cx.listener(move |this, _, _, cx| on_copy(this, cx))),
-        )
 }

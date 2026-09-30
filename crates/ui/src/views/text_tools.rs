@@ -5,28 +5,13 @@ use gpui_kit::{prelude::FluentBuilder as _, *};
 use gpui_kit::component::{
     button::*,
     checkbox::Checkbox,
-    input::{Input, InputEvent, InputState, Textarea, TextareaState},
+    input::{Input, InputState, NumberInput, Textarea, TextareaState},
     *,
 };
 
-pub struct TextTools {
-    stat_text: String,
-    input: String,
-    output: String,
-    find: String,
-    replace: String,
-    extract_sep: String,
-    is_regex: bool,
-    message: String,
-    stat_state: Entity<TextareaState>,
-    input_state: Entity<TextareaState>,
-    output_state: Entity<TextareaState>,
-    find_state: Entity<InputState>,
-    replace_state: Entity<InputState>,
-    extract_state: Entity<InputState>,
-    repeat_state: Entity<InputState>,
-    _subscriptions: Vec<Subscription>,
-}
+// ---------------------------------------------------------------------------
+// 纯文本处理函数
+// ---------------------------------------------------------------------------
 
 fn split_lines(s: &str) -> Vec<String> {
     let mut lines = Vec::new();
@@ -57,22 +42,26 @@ fn is_punct_like(c: char) -> bool {
         )
 }
 
+fn is_word_char(c: char) -> bool {
+    c.is_alphanumeric() || c == '_'
+}
+
 fn compute_stats(s: &str) -> Vec<(&'static str, usize)> {
     let line_count = if s.is_empty() {
         0
     } else {
-        s.replace("\r\n", "\n").replace('\r', "\n").split('\n').count()
+        split_lines(s).len()
     };
     vec![
         ("字符数", s.chars().count()),
         ("单词数", s.trim().split_whitespace().count()),
         ("行数", line_count),
-        ("非空白字符", s.chars().filter(|c| !c.is_whitespace()).count()),
-        ("字节数", s.len()),
-        ("中文字符", s.chars().filter(|c| ('\u{4e00}'..='\u{9fff}').contains(c)).count()),
-        ("英文字母", s.chars().filter(|c| c.is_ascii_alphabetic()).count()),
+        ("非空白字符数", s.chars().filter(|c| !c.is_whitespace()).count()),
+        ("字节数 (UTF-8)", s.len()),
+        ("中文字符数", s.chars().filter(|c| ('\u{4e00}'..='\u{9fff}').contains(c)).count()),
+        ("英文字母数", s.chars().filter(|c| c.is_ascii_alphabetic()).count()),
         ("数字个数", s.chars().filter(|c| c.is_ascii_digit()).count()),
-        ("标点符号", s.chars().filter(|c| is_punct_like(*c)).count()),
+        ("标点符号数", s.chars().filter(|c| is_punct_like(*c)).count()),
     ]
 }
 
@@ -120,6 +109,80 @@ fn swap_case_char(c: char) -> char {
     } else {
         c.to_uppercase().next().unwrap_or(c)
     }
+}
+
+fn title_case(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut prev_word = false;
+    for c in s.chars() {
+        if is_word_char(c) {
+            if prev_word {
+                out.extend(c.to_lowercase());
+            } else {
+                out.extend(c.to_uppercase());
+            }
+        } else {
+            out.push(c);
+        }
+        prev_word = is_word_char(c);
+    }
+    out
+}
+
+fn sentence_case(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut upper_next = true;
+    for c in s.chars() {
+        if upper_next && !c.is_whitespace() {
+            out.extend(c.to_uppercase());
+            upper_next = false;
+        } else {
+            out.push(c);
+            if matches!(c, '.' | '!' | '?' | '。' | '！' | '？') {
+                upper_next = true;
+            }
+        }
+    }
+    out
+}
+
+fn camel_pascal_case(s: &str, pascal: bool) -> String {
+    let mut out = String::new();
+    let mut cap_next = pascal;
+    let mut started = false;
+    for c in s.chars() {
+        if c.is_whitespace() || c == '_' || c == '-' {
+            if started {
+                cap_next = true;
+            }
+            continue;
+        }
+        started = true;
+        if cap_next {
+            out.extend(c.to_uppercase());
+            cap_next = false;
+        } else {
+            out.extend(c.to_lowercase());
+        }
+    }
+    out
+}
+
+fn snake_kebab_case(s: &str, sep: char) -> String {
+    let mut out = String::new();
+    let mut in_sep = false;
+    for c in s.trim().chars() {
+        if c.is_whitespace() || c == '_' || c == '-' {
+            in_sep = true;
+        } else {
+            if in_sep && !out.is_empty() {
+                out.push(sep);
+            }
+            in_sep = false;
+            out.push(c);
+        }
+    }
+    out
 }
 
 fn add_slashes(s: &str) -> String {
@@ -205,134 +268,160 @@ fn upside_down_char(c: char) -> char {
     }
 }
 
+// ---------------------------------------------------------------------------
+// 视图状态
+// ---------------------------------------------------------------------------
+
+#[derive(Clone, Copy, PartialEq)]
+enum Tone {
+    Success,
+    Warn,
+    Error,
+    Info,
+}
+
+pub struct TextTools {
+    tab: usize,
+    is_regex: bool,
+    message: String,
+    tone: Tone,
+    stat_state: Entity<TextareaState>,
+    clean_input_state: Entity<TextareaState>,
+    clean_output_state: Entity<TextareaState>,
+    sort_input_state: Entity<TextareaState>,
+    sort_output_state: Entity<TextareaState>,
+    extract_state: Entity<InputState>,
+    find_input_state: Entity<TextareaState>,
+    find_output_state: Entity<TextareaState>,
+    find_state: Entity<InputState>,
+    replace_state: Entity<InputState>,
+    repeat_state: Entity<InputState>,
+    slash_input_state: Entity<TextareaState>,
+    slash_output_state: Entity<TextareaState>,
+    case_input_state: Entity<TextareaState>,
+    case_output_state: Entity<TextareaState>,
+}
+
+const TABS: [&str; 6] = [
+    "字符统计",
+    "清理工具",
+    "排序与提取",
+    "查找替换与重复",
+    "斜线与翻转",
+    "大小写转换",
+];
+
 impl TextTools {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let stat_state = cx.new(|cx| {
-            TextareaState::new(window, cx).placeholder("在此输入文本，统计信息将实时更新...")
+            TextareaState::new(window, cx).placeholder("在此输入文本，统计信息将实时更新")
         });
-        let input_state =
-            cx.new(|cx| TextareaState::new(window, cx).placeholder("请输入文本..."));
-        let output_state =
-            cx.new(|cx| TextareaState::new(window, cx).placeholder("处理结果..."));
+        let clean_input_state =
+            cx.new(|cx| TextareaState::new(window, cx).placeholder("请输入文本"));
+        let clean_output_state =
+            cx.new(|cx| TextareaState::new(window, cx).placeholder("处理结果"));
+        let sort_input_state =
+            cx.new(|cx| TextareaState::new(window, cx).placeholder("每行一条数据，按行处理"));
+        let sort_output_state =
+            cx.new(|cx| TextareaState::new(window, cx).placeholder("处理结果"));
+        let extract_state = cx.new(|cx| {
+            InputState::new(window, cx).placeholder("分隔符或正则表达式，如逗号 或 \\d+")
+        });
+        let find_input_state =
+            cx.new(|cx| TextareaState::new(window, cx).placeholder("请输入文本"));
+        let find_output_state =
+            cx.new(|cx| TextareaState::new(window, cx).placeholder("处理结果"));
         let find_state = cx.new(|cx| InputState::new(window, cx).placeholder("查找内容"));
         let replace_state = cx.new(|cx| InputState::new(window, cx).placeholder("替换内容"));
-        let extract_state =
-            cx.new(|cx| InputState::new(window, cx).placeholder("分隔符或正则表达式，如逗号 或 \\d+"));
-        let repeat_state = cx.new(|cx| InputState::new(window, cx).placeholder("重复次数"));
-
-        let _subscriptions = vec![
-            cx.subscribe_in(&stat_state, window, {
-                let stat_state = stat_state.clone();
-                move |this, _, ev: &InputEvent, _, cx| {
-                    if let InputEvent::Change = ev {
-                        this.stat_text = stat_state.read(cx).value().to_string();
-                        cx.notify();
-                    }
-                }
-            }),
-            cx.subscribe_in(&input_state, window, {
-                let input_state = input_state.clone();
-                move |this, _, ev: &InputEvent, _, cx| {
-                    if let InputEvent::Change = ev {
-                        this.input = input_state.read(cx).value().to_string();
-                        cx.notify();
-                    }
-                }
-            }),
-            cx.subscribe_in(&output_state, window, {
-                let output_state = output_state.clone();
-                move |this, _, ev: &InputEvent, _, cx| {
-                    if let InputEvent::Change = ev {
-                        this.output = output_state.read(cx).value().to_string();
-                        cx.notify();
-                    }
-                }
-            }),
-            cx.subscribe_in(&find_state, window, {
-                let find_state = find_state.clone();
-                move |this, _, ev: &InputEvent, _, cx| {
-                    if let InputEvent::Change = ev {
-                        this.find = find_state.read(cx).value().to_string();
-                        cx.notify();
-                    }
-                }
-            }),
-            cx.subscribe_in(&replace_state, window, {
-                let replace_state = replace_state.clone();
-                move |this, _, ev: &InputEvent, _, cx| {
-                    if let InputEvent::Change = ev {
-                        this.replace = replace_state.read(cx).value().to_string();
-                        cx.notify();
-                    }
-                }
-            }),
-            cx.subscribe_in(&extract_state, window, {
-                let extract_state = extract_state.clone();
-                move |this, _, ev: &InputEvent, _, cx| {
-                    if let InputEvent::Change = ev {
-                        this.extract_sep = extract_state.read(cx).value().to_string();
-                        cx.notify();
-                    }
-                }
-            }),
-        ];
+        let repeat_state =
+            cx.new(|cx| InputState::new(window, cx).default_value("3".to_string()));
+        let slash_input_state =
+            cx.new(|cx| TextareaState::new(window, cx).placeholder("请输入文本"));
+        let slash_output_state =
+            cx.new(|cx| TextareaState::new(window, cx).placeholder("处理结果"));
+        let case_input_state =
+            cx.new(|cx| TextareaState::new(window, cx).placeholder("请输入要转换的文本"));
+        let case_output_state =
+            cx.new(|cx| TextareaState::new(window, cx).placeholder("转换结果"));
 
         Self {
-            stat_text: String::new(),
-            input: String::new(),
-            output: String::new(),
-            find: String::new(),
-            replace: String::new(),
-            extract_sep: String::new(),
+            tab: 0,
             is_regex: false,
             message: String::new(),
+            tone: Tone::Info,
             stat_state,
-            input_state,
-            output_state,
+            clean_input_state,
+            clean_output_state,
+            sort_input_state,
+            sort_output_state,
+            extract_state,
+            find_input_state,
+            find_output_state,
             find_state,
             replace_state,
-            extract_state,
             repeat_state,
-            _subscriptions,
+            slash_input_state,
+            slash_output_state,
+            case_input_state,
+            case_output_state,
         }
     }
 
-    fn warn(&mut self, msg: &str, cx: &mut Context<Self>) {
+    fn set_msg(&mut self, tone: Tone, msg: &str, cx: &mut Context<Self>) {
+        self.tone = tone;
         self.message = msg.to_string();
         cx.notify();
     }
 
-    fn set_output(&mut self, out: String, window: &mut Window, cx: &mut Context<Self>) {
-        self.output = out;
-        self.output_state.update(cx, |state, cx| {
-            state.set_value(self.output.clone(), window, cx);
-        });
+    fn clear_msg(&mut self, cx: &mut Context<Self>) {
+        self.message.clear();
         cx.notify();
     }
 
-    fn apply_str(
-        &mut self,
-        f: impl FnOnce(&str) -> String,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        if self.input.is_empty() {
-            self.warn("请先输入内容", cx);
+    fn copy_value(&mut self, value: &str, cx: &mut Context<Self>) {
+        if value.is_empty() {
+            self.set_msg(Tone::Warn, "内容为空", cx);
             return;
         }
-        self.message.clear();
-        let out = f(&self.input);
-        self.set_output(out, window, cx);
+        cx.write_to_clipboard(ClipboardItem::new_string(value.to_string()));
+        self.set_msg(Tone::Success, "复制成功", cx);
     }
 
-    fn apply_lines(
-        &mut self,
-        f: impl FnOnce(Vec<String>) -> Vec<String>,
+    /// 统一处理：读输入 -> 变换 -> 写输出（对齐 Vue cleanApply / sortApply）
+    fn apply_str<F>(&mut self, f: F, window: &mut Window, cx: &mut Context<Self>)
+    where
+        F: FnOnce(&str) -> String,
+    {
+        let input = self.clean_input_state.read(cx).value().to_string();
+        let output = f(&input);
+        self.clean_output_state.update(cx, |state, cx| {
+            state.set_value(output, window, cx);
+        });
+        self.clear_msg(cx);
+    }
+
+    fn apply_lines<F>(&mut self, f: F, window: &mut Window, cx: &mut Context<Self>)
+    where
+        F: FnOnce(Vec<String>) -> Vec<String>,
+    {
+        self.apply_str(|s| f(split_lines(s)).join("\n"), window, cx);
+    }
+
+    fn clear_pair(
+        input: &Entity<TextareaState>,
+        output: &Entity<TextareaState>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.apply_str(|s| f(split_lines(s)).join("\n"), window, cx);
+        input.update(cx, |state, cx| {
+            state.set_value("".to_string(), window, cx);
+        });
+        output.update(cx, |state, cx| {
+            state.set_value("".to_string(), window, cx);
+        });
     }
+
+    // -- 清理工具 -----------------------------------------------------------
 
     fn op_dedupe(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.apply_lines(
@@ -372,20 +461,12 @@ impl TextTools {
         );
     }
 
-    fn op_swap_case(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.apply_str(
-            |s| s.chars().map(swap_case_char).collect(),
-            window,
-            cx,
-        );
+    fn op_remove_diacritics(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.apply_str(remove_diacritics, window, cx);
     }
 
     fn op_remove_punct(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.apply_str(
-            |s| s.chars().filter(|c| !is_punct_like(*c)).collect(),
-            window,
-            cx,
-        );
+        self.apply_str(|s| s.chars().filter(|c| !is_punct_like(*c)).collect(), window, cx);
     }
 
     fn op_remove_digits(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -400,31 +481,34 @@ impl TextTools {
         self.apply_str(strip_html, window, cx);
     }
 
-    fn op_remove_diacritics(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.apply_str(remove_diacritics, window, cx);
-    }
+    // -- 排序与提取 ---------------------------------------------------------
 
     fn op_sort_asc(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.apply_lines(|mut lines| {
-            lines.sort();
-            lines
-        }, window, cx);
+        self.apply_lines(|mut lines| { lines.sort(); lines }, window, cx);
     }
 
     fn op_sort_desc(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.apply_lines(|mut lines| {
-            lines.sort();
-            lines.reverse();
-            lines
-        }, window, cx);
+        self.apply_lines(
+            |mut lines| {
+                lines.sort();
+                lines.reverse();
+                lines
+            },
+            window,
+            cx,
+        );
     }
 
     fn op_shuffle(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.apply_lines(|mut lines| {
-            use rand::seq::SliceRandom;
-            lines.shuffle(&mut rand::rng());
-            lines
-        }, window, cx);
+        self.apply_lines(
+            |mut lines| {
+                use rand::seq::SliceRandom;
+                lines.shuffle(&mut rand::rng());
+                lines
+            },
+            window,
+            cx,
+        );
     }
 
     fn op_trim_lines(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -436,493 +520,1026 @@ impl TextTools {
     }
 
     fn op_extract(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.extract_sep.trim().is_empty() {
-            self.warn("请输入分隔符或正则表达式", cx);
+        let sep = self.extract_state.read(cx).value().trim().to_string();
+        if sep.is_empty() {
+            self.set_msg(Tone::Warn, "请输入分隔符或正则表达式", cx);
             return;
         }
-        if self.input.is_empty() {
-            self.warn("请先输入内容", cx);
-            return;
-        }
-        let re = match regex::Regex::new(&self.extract_sep) {
+        let re = match regex::Regex::new(&sep) {
             Ok(re) => re,
             Err(_) => {
-                self.warn("正则表达式无效", cx);
+                self.set_msg(Tone::Error, "正则表达式无效", cx);
                 return;
             }
         };
-        let matches: Vec<&str> = re.find_iter(&self.input).map(|m| m.as_str()).collect();
+        let input = self.sort_input_state.read(cx).value().to_string();
+        let matches: Vec<&str> = re.find_iter(&input).map(|m| m.as_str()).collect();
         if matches.is_empty() {
-            self.message = "未匹配到任何内容".to_string();
+            self.set_msg(Tone::Info, "未匹配到任何内容", cx);
         } else {
-            self.message.clear();
+            self.clear_msg(cx);
         }
-        self.set_output(matches.join("\n"), window, cx);
+        let joined = matches.join("\n");
+        self.sort_output_state.update(cx, |state, cx| {
+            state.set_value(joined, window, cx);
+        });
     }
 
+    // -- 查找替换与重复 -----------------------------------------------------
+
     fn op_replace(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.find.is_empty() {
-            self.warn("请输入查找内容", cx);
+        let find = self.find_state.read(cx).value().to_string();
+        if find.is_empty() {
+            self.set_msg(Tone::Warn, "请输入查找内容", cx);
             return;
         }
-        if self.input.is_empty() {
-            self.warn("请先输入内容", cx);
-            return;
-        }
+        let replace = self.replace_state.read(cx).value().to_string();
+        let input = self.find_input_state.read(cx).value().to_string();
         let out = if self.is_regex {
-            match regex::Regex::new(&self.find) {
-                Ok(re) => re.replace_all(&self.input, self.replace.as_str()).to_string(),
+            match regex::Regex::new(&find) {
+                Ok(re) => re.replace_all(&input, replace.as_str()).to_string(),
                 Err(_) => {
-                    self.warn("正则表达式无效", cx);
+                    self.set_msg(Tone::Error, "正则表达式无效", cx);
                     return;
                 }
             }
         } else {
-            self.input.replace(&self.find, &self.replace)
+            input.replace(&find, &replace)
         };
-        self.message.clear();
-        self.set_output(out, window, cx);
+        self.clear_msg(cx);
+        self.find_output_state.update(cx, |state, cx| {
+            state.set_value(out, window, cx);
+        });
     }
 
     fn op_repeat(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.input.is_empty() {
-            self.warn("请先输入内容", cx);
-            return;
-        }
+        let input = self.find_input_state.read(cx).value().to_string();
         let count = self
             .repeat_state
             .read(cx)
             .value()
             .trim()
             .parse::<usize>()
-            .unwrap_or(3)
+            .unwrap_or(1)
             .clamp(1, 10000);
-        self.message.clear();
-        let out = self.input.repeat(count);
-        self.set_output(out, window, cx);
+        let out = input.repeat(count);
+        self.clear_msg(cx);
+        self.find_output_state.update(cx, |state, cx| {
+            state.set_value(out, window, cx);
+        });
     }
 
+    // -- 斜线与翻转 ---------------------------------------------------------
+
     fn op_add_slashes(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.apply_str(add_slashes, window, cx);
+        let input = self.slash_input_state.read(cx).value().to_string();
+        let out = add_slashes(&input);
+        self.slash_output_state.update(cx, |state, cx| {
+            state.set_value(out, window, cx);
+        });
+        self.clear_msg(cx);
     }
 
     fn op_strip_slashes(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.apply_str(strip_slashes, window, cx);
+        let input = self.slash_input_state.read(cx).value().to_string();
+        let out = strip_slashes(&input);
+        self.slash_output_state.update(cx, |state, cx| {
+            state.set_value(out, window, cx);
+        });
+        self.clear_msg(cx);
     }
 
     fn op_reverse_string(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.apply_str(|s| s.chars().rev().collect(), window, cx);
+        let input = self.slash_input_state.read(cx).value().to_string();
+        let out: String = input.chars().rev().collect();
+        self.slash_output_state.update(cx, |state, cx| {
+            state.set_value(out, window, cx);
+        });
+        self.clear_msg(cx);
     }
 
     fn op_reverse_words(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.apply_str(
-            |s| s.split_whitespace().rev().collect::<Vec<_>>().join(" "),
-            window,
-            cx,
-        );
+        let input = self.slash_input_state.read(cx).value().to_string();
+        let out = input.split_whitespace().rev().collect::<Vec<_>>().join(" ");
+        self.slash_output_state.update(cx, |state, cx| {
+            state.set_value(out, window, cx);
+        });
+        self.clear_msg(cx);
     }
 
     fn op_upside_down(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.apply_str(
-            |s| s.chars().map(upside_down_char).collect(),
-            window,
-            cx,
-        );
+        let input = self.slash_input_state.read(cx).value().to_string();
+        let out: String = input.chars().map(upside_down_char).collect();
+        self.slash_output_state.update(cx, |state, cx| {
+            state.set_value(out, window, cx);
+        });
+        self.clear_msg(cx);
     }
 
-    fn copy_input(&mut self, cx: &mut Context<Self>) {
-        if !self.input.is_empty() {
-            cx.write_to_clipboard(ClipboardItem::new_string(self.input.clone()));
-        }
+    // -- 大小写转换（对齐 CaseConverter.vue） --------------------------------
+
+    fn op_case<F>(&mut self, f: F, window: &mut Window, cx: &mut Context<Self>)
+    where
+        F: FnOnce(&str) -> String,
+    {
+        let input = self.case_input_state.read(cx).value().to_string();
+        let output = f(&input);
+        self.case_output_state.update(cx, |state, cx| {
+            state.set_value(output, window, cx);
+        });
+        self.clear_msg(cx);
     }
 
-    fn paste_input(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    fn op_paste_case(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(item) = cx.read_from_clipboard() {
             if let Some(text) = item.text() {
-                self.input = text.to_string();
-                self.input_state.update(cx, |state, cx| {
-                    state.set_value(self.input.clone(), window, cx);
+                self.case_input_state.update(cx, |state, cx| {
+                    state.set_value(text.to_string(), window, cx);
                 });
-                cx.notify();
             }
         }
     }
 
-    fn clear_input(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.input.clear();
-        self.input_state.update(cx, |state, cx| {
-            state.set_value("".to_string(), window, cx);
-        });
-        cx.notify();
+    // -- 输出区复制 / 清除 ---------------------------------------------------
+
+    fn clear_clean(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        Self::clear_pair(&self.clean_input_state, &self.clean_output_state, window, cx);
+        self.clear_msg(cx);
     }
 
-    fn copy_output(&mut self, cx: &mut Context<Self>) {
-        if self.output.is_empty() {
-            self.warn("内容为空", cx);
-            return;
-        }
-        cx.write_to_clipboard(ClipboardItem::new_string(self.output.clone()));
+    fn clear_sort(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        Self::clear_pair(&self.sort_input_state, &self.sort_output_state, window, cx);
+        self.extract_state.update(cx, |state, cx| {
+            state.set_value("".to_string(), window, cx);
+        });
+        self.clear_msg(cx);
+    }
+
+    fn clear_find(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        Self::clear_pair(&self.find_input_state, &self.find_output_state, window, cx);
+        self.find_state.update(cx, |state, cx| {
+            state.set_value("".to_string(), window, cx);
+        });
+        self.replace_state.update(cx, |state, cx| {
+            state.set_value("".to_string(), window, cx);
+        });
+        self.repeat_state.update(cx, |state, cx| {
+            state.set_value("3".to_string(), window, cx);
+        });
+        self.clear_msg(cx);
+    }
+
+    fn clear_slash(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        Self::clear_pair(&self.slash_input_state, &self.slash_output_state, window, cx);
+        self.clear_msg(cx);
+    }
+
+    fn clear_case(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        Self::clear_pair(&self.case_input_state, &self.case_output_state, window, cx);
+        self.clear_msg(cx);
+    }
+
+    fn clear_stat(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.stat_state.update(cx, |state, cx| {
+            state.set_value("".to_string(), window, cx);
+        });
+        self.clear_msg(cx);
     }
 
     fn copy_stats(&mut self, cx: &mut Context<Self>) {
-        let text = compute_stats(&self.stat_text)
+        let text = self.stat_state.read(cx).value().to_string();
+        let summary = compute_stats(&text)
             .iter()
             .map(|(label, value)| format!("{label}：{value}"))
             .collect::<Vec<_>>()
             .join("\n");
-        if !text.is_empty() {
-            cx.write_to_clipboard(ClipboardItem::new_string(text));
-        }
+        cx.write_to_clipboard(ClipboardItem::new_string(summary));
+        self.set_msg(Tone::Success, "复制成功", cx);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 渲染
+// ---------------------------------------------------------------------------
+
+impl TextTools {
+    fn tab_btn(
+        &self,
+        idx: usize,
+        cx: &mut Context<Self>,
+    ) -> Stateful<Div> {
+        let active = self.tab == idx;
+        div()
+            .id(("tt-tab", idx))
+            .px_1()
+            .pb_2()
+            .mb(px(-1.0))
+            .text_sm()
+            .font_medium()
+            .border_b_2()
+            .text_color(if active {
+                cx.theme().primary
+            } else {
+                cx.theme().muted_foreground
+            })
+            .border_color(if active {
+                cx.theme().primary
+            } else {
+                gpui::black().opacity(0.0)
+            })
+            .on_click(cx.listener(move |this, _, _, cx| {
+                this.tab = idx;
+                this.clear_msg(cx);
+                cx.notify();
+            }))
+            .child(TABS[idx].to_string())
     }
 
-    fn clear_stat(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.stat_text.clear();
-        self.stat_state.update(cx, |state, cx| {
-            state.set_value("".to_string(), window, cx);
-        });
-        cx.notify();
+    fn tab_bar(&self, cx: &mut Context<Self>) -> Div {
+        div()
+            .flex()
+            .flex_wrap()
+            .gap_6()
+            .border_b_1()
+            .border_color(cx.theme().border)
+            .mb_4()
+            .children((0..TABS.len()).map(|i| self.tab_btn(i, cx)))
     }
 
-    fn clear_all(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.input.clear();
-        self.output.clear();
-        self.message.clear();
-        self.input_state.update(cx, |state, cx| {
-            state.set_value("".to_string(), window, cx);
-        });
-        self.output_state.update(cx, |state, cx| {
-            state.set_value("".to_string(), window, cx);
-        });
-        cx.notify();
+    /// tb-toolbar：复制输出 + 清除
+    fn output_toolbar(
+        &self,
+        id: &'static str,
+        output: &Entity<TextareaState>,
+        on_clear: impl Fn(&mut Self, &mut Window, &mut Context<Self>) + 'static,
+        cx: &mut Context<Self>,
+    ) -> Div {
+        let output = output.clone();
+        let copy_id: SharedString = format!("{id}-copy").into();
+        let clear_id: SharedString = format!("{id}-clear").into();
+        div()
+            .flex()
+            .items_center()
+            .gap_2()
+            .mt_2()
+            .child(
+                Button::new(copy_id)
+                    .ghost()
+                    .compact()
+                    .icon(Icon::new(IconName::Copy))
+                    .tooltip("复制输出")
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        let value = output.read(cx).value().to_string();
+                        this.copy_value(&value, cx);
+                    })),
+            )
+            .child(
+                Button::new(clear_id)
+                    .ghost()
+                    .compact()
+                    .icon(Icon::new(IconName::Close))
+                    .tooltip("清除")
+                    .on_click(cx.listener(move |this, _, window, cx| {
+                        on_clear(this, window, cx);
+                    })),
+            )
+    }
+
+    // -- Tab 1：字符统计 -----------------------------------------------------
+
+    fn render_stats(&mut self, cx: &mut Context<Self>) -> Div {
+        let stat_text = self.stat_state.read(cx).value().to_string();
+        let stats = compute_stats(&stat_text);
+
+        div()
+            .flex_col()
+            .gap_3()
+            .child(
+                div()
+                    .flex_col()
+                    .gap_1p5()
+                    .child(design::editor_label("输入", cx))
+                    .child(
+                        Textarea::new(&self.stat_state)
+                            .h(px(180.0))
+                            .font_family("monospace"),
+                    ),
+            )
+            .child(
+                div()
+                    .grid()
+                    .grid_cols(5)
+                    .gap_2p5()
+                    .children(stats.iter().map(|(label, value)| {
+                        div()
+                            .flex_col()
+                            .items_center()
+                            .px(px(14.0))
+                            .py(px(12.0))
+                            .rounded(px(12.0))
+                            .border_1()
+                            .border_color(cx.theme().border)
+                            .bg(cx.theme().background)
+                            .child(
+                                div()
+                                    .text_size(px(20.0))
+                                    .font_bold()
+                                    .font_family("monospace")
+                                    .text_color(cx.theme().primary)
+                                    .child(value.to_string()),
+                            )
+                            .child(
+                                div()
+                                    .mt(px(4.0))
+                                    .text_size(px(12.0))
+                                    .text_color(cx.theme().muted_foreground)
+                                    .child(*label),
+                            )
+                    })),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .child(
+                        Button::new("copy-stats")
+                            .ghost()
+                            .compact()
+                            .icon(Icon::new(IconName::Copy))
+                            .tooltip("复制统计")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.copy_stats(cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("clear-stats")
+                            .ghost()
+                            .compact()
+                            .icon(Icon::new(IconName::Close))
+                            .tooltip("清除")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.clear_stat(window, cx);
+                            })),
+                    ),
+            )
+    }
+
+    // -- Tab 2：清理工具 -----------------------------------------------------
+
+    fn render_clean(&mut self, cx: &mut Context<Self>) -> Div {
+        div()
+            .flex_col()
+            .gap_3()
+            .child(
+                div()
+                    .flex_col()
+                    .gap_1p5()
+                    .child(design::editor_label("输入", cx))
+                    .child(
+                        Textarea::new(&self.clean_input_state)
+                            .h(px(150.0))
+                            .font_family("monospace"),
+                    ),
+            )
+            .child(
+                div().flex().flex_wrap().items_center().gap_2().child(
+                    Button::new("dedupe")
+                        .compact()
+                        .label("去重")
+                        .tooltip("删除重复行")
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            this.op_dedupe(window, cx);
+                        })),
+                ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .flex_wrap()
+                    .items_center()
+                    .gap_2()
+                    .child(
+                        Button::new("remove-empty")
+                            .compact()
+                            .label("去空行")
+                            .tooltip("删除空行")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_remove_empty(window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("collapse-ws")
+                            .compact()
+                            .label("合空格")
+                            .tooltip("合并多余空格")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_collapse_ws(window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("remove-all-ws")
+                            .compact()
+                            .label("删空白")
+                            .tooltip("删除全部空白")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_remove_all_ws(window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("remove-breaks")
+                            .compact()
+                            .label("删换行")
+                            .tooltip("删除换行符")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_remove_breaks(window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("remove-diacritics")
+                            .compact()
+                            .label("删重音")
+                            .tooltip("删除重音符号")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_remove_diacritics(window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("remove-punct")
+                            .compact()
+                            .label("删标点")
+                            .tooltip("删除标点符号")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_remove_punct(window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("remove-digits")
+                            .compact()
+                            .label("删数字")
+                            .tooltip("删除数字")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_remove_digits(window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("strip-html")
+                            .compact()
+                            .label("去HTML")
+                            .tooltip("剥离 HTML 标签")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_strip_html(window, cx);
+                            })),
+                    ),
+            )
+            .child(
+                div()
+                    .flex_col()
+                    .gap_1p5()
+                    .child(design::editor_label("输出", cx))
+                    .child(
+                        Textarea::new(&self.clean_output_state)
+                            .h(px(150.0))
+                            .font_family("monospace"),
+                    )
+                    .child(self.output_toolbar("tt-clean", &self.clean_output_state, |this, window, cx| {
+                        this.clear_clean(window, cx);
+                    }, cx)),
+            )
+    }
+
+    // -- Tab 3：排序与提取 ---------------------------------------------------
+
+    fn render_sort(&mut self, cx: &mut Context<Self>) -> Div {
+        div()
+            .flex_col()
+            .gap_3()
+            .child(
+                div()
+                    .flex_col()
+                    .gap_1p5()
+                    .child(design::editor_label("输入", cx))
+                    .child(
+                        Textarea::new(&self.sort_input_state)
+                            .h(px(150.0))
+                            .font_family("monospace"),
+                    ),
+            )
+            .child(
+                div().flex().flex_wrap().items_center().gap_2().child(
+                    Button::new("sort-asc")
+                        .compact()
+                        .icon(Icon::new(IconName::SortAscending))
+                        .tooltip("按行升序排序")
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            this.op_sort_asc(window, cx);
+                        })),
+                ),
+            )
+            .child(
+                div().flex().flex_wrap().items_center().gap_2().child(
+                    Button::new("sort-desc")
+                        .compact()
+                        .icon(Icon::new(IconName::SortDescending))
+                        .tooltip("按行降序排序")
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            this.op_sort_desc(window, cx);
+                        })),
+                ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .flex_wrap()
+                    .items_center()
+                    .gap_2()
+                    .child(
+                        Button::new("shuffle")
+                            .compact()
+                            .label("打乱")
+                            .tooltip("随机打乱行")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_shuffle(window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("trim-lines")
+                            .compact()
+                            .label("去首尾")
+                            .tooltip("每行去首尾空格")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_trim_lines(window, cx);
+                            })),
+                    ),
+            )
+            .child(div().border_t_1().border_color(cx.theme().border))
+            .child(
+                div()
+                    .flex()
+                    .flex_wrap()
+                    .items_center()
+                    .gap_3()
+                    .child(
+                        div()
+                            .text_size(px(12.0))
+                            .text_color(cx.theme().muted_foreground)
+                            .child("分隔符 / 正则"),
+                    )
+                    .child(
+                        div()
+                            .w(px(360.0))
+                            .max_w_full()
+                            .font_family("monospace")
+                            .child(Input::new(&self.extract_state)),
+                    )
+                    .child(
+                        Button::new("extract")
+                            .primary()
+                            .compact()
+                            .label("提取")
+                            .tooltip("按分隔符 / 正则提取")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_extract(window, cx);
+                            })),
+                    ),
+            )
+            .child(
+                div()
+                    .flex_col()
+                    .gap_1p5()
+                    .child(design::editor_label("输出", cx))
+                    .child(
+                        Textarea::new(&self.sort_output_state)
+                            .h(px(150.0))
+                            .font_family("monospace"),
+                    )
+                    .child(self.output_toolbar("tt-sort", &self.sort_output_state, |this, window, cx| {
+                        this.clear_sort(window, cx);
+                    }, cx)),
+            )
+    }
+
+    // -- Tab 4：查找替换与重复 -----------------------------------------------
+
+    fn render_find(&mut self, cx: &mut Context<Self>) -> Div {
+        div()
+            .flex_col()
+            .gap_3()
+            .child(
+                div()
+                    .flex_col()
+                    .gap_1p5()
+                    .child(design::editor_label("输入", cx))
+                    .child(
+                        Textarea::new(&self.find_input_state)
+                            .h(px(130.0))
+                            .font_family("monospace"),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .flex_wrap()
+                    .items_center()
+                    .gap_3()
+                    .child(
+                        div()
+                            .w(px(220.0))
+                            .font_family("monospace")
+                            .child(Input::new(&self.find_state)),
+                    )
+                    .child(
+                        div()
+                            .w(px(220.0))
+                            .font_family("monospace")
+                            .child(Input::new(&self.replace_state)),
+                    )
+                    .child(
+                        Checkbox::new("tt-regex")
+                            .label("正则")
+                            .checked(self.is_regex)
+                            .on_click(cx.listener(|this, checked: &bool, _, cx| {
+                                this.is_regex = *checked;
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        Button::new("replace")
+                            .primary()
+                            .compact()
+                            .icon(Icon::new(IconName::Replace))
+                            .tooltip("替换")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_replace(window, cx);
+                            })),
+                    ),
+            )
+            .child(div().border_t_1().border_color(cx.theme().border))
+            .child(
+                div()
+                    .flex()
+                    .flex_wrap()
+                    .items_center()
+                    .gap_3()
+                    .child(
+                        div()
+                            .w(px(120.0))
+                            .child(NumberInput::new(&self.repeat_state)),
+                    )
+                    .child(
+                        Button::new("repeat")
+                            .compact()
+                            .label("重复文本")
+                            .tooltip("将输入整体重复 N 次")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_repeat(window, cx);
+                            })),
+                    )
+                    .child(
+                        div()
+                            .text_size(px(12.0))
+                            .text_color(cx.theme().muted_foreground)
+                            .child("将上方输入整体重复 N 次"),
+                    ),
+            )
+            .child(
+                div()
+                    .flex_col()
+                    .gap_1p5()
+                    .child(design::editor_label("输出", cx))
+                    .child(
+                        Textarea::new(&self.find_output_state)
+                            .h(px(130.0))
+                            .font_family("monospace"),
+                    )
+                    .child(self.output_toolbar("tt-find", &self.find_output_state, |this, window, cx| {
+                        this.clear_find(window, cx);
+                    }, cx)),
+            )
+    }
+
+    // -- Tab 5：斜线与翻转 ---------------------------------------------------
+
+    fn render_slash(&mut self, cx: &mut Context<Self>) -> Div {
+        div()
+            .flex_col()
+            .gap_3()
+            .child(
+                div()
+                    .flex_col()
+                    .gap_1p5()
+                    .child(design::editor_label("输入", cx))
+                    .child(
+                        Textarea::new(&self.slash_input_state)
+                            .h(px(150.0))
+                            .font_family("monospace"),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .flex_wrap()
+                    .items_center()
+                    .gap_2()
+                    .child(
+                        Button::new("add-slashes")
+                            .compact()
+                            .label("加斜线")
+                            .tooltip("添加斜线")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_add_slashes(window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("strip-slashes")
+                            .compact()
+                            .label("去斜线")
+                            .tooltip("去除斜线")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_strip_slashes(window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("reverse-str")
+                            .compact()
+                            .label("反转")
+                            .tooltip("反向字符串")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_reverse_string(window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("reverse-words")
+                            .compact()
+                            .label("词序反转")
+                            .tooltip("单词顺序反转")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_reverse_words(window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("upside-down")
+                            .compact()
+                            .label("倒置")
+                            .tooltip("字符倒置")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_upside_down(window, cx);
+                            })),
+                    ),
+            )
+            .child(
+                div()
+                    .flex_col()
+                    .gap_1p5()
+                    .child(design::editor_label("输出", cx))
+                    .child(
+                        Textarea::new(&self.slash_output_state)
+                            .h(px(150.0))
+                            .font_family("monospace"),
+                    )
+                    .child(self.output_toolbar("tt-slash", &self.slash_output_state, |this, window, cx| {
+                        this.clear_slash(window, cx);
+                    }, cx)),
+            )
+    }
+
+    // -- Tab 6：大小写转换 ---------------------------------------------------
+
+    fn render_case(&mut self, cx: &mut Context<Self>) -> Div {
+        div()
+            .flex_col()
+            .gap_3()
+            .child(
+                div()
+                    .flex()
+                    .flex_wrap()
+                    .items_center()
+                    .gap_2()
+                    .child(
+                        Button::new("case-upper")
+                            .compact()
+                            .label("AA")
+                            .tooltip("全部大写")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_case(|s| s.to_uppercase(), window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("case-lower")
+                            .compact()
+                            .label("aa")
+                            .tooltip("全部小写")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_case(|s| s.to_lowercase(), window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("case-title")
+                            .primary()
+                            .compact()
+                            .label("Aa")
+                            .tooltip("单词首字母大写")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_case(title_case, window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("case-sentence")
+                            .compact()
+                            .label("Abc")
+                            .tooltip("句子首字母大写")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_case(sentence_case, window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("case-camel")
+                            .compact()
+                            .label("camelCase")
+                            .tooltip("驼峰 camelCase")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_case(|s| camel_pascal_case(s, false), window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("case-pascal")
+                            .compact()
+                            .label("PascalCase")
+                            .tooltip("帕斯卡 PascalCase")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_case(|s| camel_pascal_case(s, true), window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("case-snake")
+                            .compact()
+                            .label("snake_case")
+                            .tooltip("蛇形 snake_case")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_case(|s| snake_kebab_case(s, '_'), window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("case-kebab")
+                            .compact()
+                            .label("kebab-case")
+                            .tooltip("烤肉串 kebab-case")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_case(|s| snake_kebab_case(s, '-'), window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("case-swap")
+                            .compact()
+                            .label("aA")
+                            .tooltip("反转大小写")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_case(
+                                    |s| s.chars().map(swap_case_char).collect(),
+                                    window,
+                                    cx,
+                                );
+                            })),
+                    )
+                    .child(
+                        Button::new("case-reverse")
+                            .compact()
+                            .label("反转")
+                            .tooltip("反转文本")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_case(|s| s.chars().rev().collect(), window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("case-upside")
+                            .compact()
+                            .label("倒置")
+                            .tooltip("字符倒置")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_case(
+                                    |s| s.chars().map(upside_down_char).collect(),
+                                    window,
+                                    cx,
+                                );
+                            })),
+                    ),
+            )
+            .child(
+                div()
+                    .grid()
+                    .grid_cols(2)
+                    .gap_4()
+                    .child(
+                        div()
+                            .flex_col()
+                            .gap_1p5()
+                            .min_w_0()
+                            .child(design::editor_label("输入", cx))
+                            .child(
+                                Textarea::new(&self.case_input_state)
+                                    .h(px(200.0))
+                                    .font_family("monospace"),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .flex_col()
+                            .gap_1p5()
+                            .min_w_0()
+                            .child(design::editor_label("输出", cx))
+                            .child(
+                                Textarea::new(&self.case_output_state)
+                                    .h(px(200.0))
+                                    .font_family("monospace"),
+                            ),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .child(
+                        Button::new("case-paste")
+                            .ghost()
+                            .compact()
+                            .icon(Icon::new(IconName::Inbox))
+                            .tooltip("粘贴到输入")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_paste_case(window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("case-copy-in")
+                            .ghost()
+                            .compact()
+                            .icon(Icon::new(IconName::Copy))
+                            .tooltip("复制输入")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                let value = this.case_input_state.read(cx).value().to_string();
+                                this.copy_value(&value, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("case-copy-out")
+                            .ghost()
+                            .compact()
+                            .icon(Icon::new(IconName::Copy))
+                            .tooltip("复制输出")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                let value = this.case_output_state.read(cx).value().to_string();
+                                this.copy_value(&value, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("case-clear")
+                            .ghost()
+                            .compact()
+                            .icon(Icon::new(IconName::Close))
+                            .tooltip("清除")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.clear_case(window, cx);
+                            })),
+                    ),
+            )
     }
 }
 
 impl Render for TextTools {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let tab = self.tab;
+        let message = self.message.clone();
+        let tone = self.tone;
+
         design::page()
-            .child(design::page_header("文本工具", "常用文本处理工具", cx))
+            .child(design::page_header(
+                "文本工具",
+                "字符统计、清理、排序提取、查找替换等常用文本处理",
+                cx,
+            ))
             .child(
                 design::card(cx)
-                    .child(Textarea::new(&self.stat_state).h(px(100.0)).flex_1())
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(
-                                div()
-                                    .flex()
-                                    .flex_wrap()
-                                    .gap_2()
-                                    .flex_1()
-                                    .children(compute_stats(&self.stat_text).iter().map(
-                                        |(label, value)| {
-                                            div()
-                                                .flex()
-                                                .flex_col()
-                                                .items_center()
-                                                .px_3()
-                                                .py_1()
-                                                .rounded_md()
-                                                .child(
-                                                    div()
-                                                        .text_base()
-                                                        .font_family("monospace")
-                                                        .text_color(rgb(0x18a058))
-                                                        .child(value.to_string()),
-                                                )
-                                                .child(
-                                                    div()
-                                                        .text_xs()
-                                                        .text_color(cx.theme().muted_foreground)
-                                                        .child(*label),
-                                                )
-                                        },
-                                    )),
-                            )
-                            .child(
-                                Button::new("copy-stats")
-                                    .icon(Icon::new(IconName::Copy))
-                                    .tooltip("复制统计")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.copy_stats(cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new("clear-stats")
-                                    .icon(Icon::new(IconName::Close))
-                                    .tooltip("清除统计输入")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.clear_stat(window, cx);
-                                    })),
-                            ),
-                    ),
-            )
-            .child(
-                design::card(cx)
-                    .child(Textarea::new(&self.input_state).h(px(150.0)).flex_1())
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(
-                                ButtonGroup::new("input-buttons")
-                                    .child(
-                                        Button::new("paste-input")
-                                            .icon(Icon::new(IconName::File))
-                                            .tooltip("粘贴")
-                                            .on_click(cx.listener(|this, _, window, cx| {
-                                                this.paste_input(window, cx);
-                                            })),
-                                    )
-                                    .child(
-                                        Button::new("copy-input")
-                                            .icon(Icon::new(IconName::Copy))
-                                            .tooltip("复制")
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.copy_input(cx);
-                                            })),
-                                    )
-                                    .child(
-                                        Button::new("clear-all")
-                                            .icon(Icon::new(IconName::Close))
-                                            .tooltip("清空输入与输出")
-                                            .on_click(cx.listener(|this, _, window, cx| {
-                                                this.clear_all(window, cx);
-                                            })),
-                                    ),
-                            ),
-                    ),
-            )
-            .child(
-                design::card(cx)
-                    .child(design::caption("清理", cx))
-                    .child(
-                        div().flex().flex_wrap().gap_2().child(
-                            ButtonGroup::new("clean-buttons")
-                                .child(Button::new("dedupe").child("去重").on_click(
-                                    cx.listener(|this, _, window, cx| {
-                                        this.op_dedupe(window, cx);
-                                    }),
-                                ))
-                                .child(Button::new("remove-empty").child("去空行").on_click(
-                                    cx.listener(|this, _, window, cx| {
-                                        this.op_remove_empty(window, cx);
-                                    }),
-                                ))
-                                .child(Button::new("collapse-ws").child("合并空格").on_click(
-                                    cx.listener(|this, _, window, cx| {
-                                        this.op_collapse_ws(window, cx);
-                                    }),
-                                ))
-                                .child(Button::new("remove-all-ws").child("删空白").on_click(
-                                    cx.listener(|this, _, window, cx| {
-                                        this.op_remove_all_ws(window, cx);
-                                    }),
-                                ))
-                                .child(Button::new("remove-breaks").child("删换行").on_click(
-                                    cx.listener(|this, _, window, cx| {
-                                        this.op_remove_breaks(window, cx);
-                                    }),
-                                ))
-                                .child(Button::new("swap-case").child("大小写互转").on_click(
-                                    cx.listener(|this, _, window, cx| {
-                                        this.op_swap_case(window, cx);
-                                    }),
-                                ))
-                                .child(Button::new("remove-punct").child("删标点").on_click(
-                                    cx.listener(|this, _, window, cx| {
-                                        this.op_remove_punct(window, cx);
-                                    }),
-                                ))
-                                .child(Button::new("remove-digits").child("删数字").on_click(
-                                    cx.listener(|this, _, window, cx| {
-                                        this.op_remove_digits(window, cx);
-                                    }),
-                                ))
-                                .child(Button::new("strip-html").child("剥离HTML").on_click(
-                                    cx.listener(|this, _, window, cx| {
-                                        this.op_strip_html(window, cx);
-                                    }),
-                                ))
-                                .child(
-                                    Button::new("remove-diacritics").child("删除重音符号").on_click(
-                                        cx.listener(|this, _, window, cx| {
-                                            this.op_remove_diacritics(window, cx);
-                                        }),
-                                    ),
-                                ),
-                        ),
-                    ),
-            )
-            .child(
-                design::card(cx)
-                    .child(design::caption("行操作", cx))
-                    .child(
-                        div().flex().flex_wrap().gap_2().child(
-                            ButtonGroup::new("line-buttons")
-                                .child(Button::new("sort-asc").child("升序排序").on_click(
-                                    cx.listener(|this, _, window, cx| {
-                                        this.op_sort_asc(window, cx);
-                                    }),
-                                ))
-                                .child(Button::new("sort-desc").child("降序排序").on_click(
-                                    cx.listener(|this, _, window, cx| {
-                                        this.op_sort_desc(window, cx);
-                                    }),
-                                ))
-                                .child(Button::new("shuffle").child("随机打乱").on_click(
-                                    cx.listener(|this, _, window, cx| {
-                                        this.op_shuffle(window, cx);
-                                    }),
-                                ))
-                                .child(Button::new("trim-lines").child("去首尾空格").on_click(
-                                    cx.listener(|this, _, window, cx| {
-                                        this.op_trim_lines(window, cx);
-                                    }),
-                                )),
-                        ),
-                    ),
-            )
-            .child(
-                design::card(cx)
-                    .child(design::caption("提取", cx))
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(div().w(px(240.0)).child(Input::new(&self.extract_state)))
-                            .child(
-                                Button::new("extract")
-                                    .label("提取")
-                                    .primary()
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.op_extract(window, cx);
-                                    })),
-                            ),
-                    ),
-            )
-            .child(
-                design::card(cx)
-                    .child(design::caption("查找替换", cx))
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(div().w(px(160.0)).child(Input::new(&self.find_state)))
-                            .child(div().w(px(160.0)).child(Input::new(&self.replace_state)))
-                            .child(
-                                Checkbox::new("opt-regex")
-                                    .label("正则")
-                                    .checked(self.is_regex)
-                                    .on_click(cx.listener(|this, v: &bool, _, cx| {
-                                        this.is_regex = *v;
-                                        cx.notify();
-                                    })),
-                            )
-                            .child(
-                                Button::new("replace")
-                                    .label("替换")
-                                    .primary()
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.op_replace(window, cx);
-                                    })),
-                            ),
-                    ),
-            )
-            .child(
-                design::card(cx)
-                    .child(design::caption("重复", cx))
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(div().w(px(120.0)).child(Input::new(&self.repeat_state)))
-                            .child(
-                                Button::new("repeat")
-                                    .child("重复文本")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.op_repeat(window, cx);
-                                    })),
-                            )
-                            .child(
-                                div()
-                                    .text_xs()
-                                    .text_color(cx.theme().muted_foreground)
-                                    .child("将输入内容整体重复 N 次"),
-                            ),
-                    ),
-            )
-            .child(
-                design::card(cx)
-                    .child(design::caption("翻转", cx))
-                    .child(
-                        div().flex().flex_wrap().gap_2().child(
-                            ButtonGroup::new("flip-buttons")
-                                .child(Button::new("add-slashes").child("添加斜线").on_click(
-                                    cx.listener(|this, _, window, cx| {
-                                        this.op_add_slashes(window, cx);
-                                    }),
-                                ))
-                                .child(Button::new("strip-slashes").child("去除斜线").on_click(
-                                    cx.listener(|this, _, window, cx| {
-                                        this.op_strip_slashes(window, cx);
-                                    }),
-                                ))
-                                .child(Button::new("reverse-str").child("反向字符串").on_click(
-                                    cx.listener(|this, _, window, cx| {
-                                        this.op_reverse_string(window, cx);
-                                    }),
-                                ))
-                                .child(Button::new("reverse-words").child("单词反转").on_click(
-                                    cx.listener(|this, _, window, cx| {
-                                        this.op_reverse_words(window, cx);
-                                    }),
-                                ))
-                                .child(Button::new("upside-down").child("字符倒置").on_click(
-                                    cx.listener(|this, _, window, cx| {
-                                        this.op_upside_down(window, cx);
-                                    }),
-                                )),
-                        ),
-                    ),
-            )
-            .child(
-                design::card(cx)
-                    .child(Textarea::new(&self.output_state).h(px(150.0)).flex_1()),
-            )
-            .child(
-                design::card(cx)
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(
-                                Button::new("copy-output")
-                                    .icon(Icon::new(IconName::Copy))
-                                    .tooltip("复制输出")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.copy_output(cx);
-                                    })),
-                            ),
-                    )
-                    .when(!self.message.is_empty(), |this| {
-                        this.child(
+                    .child(self.tab_bar(cx))
+                    .children(match tab {
+                        0 => vec![self.render_stats(cx).into_any_element()],
+                        1 => vec![self.render_clean(cx).into_any_element()],
+                        2 => vec![self.render_sort(cx).into_any_element()],
+                        3 => vec![self.render_find(cx).into_any_element()],
+                        4 => vec![self.render_slash(cx).into_any_element()],
+                        _ => vec![self.render_case(cx).into_any_element()],
+                    })
+                    .when(!message.is_empty(), |card| {
+                        let color = match tone {
+                            Tone::Success => Hsla::from(rgb(design::OK_GREEN)),
+                            Tone::Warn => Hsla::from(rgb(design::WARN_AMBER)),
+                            Tone::Error => Hsla::from(rgb(design::ERROR_RED)),
+                            Tone::Info => cx.theme().muted_foreground,
+                        };
+                        card.child(
                             div()
-                                .flex()
-                                .items_center()
-                                .gap_2()
-                                .child(
-                                    div()
-                                        .text_xs()
-                                        .text_color(rgb(0xd03050))
-                                        .child(self.message.clone()),
-                                ),
+                                .text_size(px(12.5))
+                                .text_color(color)
+                                .child(message),
                         )
                     }),
             )

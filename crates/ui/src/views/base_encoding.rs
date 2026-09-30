@@ -3,14 +3,13 @@ use gpui_kit::{prelude::FluentBuilder as _, *};
 use gpui_kit::component::{
     button::*,
     input::{InputEvent, Textarea, TextareaState},
-    select::{Select, SelectEvent, SelectState},
     *,
 };
 
 use data_encoding::{BASE32, BASE32_NOPAD};
 
-fn base32_encode(s: &str) -> String {
-    BASE32.encode(s.as_bytes())
+fn base32_encode(s: &str) -> Result<String, String> {
+    Ok(BASE32.encode(s.as_bytes()))
 }
 
 fn base32_decode(s: &str) -> Result<String, String> {
@@ -22,8 +21,8 @@ fn base32_decode(s: &str) -> Result<String, String> {
     String::from_utf8(bytes).map_err(|_| "解码结果不是有效的 UTF-8 文本".to_string())
 }
 
-fn base58_encode(s: &str) -> String {
-    bs58::encode(s.as_bytes()).into_string()
+fn base58_encode(s: &str) -> Result<String, String> {
+    Ok(bs58::encode(s.as_bytes()).into_string())
 }
 
 fn base58_decode(s: &str) -> Result<String, String> {
@@ -33,146 +32,342 @@ fn base58_decode(s: &str) -> Result<String, String> {
     String::from_utf8(bytes).map_err(|_| "解码结果不是有效的 UTF-8 文本".to_string())
 }
 
-pub struct BaseEncodingConverter {
-    algo: String,
+const TABS: [&str; 3] = ["Base64 文本", "Base32", "Base58"];
+
+/// 单个编码页的输入 / 输出对（对应 Vue 的 xxxInput / xxxOutput ref 对）
+struct PairState {
     input: String,
     output: String,
     error: String,
     input_state: Entity<TextareaState>,
     output_state: Entity<TextareaState>,
-    algo_state: Entity<SelectState<Vec<String>>>,
+}
+
+pub struct BaseEncodingConverter {
+    tab: usize,
+    b64: PairState,
+    b32: PairState,
+    b58: PairState,
     _subscriptions: Vec<Subscription>,
+}
+
+fn new_pair(window: &mut Window, cx: &mut Context<BaseEncodingConverter>) -> PairState {
+    PairState {
+        input: String::new(),
+        output: String::new(),
+        error: String::new(),
+        input_state: cx.new(|cx| {
+            TextareaState::new(window, cx).placeholder("请输入要编码 / 解码的文本")
+        }),
+        output_state: cx.new(|cx| {
+            TextareaState::new(window, cx).placeholder("编码 / 解码结果将显示在这里")
+        }),
+    }
 }
 
 impl BaseEncodingConverter {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let input_state = cx.new(|cx| {
-            TextareaState::new(window, cx).placeholder("请输入要编码 / 解码的文本")
-        });
-        let output_state =
-            cx.new(|cx| TextareaState::new(window, cx).placeholder("编码 / 解码结果将显示在这里"));
+        let b64 = new_pair(window, cx);
+        let b32 = new_pair(window, cx);
+        let b58 = new_pair(window, cx);
 
-        let algo_items = vec!["Base32".to_string(), "Base58".to_string()];
-        let algo_state = cx.new(|cx| {
-            let mut state = SelectState::new(algo_items, None, window, cx);
-            state.set_selected_value(&"Base32".to_string(), window, cx);
-            state
-        });
+        let mut watch_input = |state: &Entity<TextareaState>| {
+            let state_for_sub = state.clone();
+            let state_in_fn = state.clone();
+            cx.subscribe_in(&state_for_sub, window, move |this, _, ev: &InputEvent, _, cx| {
+                if let InputEvent::Change = ev {
+                    let value = state_in_fn.read(cx).value().to_string();
+                    if this.b64.input_state == state_in_fn {
+                        this.b64.input = value;
+                    } else if this.b32.input_state == state_in_fn {
+                        this.b32.input = value;
+                    } else if this.b58.input_state == state_in_fn {
+                        this.b58.input = value;
+                    }
+                    cx.notify();
+                }
+            })
+        };
 
         let _subscriptions = vec![
-            cx.subscribe_in(&input_state, window, {
-                let input_state = input_state.clone();
-                move |this, _, ev: &InputEvent, _, cx| {
-                    if let InputEvent::Change = ev {
-                        let value = input_state.read(cx).value();
-                        this.input = value.to_string();
-                        cx.notify();
-                    }
-                }
-            }),
-            cx.subscribe_in(
-                &algo_state,
-                window,
-                move |this, _, ev: &SelectEvent<Vec<String>>, _, cx| {
-                    if let SelectEvent::Confirm(Some(value)) = ev {
-                        this.algo = match value.as_str() {
-                            "Base58" => "base58",
-                            _ => "base32",
-                        }
-                        .to_string();
-                        cx.notify();
-                    }
-                },
-            ),
+            watch_input(&b64.input_state),
+            watch_input(&b32.input_state),
+            watch_input(&b58.input_state),
         ];
 
         Self {
-            algo: "base32".to_string(),
-            input: String::new(),
-            output: String::new(),
-            error: String::new(),
-            input_state,
-            output_state,
-            algo_state,
+            tab: 0,
+            b64,
+            b32,
+            b58,
             _subscriptions,
         }
     }
 
-    fn do_encode(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.input.is_empty() {
-            return;
+    fn pair(&self, tab: usize) -> &PairState {
+        match tab {
+            0 => &self.b64,
+            1 => &self.b32,
+            _ => &self.b58,
         }
-        self.output = match self.algo.as_str() {
-            "base58" => base58_encode(&self.input),
-            _ => base32_encode(&self.input),
-        };
-        self.error.clear();
-        self.output_state.update(cx, |state, cx| {
-            state.set_value(self.output.clone(), window, cx);
-        });
-        cx.notify();
     }
 
-    fn do_decode(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.input.is_empty() {
+    fn pair_mut(&mut self, tab: usize) -> &mut PairState {
+        match tab {
+            0 => &mut self.b64,
+            1 => &mut self.b32,
+            _ => &mut self.b58,
+        }
+    }
+
+    fn run_encode(&mut self, tab: usize, window: &mut Window, cx: &mut Context<Self>) {
+        let input = self.pair(tab).input.clone();
+        if input.is_empty() {
             return;
         }
-        let result = match self.algo.as_str() {
-            "base58" => base58_decode(&self.input),
-            _ => base32_decode(&self.input),
+        let result = match tab {
+            0 => ::base::encode_base64_text(&input).map_err(|e| e.to_string()),
+            1 => base32_encode(&input),
+            _ => base58_encode(&input),
         };
+        let pair = self.pair_mut(tab);
         match result {
-            Ok(decoded) => {
-                self.output = decoded;
-                self.error.clear();
+            Ok(value) => {
+                pair.output = value;
+                pair.error.clear();
             }
-            Err(e) => {
-                self.error = e;
+            Err(e) => pair.error = e,
+        }
+        pair.sync_output(window, cx);
+        cx.notify();
+    }
+
+    fn run_decode(&mut self, tab: usize, window: &mut Window, cx: &mut Context<Self>) {
+        let input = self.pair(tab).input.clone();
+        if input.is_empty() {
+            return;
+        }
+        let result = match tab {
+            0 => ::base::decode_base64_text(&input).map_err(|e| e.to_string()),
+            1 => base32_decode(&input),
+            _ => base58_decode(&input),
+        };
+        let pair = self.pair_mut(tab);
+        match result {
+            Ok(value) => {
+                pair.output = value;
+                pair.error.clear();
+            }
+            Err(e) => pair.error = e,
+        }
+        pair.sync_output(window, cx);
+        cx.notify();
+    }
+
+    fn paste(&mut self, tab: usize, target_output: bool, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(item) = cx.read_from_clipboard() {
+            if let Some(text) = item.text() {
+                let value = text.to_string();
+                let pair = self.pair_mut(tab);
+                if target_output {
+                    pair.output = value.clone();
+                    pair.output_state.update(cx, |state, cx| {
+                        state.set_value(value, window, cx);
+                    });
+                } else {
+                    pair.input = value.clone();
+                    pair.input_state.update(cx, |state, cx| {
+                        state.set_value(value, window, cx);
+                    });
+                }
+                cx.notify();
             }
         }
-        self.output_state.update(cx, |state, cx| {
-            state.set_value(self.output.clone(), window, cx);
+    }
+
+    fn copy(&mut self, tab: usize, target_output: bool, cx: &mut Context<Self>) {
+        let pair = self.pair(tab);
+        let value = if target_output {
+            pair.output.clone()
+        } else {
+            pair.input.clone()
+        };
+        if !value.is_empty() {
+            cx.write_to_clipboard(ClipboardItem::new_string(value));
+        }
+    }
+
+    fn clear(&mut self, tab: usize, window: &mut Window, cx: &mut Context<Self>) {
+        let pair = self.pair_mut(tab);
+        pair.input.clear();
+        pair.output.clear();
+        pair.error.clear();
+        pair.input_state.update(cx, |state, cx| {
+            state.set_value("".to_string(), window, cx);
+        });
+        pair.output_state.update(cx, |state, cx| {
+            state.set_value("".to_string(), window, cx);
         });
         cx.notify();
     }
 
-    fn paste_input(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                self.input = text.to_string();
-                self.input_state.update(cx, |state, cx| {
-                    state.set_value(self.input.clone(), window, cx);
-                });
-            }
-        }
+    /// 线型标签页（对应 n-tabs type="line"）
+    fn tab_bar(&self, cx: &mut Context<Self>) -> Div {
+        div()
+            .flex()
+            .gap_6()
+            .border_b_1()
+            .border_color(cx.theme().border)
+            .mb_1()
+            .children(TABS.iter().enumerate().map(|(idx, label)| {
+                let active = self.tab == idx;
+                div()
+                    .id(("tab", idx))
+                    .px_1()
+                    .pb_2()
+                    .mb(px(-1.0))
+                    .text_sm()
+                    .font_medium()
+                    .border_b_2()
+                    .text_color(if active {
+                        cx.theme().primary
+                    } else {
+                        cx.theme().muted_foreground
+                    })
+                    .border_color(if active {
+                        cx.theme().primary
+                    } else {
+                        gpui::black().opacity(0.0)
+                    })
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.tab = idx;
+                        cx.notify();
+                    }))
+                    .child(label.to_string())
+            }))
     }
 
-    fn paste_output(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                self.output = text.to_string();
-                self.output_state.update(cx, |state, cx| {
-                    state.set_value(self.output.clone(), window, cx);
-                });
-            }
-        }
-    }
+    fn render_tab(&mut self, cx: &mut Context<Self>) -> Div {
+        let tab = self.tab;
+        let input = self.pair(tab).input.clone();
+        let output = self.pair(tab).output.clone();
+        let error = self.pair(tab).error.clone();
+        let input_state = self.pair(tab).input_state.clone();
+        let output_state = self.pair(tab).output_state.clone();
 
-    fn copy_output(&mut self, cx: &mut Context<Self>) {
-        if !self.output.is_empty() {
-            cx.write_to_clipboard(ClipboardItem::new_string(self.output.clone()));
-        }
+        div()
+            .flex_col()
+            .gap_3()
+            // 输入编辑器
+            .child(
+                div()
+                    .flex_col()
+                    .gap_1p5()
+                    .child(design::editor_label("输入", cx))
+                    .child(
+                        Textarea::new(&input_state)
+                            .h(design::CODE_BOX_HEIGHT)
+                            .font_family("monospace"),
+                    )
+                    .child(
+                        design::toolbar()
+                            .child(
+                                Button::new("paste-in")
+                                    .icon(Icon::new(IconName::Inbox))
+                                    .tooltip("粘贴输入")
+                                    .on_click(cx.listener(move |this, _, window, cx| {
+                                        this.paste(tab, false, window, cx);
+                                    })),
+                            )
+                            .child(
+                                Button::new("copy-in")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制输入")
+                                    .disabled(input.is_empty())
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        this.copy(tab, false, cx);
+                                    })),
+                            ),
+                    ),
+            )
+            // 编码 / 解码动作行
+            .child(
+                design::action_row()
+                    .child(
+                        Button::new("encode")
+                            .primary()
+                            .icon(Icon::new(IconName::ArrowDown))
+                            .tooltip("编码")
+                            .on_click(cx.listener(move |this, _, window, cx| {
+                                this.run_encode(tab, window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("decode")
+                            .primary()
+                            .icon(Icon::new(IconName::ArrowUp))
+                            .tooltip("解码")
+                            .on_click(cx.listener(move |this, _, window, cx| {
+                                this.run_decode(tab, window, cx);
+                            })),
+                    ),
+            )
+            // 输出编辑器
+            .child(
+                div()
+                    .flex_col()
+                    .gap_1p5()
+                    .child(design::editor_label("输出", cx))
+                    .child(
+                        Textarea::new(&output_state)
+                            .h(design::CODE_BOX_HEIGHT)
+                            .font_family("monospace"),
+                    )
+                    .child(
+                        design::toolbar()
+                            .child(
+                                Button::new("paste-out")
+                                    .icon(Icon::new(IconName::Inbox))
+                                    .tooltip("粘贴输出")
+                                    .on_click(cx.listener(move |this, _, window, cx| {
+                                        this.paste(tab, true, window, cx);
+                                    })),
+                            )
+                            .child(
+                                Button::new("copy-out")
+                                    .icon(Icon::new(IconName::Copy))
+                                    .tooltip("复制输出")
+                                    .disabled(output.is_empty())
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        this.copy(tab, true, cx);
+                                    })),
+                            )
+                            .child(
+                                Button::new("clear")
+                                    .icon(Icon::new(IconName::Close))
+                                    .tooltip("清除")
+                                    .on_click(cx.listener(move |this, _, window, cx| {
+                                        this.clear(tab, window, cx);
+                                    })),
+                            ),
+                    ),
+            )
+            .when(!error.is_empty(), |this| {
+                this.child(
+                    div()
+                        .text_size(px(12.5))
+                        .text_color(Hsla::from(rgb(design::ERROR_RED)))
+                        .child(error),
+                )
+            })
     }
+}
 
-    fn clear(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.input.clear();
-        self.output.clear();
-        self.error.clear();
-        self.input_state.update(cx, |state, cx| {
-            state.set_value("".to_string(), window, cx);
-        });
+impl PairState {
+    fn sync_output(&mut self, window: &mut Window, cx: &mut Context<BaseEncodingConverter>) {
+        let output = self.output.clone();
         self.output_state.update(cx, |state, cx| {
-            state.set_value("".to_string(), window, cx);
+            state.set_value(output, window, cx);
         });
     }
 }
@@ -180,94 +375,21 @@ impl BaseEncodingConverter {
 impl Render for BaseEncodingConverter {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         design::page()
-            .child(design::page_header("Base32 / Base58", "Base32 与 Base58 编码", cx))
+            .child(design::page_header(
+                "Base 编码",
+                "Base64 / Base32 / Base58 编码转换",
+                cx,
+            ))
             .child(
                 design::card(cx)
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(div().w(px(80.0)).text_sm().child("算法"))
-                            .child(Select::new(&self.algo_state)),
-                    )
-                    .child(
-                        Textarea::new(&self.input_state)
-                            .h(design::CODE_BOX_HEIGHT)
-                            .font_family("monospace"),
-                    ),
+                    .child(design::card_header(
+                        IconName::Cpu,
+                        "Base 编码",
+                        "Base64 / Base32 / Base58 编码转换",
+                        cx,
+                    ))
+                    .child(self.tab_bar(cx))
+                    .child(self.render_tab(cx)),
             )
-            .child(
-                design::action_row()
-                    .child(
-                        Button::new("encode")
-                            .label("编码")
-                            .primary()
-                            .icon(Icon::new(IconName::ArrowDown))
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.do_encode(window, cx);
-                            })),
-                    )
-                    .child(
-                        Button::new("decode")
-                            .label("解码")
-                            .icon(Icon::new(IconName::ArrowUp))
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.do_decode(window, cx);
-                            })),
-                    ),
-            )
-            .child(
-                design::card(cx)
-                    .child(
-                        Textarea::new(&self.output_state)
-                            .h(design::CODE_BOX_HEIGHT)
-                            .font_family("monospace"),
-                    )
-                    .child(
-                        design::toolbar()
-                            .child(
-                                Button::new("paste-input")
-                                    .icon(Icon::new(IconName::File))
-                                    .tooltip("粘贴输入")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.paste_input(window, cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new("paste-output")
-                                    .icon(Icon::new(IconName::File))
-                                    .tooltip("粘贴输出")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.paste_output(window, cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new("copy-output")
-                                    .icon(Icon::new(IconName::Copy))
-                                    .tooltip("复制输出")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.copy_output(cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new("clear")
-                                    .icon(Icon::new(IconName::Close))
-                                    .tooltip("清除")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.clear(window, cx);
-                                    })),
-                            )
-                            .child(div().flex_1()),
-                    ),
-            )
-            .when(!self.error.is_empty(), |this| {
-                this.child(
-                    div()
-                        .text_sm()
-                        .text_color(cx.theme().danger)
-                        .child(self.error.clone()),
-                )
-            })
     }
 }

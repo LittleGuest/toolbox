@@ -1,62 +1,12 @@
 use crate::design;
-use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use gpui_kit::component::{
     button::*,
-    checkbox::Checkbox,
     input::{InputEvent, Textarea, TextareaState},
-    select::{Select, SelectEvent, SelectState},
     *,
 };
 
-pub struct Utf8UnicodeConverter {
-    mode: String,
-    hex_prefix: bool,
-    input: String,
-    output: String,
-    error: String,
-    input_state: Entity<TextareaState>,
-    output_state: Entity<TextareaState>,
-    mode_state: Entity<SelectState<Vec<String>>>,
-    _subscriptions: Vec<Subscription>,
-}
-
-fn utf8_encode(s: &str, hex_prefix: bool) -> String {
-    s.as_bytes()
-        .iter()
-        .map(|b| {
-            if hex_prefix {
-                format!("0x{b:02x}")
-            } else {
-                format!("{b:02x}")
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
-fn utf8_decode(s: &str) -> Result<String, String> {
-    let mut t: String = s.chars().filter(|c| !c.is_whitespace()).collect();
-    loop {
-        let lower = t.to_ascii_lowercase();
-        match lower.find("0x") {
-            Some(p) => t.replace_range(p..p + 2, ""),
-            None => break,
-        }
-    }
-    if t.len() % 2 != 0 {
-        return Err("十六进制长度必须为偶数".to_string());
-    }
-    let chars: Vec<char> = t.chars().collect();
-    let mut bytes = Vec::with_capacity(chars.len() / 2);
-    for pair in chars.chunks(2) {
-        let hex: String = pair.iter().collect();
-        let b = u8::from_str_radix(&hex, 16).map_err(|_| "无效的十六进制字符".to_string())?;
-        bytes.push(b);
-    }
-    String::from_utf8(bytes).map_err(|_| "无效的 UTF-8 字节序列".to_string())
-}
-
+/// 对应 Vue unicodeEscape：每个字符（含代理对）转 \uXXXX
 fn unicode_escape(s: &str) -> String {
     let mut out = String::new();
     for c in s.chars() {
@@ -73,6 +23,7 @@ fn unicode_escape(s: &str) -> String {
     out
 }
 
+/// 对应 Vue unicodeUnescape：\uXXXX → 字符，支持代理对组合
 fn unicode_unescape(s: &str) -> String {
     let chars: Vec<char> = s.chars().collect();
     let mut out = String::new();
@@ -105,7 +56,7 @@ fn unicode_unescape(s: &str) -> String {
                         continue;
                     }
                 }
-                out.push('\u{FFFD}');
+                out.push(char::from_u32(code).unwrap_or('\u{FFFD}'));
             } else {
                 out.push(char::from_u32(code).unwrap_or('\u{FFFD}'));
             }
@@ -118,115 +69,47 @@ fn unicode_unescape(s: &str) -> String {
     out
 }
 
-fn ascii_to_codes(s: &str) -> String {
-    s.chars()
-        .map(|c| {
-            let display = match c {
-                '\n' => "\\n".to_string(),
-                '\r' => "\\r".to_string(),
-                '\t' => "\\t".to_string(),
-                _ => c.to_string(),
-            };
-            format!("{} | {} | 0x{:X}", display, c as u32, c as u32)
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
-}
-
-fn codes_to_ascii(s: &str) -> Result<String, String> {
-    let mut out = String::new();
-    let tokens = s
-        .split(|c: char| c.is_whitespace() || c == ',' || c == '，')
-        .filter(|t| !t.is_empty());
-    for t in tokens {
-        let parsed = if let Some(h) = t.strip_prefix("0x").or_else(|| t.strip_prefix("0X")) {
-            u32::from_str_radix(h, 16)
-        } else {
-            t.parse::<u32>()
-        };
-        match parsed {
-            Ok(code) => match char::from_u32(code) {
-                Some(c) => out.push(c),
-                None => return Err(format!("无效的码值: {t}")),
-            },
-            Err(_) => return Err(format!("无效的码值: {t}")),
-        }
-    }
-    Ok(out)
+pub struct Utf8UnicodeConverter {
+    input: String,
+    output: String,
+    input_state: Entity<TextareaState>,
+    output_state: Entity<TextareaState>,
+    _subscriptions: Vec<Subscription>,
 }
 
 impl Utf8UnicodeConverter {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let input_state = cx.new(|cx| {
-            TextareaState::new(window, cx).placeholder("请输入要编码 / 解码的文本或十六进制")
+            TextareaState::new(window, cx).placeholder("请输入要转换的文本或 \\u 转义序列")
         });
         let output_state = cx.new(|cx| {
-            TextareaState::new(window, cx).placeholder("编码 / 解码结果将显示在这里")
+            TextareaState::new(window, cx).placeholder("转换结果将显示在这里")
         });
 
-        let mode_items = vec![
-            "UTF-8 字节序列".to_string(),
-            "Unicode 转义 (\\u)".to_string(),
-            "ASCII 码表".to_string(),
-        ];
-        let mode_state = cx.new(|cx| {
-            let mut state = SelectState::new(mode_items, None, window, cx);
-            state.set_selected_value(&"UTF-8 字节序列".to_string(), window, cx);
-            state
-        });
-
-        let _subscriptions = vec![
-            cx.subscribe_in(&input_state, window, {
-                let input_state = input_state.clone();
-                move |this, _, ev: &InputEvent, _, cx| {
-                    if let InputEvent::Change = ev {
-                        let value = input_state.read(cx).value();
-                        this.input = value.to_string();
-                        cx.notify();
-                    }
+        let _subscriptions = vec![cx.subscribe_in(&input_state, window, {
+            let input_state = input_state.clone();
+            move |this, _, ev: &InputEvent, _, cx| {
+                if let InputEvent::Change = ev {
+                    this.input = input_state.read(cx).value().to_string();
+                    cx.notify();
                 }
-            }),
-            cx.subscribe_in(
-                &mode_state,
-                window,
-                move |this, _, ev: &SelectEvent<Vec<String>>, _, cx| {
-                    if let SelectEvent::Confirm(Some(value)) = ev {
-                        this.mode = match value.as_str() {
-                            "Unicode 转义 (\\u)" => "unicode",
-                            "ASCII 码表" => "ascii",
-                            _ => "utf8",
-                        }
-                        .to_string();
-                        this.error.clear();
-                        cx.notify();
-                    }
-                },
-            ),
-        ];
+            }
+        })];
 
         Self {
-            mode: "utf8".to_string(),
-            hex_prefix: false,
             input: String::new(),
             output: String::new(),
-            error: String::new(),
             input_state,
             output_state,
-            mode_state,
             _subscriptions,
         }
     }
 
     fn encode(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.error.clear();
         if self.input.is_empty() {
             return;
         }
-        self.output = match self.mode.as_str() {
-            "unicode" => unicode_escape(&self.input),
-            "ascii" => ascii_to_codes(&self.input),
-            _ => utf8_encode(&self.input, self.hex_prefix),
-        };
+        self.output = unicode_escape(&self.input);
         self.output_state.update(cx, |state, cx| {
             state.set_value(self.output.clone(), window, cx);
         });
@@ -234,50 +117,14 @@ impl Utf8UnicodeConverter {
     }
 
     fn decode(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.error.clear();
-        if self.output.is_empty() {
+        if self.input.is_empty() {
             return;
         }
-        let result = match self.mode.as_str() {
-            "unicode" => Ok(unicode_unescape(&self.output)),
-            "ascii" => codes_to_ascii(&self.output),
-            _ => utf8_decode(&self.output),
-        };
-        match result {
-            Ok(text) => {
-                self.input = text.clone();
-                self.input_state.update(cx, |state, cx| {
-                    state.set_value(text, window, cx);
-                });
-            }
-            Err(e) => self.error = e,
-        }
-        cx.notify();
-    }
-
-    fn clear(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.input.clear();
-        self.output.clear();
-        self.error.clear();
-        self.input_state.update(cx, |state, cx| {
-            state.set_value("".to_string(), window, cx);
-        });
+        self.output = unicode_unescape(&self.input);
         self.output_state.update(cx, |state, cx| {
-            state.set_value("".to_string(), window, cx);
+            state.set_value(self.output.clone(), window, cx);
         });
         cx.notify();
-    }
-
-    fn copy_input(&mut self, cx: &mut Context<Self>) {
-        if !self.input.is_empty() {
-            cx.write_to_clipboard(ClipboardItem::new_string(self.input.clone()));
-        }
-    }
-
-    fn copy_output(&mut self, cx: &mut Context<Self>) {
-        if !self.output.is_empty() {
-            cx.write_to_clipboard(ClipboardItem::new_string(self.output.clone()));
-        }
     }
 
     fn paste_input(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -287,6 +134,7 @@ impl Utf8UnicodeConverter {
                 self.input_state.update(cx, |state, cx| {
                     state.set_value(self.input.clone(), window, cx);
                 });
+                cx.notify();
             }
         }
     }
@@ -298,134 +146,130 @@ impl Utf8UnicodeConverter {
                 self.output_state.update(cx, |state, cx| {
                     state.set_value(self.output.clone(), window, cx);
                 });
+                cx.notify();
             }
         }
+    }
+
+    fn copy_output(&mut self, cx: &mut Context<Self>) {
+        if !self.output.is_empty() {
+            cx.write_to_clipboard(ClipboardItem::new_string(self.output.clone()));
+        }
+    }
+
+    fn clear(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.input.clear();
+        self.output.clear();
+        self.input_state.update(cx, |state, cx| {
+            state.set_value("".to_string(), window, cx);
+        });
+        self.output_state.update(cx, |state, cx| {
+            state.set_value("".to_string(), window, cx);
+        });
+        cx.notify();
     }
 }
 
 impl Render for Utf8UnicodeConverter {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         design::page()
-            .child(design::page_header("UTF8 / Unicode", "UTF8 与 Unicode 互转", cx))
+            .child(design::page_header("UTF8 / Unicode", "文本与 \\u Unicode 转义序列互转", cx))
             .child(
                 design::card(cx)
+                    .child(design::card_header(
+                        IconName::FileText,
+                        "UTF8 / Unicode",
+                        "\\u 转义序列编解码",
+                        cx,
+                    ))
                     .child(
-                        design::toolbar()
-                            .child(design::caption("模式", cx))
-                            .child(Select::new(&self.mode_state)),
+                        div()
+                            .flex_col()
+                            .gap_1p5()
+                            .child(design::editor_label("输入", cx))
+                            .child(
+                                Textarea::new(&self.input_state)
+                                    .h(design::CODE_BOX_HEIGHT)
+                                    .font_family("monospace"),
+                            ),
                     )
-                    .when(self.mode == "utf8", |this| {
-                        this.child(
-                            design::toolbar().child(
-                                Checkbox::new("hex-prefix")
-                                    .label("带 0x 前缀")
-                                    .checked(self.hex_prefix)
-                                    .on_click(cx.listener(|this, v: &bool, _, cx| {
-                                        this.hex_prefix = *v;
-                                        cx.notify();
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(
+                                Button::new("encode")
+                                    .primary()
+                                    .icon(Icon::new(IconName::ArrowDown))
+                                    .tooltip("编码")
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.encode(window, cx);
+                                    })),
+                            )
+                            .child(
+                                Button::new("decode")
+                                    .primary()
+                                    .icon(Icon::new(IconName::ArrowUp))
+                                    .tooltip("解码")
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.decode(window, cx);
                                     })),
                             ),
-                        )
-                    }),
-            )
-            .child(
-                design::card(cx)
+                    )
                     .child(
-                        design::toolbar()
+                        div()
+                            .flex_col()
+                            .gap_1p5()
+                            .child(design::editor_label("输出", cx))
+                            .child(
+                                Textarea::new(&self.output_state)
+                                    .h(design::CODE_BOX_HEIGHT)
+                                    .font_family("monospace"),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
                             .child(
                                 Button::new("paste-input")
-                                    .icon(Icon::new(IconName::File))
-                                    .tooltip("粘贴")
+                                    .ghost()
+                                    .icon(Icon::new(IconName::Inbox))
+                                    .tooltip("粘贴输入")
                                     .on_click(cx.listener(|this, _, window, cx| {
                                         this.paste_input(window, cx);
                                     })),
                             )
                             .child(
-                                Button::new("copy-input")
-                                    .icon(Icon::new(IconName::Copy))
-                                    .tooltip("复制")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.copy_input(cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new("clear-input")
-                                    .icon(Icon::new(IconName::Close))
-                                    .tooltip("清空")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.clear(window, cx);
-                                    })),
-                            )
-                            .child(div().flex_1()),
-                    )
-                    .child(
-                        Textarea::new(&self.input_state)
-                            .h(design::CODE_BOX_HEIGHT)
-                            .font_family("monospace"),
-                    ),
-            )
-            .child(
-                design::action_row()
-                    .child(
-                        Button::new("encode")
-                            .label("编码")
-                            .primary()
-                            .icon(Icon::new(IconName::ArrowDown))
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.encode(window, cx);
-                            })),
-                    )
-                    .child(
-                        Button::new("decode")
-                            .label("解码")
-                            .icon(Icon::new(IconName::ArrowUp))
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.decode(window, cx);
-                            })),
-                    )
-                    .when(!self.error.is_empty(), |this| {
-                        this.child(
-                            div()
-                                .text_xs()
-                                .text_color(cx.theme().danger)
-                                .child(self.error.clone()),
-                        )
-                    }),
-            )
-            .child(
-                design::card(cx)
-                    .child(
-                        Textarea::new(&self.output_state)
-                            .h(design::CODE_BOX_HEIGHT)
-                            .font_family("monospace"),
-                    )
-                    .child(
-                        design::toolbar()
-                            .child(
                                 Button::new("paste-output")
-                                    .icon(Icon::new(IconName::File))
-                                    .tooltip("粘贴")
+                                    .ghost()
+                                    .icon(Icon::new(IconName::Inbox))
+                                    .tooltip("粘贴输出")
                                     .on_click(cx.listener(|this, _, window, cx| {
                                         this.paste_output(window, cx);
                                     })),
                             )
                             .child(
                                 Button::new("copy-output")
+                                    .ghost()
                                     .icon(Icon::new(IconName::Copy))
-                                    .tooltip("复制")
+                                    .tooltip("复制输出")
+                                    .disabled(self.output.is_empty())
                                     .on_click(cx.listener(|this, _, _, cx| {
                                         this.copy_output(cx);
                                     })),
                             )
                             .child(
-                                Button::new("clear-output")
+                                Button::new("clear")
+                                    .ghost()
                                     .icon(Icon::new(IconName::Close))
-                                    .tooltip("清空")
+                                    .tooltip("清除")
                                     .on_click(cx.listener(|this, _, window, cx| {
                                         this.clear(window, cx);
                                     })),
-                            )
-                            .child(div().flex_1()),
+                            ),
                     ),
             )
     }

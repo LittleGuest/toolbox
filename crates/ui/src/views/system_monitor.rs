@@ -6,7 +6,6 @@ use std::{
 use crate::design;
 use gpui_kit::{prelude::FluentBuilder, *};
 use gpui_kit::component::{
-    WindowExt,
     button::*,
     input::{Input, InputEvent, InputState},
     scroll::ScrollableElement,
@@ -23,8 +22,14 @@ static COMPONENTS: LazyLock<Mutex<Components>> =
 
 const PAGE_SIZE: usize = 20;
 
+// 与 Vue 版 n-progress 颜色对齐
+const COLOR_CPU: u32 = 0x4caf50;
+const COLOR_DISK: u32 = 0x9c27b0;
+const COLOR_MEM: u32 = 0x2196f3;
+const COLOR_SWAP: u32 = 0xff9800;
+
 pub struct SystemMonitor {
-    cpu_usage: Vec<f32>,
+    cpu_cores: Vec<CpuCore>,
     cpu_temperature: f32,
     cpu_chip_name: String,
     physical_core_count: usize,
@@ -41,6 +46,12 @@ pub struct SystemMonitor {
     current_page: usize,
     input_state: Entity<InputState>,
     _subscriptions: Vec<Subscription>,
+}
+
+#[derive(Clone)]
+struct CpuCore {
+    usage: f32,
+    frequency: u64,
 }
 
 #[derive(Clone)]
@@ -63,7 +74,7 @@ struct ProcessInfo {
 
 impl SystemMonitor {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let input_state = cx.new(|cx| InputState::new(window, cx).placeholder("搜索进程名称..."));
+        let input_state = cx.new(|cx| InputState::new(window, cx).placeholder("搜索进程名称"));
 
         let _subscriptions = vec![cx.subscribe_in(&input_state, window, {
             let input_state = input_state.clone();
@@ -76,7 +87,7 @@ impl SystemMonitor {
         })];
 
         let mut monitor = Self {
-            cpu_usage: Vec::new(),
+            cpu_cores: Vec::new(),
             cpu_temperature: 0.0,
             cpu_chip_name: String::new(),
             physical_core_count: 0,
@@ -105,7 +116,14 @@ impl SystemMonitor {
             sys.refresh_memory_specifics(MemoryRefreshKind::everything());
             sys.refresh_processes(ProcessesToUpdate::All, true);
 
-            self.cpu_usage = sys.cpus().iter().map(|cpu| cpu.cpu_usage()).collect();
+            self.cpu_cores = sys
+                .cpus()
+                .iter()
+                .map(|cpu| CpuCore {
+                    usage: cpu.cpu_usage(),
+                    frequency: cpu.frequency(),
+                })
+                .collect();
             self.cpu_chip_name = sys
                 .cpus()
                 .first()
@@ -200,27 +218,87 @@ impl SystemMonitor {
         }
     }
 
-    fn render_progress_bar(percent: f32, cx: &App) -> Div {
-        let bar_color = if percent < 50.0 {
-            cx.theme().accent
-        } else if percent < 80.0 {
-            gpui_kit::rgb(0xf59e0b).into()
-        } else {
-            gpui_kit::rgb(0xef4444).into()
-        };
-
+    /// n-progress line：底槽 + 固定颜色填充（height 单位 px）
+    fn render_progress_bar(percent: f32, color: u32, height: f32, cx: &App) -> Div {
+        let percent = percent.clamp(0.0, 100.0);
         div()
             .flex_1()
-            .h_2()
+            .h(px(height))
             .rounded_md()
             .bg(cx.theme().border)
+            .overflow_hidden()
             .child(
                 div()
                     .h_full()
                     .w(relative(percent / 100.0))
                     .rounded_md()
-                    .bg(bar_color),
+                    .bg(Hsla::from(rgb(color))),
             )
+    }
+
+    /// metric 行（item-content .metric：label 左 灰 14px + 值右 16px 加粗）
+    fn render_metric(label: &str, value: String, cx: &App) -> Div {
+        div()
+            .flex()
+            .justify_between()
+            .items_center()
+            .child(
+                div()
+                    .text_size(px(14.0))
+                    .text_color(cx.theme().muted_foreground)
+                    .child(label.to_string()),
+            )
+            .child(
+                div()
+                    .text_size(px(16.0))
+                    .font_semibold()
+                    .child(value),
+            )
+    }
+
+    /// 可点击 metric 行（点击打开对应抽屉）
+    fn render_clickable_metric(
+        id: &'static str,
+        label: &str,
+        value: String,
+        cx: &App,
+    ) -> Stateful<Div> {
+        div()
+            .id(id)
+            .flex()
+            .justify_between()
+            .items_center()
+            .px_1()
+            .py(px(2.0))
+            .rounded_md()
+            .cursor_pointer()
+            .hover(|s| s.bg(cx.theme().background))
+            .child(
+                div()
+                    .text_size(px(14.0))
+                    .text_color(cx.theme().muted_foreground)
+                    .child(label.to_string()),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_1()
+                    .child(div().text_size(px(16.0)).font_semibold().child(value))
+                    .child(
+                        Icon::new(IconName::ChevronRight)
+                            .size(px(14.0))
+                            .text_color(cx.theme().muted_foreground),
+                    ),
+            )
+    }
+
+    fn global_cpu_usage(&self) -> f32 {
+        if self.cpu_cores.is_empty() {
+            0.0
+        } else {
+            self.cpu_cores.iter().map(|c| c.usage).sum::<f32>() / self.cpu_cores.len() as f32
+        }
     }
 
     fn filtered_processes(&self) -> Vec<&ProcessInfo> {
@@ -297,6 +375,7 @@ impl SystemMonitor {
         self.monitoring_enabled = enabled;
         if enabled {
             self.refresh();
+            // Vue：cpuMemoryTimer 2s / diskTimer 30s / processTimer 10s，此处统一刷新
             cx.spawn(async move |this: WeakEntity<Self>, cx| {
                 loop {
                     cx.background_executor().timer(Duration::from_secs(2)).await;
@@ -306,24 +385,6 @@ impl SystemMonitor {
                         }
                         this.refresh();
                         cx.notify();
-                        false
-                    });
-                    if should_stop.unwrap_or(true) {
-                        break;
-                    }
-                }
-            })
-            .detach();
-
-            cx.spawn(async move |this: WeakEntity<Self>, cx| {
-                loop {
-                    cx.background_executor()
-                        .timer(Duration::from_secs(10))
-                        .await;
-                    let should_stop = this.update(cx, |this, cx| {
-                        if !this.monitoring_enabled {
-                            return true;
-                        }
                         false
                     });
                     if should_stop.unwrap_or(true) {
@@ -346,100 +407,86 @@ impl SystemMonitor {
                 .child(
                     div()
                         .size_full()
-                        .overflow_y_scrollbar()
+                        .flex()
+                        .flex_col()
                         .gap_3()
+                        .overflow_y_scrollbar()
                         .children(disks.iter().map(|disk| {
                             div()
                                 .p_3()
                                 .border_1()
                                 .border_color(cx.theme().border)
                                 .rounded_lg()
-                                .child(div().font_semibold().mb_2().child(disk.mount_point.clone()))
+                                .flex()
+                                .flex_col()
+                                .gap_2()
+                                .child(
+                                    div()
+                                        .text_sm()
+                                        .font_semibold()
+                                        .mb_1()
+                                        .child(disk.mount_point.clone()),
+                                )
+                                .child(Self::drawer_row("文件系统:", disk.file_system.clone(), cx))
+                                .child(Self::drawer_row(
+                                    "总空间:",
+                                    Self::format_bytes(disk.total),
+                                    cx,
+                                ))
+                                .child(Self::drawer_row(
+                                    "可用空间:",
+                                    Self::format_bytes(disk.available),
+                                    cx,
+                                ))
+                                .child(Self::drawer_row(
+                                    "已用空间:",
+                                    Self::format_bytes(disk.used),
+                                    cx,
+                                ))
                                 .child(
                                     div()
                                         .flex()
-                                        .justify_between()
-                                        .text_sm()
-                                        .py_1()
-                                        .child(
-                                            div()
-                                                .text_color(cx.theme().muted_foreground)
-                                                .child("文件系统:"),
-                                        )
-                                        .child(disk.file_system.clone()),
-                                )
-                                .child(
-                                    div()
-                                        .flex()
-                                        .justify_between()
-                                        .text_sm()
-                                        .py_1()
-                                        .child(
-                                            div()
-                                                .text_color(cx.theme().muted_foreground)
-                                                .child("总空间:"),
-                                        )
-                                        .child(Self::format_bytes(disk.total)),
-                                )
-                                .child(
-                                    div()
-                                        .flex()
-                                        .justify_between()
-                                        .text_sm()
-                                        .py_1()
-                                        .child(
-                                            div()
-                                                .text_color(cx.theme().muted_foreground)
-                                                .child("可用空间:"),
-                                        )
-                                        .child(Self::format_bytes(disk.available)),
-                                )
-                                .child(
-                                    div()
-                                        .flex()
-                                        .justify_between()
-                                        .text_sm()
-                                        .py_1()
-                                        .child(
-                                            div()
-                                                .text_color(cx.theme().muted_foreground)
-                                                .child("已用空间:"),
-                                        )
-                                        .child(Self::format_bytes(disk.used)),
-                                )
-                                .child(
-                                    div()
-                                        .flex()
-                                        .justify_between()
-                                        .text_sm()
-                                        .py_1()
-                                        .child(
-                                            div()
-                                                .text_color(cx.theme().muted_foreground)
-                                                .child("使用率:"),
-                                        )
-                                        .child(format!("{:.1}%", disk.usage_percent)),
-                                )
-                                .child(
-                                    div()
-                                        .mt_2()
-                                        .child(Self::render_progress_bar(disk.usage_percent, cx)),
+                                        .flex_col()
+                                        .gap_1()
+                                        .child(Self::drawer_row(
+                                            "使用率:",
+                                            format!("{:.2}%", disk.usage_percent),
+                                            cx,
+                                        ))
+                                        .child(Self::render_progress_bar(
+                                            disk.usage_percent,
+                                            COLOR_DISK,
+                                            8.0,
+                                            cx,
+                                        )),
                                 )
                         })),
                 )
         });
     }
 
+    fn drawer_row(label: &str, value: String, cx: &App) -> Div {
+        div()
+            .flex()
+            .justify_between()
+            .text_size(px(13.0))
+            .child(
+                div()
+                    .text_color(cx.theme().muted_foreground)
+                    .child(label.to_string()),
+            )
+            .child(value)
+    }
+
     fn open_cpu_drawer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let cpu_usage = self.cpu_usage.clone();
-        let global_usage = if cpu_usage.is_empty() {
+        let cpu_cores = self.cpu_cores.clone();
+        let global_usage = if cpu_cores.is_empty() {
             0.0
         } else {
-            cpu_usage.iter().sum::<f32>() / cpu_usage.len() as f32
+            cpu_cores.iter().map(|c| c.usage).sum::<f32>() / cpu_cores.len() as f32
         };
-        let system_name = self.cpu_chip_name.clone();
+        let chip_name = self.cpu_chip_name.clone();
         let physical_core_count = self.physical_core_count;
-        let cpu_temperature = self.cpu_temperature;
 
         window.open_sheet_at(Placement::Right, cx, move |this, _, cx| {
             this.overlay(true)
@@ -449,89 +496,71 @@ impl SystemMonitor {
                 .child(
                     div()
                         .size_full()
-                        .overflow_y_scrollbar()
+                        .flex()
+                        .flex_col()
                         .gap_3()
+                        .overflow_y_scrollbar()
                         .child(
                             div()
                                 .p_3()
                                 .border_1()
                                 .border_color(cx.theme().border)
                                 .rounded_lg()
-                                .child(
-                                    div()
-                                        .flex()
-                                        .justify_between()
-                                        .text_sm()
-                                        .py_1()
-                                        .child(
-                                            div()
-                                                .text_color(cx.theme().muted_foreground)
-                                                .child("芯片名称:"),
-                                        )
-                                        .child(system_name.clone()),
-                                )
-                                .child(
-                                    div()
-                                        .flex()
-                                        .justify_between()
-                                        .text_sm()
-                                        .py_1()
-                                        .child(
-                                            div()
-                                                .text_color(cx.theme().muted_foreground)
-                                                .child("物理核心数:"),
-                                        )
-                                        .child(format!("{}", physical_core_count)),
-                                )
-                                .child(
-                                    div()
-                                        .flex()
-                                        .justify_between()
-                                        .text_sm()
-                                        .py_1()
-                                        .child(
-                                            div()
-                                                .text_color(cx.theme().muted_foreground)
-                                                .child("全局使用率:"),
-                                        )
-                                        .child(format!("{:.1}%", global_usage)),
-                                )
-                                .child(
-                                    div()
-                                        .flex()
-                                        .justify_between()
-                                        .text_sm()
-                                        .py_1()
-                                        .child(
-                                            div()
-                                                .text_color(cx.theme().muted_foreground)
-                                                .child("CPU温度:"),
-                                        )
-                                        .child(format!("{:.1}°C", cpu_temperature)),
-                                ),
+                                .flex()
+                                .flex_col()
+                                .gap_2()
+                                .child(Self::drawer_row("芯片名称:", chip_name.clone(), cx))
+                                .child(Self::drawer_row(
+                                    "物理核心数:",
+                                    format!("{}", physical_core_count),
+                                    cx,
+                                ))
+                                .child(Self::drawer_row(
+                                    "全局使用率:",
+                                    format!("{:.2}%", global_usage),
+                                    cx,
+                                )),
                         )
-                        .child(div().font_semibold().mb_2().child("核心详情"))
-                        .children(cpu_usage.iter().enumerate().map(|(i, usage)| {
+                        .child(
+                            div()
+                                .text_sm()
+                                .font_semibold()
+                                .mb_1()
+                                .child("核心详情"),
+                        )
+                        .children(cpu_cores.iter().enumerate().map(|(i, core)| {
                             div()
                                 .p_2()
                                 .border_1()
                                 .border_color(cx.theme().border)
                                 .rounded_lg()
                                 .mb_2()
+                                .flex()
+                                .flex_col()
+                                .gap_1()
                                 .child(
                                     div()
                                         .flex()
                                         .justify_between()
-                                        .text_sm()
-                                        .mb_1()
+                                        .text_size(px(13.0))
                                         .child(
                                             div()
                                                 .text_color(cx.theme().muted_foreground)
                                                 .child(format!("核心 {}:", i + 1)),
                                         )
-                                        .child(format!("{:.1}%", usage)),
+                                        .child(format!("{:.2}%", core.usage)),
                                 )
-                                .child(Self::render_progress_bar(*usage, cx))
+                                .child(Self::render_progress_bar(
+                                    core.usage,
+                                    COLOR_CPU,
+                                    8.0,
+                                    cx,
+                                ))
+                                .child(Self::drawer_row(
+                                    "频率:",
+                                    format!("{} MHz", core.frequency),
+                                    cx,
+                                ))
                         })),
                 )
         });
@@ -539,47 +568,57 @@ impl SystemMonitor {
 }
 
 impl Render for SystemMonitor {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let monitoring_enabled = self.monitoring_enabled;
 
+        // 监控关闭态：居中开关面板（monitor-switch-panel）
         if !monitoring_enabled {
             return design::page()
                 .child(design::page_header("系统监控", "实时监控 CPU、内存与磁盘", cx))
                 .child(
-                    design::card(cx)
+                    div()
+                        .flex_1()
+                        .flex()
                         .items_center()
+                        .justify_center()
                         .child(
                             div()
                                 .flex()
                                 .flex_col()
                                 .items_center()
                                 .gap_3()
-                                .p_8()
-                        .child(
-                            Switch::new("monitor-toggle")
-                                .checked(false)
-                                .on_click(cx.listener(|this, v: &bool, _, cx| {
-                                    this.toggle_monitoring(*v, cx);
-                                })),
-                        )
-                        .child(div().text_lg().font_semibold().child("系统监控已关闭"))
-                        .child(
-                            div()
-                                .text_sm()
-                                .text_color(cx.theme().muted_foreground)
-                                .child("打开开关后开始采集 CPU、内存、磁盘和进程信息"),
-                        ),
+                                .px(px(40.0))
+                                .py_8()
+                                .rounded(px(16.0))
+                                .border_1()
+                                .border_color(cx.theme().border)
+                                .bg(cx.theme().popover)
+                                .shadow_sm()
+                                .child(
+                                    div()
+                                        .text_size(px(18.0))
+                                        .font_semibold()
+                                        .child("系统监控已关闭"),
+                                )
+                                .child(
+                                    Switch::new("monitor-toggle")
+                                        .checked(false)
+                                        .on_click(cx.listener(|this, v: &bool, _, cx| {
+                                            this.toggle_monitoring(*v, cx);
+                                        })),
+                                )
+                                .child(
+                                    div()
+                                        .text_size(px(13.0))
+                                        .text_color(cx.theme().muted_foreground)
+                                        .child("打开开关后开始采集 CPU、内存、磁盘和进程信息"),
+                                ),
                         ),
                 )
                 .into_any_element();
         }
 
-        let cpu_usage = self.cpu_usage.clone();
-        let global_cpu_usage = if cpu_usage.is_empty() {
-            0.0
-        } else {
-            cpu_usage.iter().sum::<f32>() / cpu_usage.len() as f32
-        };
+        let global_cpu_usage = self.global_cpu_usage();
         let memory_usage_percent = self.memory_usage_percent;
         let swap_usage_percent = self.swap_usage_percent;
         let cpu_temperature = self.cpu_temperature;
@@ -596,319 +635,283 @@ impl Render for SystemMonitor {
         let total_pages = self.total_pages();
         let total_filtered = self.filtered_processes().len();
 
-        design::page()
-            .child(design::page_header("系统监控", "实时监控 CPU、内存与磁盘", cx))
+        // monitor-row：两张监控卡并排
+        let monitor_row = div()
+            .flex()
+            .flex_wrap()
+            .gap_4()
             .child(
-                h_flex()
-                    .gap_4()
+                div()
+                    .flex_1()
+                    .min_w(px(320.0))
+                    .child(
+                        design::card(cx).child(
+                            div()
+                                .flex()
+                                .flex_col()
+                                .gap(px(15.0))
+                                // CPU使用率（点击打开 CPU 详情抽屉）
+                                .child(Self::render_clickable_metric(
+                                    "cpu-metric",
+                                    "CPU使用率",
+                                    format!("{:.2}%", global_cpu_usage),
+                                    cx,
+                                ))
+                                .child(Self::render_progress_bar(
+                                    global_cpu_usage,
+                                    COLOR_CPU,
+                                    12.0,
+                                    cx,
+                                ))
+                                .child(
+                                    div()
+                                        .flex()
+                                        .justify_between()
+                                        .items_center()
+                                        .child(div())
+                                        .child(
+                                            div()
+                                                .text_xs()
+                                                .text_color(cx.theme().muted_foreground)
+                                                .child(if cpu_temperature > 0.0 {
+                                                    format!("{:.1}°C", cpu_temperature)
+                                                } else {
+                                                    String::new()
+                                                }),
+                                        ),
+                                )
+                                // 磁盘使用率（点击打开磁盘详情抽屉）
+                                .child(Self::render_clickable_metric(
+                                    "disk-metric",
+                                    "磁盘使用率",
+                                    format!("{:.2}%", disk_usage_percent),
+                                    cx,
+                                ))
+                                .child(Self::render_progress_bar(
+                                    disk_usage_percent,
+                                    COLOR_DISK,
+                                    12.0,
+                                    cx,
+                                )),
+                        ),
+                    ),
+            )
+            .child(
+                div()
+                    .flex_1()
+                    .min_w(px(320.0))
+                    .child(
+                        design::card(cx).child(
+                            div()
+                                .flex()
+                                .flex_col()
+                                .gap(px(15.0))
+                                // 物理内存
+                                .child(Self::render_metric(
+                                    "物理内存",
+                                    format!("{:.2}%", memory_usage_percent),
+                                    cx,
+                                ))
+                                .child(Self::render_progress_bar(
+                                    memory_usage_percent,
+                                    COLOR_MEM,
+                                    8.0,
+                                    cx,
+                                ))
+                                // 交换内存
+                                .child(Self::render_metric(
+                                    "交换内存",
+                                    format!("{:.2}%", swap_usage_percent),
+                                    cx,
+                                ))
+                                .child(Self::render_progress_bar(
+                                    swap_usage_percent,
+                                    COLOR_SWAP,
+                                    8.0,
+                                    cx,
+                                )),
+                        ),
+                    ),
+            );
+
+        // 进程表头（n-data-table 表头：xs 加粗 次要色）
+        let table_header = div()
+            .flex()
+            .text_xs()
+            .font_semibold()
+            .text_color(cx.theme().muted_foreground)
+            .px_2()
+            .py_1p5()
+            .border_b_1()
+            .border_color(cx.theme().border)
+            .child(
+                div()
+                    .flex_1()
+                    .min_w_0()
+                    .child("名称"),
+            )
+            .child(div().w(px(90.0)).child("PID"))
+            .child(div().w(px(110.0)).child("内存"))
+            .child(div().w(px(80.0)).child("CPU(%)"))
+            .child(div().w(px(76.0)).child("操作"));
+
+        // 进程行
+        let table_rows = paginated
+            .iter()
+            .map(|process| {
+                let pid = process.pid;
+                let process_name = process.name.clone();
+                div()
+                    .flex()
+                    .items_center()
+                    .text_sm()
+                    .px_2()
+                    .py_1p5()
+                    .border_b_1()
+                    .border_color(cx.theme().border)
+                    .hover(|s| s.bg(cx.theme().background))
                     .child(
                         div()
                             .flex_1()
-                            .child(
-                                design::card(cx)
-                                    .child(
-                                        v_flex()
-                                            .gap_3()
-                                            .child(
-                                                h_flex()
-                                                    .justify_between()
-                                                    .items_center()
-                                                    .child(div().font_semibold().child("CPU使用率"))
-                                                    .child(
-                                                        h_flex()
-                                                            .gap_2()
-                                                            .child(
-                                                                div()
-                                                                    .text_sm()
-                                                                    .text_color(
-                                                                        cx.theme().muted_foreground,
-                                                                    )
-                                                                    .child(format!(
-                                                                        "🌡 {:.1}°C",
-                                                                        cpu_temperature
-                                                                    )),
-                                                            )
-                                                            .child(
-                                                                Button::new("cpu_detail")
-                                                                    .icon(Icon::new(
-                                                                        IconName::ChevronRight,
-                                                                    ))
-                                                                    .tooltip("查看详情")
-                                                                    .on_click(cx.listener(
-                                                                        |this, _, window, cx| {
-                                                                            this.open_cpu_drawer(
-                                                                                window, cx,
-                                                                            );
-                                                                        },
-                                                                    )),
-                                                            ),
-                                                    ),
-                                            )
-                                            .child(
-                                                h_flex()
-                                                    .items_center()
-                                                    .gap_2()
-                                                    .child(Self::render_progress_bar(
-                                                        global_cpu_usage,
-                                                        cx,
-                                                    ))
-                                                    .child(
-                                                        div()
-                                                            .w(px(60.0))
-                                                            .text_sm()
-                                                            .text_right()
-                                                            .font_family("monospace")
-                                                            .child(format!(
-                                                                "{:.1}%",
-                                                                global_cpu_usage
-                                                            )),
-                                                    ),
-                                            )
-                                            .child(
-                                                h_flex()
-                                                    .justify_between()
-                                                    .items_center()
-                                                    .child(
-                                                        div().font_semibold().child("磁盘使用率"),
-                                                    )
-                                                    .child(
-                                                        Button::new("disk_detail")
-                                                            .icon(Icon::new(IconName::ChevronRight))
-                                                            .tooltip("查看详情")
-                                                            .on_click(cx.listener(
-                                                                |this, _, window, cx| {
-                                                                    this.open_disk_drawer(
-                                                                        window, cx,
-                                                                    );
-                                                                },
-                                                            )),
-                                                    ),
-                                            )
-                                            .child(
-                                                h_flex()
-                                                    .items_center()
-                                                    .gap_2()
-                                                    .child(Self::render_progress_bar(
-                                                        disk_usage_percent,
-                                                        cx,
-                                                    ))
-                                                    .child(
-                                                        div()
-                                                            .w(px(60.0))
-                                                            .text_sm()
-                                                            .text_right()
-                                                            .font_family("monospace")
-                                                            .child(format!(
-                                                                "{:.1}%",
-                                                                disk_usage_percent
-                                                            )),
-                                                    ),
-                                            ),
-                                    ),
-                            )
-                            )
-                            .child(
-                                div()
-                                    .flex_1()
-                                    .child(
-                                        design::card(cx)
-                                            .child(
-                                                v_flex()
-                                                    .gap_3()
-                                                    .child(div().font_semibold().child("物理内存"))
-                                            .child(
-                                                h_flex()
-                                                    .items_center()
-                                                    .gap_2()
-                                                    .child(Self::render_progress_bar(
-                                                        memory_usage_percent,
-                                                        cx,
-                                                    ))
-                                                    .child(
-                                                        div()
-                                                            .w(px(100.0))
-                                                            .text_sm()
-                                                            .text_right()
-                                                            .font_family("monospace")
-                                                            .child(format!(
-                                                                "{:.1}%",
-                                                                memory_usage_percent
-                                                            )),
-                                                    ),
-                                            )
-                                            .child(
-                                                div()
-                                                    .text_sm()
-                                                    .text_color(cx.theme().muted_foreground)
-                                                    .child(format!(
-                                                        "{} / {}",
-                                                        Self::format_bytes(self.used_memory),
-                                                        Self::format_bytes(self.total_memory)
-                                                    )),
-                                            )
-                                            .child(div().font_semibold().child("交换内存"))
-                                            .child(
-                                                h_flex()
-                                                    .items_center()
-                                                    .gap_2()
-                                                    .child(Self::render_progress_bar(
-                                                        swap_usage_percent,
-                                                        cx,
-                                                    ))
-                                                    .child(
-                                                        div()
-                                                            .w(px(100.0))
-                                                            .text_sm()
-                                                            .text_right()
-                                                            .font_family("monospace")
-                                                            .child(format!(
-                                                                "{:.1}%",
-                                                                swap_usage_percent
-                                                            )),
-                                                    ),
-                                            ),
-                                    ),
-                            )
-                            ),
+                            .min_w_0()
+                            .truncate()
+                            .child(process.name.clone()),
                     )
                     .child(
-                        design::card(cx)
-                            .child(
-                                v_flex()
-                                    .gap_3()
-                                    .child(
-                                        h_flex()
-                                            .justify_between()
-                                            .items_center()
-                                            .child(div().font_semibold().child("进程列表"))
-                                            .child(
-                                                h_flex()
-                                                    .gap_2()
-                                                    .child(
-                                                        Input::new(&self.input_state).w(px(200.0)),
-                                                    )
-                                                    .child(
-                                                        div()
-                                                            .text_sm()
-                                                            .text_color(cx.theme().muted_foreground)
-                                                            .child(format!(
-                                                                "共 {} 个进程",
-                                                                total_filtered
-                                                            )),
-                                                    ),
-                                            ),
-                                    )
-                                    .child(
-                                        h_flex()
-                                            .text_sm()
-                                            .font_semibold()
-                                            .py_2()
-                                            .border_b_1()
-                                            .border_color(cx.theme().border)
-                                            .child(div().w(px(300.0)).child("名称"))
-                                            .child(div().w(px(80.0)).child("PID"))
-                                            .child(div().w(px(120.0)).child("内存"))
-                                            .child(div().w(px(80.0)).child("CPU(%)"))
-                                            .child(div().w(px(80.0)).child("操作")),
-                                    )
-                                    .child(div().max_h(px(400.0)).overflow_y_scrollbar().children(
-                                        paginated.iter().map(|process| {
-                                            let pid = process.pid;
-                                            let process_name = process.name.clone();
-                                            h_flex()
-                                                .text_sm()
-                                                .py_1()
-                                                .border_b_1()
-                                                .border_color(cx.theme().border)
-                                                .child(
-                                                    div()
-                                                        .w(px(300.0))
-                                                        .overflow_x_hidden()
-                                                        .child(process.name.clone()),
-                                                )
-                                                .child(div().w(px(80.0)).child(format!("{}", pid)))
-                                                .child(
-                                                    div()
-                                                        .w(px(120.0))
-                                                        .child(Self::format_bytes(process.memory)),
-                                                )
-                                                .child(
-                                                    div()
-                                                        .w(px(80.0))
-                                                        .child(format!("{:.2}", process.cpu)),
-                                                )
-                                                .child(
-                                                    div().w(px(80.0)).child(
-                                                        Button::new(("kill", pid as usize))
-                                                            .with_variant(ButtonVariant::Danger)
-                                                            .child("终止")
-                                                            .on_click(cx.listener(
-                                                                move |this, _, window, cx| {
-                                                                    this.confirm_kill_process(
-                                                                        pid,
-                                                                        process_name.clone(),
-                                                                        window,
-                                                                        cx,
-                                                                    );
-                                                                },
-                                                            )),
-                                                    ),
-                                                )
-                                        }),
-                                    ))
-                                    .child(
-                                        h_flex()
-                                            .justify_between()
-                                            .items_center()
-                                            .child(
-                                                div()
-                                                    .text_sm()
-                                                    .text_color(cx.theme().muted_foreground)
-                                                    .child(format!(
-                                                        "第 {} / {} 页",
-                                                        current_page + 1,
-                                                        total_pages
-                                                    )),
-                                            )
-                                            .child(
-                                                h_flex()
-                                                    .gap_2()
-                                                    .child(
-                                                        Button::new("prev-page")
-                                                            .icon(Icon::new(IconName::ArrowLeft))
-                                                            .tooltip("上一页")
-                                                            .disabled(current_page == 0)
-                                                            .on_click(cx.listener(
-                                                                |this, _, _, cx| {
-                                                                    if this.current_page > 0 {
-                                                                        this.current_page -= 1;
-                                                                        cx.notify();
-                                                                    }
-                                                                },
-                                                            )),
-                                                    )
-                                                    .child(
-                                                        Button::new("next-page")
-                                                            .icon(Icon::new(IconName::ArrowRight))
-                                                            .tooltip("下一页")
-                                                            .disabled(
-                                                                current_page >= total_pages - 1,
-                                                            )
-                                                            .on_click(cx.listener(
-                                                                |this, _, _, cx| {
-                                                                    if this.current_page
-                                                                        < this.total_pages() - 1
-                                                                    {
-                                                                        this.current_page += 1;
-                                                                        cx.notify();
-                                                                    }
-                                                                },
-                                                            )),
-                                                    ),
-                                            ),
-                                    ),
-                            ),
+                        div()
+                            .w(px(90.0))
+                            .font_family("monospace")
+                            .child(format!("{}", pid)),
                     )
+                    .child(
+                        div()
+                            .w(px(110.0))
+                            .child(Self::format_bytes(process.memory)),
+                    )
+                    .child(
+                        div()
+                            .w(px(80.0))
+                            .font_family("monospace")
+                            .child(format!("{:.2}", process.cpu)),
+                    )
+                    .child(
+                        div().w(px(76.0)).child(
+                            Button::new(("kill", pid as usize))
+                                .with_variant(ButtonVariant::Danger)
+                                .compact()
+                                .child("终止")
+                                .on_click(cx.listener(move |this, _, window, cx| {
+                                    this.confirm_kill_process(
+                                        pid,
+                                        process_name.clone(),
+                                        window,
+                                        cx,
+                                    );
+                                })),
+                        ),
+                    )
+            })
+            .collect::<Vec<_>>();
+
+        let process_card = design::card(cx)
+            .flex_1()
+            .child(
+                // 卡片头：标题 + 右侧搜索框（Vue：header 内右对齐搜索）
+                div()
+                    .flex()
+                    .flex_wrap()
+                    .items_center()
+                    .justify_between()
+                    .gap_2()
+                    .pb(px(14.0))
+                    .mb_2()
+                    .border_b_1()
+                    .border_color(cx.theme().border)
+                    .child(design::editor_label("进程列表", cx))
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(Input::new(&self.input_state).w(px(200.0)))
+                            .child(
+                                design::stat_pill(
+                                    format!("{}", total_filtered),
+                                    "个进程",
+                                    cx.theme().primary,
+                                    cx,
+                                ),
+                            ),
+                    ),
+            )
+            .child(table_header)
+            .child(
+                div()
+                    .max_h(px(420.0))
+                    .overflow_y_scrollbar()
+                    .when(table_rows.is_empty(), |this| {
+                        this.child(
+                            div()
+                                .py_6()
+                                .text_center()
+                                .text_sm()
+                                .text_color(cx.theme().muted_foreground)
+                                .child("暂无进程数据"),
+                        )
+                    })
+                    .children(table_rows),
+            )
+            .child(
+                div()
+                    .flex()
+                    .justify_between()
+                    .items_center()
+                    .pt_2()
+                    .child(
+                        div()
+                            .text_xs()
+                            .text_color(cx.theme().muted_foreground)
+                            .child(format!("第 {} / {} 页", current_page + 1, total_pages)),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(
+                                Button::new("prev-page")
+                                    .icon(Icon::new(IconName::ArrowLeft))
+                                    .compact()
+                                    .tooltip("上一页")
+                                    .disabled(current_page == 0)
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        if this.current_page > 0 {
+                                            this.current_page -= 1;
+                                            cx.notify();
+                                        }
+                                    })),
+                            )
+                            .child(
+                                Button::new("next-page")
+                                    .icon(Icon::new(IconName::ArrowRight))
+                                    .compact()
+                                    .tooltip("下一页")
+                                    .disabled(current_page >= total_pages - 1)
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        if this.current_page < this.total_pages() - 1 {
+                                            this.current_page += 1;
+                                            cx.notify();
+                                        }
+                                    })),
+                            ),
+                    ),
+            );
+
+        design::page()
+            .child(design::page_header("系统监控", "实时监控 CPU、内存与磁盘", cx))
+            .child(monitor_row)
+            .child(process_card)
+            .flex_1()
             .into_any_element()
     }
 }
