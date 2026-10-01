@@ -1,4 +1,3 @@
-use crate::design;
 use data_encoding::{HEXLOWER, HEXLOWER_PERMISSIVE};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;

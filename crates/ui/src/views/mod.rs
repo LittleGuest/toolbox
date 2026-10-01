@@ -11,7 +11,6 @@ pub mod color_converter;
 pub mod cron;
 pub mod database_diff;
 pub mod escape_tools;
-pub mod excalidraw;
 pub mod fake_data_generator;
 pub mod file_verify;
 pub mod hash_calculator;

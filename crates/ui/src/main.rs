@@ -4,7 +4,7 @@ use gpui_kit::*;
 use gpui_kit::component::{button::*, scroll::ScrollableElement, sidebar::*, *};
 use gpui_kit::assets::Assets;
 mod config_store;
-mod design;
+mod excalidraw_store;
 mod views;
 use views::*;
 
@@ -1201,7 +1201,7 @@ fn render_regex_visualizer_view(app: &mut App, window: &mut Window, cx: &mut Con
 
 fn render_excalidraw_view(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {
     if app.excalidraw.is_none() {
-        app.excalidraw = Some(cx.new(|cx| ExcalidrawView::new(window, cx)));
+        app.excalidraw = Some(cx.new(|cx| ExcalidrawView::new(excalidraw_store::store(), window, cx)));
     }
 
     if let Some(ref excalidraw) = app.excalidraw {

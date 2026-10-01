@@ -2,7 +2,6 @@ use gpui_kit::{prelude::FluentBuilder, *};
 use gpui_kit::component::{Theme, ThemeMode, button::*, select::*, switch::Switch, *};
 
 use crate::config_store;
-use crate::design;
 
 const DEFAULT_LANGUAGE: &str = "zh_cn";
 const DEFAULT_THEME: &str = "light";

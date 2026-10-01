@@ -8,7 +8,6 @@ use gpui_kit::component::{
 };
 
 use crate::config_store::{self, ClipboardHistoryItem};
-use crate::design;
 
 pub struct ClipboardManager {
     input: String,

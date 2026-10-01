@@ -1,0 +1,9 @@
+[package]
+name = "design"
+description = "共享设计系统：页面骨架、卡片、语义色与统计胶囊（对应 Vue 版 global.scss）"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+gpui-kit = { workspace = true }

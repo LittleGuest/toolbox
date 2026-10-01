@@ -1,0 +1,17 @@
+[package]
+name = "excalidraw"
+description = "Excalidraw 白板内核：元素模型、画布交互、手绘/导出渲染"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+gpui-kit = { workspace = true }
+design = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+rfd = { workspace = true }
+async-trait = { workspace = true }
+tiny-skia = "0.11.4"
+png = "0.17.16"

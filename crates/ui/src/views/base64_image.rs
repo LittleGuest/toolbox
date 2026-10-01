@@ -1,4 +1,3 @@
-use crate::design;
 use std::collections::HashMap;
 
 use gpui_kit::{prelude::FluentBuilder as _, *};

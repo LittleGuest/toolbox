@@ -3,7 +3,6 @@ use std::{
     time::Duration,
 };
 
-use crate::design;
 use gpui_kit::{prelude::FluentBuilder, *};
 use gpui_kit::component::{
     button::*,

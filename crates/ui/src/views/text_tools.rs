@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use crate::design;
 use gpui_kit::{prelude::FluentBuilder as _, *};
 use gpui_kit::component::{
     button::*,

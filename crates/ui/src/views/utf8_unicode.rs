@@ -1,4 +1,3 @@
-use crate::design;
 use gpui_kit::*;
 use gpui_kit::component::{
     button::*,

@@ -2,7 +2,6 @@ use aes::cipher::{
     block_padding::Pkcs7, generic_array::GenericArray, BlockDecryptMut, BlockEncryptMut, KeyIvInit,
     KeyInit,
 };
-use crate::design;
 use data_encoding::{BASE64, HEXLOWER, HEXLOWER_PERMISSIVE};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;

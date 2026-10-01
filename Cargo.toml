@@ -5,6 +5,8 @@ members = [
   "crates/database",
   "crates/datafaker",
   "crates/base",
+  "crates/design",
+  "crates/excalidraw",
   "crates/monitor",
   "crates/ui",
   "src-tauri",
@@ -20,6 +22,8 @@ authors = ["LittleGuest <2190975784@qq.com>"]
 base = { path = "crates/base" }
 datafaker = { path = "crates/datafaker" }
 database = { path = "crates/database" }
+design = { path = "crates/design" }
+excalidraw = { path = "crates/excalidraw" }
 monitor = { path = "crates/monitor" }
 database-core = { git = "https://github.com/LittleGuest/database", package = "database", branch = "main" }
 tauri = { version = "2", features = [] }
@@ -100,4 +104,3 @@ cbc = { version = "0.1", features = ["alloc"] }
 # dev 构建关闭 debuginfo（调试反汇编仍可用 backtrace 行号定位）
 [profile.dev]
 debug = false
-

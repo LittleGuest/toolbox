@@ -1,5 +1,8 @@
-use crate::design;
-use std::{cell::Cell, rc::Rc};
+use std::{
+    cell::Cell,
+    rc::Rc,
+    sync::Arc,
+};
 
 use gpui_kit::{prelude::FluentBuilder as _, *};
 use gpui_kit::component::{
@@ -10,13 +13,13 @@ use gpui_kit::component::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::config_store;
+use crate::{DocRecord, DocStore};
 
 const DEFAULT_STROKE: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
 const DEFAULT_FILL: [f32; 4] = [0.0, 0.0, 1.0, 0.15];
 const TEXT_FONT_SIZE: f32 = 16.0;
 
-#[derive(Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 enum ShapeKind {
     Rectangle,
@@ -28,7 +31,7 @@ enum ShapeKind {
     Freedraw,
 }
 
-#[derive(Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 enum StrokeStyleKind {
     Solid,
@@ -153,6 +156,11 @@ fn color_presets() -> Vec<ColorPreset> {
     ]
 }
 
+/// Excalidraw 白板视图。
+///
+/// 一个自包含的画布：元素集合、当前工具、选择、视口、历史栈、样式、
+/// 文档存取都在内部管理，宿主只需要把它挂进元素树（见 `ui` 的
+/// `render_excalidraw_view`）。
 pub struct ExcalidrawView {
     elements: Vec<ExcalidrawElement>,
     tool: Tool,
@@ -171,12 +179,20 @@ pub struct ExcalidrawView {
     status: String,
     doc_name_state: Entity<InputState>,
     text_edit_state: Entity<InputState>,
-    saved_docs: Vec<config_store::ExcalidrawDocRecord>,
+    saved_docs: Vec<DocRecord>,
     canvas_origin: Rc<Cell<Point<Pixels>>>,
+    menu_open: bool,
+    /// 持久化实现由宿主注入 —— 内核不认识 SQLite。
+    store: Arc<dyn DocStore>,
 }
 
 impl ExcalidrawView {
-    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+    /// 用宿主提供的存储实现构造视图。
+    pub fn new(
+        store: Arc<dyn DocStore>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Self {
         let canvas_origin = Rc::new(Cell::new(point(px(0.0), px(0.0))));
         Self {
             elements: Vec::new(),
@@ -198,7 +214,21 @@ impl ExcalidrawView {
             text_edit_state: cx.new(|cx| InputState::new(window, cx).placeholder("文本内容")),
             saved_docs: Vec::new(),
             canvas_origin,
+            menu_open: false,
+            store,
         }
+    }
+
+    fn toggle_menu(&mut self, cx: &mut Context<Self>) {
+        self.menu_open = !self.menu_open;
+        cx.notify();
+    }
+
+    fn close_menu(&mut self, cx: &mut Context<Self>) {
+        if self.menu_open {
+            self.menu_open = false;
+        }
+        cx.notify();
     }
 
     fn set_tool(&mut self, tool: Tool, cx: &mut Context<Self>) {
@@ -279,11 +309,12 @@ impl ExcalidrawView {
         }
         let elements_json = serde_json::to_string(&self.elements).unwrap_or_default();
         let name_clone = name.clone();
+        let store = self.store.clone();
         self.status = format!("正在保存文档 {name}...");
         cx.notify();
 
         cx.spawn(async move |this: WeakEntity<Self>, cx| {
-            let result = config_store::save_excalidraw_doc(&name_clone, &elements_json).await;
+            let result = store.save(&name_clone, &elements_json).await;
             let _ = this.update(cx, |this, cx| {
                 this.status = match result {
                     Ok(_) => format!("文档 {name_clone} 已保存。"),
@@ -296,11 +327,12 @@ impl ExcalidrawView {
     }
 
     fn load_docs(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let store = self.store.clone();
         self.status = "正在加载文档列表...".to_string();
         cx.notify();
 
         cx.spawn_in(window, async move |this: WeakEntity<Self>, cx| {
-            let result = config_store::load_excalidraw_docs().await;
+            let result = store.load().await;
             let _ = this.update_in(cx, |this, window, cx| {
                 match result {
                     Ok(docs) => {
@@ -320,7 +352,7 @@ impl ExcalidrawView {
 
     fn show_load_dialog(
         &mut self,
-        docs: Vec<config_store::ExcalidrawDocRecord>,
+        docs: Vec<DocRecord>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -361,11 +393,12 @@ impl ExcalidrawView {
     }
 
     fn delete_doc(&mut self, name: String, cx: &mut Context<Self>) {
+        let store = self.store.clone();
         self.status = format!("正在删除文档 {name}...");
         cx.notify();
 
         cx.spawn(async move |this: WeakEntity<Self>, cx| {
-            let result = config_store::delete_excalidraw_doc(name.clone()).await;
+            let result = store.delete(&name).await;
             let _ = this.update(cx, |this, cx| {
                 this.status = match result {
                     Ok(true) => format!("文档 {name} 已删除。"),
@@ -834,7 +867,7 @@ fn toolbar_separator(cx: &mut Context<ExcalidrawView>) -> Div {
 
 impl Render for ExcalidrawView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // 对齐 Vue 原版：全屏铺满的画布容器（无页头、无卡片），岛式悬浮面板
+        // 对齐官方 Excalidraw：左上汉堡菜单按钮、左中工具栏、选中面板在菜单正下方、右下 undo/redo+缩放
         div().size_full().child(
             div()
                 .size_full()
@@ -845,14 +878,6 @@ impl Render for ExcalidrawView {
                 .overflow_hidden()
                 .relative()
                 .child(canvas_container(self, cx))
-                // 左上：编辑/导出/文档 菜单岛
-                .child(
-                    div()
-                        .absolute()
-                        .top(px(12.0))
-                        .left(px(12.0))
-                        .child(menu_island(self, cx)),
-                )
                 // 左中：工具岛（垂直居中）
                 .child(
                     div()
@@ -865,13 +890,21 @@ impl Render for ExcalidrawView {
                         .justify_center()
                         .child(toolbar(self, cx)),
                 )
-                // 右侧：选中元素属性岛
+                // 左上：汉堡菜单按钮岛（官方菜单按钮）
+                .child(
+                    div()
+                        .absolute()
+                        .top(px(12.0))
+                        .left(px(12.0))
+                        .child(hamburger_island(self, cx)),
+                )
+                // 选中元素属性岛：官方位置 = 左上菜单按钮正下方
                 .when(self.selection.is_some(), |el| {
                     el.child(
                         div()
                             .absolute()
-                            .top(px(12.0))
-                            .right(px(12.0))
+                            .top(px(56.0))
+                            .left(px(12.0))
                             .child(style_panel(self, cx)),
                     )
                 })
@@ -884,14 +917,28 @@ impl Render for ExcalidrawView {
                         .max_w(px(460.0))
                         .child(status_island(self, cx)),
                 )
-                // 右下：缩放岛
+                // 右下：撤销/重做 + 缩放岛（官方布局）
                 .child(
                     div()
                         .absolute()
                         .bottom(px(12.0))
                         .right(px(12.0))
+                        .flex()
+                        .items_center()
+                        .gap_2()
+                        .child(history_island(self, cx))
                         .child(zoom_island(self, cx)),
-                ),
+                )
+                // 菜单面板：打开时从左上展开（后添加保证 z 序在上）
+                .when(self.menu_open, |el| {
+                    el.child(
+                        div()
+                            .absolute()
+                            .top(px(56.0))
+                            .left(px(12.0))
+                            .child(menu_panel(self, cx)),
+                    )
+                }),
         )
     }
 }
@@ -909,9 +956,24 @@ fn island_container(cx: &Context<ExcalidrawView>) -> Div {
         .shadow_lg()
 }
 
-fn menu_island(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
+/// 左上汉堡菜单按钮（官方 Excalidraw：单按钮岛，点开菜单面板）
+fn hamburger_island(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
+    island_container(cx).child(
+        Button::new("menu-toggle")
+            .small()
+            .ghost()
+            .icon(Icon::new(IconName::Menu))
+            .tooltip("菜单")
+            .when(this.menu_open, |btn| btn.selected(true))
+            .on_click(cx.listener(|this, _, _, cx| {
+                this.toggle_menu(cx);
+            })),
+    )
+}
+
+/// 右下撤销/重做/删除岛（官方 undo/redo 位于右下角）
+fn history_island(_this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
     island_container(cx)
-        .flex_wrap()
         .child(
             Button::new("undo")
                 .small()
@@ -943,73 +1005,101 @@ fn menu_island(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
                     this.delete_selected(cx);
                 })),
         )
-        .child(
-            Button::new("clear-all")
-                .small()
+}
+
+/// 汉堡菜单展开面板（对齐官方菜单：白底圆角轻阴影、竖排图标+文字项）
+fn menu_panel(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
+    let menu_item = |id: &'static str,
+                     icon: IconName,
+                     label: &'static str,
+                     cx: &mut Context<ExcalidrawView>,
+                     action: fn(&mut ExcalidrawView, &mut Context<ExcalidrawView>)| {
+        div().w_full().child(
+            Button::new(id)
                 .ghost()
-                .icon(Icon::new(IconName::Close))
-                .tooltip("清空画布")
-                .on_click(cx.listener(|this, _, _, cx| {
-                    this.clear(cx);
+                .label(label)
+                .icon(Icon::new(icon))
+                .w_full()
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    action(this, cx);
+                    this.close_menu(cx);
                 })),
         )
-        .child(toolbar_separator(cx))
-        .child(
-            Button::new("export-json")
-                .small()
-                .ghost()
-                .icon(Icon::new(IconName::Copy))
-                .tooltip("导出 JSON 到剪贴板")
-                .on_click(cx.listener(|this, _, _, cx| {
-                    this.export_json(cx);
-                })),
-        )
-        .child(
-            Button::new("export-svg")
-                .small()
-                .ghost()
-                .icon(Icon::new(IconName::ExternalLink))
-                .tooltip("导出 SVG 到剪贴板")
-                .on_click(cx.listener(|this, _, _, cx| {
-                    this.export_svg(cx);
-                })),
-        )
-        .child(
-            Button::new("export-png")
-                .small()
-                .ghost()
-                .icon(Icon::new(IconName::Frame))
-                .tooltip("导出 PNG 图片")
-                .on_click(cx.listener(|this, _, _, cx| {
-                    this.export_png(cx);
-                })),
-        )
-        .child(toolbar_separator(cx))
+    };
+
+    div()
+        .w(px(240.0))
+        .flex()
+        .flex_col()
+        .gap_0p5()
+        .p_1p5()
+        .rounded(px(10.0))
+        .bg(cx.theme().popover)
+        .border_1()
+        .border_color(cx.theme().border)
+        .shadow_lg()
+        // 文档保存/加载
         .child(
             div()
-                .w(px(150.0))
-                .child(Input::new(&this.doc_name_state)),
+                .flex()
+                .items_center()
+                .gap_1()
+                .px_1()
+                .py_0p5()
+                .child(div().flex_1().child(Input::new(&this.doc_name_state)))
+                .child(
+                    Button::new("save-doc")
+                        .small()
+                        .ghost()
+                        .icon(Icon::new(IconName::File))
+                        .tooltip("保存文档")
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.save_doc(cx);
+                            this.close_menu(cx);
+                        })),
+                )
+                .child(
+                    Button::new("load-doc")
+                        .small()
+                        .ghost()
+                        .icon(Icon::new(IconName::FolderOpen))
+                        .tooltip("加载文档")
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            this.load_docs(window, cx);
+                            this.close_menu(cx);
+                        })),
+                ),
         )
-        .child(
-            Button::new("save-doc")
-                .small()
-                .ghost()
-                .icon(Icon::new(IconName::File))
-                .tooltip("保存文档")
-                .on_click(cx.listener(|this, _, _, cx| {
-                    this.save_doc(cx);
-                })),
-        )
-        .child(
-            Button::new("load-doc")
-                .small()
-                .ghost()
-                .icon(Icon::new(IconName::FolderOpen))
-                .tooltip("加载文档")
-                .on_click(cx.listener(|this, _, window, cx| {
-                    this.load_docs(window, cx);
-                })),
-        )
+        .child(toolbar_separator(cx))
+        .child(menu_item(
+            "export-json",
+            IconName::Copy,
+            "导出 JSON 到剪贴板",
+            cx,
+            |this, cx| this.export_json(cx),
+        ))
+        .child(menu_item(
+            "export-svg",
+            IconName::ExternalLink,
+            "导出 SVG 到剪贴板",
+            cx,
+            |this, cx| this.export_svg(cx),
+        ))
+        .child(menu_item(
+            "export-png",
+            IconName::Frame,
+            "导出 PNG 图片",
+            cx,
+            |this, cx| this.export_png(cx),
+        ))
+        .child(toolbar_separator(cx))
+        .child(menu_item(
+            "clear-all",
+            IconName::Close,
+            "清空画布",
+            cx,
+            |this, cx| this.clear(cx),
+        ))
 }
 
 fn status_island(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
@@ -1076,46 +1166,85 @@ fn zoom_island(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
         )
 }
 
+/// 自绘几何工具图标（gpui 图标库无 shape 语义图标，用 div/几何字符对齐官方）
+fn tool_glyph(tool: Tool, cx: &Context<ExcalidrawView>) -> Div {
+    let color = cx.theme().foreground;
+    match tool {
+        Tool::Select => div().text_size(px(16.0)).text_color(color).child("↖"),
+        Tool::Freedraw => div()
+            .text_size(px(19.0))
+            .font_semibold()
+            .text_color(color)
+            .child("~"),
+        Tool::Rectangle => div()
+            .w(px(16.0))
+            .h(px(12.0))
+            .border_2()
+            .border_color(color)
+            .rounded(px(2.0)),
+        Tool::Ellipse => div()
+            .w(px(16.0))
+            .h(px(13.0))
+            .border_2()
+            .border_color(color)
+            .rounded_full(),
+        Tool::Diamond => div().text_size(px(16.0)).text_color(color).child("◇"),
+        Tool::Line => div().text_size(px(15.0)).text_color(color).child("╱"),
+        Tool::Arrow => div().text_size(px(16.0)).text_color(color).child("↗"),
+        Tool::Text => div()
+            .text_size(px(15.0))
+            .font_semibold()
+            .text_color(color)
+            .child("A"),
+        Tool::Eraser => div().text_size(px(15.0)).text_color(color).child("⌫"),
+    }
+}
+
 fn toolbar(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
-    let tools: [(Tool, Option<IconName>, &'static str); 9] = [
-        (Tool::Select, Some(IconName::Map), "选择(V)"),
-        (Tool::Rectangle, Some(IconName::Frame), "矩形(R)"),
-        (Tool::Diamond, Some(IconName::Star), "菱形(D)"),
-        (Tool::Ellipse, Some(IconName::CircleCheck), "椭圆(O)"),
-        (Tool::Arrow, Some(IconName::ArrowUp), "箭头(A)"),
-        (Tool::Line, Some(IconName::Minus), "直线(L)"),
-        (Tool::Freedraw, Some(IconName::Dash), "手绘(P)"),
-        (Tool::Text, Some(IconName::ALargeSmall), "文本(T)"),
-        (Tool::Eraser, Some(IconName::Close), "橡皮(E)"),
+    let tools: [Tool; 9] = [
+        Tool::Select,
+        Tool::Rectangle,
+        Tool::Diamond,
+        Tool::Ellipse,
+        Tool::Arrow,
+        Tool::Line,
+        Tool::Freedraw,
+        Tool::Text,
+        Tool::Eraser,
     ];
 
+    // 对齐官方 Excalidraw：左中垂直工具栏，34px 方形按钮、选中浅灰底
     let mut group = div()
         .flex()
         .flex_col()
         .items_center()
-        .gap_1()
+        .gap(px(2.0))
         .p_1()
-        .rounded_md()
+        .rounded(px(12.0))
         .bg(cx.theme().background)
         .shadow_lg()
         .border_1()
         .border_color(cx.theme().border);
 
-    for (i, (tool, icon_opt, tooltip)) in tools.iter().enumerate() {
-        let tool = *tool;
+    for (i, tool_ref) in tools.iter().enumerate() {
+        let tool = *tool_ref;
         let is_active = this.tool == tool;
-        let mut btn = Button::new(("tool", i))
-            .tooltip(*tooltip)
-            .when(is_active, |btn| btn.selected(true))
-            .on_click(cx.listener(move |this, _, _, cx| {
-                this.set_tool(tool, cx);
-            }));
-        if let Some(icon) = icon_opt.as_ref() {
-            btn = btn.icon(Icon::new(icon.clone()));
-        } else {
-            btn = btn.label(tool.label());
-        }
-        group = group.child(btn);
+        group = group.child(
+            div()
+                .id(("tool", i))
+                .size(px(34.0))
+                .rounded(px(10.0))
+                .flex()
+                .items_center()
+                .justify_center()
+                .cursor_pointer()
+                .hover(|el| el.bg(cx.theme().muted))
+                .when(is_active, |el| el.bg(cx.theme().muted))
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.set_tool(tool, cx);
+                }))
+                .child(tool_glyph(tool, cx)),
+        );
     }
 
     group
@@ -1930,7 +2059,7 @@ fn fill_quad(bounds: Bounds<Pixels>, color: Hsla) -> PaintQuad {
 }
 
 fn doc_load_dialog_content(
-    docs: Vec<config_store::ExcalidrawDocRecord>,
+    docs: Vec<DocRecord>,
     target: WeakEntity<ExcalidrawView>,
     cx: &mut App,
 ) -> Div {
@@ -2020,4 +2149,186 @@ fn doc_load_dialog_content(
     }
 
     content
+}
+
+#[cfg(test)]
+mod tests {
+    // 注意：这里**不能**写 `use super::*;`。父模块 `use gpui_kit::*` 会连带把
+    // `gpui_kit::test` 一并引入，在 test-support 特性下遮蔽内置的 `#[test]`
+    // 属性宏，报 "recursion limit reached while expanding `#[test]`"。
+    // 必须逐个显式引入。
+    use super::{
+        ExcalidrawElement, ShapeKind, StrokeStyleKind, TEXT_FONT_SIZE, diamond_path,
+        element_to_svg, ellipse_path, freedraw_path, hit_test, line_path, rect_path, rgba_color,
+    };
+
+    /// 单测能直接构造元素、直呼内部函数 —— 这些函数在 `ui` 里被 View 包着，
+    /// 抽成 crate 之后才具备独立验证的条件。
+    fn elem(kind: ShapeKind) -> ExcalidrawElement {
+        ExcalidrawElement {
+            id: 1,
+            kind,
+            x: 10.0,
+            y: 20.0,
+            width: 100.0,
+            height: 60.0,
+            text: String::new(),
+            points: Vec::new(),
+            stroke: [0.0, 0.0, 0.0, 1.0],
+            fill: [0.0, 0.0, 0.0, 0.0],
+            stroke_width: 2.0,
+            stroke_style: StrokeStyleKind::Solid,
+        }
+    }
+
+    #[test]
+    fn each_shape_kind_emits_its_own_svg_tag() {
+        let cases = [
+            (ShapeKind::Rectangle, "<rect"),
+            (ShapeKind::Ellipse, "<ellipse"),
+            (ShapeKind::Diamond, "<polygon"),
+            (ShapeKind::Line, "<line"),
+            (ShapeKind::Arrow, "<line"),
+            (ShapeKind::Text, "<text"),
+        ];
+        for (kind, tag) in cases {
+            let svg = element_to_svg(&elem(kind));
+            assert!(
+                svg.starts_with(tag),
+                "应以 {tag} 开头，实际：{}",
+                svg.lines().next().unwrap_or("")
+            );
+        }
+    }
+
+    #[test]
+    fn transparent_fill_becomes_none_and_opaque_fill_is_inlined() {
+        let transparent = element_to_svg(&elem(ShapeKind::Rectangle));
+        assert!(transparent.contains("fill=\"none\""), "{transparent}");
+
+        let mut tinted = elem(ShapeKind::Rectangle);
+        tinted.fill = [1.0, 0.0, 0.0, 0.5];
+        assert!(
+            element_to_svg(&tinted).contains("fill=\"rgba(255,0,0,0.5)\""),
+            "填色应原样内联成 rgba"
+        );
+    }
+
+    #[test]
+    fn dashed_stroke_adds_a_dash_array() {
+        let mut e = elem(ShapeKind::Rectangle);
+        assert!(!element_to_svg(&e).contains("stroke-dasharray"));
+        e.stroke_style = StrokeStyleKind::Dashed;
+        assert!(element_to_svg(&e).contains("stroke-dasharray=\"6,4\""));
+    }
+
+    #[test]
+    fn freedraw_needs_two_points_and_serialises_a_subpath() {
+        let mut e = elem(ShapeKind::Freedraw);
+        assert!(
+            element_to_svg(&e).is_empty(),
+            "只有一个点的手绘不应输出任何内容"
+        );
+        assert!(freedraw_path(&e).is_none());
+
+        e.points = vec![(0.0, 0.0), (5.0, 5.0), (9.0, 3.0)];
+        let svg = element_to_svg(&e);
+        assert!(svg.starts_with("<path d=\"M0 0 L5 5 L9 3\""), "{svg}");
+        assert!(freedraw_path(&e).is_some());
+    }
+
+    #[test]
+    fn arrow_head_ends_at_the_tip() {
+        let mut e = elem(ShapeKind::Arrow);
+        e.width = 120.0;
+        e.height = 0.0;
+        let svg = element_to_svg(&e);
+
+        let head = svg
+            .split("points=\"")
+            .nth(1)
+            .and_then(|rest| rest.split('"').next())
+            .expect("箭头应输出 polyline 箭头头部");
+        let pts: Vec<(f32, f32)> = head
+            .split_whitespace()
+            .map(|pair| {
+                let (x, y) = pair.split_once(',').expect("点应为 x,y");
+                (x.parse().unwrap(), y.parse().unwrap())
+            })
+            .collect();
+
+        assert_eq!(pts.len(), 3, "箭头头部是三点折线");
+        assert_eq!(
+            pts[1],
+            (e.x + e.width, e.y + e.height),
+            "折线中间那点就是箭尖"
+        );
+        assert!(
+            pts[0].0 < pts[1].0 && pts[2].0 < pts[1].0,
+            "两翼应落在箭尖后面"
+        );
+    }
+
+    #[test]
+    fn text_export_uses_the_shared_font_size() {
+        let svg = element_to_svg(&elem(ShapeKind::Text));
+        assert!(
+            svg.contains(&format!("font-size=\"{TEXT_FONT_SIZE}\"")),
+            "{svg}"
+        );
+    }
+
+    #[test]
+    fn elements_survive_a_json_round_trip() {
+        // 这份 JSON 就是 `config_store.excalidraw_docs.elements_json` 里存的东西，
+        // 改字段等于改存档格式 —— 用测试固定住。
+        let mut e = elem(ShapeKind::Freedraw);
+        e.points = vec![(1.0, 2.0), (3.0, 4.0)];
+        e.text = "hello".to_string();
+
+        let json = serde_json::to_string(&vec![e]).unwrap();
+        let back: Vec<ExcalidrawElement> = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(back.len(), 1);
+        assert_eq!(back[0].points.len(), 2);
+        assert_eq!(back[0].text, "hello");
+        assert_eq!(back[0].kind, ShapeKind::Freedraw);
+    }
+
+    #[test]
+    fn rgba_color_clamps_out_of_range_components() {
+        let expected = tiny_skia::Color::from_rgba(1.0, 0.0, 0.5, 1.0).unwrap();
+        assert_eq!(rgba_color([2.0, -1.0, 0.5, 3.0]), expected);
+    }
+
+    #[test]
+    fn hit_test_prefers_the_topmost_overlapping_element() {
+        let mut lower = elem(ShapeKind::Rectangle);
+        lower.x = 0.0;
+        lower.y = 0.0;
+        lower.width = 100.0;
+        lower.height = 100.0;
+
+        let mut upper = elem(ShapeKind::Rectangle);
+        upper.id = 2;
+        upper.x = 50.0;
+        upper.y = 50.0;
+        upper.width = 100.0;
+        upper.height = 100.0;
+
+        let list = [lower, upper];
+        assert_eq!(hit_test(&list, 75.0, 75.0), Some(1), "重叠处命中后画的");
+        assert_eq!(hit_test(&list, 10.0, 10.0), Some(0));
+        assert_eq!(hit_test(&list, 200.0, 200.0), None);
+    }
+
+    #[test]
+    fn degenerate_geometry_yields_no_path() {
+        assert!(ellipse_path(10.0, 10.0, 0.0, 5.0).is_none(), "零半径不是椭圆");
+        assert!(ellipse_path(10.0, 10.0, 5.0, -1.0).is_none(), "负半径不是椭圆");
+        assert!(ellipse_path(10.0, 10.0, 5.0, 5.0).is_some());
+        assert!(diamond_path(0.0, 0.0, 10.0, 10.0).is_some());
+        assert!(line_path(0.0, 0.0, 1.0, 1.0).is_some());
+        assert!(rect_path(4.0, 8.0, 10.0, 10.0).is_some());
+    }
 }

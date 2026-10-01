@@ -1,4 +1,3 @@
-use crate::design;
 use database::{DatasourceInfo, Driver};
 use gpui_kit::{prelude::FluentBuilder as _, *};
 use gpui_kit::component::{
