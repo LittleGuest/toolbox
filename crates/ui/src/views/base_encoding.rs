@@ -31,7 +31,7 @@ fn base58_decode(s: &str) -> Result<String, String> {
     String::from_utf8(bytes).map_err(|_| "解码结果不是有效的 UTF-8 文本".to_string())
 }
 
-const TABS: [&str; 3] = ["Base64 文本", "Base32", "Base58"];
+const TABS: [&str; 4] = ["Base64 文本", "Base64 图片", "Base32", "Base58"];
 
 /// 单个编码页的输入 / 输出对（对应 Vue 的 xxxInput / xxxOutput ref 对）
 struct PairState {
@@ -47,6 +47,8 @@ pub struct BaseEncodingConverter {
     b64: PairState,
     b32: PairState,
     b58: PairState,
+    /// 「Base64 图片」Tab（对齐 Tauri BaseEncoding.vue 的 base64img pane）
+    b64img: Option<Entity<crate::views::Base64ImageConverter>>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -99,6 +101,7 @@ impl BaseEncodingConverter {
             b64,
             b32,
             b58,
+            b64img: None,
             _subscriptions,
         }
     }
@@ -106,7 +109,7 @@ impl BaseEncodingConverter {
     fn pair(&self, tab: usize) -> &PairState {
         match tab {
             0 => &self.b64,
-            1 => &self.b32,
+            2 => &self.b32,
             _ => &self.b58,
         }
     }
@@ -114,7 +117,7 @@ impl BaseEncodingConverter {
     fn pair_mut(&mut self, tab: usize) -> &mut PairState {
         match tab {
             0 => &mut self.b64,
-            1 => &mut self.b32,
+            2 => &mut self.b32,
             _ => &mut self.b58,
         }
     }
@@ -126,7 +129,7 @@ impl BaseEncodingConverter {
         }
         let result = match tab {
             0 => ::base::encode_base64_text(&input).map_err(|e| e.to_string()),
-            1 => base32_encode(&input),
+            2 => base32_encode(&input),
             _ => base58_encode(&input),
         };
         let pair = self.pair_mut(tab);
@@ -148,7 +151,7 @@ impl BaseEncodingConverter {
         }
         let result = match tab {
             0 => ::base::decode_base64_text(&input).map_err(|e| e.to_string()),
-            1 => base32_decode(&input),
+            2 => base32_decode(&input),
             _ => base58_decode(&input),
         };
         let pair = self.pair_mut(tab);
@@ -246,8 +249,21 @@ impl BaseEncodingConverter {
             }))
     }
 
-    fn render_tab(&mut self, cx: &mut Context<Self>) -> Div {
+    fn render_tab(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Div {
         let tab = self.tab;
+        // 「Base64 图片」Tab：承载独立的 Base64ImageConverter 视图（对齐 Tauri base64img pane）
+        if tab == 1 {
+            if self.b64img.is_none() {
+                self.b64img = Some(cx.new(|cx| {
+                    crate::views::Base64ImageConverter::new(window, cx)
+                }));
+            }
+            if let Some(ref img) = self.b64img {
+                return div().child(img.clone());
+            }
+            return div().child("Loading...");
+        }
+
         let input = self.pair(tab).input.clone();
         let output = self.pair(tab).output.clone();
         let error = self.pair(tab).error.clone();
@@ -372,23 +388,14 @@ impl PairState {
 }
 
 impl Render for BaseEncodingConverter {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         design::page()
-            .child(design::page_header(
-                "Base 编码",
-                "Base64 / Base32 / Base58 编码转换",
-                cx,
-            ))
+
             .child(
                 design::card(cx)
-                    .child(design::card_header(
-                        IconName::Cpu,
-                        "Base 编码",
-                        "Base64 / Base32 / Base58 编码转换",
-                        cx,
-                    ))
+
                     .child(self.tab_bar(cx))
-                    .child(self.render_tab(cx)),
+                    .child(self.render_tab(window, cx)),
             )
     }
 }

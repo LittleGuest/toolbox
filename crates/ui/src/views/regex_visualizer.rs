@@ -1,14 +1,16 @@
 use std::ops::Range;
 
-use gpui_kit::prelude::FluentBuilder as _;
-use gpui_kit::*;
-use gpui_kit::component::{
-    button::*,
-    checkbox::Checkbox,
-    input::{Input, InputEvent, InputState, Textarea, TextareaState},
-    scroll::ScrollableElement,
-    select::{Select, SelectEvent, SelectState},
-    tab::{Tab, TabBar},
+use gpui_kit::{
+    component::{
+        button::*,
+        checkbox::Checkbox,
+        input::{Input, InputEvent, InputState, Textarea, TextareaState},
+        scroll::ScrollableElement,
+        select::{Select, SelectEvent, SelectState},
+        tab::{Tab, TabBar},
+        *,
+    },
+    prelude::FluentBuilder as _,
     *,
 };
 
@@ -99,7 +101,11 @@ const FLAGS: [(usize, char, &'static str, &'static str); 4] = [
 const SAMPLES: [(&str, &str, &str); 6] = [
     ("1. 整数", "1. Whole Numbers", r"^\d+$"),
     ("2. 小数", "2. Decimal Numbers", r"^\d*\.\d+$"),
-    ("3. 整数 + 小数", "3. Whole + Decimal Numbers", r"^\d*(\.\d+)?$"),
+    (
+        "3. 整数 + 小数",
+        "3. Whole + Decimal Numbers",
+        r"^\d*(\.\d+)?$",
+    ),
     (
         "4. 正负 整数 + 小数",
         "4. Negative, Positive Whole + Decimal Numbers",
@@ -477,12 +483,7 @@ fn e_boundary(id: NodeId, kind: BoundaryKind, negate: bool) -> ENode {
     ENode::new(id, EKind::Boundary { kind, negate })
 }
 
-fn e_group(
-    id: NodeId,
-    kind: EGroupKind,
-    name: impl Into<String>,
-    children: Vec<ENode>,
-) -> ENode {
+fn e_group(id: NodeId, kind: EGroupKind, name: impl Into<String>, children: Vec<ENode>) -> ENode {
     ENode::new(
         id,
         EKind::Group {
@@ -613,9 +614,12 @@ fn convert_ast(ast: &regex_syntax::ast::Ast, src: &str, id_gen: &mut IdGen) -> E
                     e_group(id_gen.next(), EGroupKind::Capturing, "", children)
                 }
                 // 官方 `v8`：具名分组的标签用**名字**，不是索引
-                regex_syntax::ast::GroupKind::CaptureName { name, .. } => {
-                    e_group(id_gen.next(), EGroupKind::NamedCapturing, &name.name, children)
-                }
+                regex_syntax::ast::GroupKind::CaptureName { name, .. } => e_group(
+                    id_gen.next(),
+                    EGroupKind::NamedCapturing,
+                    &name.name,
+                    children,
+                ),
                 regex_syntax::ast::GroupKind::NonCapturing(_) => {
                     e_group(id_gen.next(), EGroupKind::NonCapturing, "", children)
                 }
@@ -870,7 +874,11 @@ impl Ser {
                 BoundaryKind::End => self.out.push('$'),
                 BoundaryKind::Word => self.out.push_str(if *negate { "\\B" } else { "\\b" }),
             },
-            EKind::Group { kind, name, children } => {
+            EKind::Group {
+                kind,
+                name,
+                children,
+            } => {
                 match kind {
                     EGroupKind::Capturing => self.out.push('('),
                     EGroupKind::NonCapturing => self.out.push_str("(?:"),
@@ -966,7 +974,8 @@ impl ERoot {
     }
 
     fn node(&self, id: NodeId) -> Option<&ENode> {
-        self.find(id).map(|(path, index)| &seq_at(&self.body, &path)[index])
+        self.find(id)
+            .map(|(path, index)| &seq_at(&self.body, &path)[index])
     }
 
     /// 选中集合的 `[首 id, 尾 id]` 在同一条序列里对应的切片。
@@ -1013,9 +1022,8 @@ impl ERoot {
             InsertMode::After => seq.insert(index + len, fresh),
             InsertMode::Parallel => {
                 let single_choice = len == 1 && matches!(seq[index].kind, EKind::Choice { .. });
-                let whole_branch = index == 0
-                    && len == seq.len()
-                    && matches!(path.last(), Some(Step::Branch(..)));
+                let whole_branch =
+                    index == 0 && len == seq.len() && matches!(path.last(), Some(Step::Branch(..)));
                 if single_choice {
                     if let EKind::Choice { branches } = &mut seq[index].kind {
                         branches.push(vec![fresh]);
@@ -1304,7 +1312,11 @@ impl ERoot {
         fn walk(nodes: &[ENode], index: &mut usize, out: &mut Vec<String>) {
             for node in nodes {
                 match &node.kind {
-                    EKind::Group { kind, name, children } => {
+                    EKind::Group {
+                        kind,
+                        name,
+                        children,
+                    } => {
                         match kind {
                             EGroupKind::Capturing => {
                                 *index += 1;
@@ -1504,7 +1516,12 @@ fn ranges_text(ranges: &[(String, String)], lang: Lang) -> String {
 /// 节点主文案。分组和分支没有主文案（返回空串）。
 fn node_text(node: &ENode, lang: Lang) -> String {
     match &node.kind {
-        EKind::Character { kind, value, ranges, .. } => match kind {
+        EKind::Character {
+            kind,
+            value,
+            ranges,
+            ..
+        } => match kind {
             // 官方 `V8`：空串渲染成 `t("Empty")`
             CharKind::String => {
                 if value.is_empty() {
@@ -1538,24 +1555,30 @@ fn node_label(node: &ENode, lang: Lang) -> Option<String> {
             kind: CharKind::Ranges,
             negate,
             ..
-        } => Some(if *negate {
-            none_of_label(lang)
-        } else {
-            one_of_label(lang)
-        }
-        .to_string()),
+        } => Some(
+            if *negate {
+                none_of_label(lang)
+            } else {
+                one_of_label(lang)
+            }
+            .to_string(),
+        ),
         EKind::Group {
             kind: EGroupKind::Capturing,
             ..
-        } => Some(format!("{} #{}", group_word(lang), capture_index_of(node, lang))),
+        } => Some(format!(
+            "{} #{}",
+            group_word(lang),
+            capture_index_of(node, lang)
+        )),
         EKind::Group {
             kind: EGroupKind::NamedCapturing,
             name,
             ..
         } => Some(format!("{} #{name}", group_word(lang))),
-        EKind::LookAround { kind, negate, .. } => Some(
-            lookaround_label(lang, matches!(kind, LookKind::Lookahead), *negate).to_string(),
-        ),
+        EKind::LookAround { kind, negate, .. } => {
+            Some(lookaround_label(lang, matches!(kind, LookKind::Lookahead), *negate).to_string())
+        }
         _ => None,
     }
 }
@@ -1576,7 +1599,11 @@ thread_local! {
 }
 
 /// 先序遍历，登记每个捕获组的序号
-fn index_captures(nodes: &[ENode], counter: &mut usize, out: &mut std::collections::HashMap<NodeId, usize>) {
+fn index_captures(
+    nodes: &[ENode],
+    counter: &mut usize,
+    out: &mut std::collections::HashMap<NodeId, usize>,
+) {
     for node in nodes {
         match &node.kind {
             EKind::Group { kind, children, .. } => {
@@ -1611,14 +1638,22 @@ fn refresh_capture_index(root: &ERoot) {
 /// 内容段可取的类型。官方 `sF` / `uF` / `aF` / `lF` / `cF` 的并集。
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum ContentSpec {
-    String { value: String },
-    Class { value: String },
+    String {
+        value: String,
+    },
+    Class {
+        value: String,
+    },
     Ranges {
         ranges: Vec<(String, String)>,
         negate: bool,
     },
-    BackReference { reference: String },
-    WordBoundary { negate: bool },
+    BackReference {
+        reference: String,
+    },
+    WordBoundary {
+        negate: bool,
+    },
     Beginning,
     End,
 }
@@ -1631,7 +1666,11 @@ const CONTENT_TYPES: [(&str, &str, &str); 7] = [
     ("backReference", "反向引用", "Back reference"),
     ("beginningAssertion", "开始断言", "Beginning Assertion"),
     ("endAssertion", "结束断言", "End Assertion"),
-    ("wordBoundaryAssertion", "单词边界断言", "Word Boundary Assertion"),
+    (
+        "wordBoundaryAssertion",
+        "单词边界断言",
+        "Word Boundary Assertion",
+    ),
 ];
 
 impl ContentSpec {
@@ -2089,12 +2128,7 @@ fn insert_button(
 }
 
 /// 「否定」勾选框。官方是 `<h6>Negate</h6>` 在勾选框**前面**。
-fn negate_row<F>(
-    id: &'static str,
-    checked: bool,
-    cx: &Context<RegexVisualizer>,
-    handler: F,
-) -> Div
+fn negate_row<F>(id: &'static str, checked: bool, cx: &Context<RegexVisualizer>, handler: F) -> Div
 where
     F: Fn(&mut RegexVisualizer, bool, &mut Window, &mut Context<RegexVisualizer>) + 'static,
 {
@@ -2105,13 +2139,11 @@ where
         .text_size(px(13.0))
         .text_color(cx.theme().muted_foreground)
         .child("Negate")
-        .child(
-            Checkbox::new(id)
-                .checked(checked)
-                .on_click(cx.listener(move |this, value: &bool, window, cx| {
-                    handler(this, *value, window, cx);
-                })),
-        )
+        .child(Checkbox::new(id).checked(checked).on_click(cx.listener(
+            move |this, value: &bool, window, cx| {
+                handler(this, *value, window, cx);
+            },
+        )))
 }
 
 /// 官方 `Xz`：正则全文 + 选中区间高亮（`bg-blue-500/50`）
@@ -2136,7 +2168,13 @@ fn expression_body(pattern: &str, start: usize, end: usize, family: &SharedStrin
         .font_family(family.clone())
         .text_sm()
         .child(head.to_string())
-        .child(div().rounded(px(4.0)).py(px(2.0)).bg(highlight).child(mid.to_string()))
+        .child(
+            div()
+                .rounded(px(4.0))
+                .py(px(2.0))
+                .bg(highlight)
+                .child(mid.to_string()),
+        )
         .child(tail.to_string())
         .into_any_element()
 }
@@ -2173,12 +2211,7 @@ enum Prim {
     },
     /// 官方分支容器的定位盒：`class="fill-transparent"`，既无描边也无圆角，
     /// 在页面上不可见，仅承载分支的排布与命中区域。这里保留以便与官方结构一致。
-    Frame {
-        x: f32,
-        y: f32,
-        w: f32,
-        h: f32,
-    },
+    Frame { x: f32, y: f32, w: f32, h: f32 },
     /// 选中节点的高亮覆盖层（官方 `hd` 里那层 `class="fill-blue-500/30"` 的矩形）
     Highlight {
         x: f32,
@@ -2377,7 +2410,8 @@ fn token_node(
         cw,
         ch,
     }
-}/// 重复标签，对齐官方 y8 + JI：
+}
+/// 重复标签，对齐官方 y8 + JI：
 /// - min == max → " n"
 /// - 有上界    → " min - max"
 /// - 无上界    → " min - " 再补一个 ∞ 图标
@@ -2572,7 +2606,16 @@ fn place(
                 y2: cy,
                 stroke: GRAPH,
             });
-            place(child, inner, cy, depth + 1, out, hits, selected, is_selected);
+            place(
+                child,
+                inner,
+                cy,
+                depth + 1,
+                out,
+                hits,
+                selected,
+                is_selected,
+            );
         }
         GKind::Concat(items) => {
             let mut cursor = x;
@@ -2587,7 +2630,16 @@ fn place(
                     });
                     cursor += LINK;
                 }
-                place(item, cursor, cy, depth + 1, out, hits, selected, inherited_sel);
+                place(
+                    item,
+                    cursor,
+                    cy,
+                    depth + 1,
+                    out,
+                    hits,
+                    selected,
+                    inherited_sel,
+                );
                 cursor += item.w;
             }
         }
@@ -2615,7 +2667,16 @@ fn place(
                     stroke: GRAPH,
                     filled: false,
                 });
-                place(row, row_x, row_cy, depth + 1, out, hits, selected, inherited_sel);
+                place(
+                    row,
+                    row_x,
+                    row_cy,
+                    depth + 1,
+                    out,
+                    hits,
+                    selected,
+                    inherited_sel,
+                );
                 out.push(Prim::Curve {
                     cmds: merge_cmds(row_x + row.w, row_cy, cy, right, BRANCH_R),
                     stroke: GRAPH,
@@ -3055,7 +3116,9 @@ fn prims_bbox(prims: &[Prim]) -> (f32, f32, f32, f32) {
             Prim::RoundRect { x, y, w, h, .. } => (*x, *y, x + w, y + h),
             Prim::Frame { x, y, w, h } => (*x, *y, x + w, y + h),
             Prim::Highlight { x, y, w, h, .. } => (*x, *y, x + w, y + h),
-            Prim::Line { x1, y1, x2, y2, .. } => (x1.min(*x2), y1.min(*y2), x1.max(*x2), y1.max(*y2)),
+            Prim::Line { x1, y1, x2, y2, .. } => {
+                (x1.min(*x2), y1.min(*y2), x1.max(*x2), y1.max(*y2))
+            }
             Prim::Curve { cmds, .. } => {
                 let mut b = (
                     f32::INFINITY,
@@ -3160,7 +3223,12 @@ fn layout_content(root: &GNode) -> Diagram {
 // canvas 绘制
 // ===========================================================================
 
-fn build_path(cmds: &[Cmd], origin: Point<Pixels>, dash: bool, filled: bool) -> Option<Path<Pixels>> {
+fn build_path(
+    cmds: &[Cmd],
+    origin: Point<Pixels>,
+    dash: bool,
+    filled: bool,
+) -> Option<Path<Pixels>> {
     let mut builder = if filled {
         PathBuilder::fill()
     } else {
@@ -3400,10 +3468,7 @@ fn interactive_diagram_canvas(
             MouseButton::Left,
             cx.listener(move |this, ev: &MouseDownEvent, window, cx| {
                 let (ox, oy) = down_origin.get();
-                let p = (
-                    f32::from(ev.position.x) - ox,
-                    f32::from(ev.position.y) - oy,
-                );
+                let p = (f32::from(ev.position.x) - ox, f32::from(ev.position.y) - oy);
                 // 命中节点就直接单选；空白处按下开始框选
                 match deepest_hit(&this.diagram, p.0, p.1) {
                     Some(id) => {
@@ -3420,10 +3485,7 @@ fn interactive_diagram_canvas(
         .on_mouse_move(cx.listener(move |this, ev: &MouseMoveEvent, _, cx| {
             if let Some((start, _)) = this.marquee {
                 let (ox, oy) = move_origin.get();
-                let p = (
-                    f32::from(ev.position.x) - ox,
-                    f32::from(ev.position.y) - oy,
-                );
+                let p = (f32::from(ev.position.x) - ox, f32::from(ev.position.y) - oy);
                 this.marquee = Some((start, p));
                 cx.notify();
             }
@@ -3435,10 +3497,7 @@ fn interactive_diagram_canvas(
                     return;
                 };
                 let (ox, oy) = up_origin.get();
-                let end = (
-                    f32::from(ev.position.x) - ox,
-                    f32::from(ev.position.y) - oy,
-                );
+                let end = (f32::from(ev.position.x) - ox, f32::from(ev.position.y) - oy);
                 let (x0, x1) = (start.0.min(end.0), start.0.max(end.0));
                 let (y0, y1) = (start.1.min(end.1), start.1.max(end.1));
                 // 位移太小当作「点空白」——清空选中
@@ -3452,9 +3511,7 @@ fn interactive_diagram_canvas(
                     .map(|d| {
                         d.hits
                             .iter()
-                            .filter(|h| {
-                                h.x < x1 && h.x + h.w > x0 && h.y < y1 && h.y + h.h > y0
-                            })
+                            .filter(|h| h.x < x1 && h.x + h.w > x0 && h.y < y1 && h.y + h.h > y0)
                             .map(|h| h.id)
                             .collect()
                     })
@@ -3568,10 +3625,8 @@ pub struct RegexVisualizer {
     /// 编辑面板输入框池（只补不覆盖，避免每敲一个字控件都被重置）
     edit_inputs: std::collections::HashMap<EditSlot, (Entity<InputState>, Subscription)>,
     /// 编辑面板下拉框池
-    edit_selects: std::collections::HashMap<
-        EditSlot,
-        (Entity<SelectState<Vec<LabeledItem>>>, Subscription),
-    >,
+    edit_selects:
+        std::collections::HashMap<EditSlot, (Entity<SelectState<Vec<LabeledItem>>>, Subscription)>,
     /// 官方 `iB` 的折叠开关（`useLocalStorage(id, false)`，默认收起）
     show_lookaround: bool,
     /// 正在框选时的橡皮筋矩形（画布局部坐标，`(起点, 当前点)`）
@@ -3865,7 +3920,11 @@ impl RegexVisualizer {
             });
             let sub = cx.subscribe_in(&state, window, {
                 let slot = slot.clone();
-                move |this: &mut RegexVisualizer, _, ev: &SelectEvent<Vec<LabeledItem>>, window, cx| {
+                move |this: &mut RegexVisualizer,
+                      _,
+                      ev: &SelectEvent<Vec<LabeledItem>>,
+                      window,
+                      cx| {
                     if let SelectEvent::Confirm(Some(value)) = ev {
                         let value = value.clone();
                         this.on_edit_select(&slot, &value, window, cx);
@@ -3908,11 +3967,7 @@ impl RegexVisualizer {
                         .map(|(k, cn, en)| LabeledItem::new(*k, self.lang.of(cn, en)))
                 })
                 .collect();
-            selects.push((
-                EditSlot::ContentType(id),
-                items,
-                content.key().to_string(),
-            ));
+            selects.push((EditSlot::ContentType(id), items, content.key().to_string()));
             match content {
                 ContentSpec::String { value } => {
                     inputs.push((EditSlot::Value(id), value.clone()));
@@ -3987,8 +4042,14 @@ impl RegexVisualizer {
         if let Some((kind, _)) = &info.group {
             let items = vec![
                 LabeledItem::new("capturing", self.lang.of("捕获组", "Capturing group")),
-                LabeledItem::new("nonCapturing", self.lang.of("非捕获组", "Non-capturing group")),
-                LabeledItem::new("namedCapturing", self.lang.of("具名捕获组", "Named capturing group")),
+                LabeledItem::new(
+                    "nonCapturing",
+                    self.lang.of("非捕获组", "Non-capturing group"),
+                ),
+                LabeledItem::new(
+                    "namedCapturing",
+                    self.lang.of("具名捕获组", "Named capturing group"),
+                ),
             ];
             selects.push((
                 EditSlot::GroupKind(id),
@@ -4001,7 +4062,10 @@ impl RegexVisualizer {
         if let Some((kind, _)) = info.lookaround {
             let items = vec![
                 LabeledItem::new("lookahead", self.lang.of("向前断言", "Lookahead assertion")),
-                LabeledItem::new("lookbehind", self.lang.of("向后断言", "Lookbehind assertion")),
+                LabeledItem::new(
+                    "lookbehind",
+                    self.lang.of("向后断言", "Lookbehind assertion"),
+                ),
             ];
             selects.push((
                 EditSlot::LookKind(id),
@@ -4035,7 +4099,9 @@ impl RegexVisualizer {
                 if self.content_of(id).as_ref() == Some(&next) {
                     return;
                 }
-                self.edit(window, cx, |tree, id_gen| vec![tree.set_content(id, &next, id_gen)]);
+                self.edit(window, cx, |tree, id_gen| {
+                    vec![tree.set_content(id, &next, id_gen)]
+                });
             }
             EditSlot::RangeFrom(id, i) => self.update_range(id, i, true, value, window, cx),
             EditSlot::RangeTo(id, i) => self.update_range(id, i, false, value, window, cx),
@@ -4131,7 +4197,9 @@ impl RegexVisualizer {
             ranges: next,
             negate,
         };
-        self.edit(window, cx, |tree, id_gen| vec![tree.set_content(id, &spec, id_gen)]);
+        self.edit(window, cx, |tree, id_gen| {
+            vec![tree.set_content(id, &spec, id_gen)]
+        });
     }
 
     /// 下拉框改动
@@ -4144,14 +4212,13 @@ impl RegexVisualizer {
     ) {
         match slot.clone() {
             EditSlot::ContentType(id) => {
-                if self
-                    .content_of(id)
-                    .is_some_and(|c| c.key() == value)
-                {
+                if self.content_of(id).is_some_and(|c| c.key() == value) {
                     return;
                 }
                 let spec = ContentSpec::for_key(value);
-                self.edit(window, cx, |tree, id_gen| vec![tree.set_content(id, &spec, id_gen)]);
+                self.edit(window, cx, |tree, id_gen| {
+                    vec![tree.set_content(id, &spec, id_gen)]
+                });
             }
             EditSlot::ClassKind(id) => {
                 let raw = match value {
@@ -4163,7 +4230,9 @@ impl RegexVisualizer {
                 if self.content_of(id).as_ref() == Some(&spec) {
                     return;
                 }
-                self.edit(window, cx, |tree, id_gen| vec![tree.set_content(id, &spec, id_gen)]);
+                self.edit(window, cx, |tree, id_gen| {
+                    vec![tree.set_content(id, &spec, id_gen)]
+                });
             }
             EditSlot::Backref(id) => {
                 let spec = ContentSpec::BackReference {
@@ -4172,7 +4241,9 @@ impl RegexVisualizer {
                 if self.content_of(id).as_ref() == Some(&spec) {
                     return;
                 }
-                self.edit(window, cx, |tree, id_gen| vec![tree.set_content(id, &spec, id_gen)]);
+                self.edit(window, cx, |tree, id_gen| {
+                    vec![tree.set_content(id, &spec, id_gen)]
+                });
             }
             EditSlot::QuantKind(id) => {
                 let greedy = self.quantifier_of(id).map(|q| q.greedy).unwrap_or(true);
@@ -4255,11 +4326,13 @@ impl RegexVisualizer {
                     .skip(1)
                     .map(|(group_index, value)| match value {
                         Some(value) => format!("#{group_index}: {}", value.as_str()),
-                        None => if self.lang == Lang::Cn {
-                            format!("#{group_index}: <未匹配>")
-                        } else {
-                            format!("#{group_index}: <no match>")
-                        },
+                        None => {
+                            if self.lang == Lang::Cn {
+                                format!("#{group_index}: <未匹配>")
+                            } else {
+                                format!("#{group_index}: <no match>")
+                            }
+                        }
                     })
                     .collect();
                 self.matches.push(RegexMatch {
@@ -4882,7 +4955,13 @@ impl RegexVisualizer {
     }
 
     /// 字符范围 / 单词边界的「否定」开关
-    fn set_negate(&mut self, id: NodeId, negate: bool, window: &mut Window, cx: &mut Context<Self>) {
+    fn set_negate(
+        &mut self,
+        id: NodeId,
+        negate: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let Some(content) = self.content_of(id) else {
             return;
         };
@@ -4914,7 +4993,13 @@ impl RegexVisualizer {
         });
     }
 
-    fn set_greedy(&mut self, id: NodeId, greedy: bool, window: &mut Window, cx: &mut Context<Self>) {
+    fn set_greedy(
+        &mut self,
+        id: NodeId,
+        greedy: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let Some(mut quantifier) = self.quantifier_of(id) else {
             return;
         };
@@ -5033,10 +5118,7 @@ const LEGEND_TEXT: [(
         "反向引用",
         "Back reference",
         &[
-            (
-                "匹配组 #1 的反向引用",
-                "A back reference to match group #1",
-            ),
+            ("匹配组 #1 的反向引用", "A back reference to match group #1"),
             (
                 "匹配组 #Name 的反向引用",
                 "A back reference to match group #Name",
@@ -5062,9 +5144,8 @@ const LEGEND_TEXT: [(
 /// 这里同样直接构造节点（不走解析），保证与主图渲染完全同源。
 /// 文案取自 `LEGEND_TEXT`，示意图按同样顺序现构建后与之 zip。
 fn build_legend(window: &mut Window, family: &SharedString, lang: Lang) -> Vec<LegendGroup> {
-    let t = |text: &str, window: &mut Window| {
-        token_node(text.to_string(), None, false, window, family)
-    };
+    let t =
+        |text: &str, window: &mut Window| token_node(text.to_string(), None, false, window, family);
     let range = |label: &'static str, negated: bool, window: &mut Window| {
         token_node(
             "\"a\" - \"z\"".to_string(),
@@ -5131,17 +5212,19 @@ fn build_legend(window: &mut Window, family: &SharedString, lang: Lang) -> Vec<L
     LEGEND_TEXT
         .iter()
         .zip(diagrams)
-        .map(|((cn_title, en_title, entries), group_diagrams)| LegendGroup {
-            title: lang.of(cn_title, en_title),
-            entries: entries
-                .iter()
-                .zip(group_diagrams)
-                .map(|((cn_desc, en_desc), diagram)| LegendEntry {
-                    desc: lang.of(cn_desc, en_desc),
-                    diagram,
-                })
-                .collect(),
-        })
+        .map(
+            |((cn_title, en_title, entries), group_diagrams)| LegendGroup {
+                title: lang.of(cn_title, en_title),
+                entries: entries
+                    .iter()
+                    .zip(group_diagrams)
+                    .map(|((cn_desc, en_desc), diagram)| LegendEntry {
+                        desc: lang.of(cn_desc, en_desc),
+                        diagram,
+                    })
+                    .collect(),
+            },
+        )
         .collect()
 }
 
@@ -5197,17 +5280,24 @@ impl Render for RegexVisualizer {
                     .p_8()
                     .children(match self.diagram.as_ref() {
                         Some(diagram) => {
-                            vec![interactive_diagram_canvas(diagram, self.marquee, cx)
-                                .into_any_element()]
+                            vec![
+                                interactive_diagram_canvas(diagram, self.marquee, cx)
+                                    .into_any_element(),
+                            ]
                         }
                         // 有校验错误时不再显示中性的占位提示，顶部浮层已经说明原因
                         None if has_error => Vec::new(),
                         None => {
-                            vec![design::hint(
-                                lang.of("输入有效正则后显示轨道图", "Enter a valid regex to show the graph"),
-                                cx,
-                            )
-                            .into_any_element()]
+                            vec![
+                                design::hint(
+                                    lang.of(
+                                        "输入有效正则后显示轨道图",
+                                        "Enter a valid regex to show the graph",
+                                    ),
+                                    cx,
+                                )
+                                .into_any_element(),
+                            ]
                         }
                     }),
             )
@@ -5515,7 +5605,8 @@ impl Render for RegexVisualizer {
                     (
                         IconName::CircleCheck,
                         cx.theme().muted_foreground,
-                        lang.of("输入正则后测试", "Enter a regex to test").to_string(),
+                        lang.of("输入正则后测试", "Enter a regex to test")
+                            .to_string(),
                     )
                 } else if match_count > 0 {
                     (
@@ -5543,10 +5634,7 @@ impl Render for RegexVisualizer {
                             .flex()
                             .items_center()
                             .justify_between()
-                            .child(design::editor_label(
-                                lang.of("测试文本", "Test text"),
-                                cx,
-                            ))
+                            .child(design::editor_label(lang.of("测试文本", "Test text"), cx))
                             .child(
                                 div()
                                     .flex()
@@ -5701,7 +5789,6 @@ impl Render for RegexVisualizer {
                     _ => {}
                 }
             }))
-            .child(header(cx))
             .child(
                 div()
                     .flex_1()
@@ -5713,71 +5800,12 @@ impl Render for RegexVisualizer {
     }
 }
 
-fn header(cx: &App) -> Div {
-    div()
-        .h(px(64.0))
-        .flex_shrink_0()
-        .flex()
-        .items_center()
-        .justify_between()
-        .border_b_1()
-        .border_color(cx.theme().border)
-        .px_4()
-        .child(
-            div()
-                .flex()
-                .items_center()
-                .gap_2()
-                .child(
-                    div()
-                        .size(px(32.0))
-                        .rounded(px(8.0))
-                        .bg(cx.theme().primary)
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .child(
-                            div()
-                                .font_family("monospace")
-                                .text_size(px(13.0))
-                                .font_semibold()
-                                .text_color(cx.theme().background)
-                                .child(".*"),
-                        ),
-                )
-                .child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .child(div().text_base().font_semibold().child("正则可视化"))
-                        .child(
-                            div()
-                                .text_xs()
-                                .text_color(cx.theme().muted_foreground)
-                                .child("Regex Visualization"),
-                        ),
-                ),
-        )
-        .child(
-            Button::new("regex-home")
-                .icon(Icon::new(IconName::ExternalLink))
-                .ghost()
-                .compact()
-                .tooltip("打开 regex-vis.com")
-                .on_click(|_, _, cx| cx.open_url("https://regex-vis.com")),
-        )
-}
-
-
 fn match_panel(matches: Vec<RegexMatch>, cx: &mut Context<RegexVisualizer>, lang: Lang) -> Div {
     div()
         .flex()
         .flex_col()
         .gap_2()
-        .child(design::editor_label(
-            lang.of("匹配结果", "Matches"),
-            cx,
-        ))
+        .child(design::editor_label(lang.of("匹配结果", "Matches"), cx))
         .child(
             div()
                 .max_h(px(220.0))
@@ -5834,15 +5862,16 @@ fn match_panel(matches: Vec<RegexMatch>, cx: &mut Context<RegexVisualizer>, lang
 #[cfg(test)]
 mod align_tests {
     use super::{
-        build_alternate, build_concat, layout_diagram, merge_cmds, quote_pad, split_cmds, Cmd,
-        Diagram, GKind, GNode, Prim, GROUP_PAD_H, GROUP_PAD_V, ICON_W, LABEL_BOX, LABEL_FS,
-        NODE_FS, NODE_H, NODE_PAD_X,
+        Cmd, Diagram, GKind, GNode, GROUP_PAD_H, GROUP_PAD_V, ICON_W, LABEL_BOX, LABEL_FS, NODE_FS,
+        NODE_H, NODE_PAD_X, Prim, build_alternate, build_concat, layout_diagram, merge_cmds,
+        quote_pad, split_cmds,
     };
 
     const ADVANCE: f32 = 0.6;
 
     fn tok(text: &str) -> GNode {
-        let w = text.chars().count() as f32 * NODE_FS * ADVANCE + quote_pad(text) + NODE_PAD_X * 2.0;
+        let w =
+            text.chars().count() as f32 * NODE_FS * ADVANCE + quote_pad(text) + NODE_PAD_X * 2.0;
         GNode {
             id: 0,
             kind: GKind::Token {
@@ -6099,7 +6128,10 @@ mod align_tests {
     /// 短节点纵向居中到 y=66
     #[test]
     fn concat_with_repeat_matches_official() {
-        let d = layout_diagram(&build_concat(vec![tok("\"a\""), rep(tok("Any digit"), 1, None)]));
+        let d = layout_diagram(&build_concat(vec![
+            tok("\"a\""),
+            rep(tok("Any digit"), 1, None),
+        ]));
         assert_close(d.width, 354.2, "画布宽");
         assert_close(d.height, 160.0, "画布高");
         let mut v = rects(&d.prims);
@@ -6124,11 +6156,7 @@ mod align_tests {
     /// 官方 SVG 实测：`/^a$/` → 504.8×128，三段拼接 125.6 + 25 + 52.8 + 25 + 106.4
     #[test]
     fn assertion_concat_matches_official() {
-        let concat = build_concat(vec![
-            tok("Begins with"),
-            tok("\"a\""),
-            tok("Ends with"),
-        ]);
+        let concat = build_concat(vec![tok("Begins with"), tok("\"a\""), tok("Ends with")]);
         let d = layout_diagram(&concat);
         assert_close(d.width, 504.8, "画布宽");
         assert_close(d.height, 128.0, "画布高");
@@ -6208,7 +6236,9 @@ mod align_tests {
     #[ignore]
     fn emit_svg() {
         fn esc(s: &str) -> String {
-            s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+            s.replace('&', "&amp;")
+                .replace('<', "&lt;")
+                .replace('>', "&gt;")
         }
         fn to_svg(d: &Diagram) -> String {
             let mut out = format!(
@@ -6323,7 +6353,10 @@ mod align_tests {
             ("d_plus", layout_diagram(&rep(tok("Any digit"), 1, None))),
             ("range", layout_diagram(&lab("\"a\" - \"z\"", "One of"))),
             ("neg_class", layout_diagram(&neg)),
-            ("group_abc", layout_diagram(&group(tok("\"abc\""), Some("Group #1")))),
+            (
+                "group_abc",
+                layout_diagram(&group(tok("\"abc\""), Some("Group #1"))),
+            ),
             ("group_nc", layout_diagram(&group(tok("\"a\""), None))),
             (
                 "group_plus",
@@ -6345,12 +6378,14 @@ mod align_tests {
             ),
             (
                 "concat_repeat",
-                layout_diagram(&build_concat(vec![tok("\"a\""), rep(tok("Any digit"), 1, None)])),
+                layout_diagram(&build_concat(vec![
+                    tok("\"a\""),
+                    rep(tok("Any digit"), 1, None),
+                ])),
             ),
         ];
 
-        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../.workbuddy/shots");
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.workbuddy/shots");
         std::fs::create_dir_all(&dir).unwrap();
         for (name, diagram) in &cases {
             let path = dir.join(format!("mine_{name}.svg"));
@@ -6415,7 +6450,6 @@ fn highlight_preview_panel(
         )
 }
 
-
 /// 文案与图例结构的校验。
 ///
 /// 中文标签的**排版**（字宽、换行）需要真实窗口的文本系统才能测，
@@ -6424,8 +6458,8 @@ fn highlight_preview_panel(
 #[cfg(test)]
 mod i18n_tests {
     use super::{
-        beginning_label, boundary_label, class_label, empty_label, ending_label, group_word,
-        lookaround_label, none_of_label, one_of_label, Lang, LEGEND_TEXT, PANEL_TABS, SAMPLES,
+        LEGEND_TEXT, Lang, PANEL_TABS, SAMPLES, beginning_label, boundary_label, class_label,
+        empty_label, ending_label, group_word, lookaround_label, none_of_label, one_of_label,
     };
 
     /// 官方 jn 表 + cn 语言包。`\f` 官方没给中文译名，回退英文原文。
@@ -6496,7 +6530,16 @@ mod i18n_tests {
         let zh: Vec<&str> = LEGEND_TEXT.iter().map(|(cn, _, _)| *cn).collect();
         assert_eq!(
             zh,
-            ["字符", "字符类", "范围", "或", "量词", "组", "反向引用", "断言"]
+            [
+                "字符",
+                "字符类",
+                "范围",
+                "或",
+                "量词",
+                "组",
+                "反向引用",
+                "断言"
+            ]
         );
         let en: Vec<&str> = LEGEND_TEXT.iter().map(|(_, en, _)| *en).collect();
         assert_eq!(
@@ -6538,9 +6581,9 @@ mod i18n_tests {
 #[cfg(test)]
 mod edit_tests {
     use super::{
-        class_kind_key, content_type_keys, convert_seq, group_kind_key, look_kind_key, set_group_name,
         BoundaryKind, CharKind, ContentSpec, EGroupKind, EKind, ERoot, IdGen, InsertMode, Lang,
-        LookKind, NodeId, QuantKind, Quantifier, Step, WrapKind,
+        LookKind, NodeId, QuantKind, Quantifier, Step, WrapKind, class_kind_key, content_type_keys,
+        convert_seq, group_kind_key, look_kind_key, set_group_name,
     };
 
     fn lang() -> Lang {
@@ -6685,7 +6728,10 @@ mod edit_tests {
             info.group.as_ref().map(|(k, _)| *k),
             Some(EGroupKind::NamedCapturing)
         );
-        assert_eq!(info.group.as_ref().map(|(_, n)| n.clone()), Some("n".into()));
+        assert_eq!(
+            info.group.as_ref().map(|(_, n)| n.clone()),
+            Some("n".into())
+        );
         assert!(info.first && info.last);
         assert!(info.content.is_none(), "分组没有「内容」段");
     }
@@ -6734,7 +6780,10 @@ mod edit_tests {
         let tree = build(r"a[bc]d");
         assert_eq!(tree.body.len(), 3, "应是 a / [bc] / d 三个节点");
         let picked = tree.body[1].id;
-        assert!(!tree.is_first(picked) && !tree.is_last(picked), "选取的应是中间节点");
+        assert!(
+            !tree.is_first(picked) && !tree.is_last(picked),
+            "选取的应是中间节点"
+        );
         let info = tree.selection(&[picked]);
         assert_eq!(
             content_type_keys(&info, 0),
@@ -6812,7 +6861,11 @@ mod edit_tests {
         let mut tree = build("abc");
         let ids = ids(&tree);
 
-        let wrapped = tree.wrap(&ids, WrapKind::Group(EGroupKind::NonCapturing), &mut IdGen(100));
+        let wrapped = tree.wrap(
+            &ids,
+            WrapKind::Group(EGroupKind::NonCapturing),
+            &mut IdGen(100),
+        );
         assert_eq!(tree.to_pattern(), "(?:abc)");
         assert_eq!(wrapped.len(), 1);
 
@@ -6860,7 +6913,11 @@ mod edit_tests {
     fn wrap_and_cancel_lookaround() {
         let mut tree = build("ab");
         let ids = ids(&tree);
-        let wrapped = tree.wrap(&ids, WrapKind::LookAround(LookKind::Lookahead), &mut IdGen(100));
+        let wrapped = tree.wrap(
+            &ids,
+            WrapKind::LookAround(LookKind::Lookahead),
+            &mut IdGen(100),
+        );
         assert_eq!(tree.to_pattern(), "(?=ab)");
 
         tree.set_lookaround(wrapped[0], Some((LookKind::Lookahead, true)));
@@ -6882,13 +6939,7 @@ mod edit_tests {
         let id = tree.body[0].id;
         let mut id_gen = IdGen(100);
 
-        let same = tree.set_content(
-            id,
-            &ContentSpec::String {
-                value: "xy".into(),
-            },
-            &mut id_gen,
-        );
+        let same = tree.set_content(id, &ContentSpec::String { value: "xy".into() }, &mut id_gen);
         assert_eq!(same, id);
         assert_eq!(tree.to_pattern(), "xy");
 
@@ -6911,7 +6962,11 @@ mod edit_tests {
         );
         assert_eq!(tree.to_pattern(), "[^a-z0-9]");
 
-        tree.set_content(id, &ContentSpec::WordBoundary { negate: false }, &mut id_gen);
+        tree.set_content(
+            id,
+            &ContentSpec::WordBoundary { negate: false },
+            &mut id_gen,
+        );
         assert_eq!(tree.to_pattern(), r"\b");
         tree.set_content(id, &ContentSpec::WordBoundary { negate: true }, &mut id_gen);
         assert_eq!(tree.to_pattern(), r"\B");
@@ -6927,14 +6982,12 @@ mod edit_tests {
         let mut tree = build("a*");
         let id = tree.body[0].id;
         let mut id_gen = IdGen(100);
-        let new_id = tree.set_content(
-            id,
-            &ContentSpec::String {
-                value: "ab".into(),
-            },
-            &mut id_gen,
+        let new_id = tree.set_content(id, &ContentSpec::String { value: "ab".into() }, &mut id_gen);
+        assert_eq!(
+            tree.to_pattern(),
+            "(?:ab)*",
+            "多字符 + 量词要自动套非捕获组"
         );
-        assert_eq!(tree.to_pattern(), "(?:ab)*", "多字符 + 量词要自动套非捕获组");
         assert_ne!(new_id, id, "包了一层组，返回的是新组的 id");
     }
 
@@ -7026,10 +7079,7 @@ mod edit_tests {
     fn class_options_cover_every_official_entry() {
         let items = super::class_items(lang());
         assert_eq!(items.len(), 22, "官方 `jn` 全表 22 项");
-        let keys: Vec<&str> = items
-            .iter()
-            .map(|i| i.key.as_str())
-            .collect();
+        let keys: Vec<&str> = items.iter().map(|i| i.key.as_str()).collect();
         assert!(keys.contains(&r"\xhh"));
         assert!(keys.contains(&r"\uhhhh"));
         assert_eq!(keys[0], ".");

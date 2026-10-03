@@ -177,15 +177,10 @@ impl Render for TransformFiletype {
         let error = self.error.clone();
 
         design::page()
-            .child(design::page_header("格式转换", "JSON / YAML / TOML 配置格式互转", cx))
+
             .child(
                 design::card(cx)
-                    .child(design::card_header(
-                        IconName::FileText,
-                        "格式转换",
-                        "JSON / YAML / TOML 互转",
-                        cx,
-                    ))
+
                     .child(
                         div()
                             .flex()

@@ -659,15 +659,10 @@ impl Render for SymmetricEncryptor {
             .child(Textarea::new(&self.cipher_state).h(px(170.0)).font_family("monospace"));
 
         design::page()
-            .child(design::page_header("对称加密", "AES / DES / TripleDES / RC4 / Rabbit", cx))
+
             .child(
                 design::card(cx)
-                    .child(design::card_header(
-                        IconName::Replace,
-                        "对称加密",
-                        "AES / DES / TripleDES / RC4 / Rabbit",
-                        cx,
-                    ))
+
                     // 配置行（tb-config-row）
                     .child(
                         div()

@@ -566,11 +566,7 @@ impl Render for RandomOtherGenerator {
         );
 
         design::page()
-            .child(design::page_header(
-                "随机生成",
-                "随机 IP 地址 / MAC 地址 / 时间 / 日期",
-                cx,
-            ))
+
             .child(card)
     }
 }

@@ -333,7 +333,7 @@ impl CaseConverter {
 impl Render for CaseConverter {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         design::page()
-            .child(design::page_header("大小写转换", "文本大小写快速转换", cx))
+
             .child(
                 design::card(cx)
                     .child(self.op_toolbar(cx))

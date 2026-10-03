@@ -156,15 +156,10 @@ impl Render for UuidGenerator {
         let remove_connector = self.remove_connector;
 
         design::page()
-            .child(design::page_header("UUID 生成", "批量生成多种版本的 UUID", cx))
+
             .child(
                 design::card(cx)
-                    .child(design::card_header(
-                        IconName::Asterisk,
-                        "UUID 生成",
-                        "支持 v1 / v3 / v4 / v5 / v6 / v7 / v8",
-                        cx,
-                    ))
+
                     // tb-config-row：大写 / 去掉连接符 / 版本 / 生成数量
                     .child(
                         div()

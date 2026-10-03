@@ -4,7 +4,7 @@ use gpui_kit::{prelude::FluentBuilder as _, *};
 use gpui_kit::component::{
     button::*,
     checkbox::Checkbox,
-    input::{Input, InputState, NumberInput, Textarea, TextareaState},
+    input::{Input, InputEvent, InputState, NumberInput, Textarea, TextareaState},
     *,
 };
 
@@ -33,12 +33,16 @@ fn split_lines(s: &str) -> Vec<String> {
 }
 
 fn is_punct_like(c: char) -> bool {
-    c.is_ascii_punctuation()
-        || matches!(
-            c,
-            '，' | '。' | '、' | '；' | '：' | '？' | '！' | '“' | '”' | '‘' | '’' | '（' | '）'
-                | '《' | '》' | '【' | '】' | '…' | '—' | '·' | '｜'
-        )
+    // 对齐 Tauri 的 [\p{P}]：ASCII 下需排除属于 \p{S} 的符号字符
+    if c.is_ascii() {
+        return c.is_ascii_punctuation()
+            && !matches!(c, '$' | '+' | '<' | '=' | '>' | '^' | '`' | '|' | '~');
+    }
+    matches!(
+        c,
+        '，' | '。' | '、' | '；' | '：' | '？' | '！' | '“' | '”' | '‘' | '’' | '（' | '）'
+            | '《' | '》' | '【' | '】' | '…' | '—' | '·' | '｜'
+    )
 }
 
 fn is_word_char(c: char) -> bool {
@@ -299,6 +303,7 @@ pub struct TextTools {
     slash_output_state: Entity<TextareaState>,
     case_input_state: Entity<TextareaState>,
     case_output_state: Entity<TextareaState>,
+    _subscriptions: Vec<Subscription>,
 }
 
 const TABS: [&str; 6] = [
@@ -343,6 +348,15 @@ impl TextTools {
         let case_output_state =
             cx.new(|cx| TextareaState::new(window, cx).placeholder("转换结果"));
 
+        // 对齐 Tauri：提取分隔符输入框支持回车直接触发提取
+        let _subscriptions = vec![cx.subscribe_in(&extract_state, window, {
+            move |this, _, ev: &InputEvent, window, cx| {
+                if let InputEvent::PressEnter { .. } = ev {
+                    this.op_extract(window, cx);
+                }
+            }
+        })];
+
         Self {
             tab: 0,
             is_regex: false,
@@ -363,6 +377,7 @@ impl TextTools {
             slash_output_state,
             case_input_state,
             case_output_state,
+            _subscriptions,
         }
     }
 
@@ -386,24 +401,71 @@ impl TextTools {
         self.set_msg(Tone::Success, "复制成功", cx);
     }
 
-    /// 统一处理：读输入 -> 变换 -> 写输出（对齐 Vue cleanApply / sortApply）
-    fn apply_str<F>(&mut self, f: F, window: &mut Window, cx: &mut Context<Self>)
+    /// 统一处理：读指定输入 -> 变换 -> 写指定输出（对齐 Vue cleanApply / sortApply）
+    fn apply_pair<F>(
+        input: &Entity<TextareaState>,
+        output: &Entity<TextareaState>,
+        f: F,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) where
+        F: FnOnce(&str) -> String,
+    {
+        let value = input.read(cx).value().to_string();
+        let result = f(&value);
+        output.update(cx, |state, cx| {
+            state.set_value(result, window, cx);
+        });
+    }
+
+    fn apply_pair_lines<F>(
+        input: &Entity<TextareaState>,
+        output: &Entity<TextareaState>,
+        f: F,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) where
+        F: FnOnce(Vec<String>) -> Vec<String>,
+    {
+        Self::apply_pair(input, output, |s| f(split_lines(s)).join("\n"), window, cx);
+    }
+
+    /// 清理工具：clean 输入 -> clean 输出
+    fn clean_apply<F>(&mut self, f: F, window: &mut Window, cx: &mut Context<Self>)
     where
         F: FnOnce(&str) -> String,
     {
-        let input = self.clean_input_state.read(cx).value().to_string();
-        let output = f(&input);
-        self.clean_output_state.update(cx, |state, cx| {
-            state.set_value(output, window, cx);
-        });
+        Self::apply_pair(&self.clean_input_state, &self.clean_output_state, f, window, cx);
         self.clear_msg(cx);
     }
 
-    fn apply_lines<F>(&mut self, f: F, window: &mut Window, cx: &mut Context<Self>)
+    fn clean_apply_lines<F>(&mut self, f: F, window: &mut Window, cx: &mut Context<Self>)
     where
         F: FnOnce(Vec<String>) -> Vec<String>,
     {
-        self.apply_str(|s| f(split_lines(s)).join("\n"), window, cx);
+        Self::apply_pair_lines(
+            &self.clean_input_state,
+            &self.clean_output_state,
+            f,
+            window,
+            cx,
+        );
+        self.clear_msg(cx);
+    }
+
+    /// 排序与提取：sort 输入 -> sort 输出
+    fn sort_apply_lines<F>(&mut self, f: F, window: &mut Window, cx: &mut Context<Self>)
+    where
+        F: FnOnce(Vec<String>) -> Vec<String>,
+    {
+        Self::apply_pair_lines(
+            &self.sort_input_state,
+            &self.sort_output_state,
+            f,
+            window,
+            cx,
+        );
+        self.clear_msg(cx);
     }
 
     fn clear_pair(
@@ -423,7 +485,7 @@ impl TextTools {
     // -- 清理工具 -----------------------------------------------------------
 
     fn op_dedupe(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.apply_lines(
+        self.clean_apply_lines(
             |lines| {
                 let mut seen = HashSet::new();
                 lines
@@ -437,7 +499,7 @@ impl TextTools {
     }
 
     fn op_remove_empty(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.apply_lines(
+        self.clean_apply_lines(
             |lines| lines.into_iter().filter(|l| !l.trim().is_empty()).collect(),
             window,
             cx,
@@ -445,15 +507,15 @@ impl TextTools {
     }
 
     fn op_collapse_ws(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.apply_str(collapse_whitespace, window, cx);
+        self.clean_apply(collapse_whitespace, window, cx);
     }
 
     fn op_remove_all_ws(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.apply_str(|s| s.chars().filter(|c| !c.is_whitespace()).collect(), window, cx);
+        self.clean_apply(|s| s.chars().filter(|c| !c.is_whitespace()).collect(), window, cx);
     }
 
     fn op_remove_breaks(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.apply_str(
+        self.clean_apply(
             |s| s.chars().filter(|c| *c != '\n' && *c != '\r').collect(),
             window,
             cx,
@@ -461,15 +523,15 @@ impl TextTools {
     }
 
     fn op_remove_diacritics(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.apply_str(remove_diacritics, window, cx);
+        self.clean_apply(remove_diacritics, window, cx);
     }
 
     fn op_remove_punct(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.apply_str(|s| s.chars().filter(|c| !is_punct_like(*c)).collect(), window, cx);
+        self.clean_apply(|s| s.chars().filter(|c| !is_punct_like(*c)).collect(), window, cx);
     }
 
     fn op_remove_digits(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.apply_str(
+        self.clean_apply(
             |s| s.chars().filter(|c| !c.is_ascii_digit()).collect(),
             window,
             cx,
@@ -477,17 +539,17 @@ impl TextTools {
     }
 
     fn op_strip_html(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.apply_str(strip_html, window, cx);
+        self.clean_apply(strip_html, window, cx);
     }
 
     // -- 排序与提取 ---------------------------------------------------------
 
     fn op_sort_asc(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.apply_lines(|mut lines| { lines.sort(); lines }, window, cx);
+        self.sort_apply_lines(|mut lines| { lines.sort(); lines }, window, cx);
     }
 
     fn op_sort_desc(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.apply_lines(
+        self.sort_apply_lines(
             |mut lines| {
                 lines.sort();
                 lines.reverse();
@@ -499,7 +561,7 @@ impl TextTools {
     }
 
     fn op_shuffle(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.apply_lines(
+        self.sort_apply_lines(
             |mut lines| {
                 use rand::seq::SliceRandom;
                 lines.shuffle(&mut rand::rng());
@@ -511,7 +573,7 @@ impl TextTools {
     }
 
     fn op_trim_lines(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.apply_lines(
+        self.sort_apply_lines(
             |lines| lines.into_iter().map(|l| l.trim().to_string()).collect(),
             window,
             cx,
@@ -519,8 +581,8 @@ impl TextTools {
     }
 
     fn op_extract(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let sep = self.extract_state.read(cx).value().trim().to_string();
-        if sep.is_empty() {
+        let sep = self.extract_state.read(cx).value().to_string();
+        if sep.trim().is_empty() {
             self.set_msg(Tone::Warn, "请输入分隔符或正则表达式", cx);
             return;
         }
@@ -902,22 +964,20 @@ impl TextTools {
                     ),
             )
             .child(
-                div().flex().flex_wrap().items_center().gap_2().child(
-                    Button::new("dedupe")
-                        .compact()
-                        .label("去重")
-                        .tooltip("删除重复行")
-                        .on_click(cx.listener(|this, _, window, cx| {
-                            this.op_dedupe(window, cx);
-                        })),
-                ),
-            )
-            .child(
                 div()
                     .flex()
                     .flex_wrap()
                     .items_center()
                     .gap_2()
+                    .child(
+                        Button::new("dedupe")
+                            .compact()
+                            .label("去重")
+                            .tooltip("删除重复行")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_dedupe(window, cx);
+                            })),
+                    )
                     .child(
                         Button::new("remove-empty")
                             .compact()
@@ -1025,33 +1085,29 @@ impl TextTools {
                     ),
             )
             .child(
-                div().flex().flex_wrap().items_center().gap_2().child(
-                    Button::new("sort-asc")
-                        .compact()
-                        .icon(Icon::new(IconName::SortAscending))
-                        .tooltip("按行升序排序")
-                        .on_click(cx.listener(|this, _, window, cx| {
-                            this.op_sort_asc(window, cx);
-                        })),
-                ),
-            )
-            .child(
-                div().flex().flex_wrap().items_center().gap_2().child(
-                    Button::new("sort-desc")
-                        .compact()
-                        .icon(Icon::new(IconName::SortDescending))
-                        .tooltip("按行降序排序")
-                        .on_click(cx.listener(|this, _, window, cx| {
-                            this.op_sort_desc(window, cx);
-                        })),
-                ),
-            )
-            .child(
                 div()
                     .flex()
                     .flex_wrap()
                     .items_center()
                     .gap_2()
+                    .child(
+                        Button::new("sort-asc")
+                            .compact()
+                            .label("升序")
+                            .tooltip("按行升序排序")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_sort_asc(window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("sort-desc")
+                            .compact()
+                            .label("降序")
+                            .tooltip("按行降序排序")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.op_sort_desc(window, cx);
+                            })),
+                    )
                     .child(
                         Button::new("shuffle")
                             .compact()
@@ -1089,7 +1145,7 @@ impl TextTools {
                             .w(px(360.0))
                             .max_w_full()
                             .font_family("monospace")
-                            .child(Input::new(&self.extract_state)),
+                            .child(Input::new(&self.extract_state).cleanable(true)),
                     )
                     .child(
                         Button::new("extract")
@@ -1511,11 +1567,7 @@ impl Render for TextTools {
         let tone = self.tone;
 
         design::page()
-            .child(design::page_header(
-                "文本工具",
-                "字符统计、清理、排序提取、查找替换等常用文本处理",
-                cx,
-            ))
+
             .child(
                 design::card(cx)
                     .child(self.tab_bar(cx))

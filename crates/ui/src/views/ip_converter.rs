@@ -337,7 +337,7 @@ impl Render for IpConverter {
         }
 
         design::page()
-            .child(design::page_header("IP 地址转换", "IPv4 / IPv6 与十进制、十六进制、二进制、八进制互转", cx))
+
             .child(card)
             .when(!error.is_empty(), |this| {
                 this.child(

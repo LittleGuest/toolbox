@@ -227,7 +227,7 @@ impl Render for ClipboardManager {
         }
 
         design::page()
-            .child(design::page_header("剪贴板管理", "复制内容并保留历史记录", cx))
+
             .child(
                 design::card(cx)
                     .child(design::editor_label("输入", cx))

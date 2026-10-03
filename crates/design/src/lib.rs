@@ -1,46 +1,31 @@
 
 use gpui_kit::*;
 use gpui_kit::component::*;
-use gpui_kit::prelude::FluentBuilder;
 
+/// 页面容器（对应 Tauri `global.scss` 的 `.tb-page`）
+/// padding: 16px 20px 24px；纵向 gap 16px
 pub fn page() -> Div {
-    div().w_full().flex_col().gap_4()
-}
-
-pub fn page_header(title: impl IntoElement, subtitle: impl Into<SharedString>, cx: &App) -> Div {
-    let subtitle = subtitle.into();
     div()
+        .w_full()
         .flex_col()
-        .gap_0p5()
-        .child(
-            div()
-                .flex()
-                .items_center()
-                .gap_2()
-                .child(div().h(px(20.0)).w(px(3.0)).rounded(px(2.0)).bg(cx.theme().primary))
-                .child(div().text_lg().font_semibold().child(title)),
-        )
-        .when(!subtitle.is_empty(), |this| {
-            this.child(
-                div()
-                    .pl_5()
-                    .text_xs()
-                    .text_color(cx.theme().muted_foreground)
-                    .child(subtitle.clone()),
-            )
-        })
+        .gap_4()
+        .pt(px(16.0))
+        .px(px(20.0))
+        .pb(px(24.0))
 }
 
+/// 卡片容器（对应 Tauri `global.scss` 的 `.tb-card`）
+/// border-radius 14px；padding 20px；子块间距 16px
 pub fn card(cx: &App) -> Div {
     div()
         .w_full()
         .flex_col()
-        .gap_3()
-        .rounded(px(12.0))
+        .gap_4()
+        .rounded(px(14.0))
         .border_1()
         .border_color(cx.theme().border)
         .bg(cx.theme().popover)
-        .p_4()
+        .p(px(20.0))
 }
 
 pub fn caption(text: impl IntoElement, cx: &App) -> Div {

@@ -36,7 +36,7 @@ const addTodo = () => {
     completed: false,
     createdAt: new Date().getTime(),
     subTodos: [],
-    parentId: null
+    parentId: null,
   };
 
   todos.value.unshift(newTodo);
@@ -46,8 +46,8 @@ const addTodo = () => {
 
 const deleteTodo = (id) => {
   const deleteRecursive = (todoId) => {
-    const subTodos = todos.value.filter(t => t.parentId === todoId);
-    subTodos.forEach(subTodo => deleteRecursive(subTodo.id));
+    const subTodos = todos.value.filter((t) => t.parentId === todoId);
+    subTodos.forEach((subTodo) => deleteRecursive(subTodo.id));
 
     todos.value = todos.value.filter((t) => t.id !== todoId);
   };
@@ -59,10 +59,10 @@ const deleteTodo = (id) => {
 
 const clearCompleted = () => {
   const topCompletedIds = todos.value
-    .filter(t => t.completed && t.parentId === null)
-    .map(t => t.id);
+    .filter((t) => t.completed && t.parentId === null)
+    .map((t) => t.id);
 
-  topCompletedIds.forEach(id => deleteTodo(id));
+  topCompletedIds.forEach((id) => deleteTodo(id));
 
   saveTodos();
   message.success("已清除所有已完成的待办事项");
@@ -123,7 +123,7 @@ const addSubTodo = () => {
     completed: false,
     createdAt: new Date().getTime(),
     parentId: addingSubTodoForId.value,
-    subTodos: [] // 子任务不能再有子任务
+    subTodos: [], // 子任务不能再有子任务
   };
 
   todos.value.unshift(newTodo);
@@ -139,22 +139,22 @@ const cancelAddSubTodo = () => {
 };
 
 const hasSubTodos = (id) => {
-  return todos.value.some(t => t.parentId === id);
+  return todos.value.some((t) => t.parentId === id);
 };
 
 const getSubTodos = (id) => {
-  return todos.value.filter(t => t.parentId === id);
+  return todos.value.filter((t) => t.parentId === id);
 };
 
 const areAllSubTodosCompleted = (id) => {
   const subTodos = getSubTodos(id);
   if (subTodos.length === 0) return false;
-  return subTodos.every(t => t.completed);
+  return subTodos.every((t) => t.completed);
 };
 
 const updateTodoStatus = (todo) => {
   if (todo.parentId !== null) {
-    const parentTodo = todos.value.find(t => t.id === todo.parentId);
+    const parentTodo = todos.value.find((t) => t.id === todo.parentId);
     if (parentTodo) {
       if (areAllSubTodosCompleted(todo.parentId)) {
         parentTodo.completed = true;
@@ -166,7 +166,7 @@ const updateTodoStatus = (todo) => {
 
   if (todo.parentId === null && todo.completed) {
     const subTodos = getSubTodos(todo.id);
-    subTodos.forEach(subTodo => {
+    subTodos.forEach((subTodo) => {
       subTodo.completed = true;
     });
   }
@@ -197,7 +197,7 @@ const filteredTodos = computed(() => {
 });
 
 const topTodos = computed(() => {
-  return filteredTodos.value.filter(t => t.parentId === null);
+  return filteredTodos.value.filter((t) => t.parentId === null);
 });
 
 const completedCount = computed(() => {
@@ -215,7 +215,7 @@ watch(
   (newTodos) => {
     saveTodos();
   },
-  { deep: true }
+  { deep: true },
 );
 </script>
 
@@ -223,7 +223,12 @@ watch(
   <div class="tb-page todo-container">
     <div class="tb-card">
       <div class="add-todo">
-        <n-input v-model:value="newTodoText" placeholder="输入新的待办事项..." clearable @keyup.enter="addTodo" />
+        <n-input
+          v-model:value="newTodoText"
+          placeholder="输入新的待办事项..."
+          clearable
+          @keyup.enter="addTodo"
+        />
         <n-tooltip trigger="hover">
           <template #trigger>
             <n-button type="primary" @click="addTodo" :disabled="!newTodoText.trim()">
@@ -256,55 +261,149 @@ watch(
       </div>
 
       <div class="todo-list-container">
-      <n-scrollbar>
-        <n-list class="todo-list">
-          <n-empty v-if="topTodos.length === 0">
-            <template #description>
-              {{
-                filter === "all"
-                  ? "暂无待办事项"
-                  : filter === "active"
-                    ? "暂无未完成的待办事项"
-                    : "暂无已完成的待办事项"
-              }}
-            </template>
-          </n-empty>
+        <n-scrollbar>
+          <n-list class="todo-list">
+            <n-empty v-if="topTodos.length === 0">
+              <template #description>
+                {{
+                  filter === "all"
+                    ? "暂无待办事项"
+                    : filter === "active"
+                      ? "暂无未完成的待办事项"
+                      : "暂无已完成的待办事项"
+                }}
+              </template>
+            </n-empty>
 
-          <template v-else>
-            <n-list-item v-for="todo in topTodos" :key="todo.id" class="todo-item">
-              <div class="todo-item-content">
-                <n-tooltip v-if="hasSubTodos(todo.id)" trigger="hover">
-                  <template #trigger>
-                    <n-button text @click="toggleExpand(todo.id)" class="expand-btn">
-                      <n-icon>
-                        <ChevronDown v-if="expandedTodos.has(todo.id)" />
-                        <ChevronRight v-else />
-                      </n-icon>
-                    </n-button>
-                  </template>
-                  展开/收起
-                </n-tooltip>
-                <div v-else class="expand-placeholder"></div>
+            <template v-else>
+              <n-list-item v-for="todo in topTodos" :key="todo.id" class="todo-item">
+                <div class="todo-item-content">
+                  <n-tooltip v-if="hasSubTodos(todo.id)" trigger="hover">
+                    <template #trigger>
+                      <n-button text @click="toggleExpand(todo.id)" class="expand-btn">
+                        <n-icon>
+                          <ChevronDown v-if="expandedTodos.has(todo.id)" />
+                          <ChevronRight v-else />
+                        </n-icon>
+                      </n-button>
+                    </template>
+                    展开/收起
+                  </n-tooltip>
+                  <div v-else class="expand-placeholder"></div>
 
-                <n-checkbox v-model:checked="todo.completed" @update:checked="updateTodoStatus(todo)" />
+                  <n-checkbox
+                    v-model:checked="todo.completed"
+                    @update:checked="updateTodoStatus(todo)"
+                  />
 
-                <div v-if="editingTodoId === todo.id" class="edit-mode">
-                  <n-input v-model:value="editingTodoText" placeholder="编辑待办事项..." @keyup.enter="saveEdit"
-                    @keyup.esc="cancelEdit" autofocus />
+                  <div v-if="editingTodoId === todo.id" class="edit-mode">
+                    <n-input
+                      v-model:value="editingTodoText"
+                      placeholder="编辑待办事项..."
+                      @keyup.enter="saveEdit"
+                      @keyup.esc="cancelEdit"
+                      autofocus
+                    />
+                    <n-space :size="8">
+                      <n-tooltip trigger="hover">
+                        <template #trigger>
+                          <n-button type="primary" @click="saveEdit">
+                            <template #icon>
+                              <n-icon><Save /></n-icon>
+                            </template>
+                          </n-button>
+                        </template>
+                        保存
+                      </n-tooltip>
+                      <n-tooltip trigger="hover">
+                        <template #trigger>
+                          <n-button @click="cancelEdit">
+                            <template #icon>
+                              <n-icon><Close /></n-icon>
+                            </template>
+                          </n-button>
+                        </template>
+                        取消
+                      </n-tooltip>
+                    </n-space>
+                  </div>
+
+                  <div v-else class="display-mode">
+                    <div class="todo-text" :class="{ completed: todo.completed }">
+                      {{ todo.text }}
+                    </div>
+                    <n-space :size="8">
+                      <n-tooltip trigger="hover">
+                        <template #trigger>
+                          <n-button class="add-sub-btn" @click="startAddSubTodo(todo.id)">
+                            <template #icon>
+                              <n-icon>
+                                <Add />
+                              </n-icon>
+                            </template>
+                          </n-button>
+                        </template>
+                        添加子任务
+                      </n-tooltip>
+                      <n-tooltip trigger="hover">
+                        <template #trigger>
+                          <n-button class="edit-button" @click="editTodo(todo.id)">
+                            <template #icon>
+                              <n-icon>
+                                <Edit />
+                              </n-icon>
+                            </template>
+                          </n-button>
+                        </template>
+                        编辑
+                      </n-tooltip>
+                      <n-popconfirm
+                        positive-text="确认"
+                        negative-text="取消"
+                        @positive-click="deleteTodo(todo.id)"
+                      >
+                        <template #trigger>
+                          <n-tooltip trigger="hover">
+                            <template #trigger>
+                              <n-button class="delete-button" type="error">
+                                <template #icon>
+                                  <n-icon>
+                                    <Delete />
+                                  </n-icon>
+                                </template>
+                              </n-button>
+                            </template>
+                            删除
+                          </n-tooltip>
+                        </template>
+                        是否确认删除？
+                      </n-popconfirm>
+                    </n-space>
+                  </div>
+                </div>
+
+                <div v-if="addingSubTodoForId === todo.id" class="add-sub-todo-container">
+                  <n-input
+                    v-model:value="newSubTodoText"
+                    placeholder="输入子任务内容..."
+                    @keyup.enter="addSubTodo"
+                    @keyup.esc="cancelAddSubTodo"
+                    autofocus
+                  />
                   <n-space :size="8">
                     <n-tooltip trigger="hover">
                       <template #trigger>
-                        <n-button type="primary" @click="saveEdit">
+                        <n-button type="primary" @click="addSubTodo">
                           <template #icon>
-                            <n-icon><Save /></n-icon>
+                            <n-icon><Add /></n-icon>
                           </template>
                         </n-button>
                       </template>
-                      保存
+                      添加
                     </n-tooltip>
                     <n-tooltip trigger="hover">
                       <template #trigger>
-                        <n-button @click="cancelEdit">
+                        <n-button @click="cancelAddSubTodo">
                           <template #icon>
                             <n-icon><Close /></n-icon>
                           </template>
@@ -315,156 +414,102 @@ watch(
                   </n-space>
                 </div>
 
-                <div v-else class="display-mode">
-                  <div class="todo-text" :class="{ completed: todo.completed }">{{ todo.text }}</div>
-                  <n-space :size="8">
-                    <n-tooltip trigger="hover">
-                      <template #trigger>
-                        <n-button class="add-sub-btn" @click="startAddSubTodo(todo.id)">
-                          <template #icon>
-                            <n-icon>
-                              <Add />
-                            </n-icon>
-                          </template>
-                        </n-button>
-                      </template>
-                      添加子任务
-                    </n-tooltip>
-                    <n-tooltip trigger="hover">
-                      <template #trigger>
-                        <n-button class="edit-button" @click="editTodo(todo.id)">
-                          <template #icon>
-                            <n-icon>
-                              <Edit />
-                            </n-icon>
-                          </template>
-                        </n-button>
-                      </template>
-                      编辑
-                    </n-tooltip>
-                    <n-popconfirm positive-text="确认" negative-text="取消" @positive-click="deleteTodo(todo.id)">
-                      <template #trigger>
-                        <n-tooltip trigger="hover">
-                          <template #trigger>
-                            <n-button class="delete-button" type="error">
-                              <template #icon>
-                                <n-icon>
-                                  <Delete />
-                                </n-icon>
-                              </template>
-                            </n-button>
-                          </template>
-                          删除
-                        </n-tooltip>
-                      </template>
-                      是否确认删除？
-                    </n-popconfirm>
-                  </n-space>
-                </div>
-              </div>
+                <div
+                  v-if="expandedTodos.has(todo.id) && hasSubTodos(todo.id)"
+                  class="sub-todos-container"
+                >
+                  <div
+                    v-for="subTodo in getSubTodos(todo.id)"
+                    :key="subTodo.id"
+                    class="sub-todo-item"
+                  >
+                    <div class="sub-todo-content">
+                      <div class="sub-todo-indent"></div>
+                      <n-checkbox
+                        v-model:checked="subTodo.completed"
+                        @update:checked="updateTodoStatus(subTodo)"
+                      />
 
-              <div v-if="addingSubTodoForId === todo.id" class="add-sub-todo-container">
-                <n-input v-model:value="newSubTodoText" placeholder="输入子任务内容..." @keyup.enter="addSubTodo"
-                  @keyup.esc="cancelAddSubTodo" autofocus />
-                <n-space :size="8">
-                  <n-tooltip trigger="hover">
-                    <template #trigger>
-                      <n-button type="primary" @click="addSubTodo">
-                        <template #icon>
-                          <n-icon><Add /></n-icon>
-                        </template>
-                      </n-button>
-                    </template>
-                    添加
-                  </n-tooltip>
-                  <n-tooltip trigger="hover">
-                    <template #trigger>
-                      <n-button @click="cancelAddSubTodo">
-                        <template #icon>
-                          <n-icon><Close /></n-icon>
-                        </template>
-                      </n-button>
-                    </template>
-                    取消
-                  </n-tooltip>
-                </n-space>
-              </div>
+                      <div v-if="editingTodoId === subTodo.id" class="edit-mode">
+                        <n-input
+                          v-model:value="editingTodoText"
+                          placeholder="编辑子任务..."
+                          @keyup.enter="saveEdit"
+                          @keyup.esc="cancelEdit"
+                          autofocus
+                        />
+                        <n-space :size="8">
+                          <n-tooltip trigger="hover">
+                            <template #trigger>
+                              <n-button type="primary" @click="saveEdit">
+                                <template #icon>
+                                  <n-icon><Save /></n-icon>
+                                </template>
+                              </n-button>
+                            </template>
+                            保存
+                          </n-tooltip>
+                          <n-tooltip trigger="hover">
+                            <template #trigger>
+                              <n-button @click="cancelEdit">
+                                <template #icon>
+                                  <n-icon><Close /></n-icon>
+                                </template>
+                              </n-button>
+                            </template>
+                            取消
+                          </n-tooltip>
+                        </n-space>
+                      </div>
 
-              <div v-if="expandedTodos.has(todo.id) && hasSubTodos(todo.id)" class="sub-todos-container">
-                <div v-for="subTodo in getSubTodos(todo.id)" :key="subTodo.id" class="sub-todo-item">
-                  <div class="sub-todo-content">
-                    <div class="sub-todo-indent"></div>
-                    <n-checkbox v-model:checked="subTodo.completed" @update:checked="updateTodoStatus(subTodo)" />
-
-                    <div v-if="editingTodoId === subTodo.id" class="edit-mode">
-                      <n-input v-model:value="editingTodoText" placeholder="编辑子任务..." @keyup.enter="saveEdit"
-                        @keyup.esc="cancelEdit" autofocus />
-                      <n-space :size="8">
-                        <n-tooltip trigger="hover">
-                          <template #trigger>
-                            <n-button type="primary" @click="saveEdit">
-                              <template #icon>
-                                <n-icon><Save /></n-icon>
-                              </template>
-                            </n-button>
-                          </template>
-                          保存
-                        </n-tooltip>
-                        <n-tooltip trigger="hover">
-                          <template #trigger>
-                            <n-button @click="cancelEdit">
-                              <template #icon>
-                                <n-icon><Close /></n-icon>
-                              </template>
-                            </n-button>
-                          </template>
-                          取消
-                        </n-tooltip>
-                      </n-space>
-                    </div>
-
-                    <div v-else class="display-mode">
-                      <div class="todo-text" :class="{ completed: subTodo.completed }">{{ subTodo.text }}</div>
-                      <n-space :size="8">
-                        <n-tooltip trigger="hover">
-                          <template #trigger>
-                            <n-button class="edit-button" @click="editTodo(subTodo.id)">
-                              <template #icon>
-                                <n-icon>
-                                  <Edit />
-                                </n-icon>
-                              </template>
-                            </n-button>
-                          </template>
-                          编辑
-                        </n-tooltip>
-                        <n-popconfirm positive-text="确认" negative-text="取消" @positive-click="deleteTodo(subTodo.id)">
-                          <template #trigger>
-                            <n-tooltip trigger="hover">
-                              <template #trigger>
-                                <n-button class="delete-button" type="error">
-                                  <template #icon>
-                                    <n-icon>
-                                      <Delete />
-                                    </n-icon>
-                                  </template>
-                                </n-button>
-                              </template>
-                              删除
-                            </n-tooltip>
-                          </template>
-                          是否确认删除？
-                        </n-popconfirm>
-                      </n-space>
+                      <div v-else class="display-mode">
+                        <div class="todo-text" :class="{ completed: subTodo.completed }">
+                          {{ subTodo.text }}
+                        </div>
+                        <n-space :size="8">
+                          <n-tooltip trigger="hover">
+                            <template #trigger>
+                              <n-button class="edit-button" @click="editTodo(subTodo.id)">
+                                <template #icon>
+                                  <n-icon>
+                                    <Edit />
+                                  </n-icon>
+                                </template>
+                              </n-button>
+                            </template>
+                            编辑
+                          </n-tooltip>
+                          <n-popconfirm
+                            positive-text="确认"
+                            negative-text="取消"
+                            @positive-click="deleteTodo(subTodo.id)"
+                          >
+                            <template #trigger>
+                              <n-tooltip trigger="hover">
+                                <template #trigger>
+                                  <n-button class="delete-button" type="error">
+                                    <template #icon>
+                                      <n-icon>
+                                        <Delete />
+                                      </n-icon>
+                                    </template>
+                                  </n-button>
+                                </template>
+                                删除
+                              </n-tooltip>
+                            </template>
+                            是否确认删除？
+                          </n-popconfirm>
+                        </n-space>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </n-list-item>
-          </template>
-        </n-list>
-      </n-scrollbar>
-    </div>
+              </n-list-item>
+            </template>
+          </n-list>
+        </n-scrollbar>
+      </div>
     </div>
   </div>
 </template>

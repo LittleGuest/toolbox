@@ -6,9 +6,19 @@ use gpui_kit::component::{
     *,
 };
 
-pub struct MarkdownEditor {
+/// 可复用的 Markdown 编辑面板（工具栏 + 编辑/预览分栏）。
+///
+/// 对齐 Tauri 里两处共用的 `md-editor-v3` 的 `<MdEditor>`：
+/// - `src/views/text/Markdown.vue`（独立「Markdown 编辑器」页面）
+/// - `src/views/snippet/CodeSnippet.vue` 抽屉里的内容字段
+pub struct MarkdownPane {
     content: String,
     show_preview: bool,
+    /// 是否显示「保存为 .md」：片段抽屉里落库由外层「保存」负责，故隐藏
+    file_actions: bool,
+    /// 编辑器高度 = 视口高度 - height_offset，且不低于 min_height
+    height_offset: f32,
+    min_height: f32,
     status: String,
     error: String,
     input_state: Entity<TextareaState>,
@@ -69,10 +79,11 @@ fn find_closing_backtick(chars: &[char], start: usize) -> Option<usize> {
     None
 }
 
-impl MarkdownEditor {
+impl MarkdownPane {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        // 对齐 md-editor-v3 的默认 placeholder「请输入内容...」
         let input_state = cx.new(|cx| {
-            TextareaState::new(window, cx).placeholder("请输入 Markdown 内容...")
+            TextareaState::new(window, cx).placeholder("请输入内容...")
         });
 
         let _subscriptions = vec![cx.subscribe_in(&input_state, window, {
@@ -89,11 +100,41 @@ impl MarkdownEditor {
         Self {
             content: String::new(),
             show_preview: true,
+            file_actions: true,
+            height_offset: 160.0,
+            min_height: 480.0,
             status: String::new(),
             error: String::new(),
             input_state,
             _subscriptions,
         }
+    }
+
+    /// 是否显示「保存为 .md」按钮（片段抽屉传 false）
+    pub fn file_actions(mut self, on: bool) -> Self {
+        self.file_actions = on;
+        self
+    }
+
+    /// 编辑器高度策略（对齐 Tauri：页面 `calc(100vh - 160px)`、片段抽屉 `calc(100vh - 290px)`）
+    pub fn editor_height(mut self, offset: f32, min_height: f32) -> Self {
+        self.height_offset = offset;
+        self.min_height = min_height;
+        self
+    }
+
+    /// 当前 Markdown 原文（片段抽屉保存时读取）
+    pub fn content(&self) -> &str {
+        &self.content
+    }
+
+    /// 覆写内容（编辑已有片段时预填）
+    pub fn set_content(&mut self, value: String, window: &mut Window, cx: &mut Context<Self>) {
+        self.content = value.clone();
+        self.input_state.update(cx, |state, cx| {
+            state.set_value(value, window, cx);
+        });
+        cx.notify();
     }
 
     fn insert_markdown(
@@ -532,12 +573,16 @@ impl MarkdownEditor {
     }
 }
 
-impl Render for MarkdownEditor {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+impl Render for MarkdownPane {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let content = self.content.clone();
         let status = self.status.clone();
         let error = self.error.clone();
         let show_preview = self.show_preview;
+        let file_actions = self.file_actions;
+        // 对齐 Tauri：`height: calc(100vh - Npx)`，并保留一个下限避免窗口过矮时挤扁
+        let editor_h = (window.viewport_size().height - px(self.height_offset))
+            .max(px(self.min_height));
         let char_count = content.chars().count();
         let line_count = if content.is_empty() {
             0
@@ -738,15 +783,19 @@ impl Render for MarkdownEditor {
                                 this.copy(cx);
                             })),
                     )
-                    .child(
-                        Button::new("md-save")
-                            .compact()
-                            .label("保存")
-                            .tooltip("保存为 .md 文件")
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.save_to_file(cx);
-                            })),
-                    )
+                    // 「保存为 .md」只在独立 Markdown 页面出现；
+                    // 片段抽屉里由外层「保存」按钮负责落库，避免出现无意义的落盘入口
+                    .when(file_actions, |group| {
+                        group.child(
+                            Button::new("md-save")
+                                .compact()
+                                .label("保存")
+                                .tooltip("保存为 .md 文件")
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.save_to_file(cx);
+                                })),
+                        )
+                    })
                     .child(
                         Button::new("md-preview")
                             .compact()
@@ -780,7 +829,7 @@ impl Render for MarkdownEditor {
             .child(design::editor_label("编辑", cx))
             .child(
                 Textarea::new(&self.input_state)
-                    .h(px(560.0))
+                    .h(editor_h)
                     .font_family("monospace"),
             );
 
@@ -794,7 +843,7 @@ impl Render for MarkdownEditor {
             .child(design::editor_label("预览", cx))
             .child(
                 div()
-                    .h(px(560.0))
+                    .h(editor_h)
                     .overflow_y_scrollbar()
                     .child(if content.is_empty() {
                         design::hint("预览将显示在这里...", cx)
@@ -814,60 +863,78 @@ impl Render for MarkdownEditor {
             editor_col
         };
 
-        design::page()
-            .child(design::page_header("Markdown", "Markdown 编辑与实时预览", cx))
+        // 面板本体：不含 page/card 外框，方便被页面或抽屉直接嵌入
+        div()
+            .flex()
+            .flex_col()
+            .w_full()
+            .child(toolbar)
+            .when(!error.is_empty(), |this| {
+                this.child(
+                    div()
+                        .text_size(px(12.5))
+                        .text_color(Hsla::from(rgb(design::ERROR_RED)))
+                        .child(error),
+                )
+            })
+            .when(!status.is_empty(), |this| {
+                this.child(
+                    div()
+                        .text_size(px(12.5))
+                        .text_color(Hsla::from(rgb(design::OK_GREEN)))
+                        .child(status),
+                )
+            })
+            .child(body)
             .child(
-                design::card(cx)
-                    .child(design::card_header(
-                        IconName::FileText,
-                        "Markdown 编辑器",
-                        "工具栏插入语法，右侧实时预览",
-                        cx,
-                    ))
-                    .child(toolbar)
-                    .when(!error.is_empty(), |card| {
-                        card.child(
-                            div()
-                                .text_size(px(12.5))
-                                .text_color(Hsla::from(rgb(design::ERROR_RED)))
-                                .child(error),
-                        )
-                    })
-                    .when(!status.is_empty(), |card| {
-                        card.child(
-                            div()
-                                .text_size(px(12.5))
-                                .text_color(Hsla::from(rgb(design::OK_GREEN)))
-                                .child(status),
-                        )
-                    })
-                    .child(body)
+                div()
+                    .mt_2()
+                    .pt_2()
+                    .border_t_1()
+                    .border_color(cx.theme().border)
+                    .flex()
+                    .items_center()
+                    .justify_between()
                     .child(
                         div()
-                            .mt_2()
-                            .pt_2()
-                            .border_t_1()
-                            .border_color(cx.theme().border)
+                            .text_size(px(12.0))
+                            .text_color(cx.theme().muted_foreground)
+                            .child("支持标题、粗体、斜体、删除线、引用、列表、代码、链接、图片、表格与分割线"),
+                    )
+                    .child(
+                        div()
                             .flex()
                             .items_center()
-                            .justify_between()
-                            .child(
-                                div()
-                                    .text_size(px(12.0))
-                                    .text_color(cx.theme().muted_foreground)
-                                    .child("支持标题、粗体、斜体、删除线、引用、列表、代码、链接、图片、表格与分割线"),
-                            )
-                            .child(
-                                div()
-                                    .flex()
-                                    .items_center()
-                                    .gap_2()
-                                    .text_size(px(12.0))
-                                    .text_color(cx.theme().muted_foreground)
-                                    .font_family("monospace")
-                                    .child(format!("字符 {} · 行数 {}", char_count, line_count)),
-                            ),
+                            .gap_2()
+                            .text_size(px(12.0))
+                            .text_color(cx.theme().muted_foreground)
+                            .font_family("monospace")
+                            .child(format!("字符 {} · 行数 {}", char_count, line_count)),
                     ),
             )
+    }
+}
+
+/// 「Markdown 编辑器」页面 —— 对齐 Tauri `src/views/text/Markdown.vue`：`tb-page > tb-card > MdEditor`
+pub struct MarkdownEditor {
+    pane: Option<Entity<MarkdownPane>>,
+}
+
+impl MarkdownEditor {
+    pub fn new(_window: &mut Window, _cx: &mut Context<Self>) -> Self {
+        Self { pane: None }
+    }
+}
+
+impl Render for MarkdownEditor {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        if self.pane.is_none() {
+            // 对齐 Tauri `.md-editor { height: calc(100vh - 160px); min-height: 480px; }`
+            self.pane = Some(cx.new(|cx| {
+                MarkdownPane::new(window, cx).editor_height(160.0, 480.0)
+            }));
+        }
+
+        design::page().child(design::card(cx).child(div().children(self.pane.clone())))
     }
 }

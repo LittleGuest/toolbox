@@ -1112,19 +1112,10 @@ impl RandomDataGenerator {
 impl Render for RandomDataGenerator {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         design::page()
-            .child(design::page_header(
-                "随机数据",
-                "JSON / XML / CSV / 正则随机数据 / 文本随机排序",
-                cx,
-            ))
+
             .child(
                 design::card(cx)
-                    .child(design::card_header(
-                        IconName::Inbox,
-                        "随机数据",
-                        "批量假数据与正则随机串生成",
-                        cx,
-                    ))
+
                     .child(
                         div()
                             .flex()

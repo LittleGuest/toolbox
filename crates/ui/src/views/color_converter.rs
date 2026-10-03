@@ -352,7 +352,7 @@ impl Render for ColorConverter {
         };
 
         design::page()
-            .child(design::page_header("颜色转换", "HEX / RGB / HSV / CMYK 互转", cx))
+
             .child(
                 design::card(cx)
                     // 预览色块（preview-block）

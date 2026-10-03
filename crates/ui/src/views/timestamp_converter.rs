@@ -6,7 +6,7 @@ use gpui_kit::*;
 use gpui_kit::component::{
     button::*,
     input::{InputEvent, Textarea, TextareaState},
-    select::{Select, SelectState},
+    select::{Select, SelectEvent, SelectState},
     *,
 };
 use time::OffsetDateTime;
@@ -57,15 +57,30 @@ impl TimestampConverter {
             s
         });
 
-        let _subscriptions = vec![cx.subscribe_in(&input_state, window, {
-            let input_state = input_state.clone();
-            move |this, _, ev: &InputEvent, _, cx| {
-                if let InputEvent::Change = ev {
-                    this.input = input_state.read(cx).value().to_string();
-                    cx.notify();
+        let _subscriptions = vec![
+            cx.subscribe_in(&input_state, window, {
+                let input_state = input_state.clone();
+                move |this, _, ev: &InputEvent, _, cx| {
+                    if let InputEvent::Change = ev {
+                        this.input = input_state.read(cx).value().to_string();
+                        cx.notify();
+                    }
                 }
-            }
-        })];
+            }),
+            cx.subscribe_in(
+                &tz_state,
+                window,
+                move |this, _, ev: &SelectEvent<Vec<String>>, _, cx| {
+                    if let SelectEvent::Confirm(Some(value)) = ev {
+                        this.tz_index = TZ_LABELS
+                            .iter()
+                            .position(|&l| l == value.as_str())
+                            .unwrap_or(20);
+                        cx.notify();
+                    }
+                },
+            ),
+        ];
 
         let current_time = format_now_timestamp();
         cx.spawn(async move |this: WeakEntity<Self>, cx| {
@@ -477,7 +492,7 @@ impl Render for TimestampConverter {
         let has_result = !self.results.is_empty();
 
         design::page()
-            .child(design::page_header("时间戳转换", "时间戳与日期互转", cx))
+
             .child(
                 design::card(cx)
                     .child(self.config_row(cx))

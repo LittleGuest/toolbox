@@ -186,7 +186,7 @@ impl Render for ImageConvert {
         let file_count = self.files.len();
 
         design::page()
-            .child(design::page_header("图片格式转换", "常见图片格式相互转换", cx))
+
             .child(
                 design::card(cx)
                     // 目标格式

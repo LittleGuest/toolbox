@@ -1,20 +1,14 @@
 use gpui_kit::{prelude::FluentBuilder, *};
 use gpui_kit::component::{
     button::*,
-    input::{Input, InputEvent, InputState, Textarea, TextareaState},
+    input::{Input, InputEvent, InputState},
+    notification::Notification,
     scroll::ScrollableElement,
     *,
 };
 
 use crate::config_store::{self, SnippetRecord};
-
-/// 状态反馈类别（对齐 Vue message.success / message.error 的内联替代）
-#[derive(Clone, Copy, PartialEq)]
-enum StatusKind {
-    Info,
-    Success,
-    Error,
-}
+use crate::views::MarkdownPane;
 
 pub struct Snippet {
     id: Option<i64>,
@@ -74,18 +68,19 @@ pub struct CodeSnippet {
     snippets: Vec<Snippet>,
     tags: Vec<SharedString>,
     selected_tags: Vec<SharedString>,
+    /// 列表当前高亮项（对齐 Vue `selectedSnippetId`）
     selected_snippet_id: Option<i64>,
-    is_editing: bool,
-    status: String,
-    status_kind: StatusKind,
+    /// 正在编辑的片段 id（对齐 Vue `form.id`；None 表示新增）
+    editing_id: Option<i64>,
     search_input_state: Option<Entity<InputState>>,
     title_input_state: Option<Entity<InputState>>,
-    code_input_state: Option<Entity<TextareaState>>,
+    /// 内容字段使用 Markdown 编辑器（对齐 Tauri 抽屉里的 `<MdEditor>`）；
+    /// 每次打开抽屉重建，保证内容与被编辑的片段一致
+    md_editor: Option<Entity<MarkdownPane>>,
     tag_input_state: Option<Entity<InputState>>,
     search_text: SharedString,
     tag_input_text: SharedString,
     current_title: SharedString,
-    current_code: SharedString,
     current_tags: Vec<SharedString>,
     current_language: SharedString,
     _subscriptions: Vec<Subscription>,
@@ -98,19 +93,16 @@ impl CodeSnippet {
             tags: Vec::new(),
             selected_tags: Vec::new(),
             selected_snippet_id: None,
-            is_editing: false,
-            status: String::new(),
-            status_kind: StatusKind::Info,
+            editing_id: None,
             search_input_state: None,
             title_input_state: None,
-            code_input_state: None,
+            md_editor: None,
             tag_input_state: None,
             search_text: SharedString::default(),
             tag_input_text: SharedString::default(),
             current_title: SharedString::default(),
-            current_code: SharedString::default(),
             current_tags: Vec::new(),
-            current_language: SharedString::from("text"),
+            current_language: SharedString::default(),
             _subscriptions: Vec::new(),
         }
     }
@@ -121,16 +113,11 @@ impl CodeSnippet {
 
         let title_input_state = cx.new(|cx| InputState::new(window, cx).placeholder("一句话描述"));
 
-        let code_input_state = cx.new(|cx| {
-            TextareaState::new(window, cx).placeholder("输入代码内容...")
-        });
-
         let tag_input_state =
             cx.new(|cx| InputState::new(window, cx).placeholder("输入或选择标签"));
 
         let search_clone = search_input_state.clone();
         let title_clone = title_input_state.clone();
-        let code_clone = code_input_state.clone();
         let tag_clone = tag_input_state.clone();
 
         let _subscriptions = vec![
@@ -154,22 +141,16 @@ impl CodeSnippet {
                     _ => {}
                 }
             }),
-            cx.subscribe_in(&code_input_state, window, {
-                move |this, _, ev: &InputEvent, _window, cx| match ev {
-                    InputEvent::Change => {
-                        let value = code_clone.read(cx).value();
-                        this.current_code = value.clone();
-                        cx.notify()
-                    }
-                    _ => {}
-                }
-            }),
             cx.subscribe_in(&tag_input_state, window, {
-                move |this, _, ev: &InputEvent, _window, cx| match ev {
+                move |this, _, ev: &InputEvent, window, cx| match ev {
                     InputEvent::Change => {
                         let value = tag_clone.read(cx).value();
                         this.tag_input_text = value.clone();
                         cx.notify()
+                    }
+                    // 对齐 Vue `n-select tag filterable`：回车即提交标签
+                    InputEvent::PressEnter { .. } => {
+                        this.add_tag(window, cx);
                     }
                     _ => {}
                 }
@@ -178,26 +159,23 @@ impl CodeSnippet {
 
         self.search_input_state = Some(search_input_state);
         self.title_input_state = Some(title_input_state);
-        self.code_input_state = Some(code_input_state);
         self.tag_input_state = Some(tag_input_state);
         self._subscriptions = _subscriptions;
 
-        self.status = "正在加载片段...".to_string();
-        self.status_kind = StatusKind::Info;
-        cx.notify();
-        cx.spawn(async move |this: WeakEntity<Self>, cx| {
+        // 对齐 Vue onMounted 静默加载；仅在失败时用统一提示反馈
+        cx.spawn_in(window, async move |this: WeakEntity<Self>, cx| {
             let result = config_store::load_snippets().await;
-            let _ = this.update(cx, |this, cx| {
+            let _ = this.update_in(cx, |this, window, cx| {
                 match result {
                     Ok(records) => {
                         this.snippets = records.into_iter().map(Snippet::from_record).collect();
                         this.update_tags();
-                        this.status = format!("已加载 {} 个片段。", this.snippets.len());
-                        this.status_kind = StatusKind::Success;
                     }
                     Err(err) => {
-                        this.status = format!("加载片段失败：{err}");
-                        this.status_kind = StatusKind::Error;
+                        window.push_notification(
+                            Notification::error(format!("加载片段失败：{err}")),
+                            cx,
+                        );
                     }
                 }
                 cx.notify();
@@ -248,18 +226,14 @@ impl CodeSnippet {
 
     fn reset_form(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.current_title = SharedString::default();
-        self.current_code = SharedString::default();
         self.current_tags = Vec::new();
-        self.current_language = SharedString::from("text");
+        // 对齐 Vue addSnippets：form.language = ""
+        self.current_language = SharedString::default();
         self.tag_input_text = SharedString::default();
+        self.md_editor = None;
 
         if let Some(title_input) = &self.title_input_state {
             title_input.update(cx, |input_state, cx| {
-                input_state.set_value("".to_string(), window, cx);
-            });
-        }
-        if let Some(code_input) = &self.code_input_state {
-            code_input.update(cx, |input_state, cx| {
                 input_state.set_value("".to_string(), window, cx);
             });
         }
@@ -270,69 +244,94 @@ impl CodeSnippet {
         }
     }
 
+    /// 新建 / 编辑抽屉的内容编辑器（对齐 Tauri 的 `<MdEditor>`）。
+    /// 高度取 `calc(100vh - 290px)`，与 Tauri 抽屉里的写法一致。
+    fn new_md_editor(
+        &self,
+        initial: &str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Entity<MarkdownPane> {
+        let pane = cx.new(|cx| {
+            MarkdownPane::new(window, cx)
+                .file_actions(false)
+                .editor_height(290.0, 360.0)
+        });
+        if !initial.is_empty() {
+            pane.update(cx, |pane, cx| {
+                pane.set_content(initial.to_string(), window, cx);
+            });
+        }
+        pane
+    }
+
     fn start_add(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.is_editing = true;
-        self.selected_snippet_id = None;
+        // 对齐 Vue addSnippets：form.id = null（新增），不动列表高亮
+        self.editing_id = None;
         self.reset_form(window, cx);
+        self.md_editor = Some(self.new_md_editor("", window, cx));
         self.open_edit_sheet(window, cx);
     }
 
     fn start_edit(&mut self, id: i64, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(snippet) = self.snippets.iter().find(|s| s.id == Some(id)) {
-            self.is_editing = true;
-            self.current_title = snippet.title.clone();
-            self.current_code = snippet.code.clone();
-            self.current_tags = snippet.tags.clone();
-            self.current_language = snippet.language.clone();
+        // 先把被编辑片段的数据取出来（避免与后面的 &mut self 冲突）
+        let Some((title, code, tags, language)) = self
+            .snippets
+            .iter()
+            .find(|s| s.id == Some(id))
+            .map(|s| {
+                (
+                    s.title.clone(),
+                    s.code.to_string(),
+                    s.tags.clone(),
+                    s.language.clone(),
+                )
+            })
+        else {
+            return;
+        };
 
-            if let Some(title_input) = &self.title_input_state {
-                title_input.update(cx, |input_state, cx| {
-                    input_state.set_value(snippet.title.to_string(), window, cx);
-                });
-            }
-            if let Some(code_input) = &self.code_input_state {
-                code_input.update(cx, |input_state, cx| {
-                    input_state.set_value(snippet.code.to_string(), window, cx);
-                });
-            }
-            if let Some(tag_input) = &self.tag_input_state {
-                tag_input.update(cx, |input_state, cx| {
-                    input_state.set_value("".to_string(), window, cx);
-                });
-            }
-            self.tag_input_text = SharedString::default();
+        // 对齐 Vue editSnippets：form.id = snippet.id（走更新分支）
+        self.editing_id = Some(id);
+        self.reset_form(window, cx);
+        self.current_title = title.clone();
+        self.current_tags = tags;
+        self.current_language = language;
 
-            self.open_edit_sheet(window, cx);
+        if let Some(title_input) = &self.title_input_state {
+            title_input.update(cx, |input_state, cx| {
+                input_state.set_value(title.to_string(), window, cx);
+            });
         }
+        if let Some(tag_input) = &self.tag_input_state {
+            tag_input.update(cx, |input_state, cx| {
+                input_state.set_value("".to_string(), window, cx);
+            });
+        }
+        self.tag_input_text = SharedString::default();
+        self.md_editor = Some(self.new_md_editor(&code, window, cx));
+
+        self.open_edit_sheet(window, cx);
     }
 
     fn cancel_edit(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.is_editing = false;
-        self.selected_snippet_id = None;
+        // 对齐 Vue handleClose：仅重置表单，不改列表高亮
+        self.editing_id = None;
         self.reset_form(window, cx);
         window.close_sheet(cx);
     }
 
-    fn form_valid(&self) -> bool {
-        !self.current_title.trim().is_empty()
-            && !self.current_code.trim().is_empty()
-            && !self.current_tags.is_empty()
-    }
-
     fn open_edit_sheet(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let weak = cx.entity().downgrade();
-        let is_edit = self.selected_snippet_id.is_some();
+        // 对齐 Vue `form.id ? '编辑' : '添加'`
+        let is_edit = self.editing_id.is_some();
         let title_state = self.title_input_state.clone();
-        let code_state = self.code_input_state.clone();
+        let md_editor = self.md_editor.clone();
         let tag_state = self.tag_input_state.clone();
         let all_tags = self.tags.clone();
 
         window.open_sheet_at(Placement::Bottom, cx, move |sheet, _, cx| {
             let this_ref = weak.upgrade();
-            let valid = this_ref
-                .as_ref()
-                .map(|this| this.read(cx).form_valid())
-                .unwrap_or(false);
             let form_tags = this_ref
                 .as_ref()
                 .map(|this| this.read(cx).current_tags.clone())
@@ -341,7 +340,10 @@ impl CodeSnippet {
             sheet
                 .overlay(true)
                 .overlay_closable(true)
-                .size(px(520.))
+                // 对齐 Vue：`placement="bottom" resizable :height="'100%'"`
+                // （内容字段是 Markdown 编辑器 `calc(100vh - 290px)`，需要整屏高度）
+                .size(relative(1.0))
+                .resizable(true)
                 .title(if is_edit { "编辑" } else { "添加" })
                 .child(
                     div()
@@ -486,20 +488,13 @@ impl CodeSnippet {
                                     )
                                 }),
                         )
-                        // 代码内容
+                        // 代码内容（对齐 Vue `n-form-item path="code" :show-labels="false"`：
+                        // 无标签；字段本体是 `md-editor-v3` 的 `<MdEditor>`）
                         .child(
                             div()
                                 .flex_col()
                                 .gap_1p5()
-                                .child(design::editor_label("代码", cx))
-                                .child(if let Some(ref cs) = code_state {
-                                    div()
-                                        .h(px(300.0))
-                                        .font_family("monospace")
-                                        .child(Textarea::new(cs))
-                                } else {
-                                    div()
-                                }),
+                                .child(div().children(md_editor.clone())),
                         )
                         // 底部操作
                         .child(
@@ -523,16 +518,16 @@ impl CodeSnippet {
                                 })
                                 .child({
                                     let weak = weak.clone();
+                                    // 对齐 Vue：保存按钮始终可点，校验失败时提示且抽屉不关闭（非 primary）
                                     Button::new("sheet-save")
-                                        .primary()
                                         .icon(Icon::new(IconName::Check))
                                         .tooltip("保存")
-                                        .disabled(!valid)
                                         .on_click(move |_, window, cx| {
                                             if let Some(this) = weak.upgrade() {
                                                 this.update(cx, |this, cx| {
-                                                    this.save_snippet(cx);
-                                                    window.close_sheet(cx);
+                                                    if this.save_snippet(window, cx) {
+                                                        window.close_sheet(cx);
+                                                    }
                                                 });
                                             }
                                         })
@@ -575,24 +570,25 @@ impl CodeSnippet {
         self.current_tags.retain(|t| t != tag);
     }
 
-    fn save_snippet(&mut self, cx: &mut Context<Self>) {
+    /// 保存（对齐 Vue saveSnippet）。返回 true 表示校验通过、已开始保存。
+    fn save_snippet(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
         if self.current_title.trim().is_empty() {
-            self.status = "请一句话描述".to_string();
-            self.status_kind = StatusKind::Error;
-            cx.notify();
-            return;
+            window.push_notification(Notification::error("请一句话描述"), cx);
+            return false;
         }
         if self.current_tags.is_empty() {
-            self.status = "请选择或输入标签".to_string();
-            self.status_kind = StatusKind::Error;
-            cx.notify();
-            return;
+            window.push_notification(Notification::error("请选择或输入标签"), cx);
+            return false;
         }
-        if self.current_code.trim().is_empty() {
-            self.status = "请输入内容".to_string();
-            self.status_kind = StatusKind::Error;
-            cx.notify();
-            return;
+        // 内容取自 Markdown 编辑器面板（对齐 Vue `form.code` 由 `<MdEditor>` 双向绑定）
+        let code = self
+            .md_editor
+            .as_ref()
+            .map(|editor| editor.read(cx).content().to_string())
+            .unwrap_or_default();
+        if code.trim().is_empty() {
+            window.push_notification(Notification::error("请输入内容"), cx);
+            return false;
         }
 
         let now = std::time::SystemTime::now()
@@ -600,31 +596,31 @@ impl CodeSnippet {
             .unwrap()
             .as_secs() as i64;
 
-        if let Some(id) = self.selected_snippet_id {
+        if let Some(id) = self.editing_id {
             if let Some(snippet) = self.snippets.iter_mut().find(|s| s.id == Some(id)) {
                 snippet.title = self.current_title.clone();
                 snippet.tags = self.current_tags.clone();
-                snippet.code = self.current_code.clone();
+                snippet.code = SharedString::from(code);
                 snippet.language = self.current_language.clone();
                 snippet.updated_at = now;
                 let record = snippet.to_record();
                 self.update_tags();
 
-                cx.spawn(async move |this: WeakEntity<Self>, cx| {
+                cx.spawn_in(window, async move |this: WeakEntity<Self>, cx| {
                     let result = config_store::update_snippet(id, record).await;
-                    let _ = this.update(cx, |this, cx| {
+                    let _ = this.update_in(cx, |this, window, cx| {
                         match result {
                             Ok(_) => {
-                                this.status = "保存成功".to_string();
-                                this.status_kind = StatusKind::Success;
+                                window.push_notification(Notification::success("保存成功"), cx);
                             }
                             Err(err) => {
-                                this.status = format!("保存失败：{err}");
-                                this.status_kind = StatusKind::Error;
+                                window.push_notification(
+                                    Notification::error(format!("保存失败：{err}")),
+                                    cx,
+                                );
                             }
                         }
-                        this.is_editing = false;
-                        this.selected_snippet_id = None;
+                        this.editing_id = None;
                         cx.notify();
                     });
                 })
@@ -634,16 +630,18 @@ impl CodeSnippet {
             let record = SnippetRecord {
                 id: None,
                 title: self.current_title.to_string(),
-                code: self.current_code.to_string(),
+                code: code.clone(),
                 tags: self.current_tags.iter().map(|t| t.to_string()).collect(),
                 language: self.current_language.to_string(),
                 created_at: now,
                 updated_at: now,
             };
 
-            cx.spawn(async move |this: WeakEntity<Self>, cx| {
+            let new_code = SharedString::from(code);
+
+            cx.spawn_in(window, async move |this: WeakEntity<Self>, cx| {
                 let result = config_store::save_snippet(record).await;
-                let _ = this.update(cx, |this, cx| {
+                let _ = this.update_in(cx, move |this, window, cx| {
                     match result {
                         Ok(new_id) => {
                             this.snippets.insert(
@@ -652,28 +650,28 @@ impl CodeSnippet {
                                     id: Some(new_id),
                                     title: this.current_title.clone(),
                                     tags: this.current_tags.clone(),
-                                    code: this.current_code.clone(),
+                                    code: new_code,
                                     language: this.current_language.clone(),
                                     created_at: now,
                                     updated_at: now,
                                 },
                             );
-                            this.status = "保存成功".to_string();
-                            this.status_kind = StatusKind::Success;
+                            window.push_notification(Notification::success("保存成功"), cx);
                         }
                         Err(err) => {
-                            this.status = format!("保存失败：{err}");
-                            this.status_kind = StatusKind::Error;
+                            window
+                                .push_notification(Notification::error(format!("保存失败：{err}")), cx);
                         }
                     }
-                    this.is_editing = false;
-                    this.selected_snippet_id = None;
+                    this.editing_id = None;
                     this.update_tags();
                     cx.notify();
                 });
             })
             .detach();
         }
+
+        true
     }
 
     fn delete_snippet(&mut self, id: i64, window: &mut Window, cx: &mut Context<Self>) {
@@ -683,17 +681,13 @@ impl CodeSnippet {
             alert
                 .title(div().text_lg().font_semibold().child("确认删除"))
                 .width(px(420.))
-                .description(
-                    div()
-                        .py_4()
-                        .text_sm()
-                        .child("是否确认删除？此操作不可撤销。"),
-                )
+                // 对齐 Vue `n-popconfirm`：是否确认删除？
+                .description(div().py_4().text_sm().child("是否确认删除？"))
                 .confirm()
-                .on_ok(move |_, _, cx| {
+                .on_ok(move |_, window, cx| {
                     if let Some(this) = this.upgrade() {
                         this.update(cx, |this, cx| {
-                            this.confirm_delete_snippet(id, cx);
+                            this.confirm_delete_snippet(id, window, cx);
                         });
                     }
                     true
@@ -701,10 +695,10 @@ impl CodeSnippet {
         });
     }
 
-    fn confirm_delete_snippet(&mut self, id: i64, cx: &mut Context<Self>) {
-        cx.spawn(async move |this: WeakEntity<Self>, cx| {
+    fn confirm_delete_snippet(&mut self, id: i64, window: &mut Window, cx: &mut Context<Self>) {
+        cx.spawn_in(window, async move |this: WeakEntity<Self>, cx| {
             let result = config_store::delete_snippet(id).await;
-            let _ = this.update(cx, |this, cx| {
+            let _ = this.update_in(cx, |this, window, cx| {
                 match result {
                     Ok(true) => {
                         this.snippets.retain(|s| s.id != Some(id));
@@ -712,16 +706,17 @@ impl CodeSnippet {
                             this.selected_snippet_id = None;
                         }
                         this.update_tags();
-                        this.status = "片段已删除。".to_string();
-                        this.status_kind = StatusKind::Success;
+                        window.push_notification(Notification::success("代码片段已删除"), cx);
                     }
                     Ok(false) => {
-                        this.status = "未找到要删除的片段。".to_string();
-                        this.status_kind = StatusKind::Info;
+                        window
+                            .push_notification(Notification::warning("未找到要删除的代码片段"), cx);
                     }
                     Err(err) => {
-                        this.status = format!("删除片段失败：{err}");
-                        this.status_kind = StatusKind::Error;
+                        window.push_notification(
+                            Notification::error(format!("删除片段失败：{err}")),
+                            cx,
+                        );
                     }
                 }
                 cx.notify();
@@ -731,7 +726,7 @@ impl CodeSnippet {
     }
 
     /// 导入 JSON（对齐 Vue handleImportFile：支持数组或 { snippets: [...] } 包装）
-    fn import_snippets(&mut self, cx: &mut Context<Self>) {
+    fn import_snippets(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let task = cx.background_executor().spawn(async move {
             rfd::AsyncFileDialog::new()
                 .set_title("导入代码片段")
@@ -740,7 +735,7 @@ impl CodeSnippet {
                 .await
         });
 
-        cx.spawn(async move |this: WeakEntity<Self>, cx| {
+        cx.spawn_in(window, async move |this: WeakEntity<Self>, cx| {
             let Some(file) = task.await else {
                 return;
             };
@@ -760,10 +755,8 @@ impl CodeSnippet {
             };
 
             let Some(list) = list else {
-                let _ = this.update(cx, |this, cx| {
-                    this.status = "导入文件格式不正确".to_string();
-                    this.status_kind = StatusKind::Error;
-                    cx.notify();
+                let _ = this.update_in(cx, |_this, window, cx| {
+                    window.push_notification(Notification::error("导入文件格式不正确"), cx);
                 });
                 return;
             };
@@ -827,24 +820,22 @@ impl CodeSnippet {
             }
 
             let reload = config_store::load_snippets().await;
-            let _ = this.update(cx, |this, cx| {
+            let _ = this.update_in(cx, |this, window, cx| {
                 match reload {
                     Ok(records) => {
                         this.snippets = records.into_iter().map(Snippet::from_record).collect();
+                        this.update_tags();
+                        window.push_notification(
+                            Notification::success(format!("导入完成，共导入 {count} 条")),
+                            cx,
+                        );
                     }
                     Err(err) => {
-                        this.status = format!("刷新列表失败：{err}");
-                        this.status_kind = StatusKind::Error;
+                        window.push_notification(
+                            Notification::error(format!("刷新列表失败：{err}")),
+                            cx,
+                        );
                     }
-                }
-                this.update_tags();
-                if !this.status.starts_with("刷新列表失败") {
-                    this.status = format!("导入完成，共导入 {count} 条");
-                    this.status_kind = if count > 0 {
-                        StatusKind::Success
-                    } else {
-                        StatusKind::Info
-                    };
                 }
                 cx.notify();
             });
@@ -853,16 +844,9 @@ impl CodeSnippet {
     }
 
     /// 导出当前筛选结果（对齐 Vue exportSnippets：{ version, snippets }）
-    fn export_snippets(&mut self, cx: &mut Context<Self>) {
-        let filtered = self.filtered_snippets();
-        if filtered.is_empty() {
-            self.status = "没有可导出的代码片段".to_string();
-            self.status_kind = StatusKind::Error;
-            cx.notify();
-            return;
-        }
-
-        let data: Vec<serde_json::Value> = filtered
+    fn export_snippets(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let data: Vec<serde_json::Value> = self
+            .filtered_snippets()
             .iter()
             .map(|s| {
                 serde_json::json!({
@@ -873,16 +857,23 @@ impl CodeSnippet {
                 })
             })
             .collect();
+
+        if data.is_empty() {
+            // 对齐 Vue message.warning("没有可导出的代码片段")
+            window.push_notification(Notification::warning("没有可导出的代码片段"), cx);
+            return;
+        }
+
         let count = data.len();
         let payload = serde_json::json!({ "version": 1, "snippets": data });
         let json_content = serde_json::to_string_pretty(&payload).unwrap_or_default();
-        let file_name = format!("code-snippets-{}.json", std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_millis());
-        self.status = format!("正在导出 {count} 条代码片段...");
-        self.status_kind = StatusKind::Info;
-        cx.notify();
+        let file_name = format!(
+            "code-snippets-{}.json",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        );
 
         let task = cx.background_executor().spawn(async move {
             rfd::AsyncFileDialog::new()
@@ -893,19 +884,14 @@ impl CodeSnippet {
                 .await
         });
 
-        cx.spawn(async move |this: WeakEntity<Self>, cx| {
+        cx.spawn_in(window, async move |this: WeakEntity<Self>, cx| {
             if let Some(file) = task.await {
                 let _ = file.write(json_content.as_bytes()).await;
-                let _ = this.update(cx, |this, cx| {
-                    this.status = format!("已导出 {count} 条代码片段");
-                    this.status_kind = StatusKind::Success;
-                    cx.notify();
-                });
-            } else {
-                let _ = this.update(cx, |this, cx| {
-                    this.status = "导出已取消。".to_string();
-                    this.status_kind = StatusKind::Info;
-                    cx.notify();
+                let _ = this.update_in(cx, |_this, window, cx| {
+                    window.push_notification(
+                        Notification::success(format!("已导出 {count} 条代码片段")),
+                        cx,
+                    );
                 });
             }
         })
@@ -923,30 +909,6 @@ impl CodeSnippet {
             }
         }
         self.tags = ordered;
-    }
-
-    fn copy_code(&mut self, id: i64, cx: &mut Context<Self>) {
-        if let Some(snippet) = self.snippets.iter().find(|s| s.id == Some(id)) {
-            let code = snippet.code.to_string();
-            if !code.is_empty() {
-                cx.write_to_clipboard(ClipboardItem::new_string(code));
-                self.status = "代码已复制到剪贴板。".to_string();
-                self.status_kind = StatusKind::Success;
-                cx.notify();
-            }
-        }
-    }
-
-    fn status_line(&self, cx: &mut Context<Self>) -> Div {
-        let color = match self.status_kind {
-            StatusKind::Error => Hsla::from(rgb(design::ERROR_RED)),
-            StatusKind::Success => Hsla::from(rgb(design::OK_GREEN)),
-            StatusKind::Info => cx.theme().muted_foreground,
-        };
-        div()
-            .text_size(px(12.5))
-            .text_color(color)
-            .child(self.status.clone())
     }
 
     /// 标签侧栏（对齐 .tag-sidebar）
@@ -1064,8 +1026,12 @@ impl CodeSnippet {
                     .child(tag.clone())
             }));
 
+        // 对齐 Vue `&:hover .snippet-item-actions, &.active .snippet-item-actions { opacity: 1 }`
+        let group_id = SharedString::from(format!("snippet-item-group-{id_usize}"));
+
         div()
             .id(("snippet-item", id_usize))
+            .group(group_id.clone())
             .flex()
             .items_start()
             .gap_3()
@@ -1124,22 +1090,18 @@ impl CodeSnippet {
                     )
                     .when(!tags.is_empty(), |item| item.child(tags_row)),
             )
+            // 操作区：仅 编辑 / 删除（对齐 Vue snippet-item-actions），默认隐藏、悬停或选中时显示
             .child(
                 div()
                     .flex()
                     .items_center()
                     .gap(px(2.0))
                     .flex_shrink_0()
-                    .child(
-                        Button::new(("snippet-copy", id_usize))
-                            .ghost()
-                            .compact()
-                            .icon(Icon::new(IconName::Copy))
-                            .tooltip("复制代码")
-                            .on_click(cx.listener(move |this, _, _, cx| {
-                                this.copy_code(id, cx);
-                            })),
-                    )
+                    .when(is_selected, |el| el.opacity(1.0))
+                    .when(!is_selected, |el| {
+                        el.opacity(0.0)
+                            .group_hover(group_id, |s: StyleRefinement| s.opacity(1.0))
+                    })
                     .child(
                         Button::new(("snippet-edit", id_usize))
                             .ghost()
@@ -1172,38 +1134,36 @@ impl Render for CodeSnippet {
 
         let filtered = self.filtered_snippets();
         let has_tags = !self.tags.is_empty();
-        let is_filtering = !self.search_text.is_empty() || !self.selected_tags.is_empty();
 
-        let snippet_list = if filtered.is_empty() {
+        // 空态不能放进 Scrollable（其子项 flex_1 会被折叠成 0 高，文字不可见）；
+        // 且外层 flex 增长不会按 min_h 解析，故空态直接给固定高度做居中。
+        let list_area: AnyElement = if filtered.is_empty() {
+            // 对齐 Vue `<n-empty description="暂无代码片段" />`：不区分是否处于筛选态
             div()
-                .flex()
                 .flex_1()
+                .min_w_0()
+                .h(px(360.0))
+                .flex()
                 .items_center()
                 .justify_center()
-                .py_10()
-                .child(design::hint(
-                    if is_filtering {
-                        "未找到匹配的代码片段"
-                    } else {
-                        "暂无代码片段，点击「新建」添加"
-                    },
-                    cx,
-                ))
+                .child(design::hint("暂无代码片段", cx))
+                .into_any_element()
         } else {
             div()
+                .flex_1()
+                .min_w_0()
+                .min_h(px(360.0))
+                .max_h(px(520.0))
                 .flex_col()
-                .gap_2()
-                .children(filtered.iter().map(|s| self.render_snippet_item(s, cx)))
+                .overflow_y_scrollbar()
+                .child(
+                    div()
+                        .flex_col()
+                        .gap_2()
+                        .children(filtered.iter().map(|s| self.render_snippet_item(s, cx))),
+                )
+                .into_any_element()
         };
-
-        let list_area = div()
-            .flex_1()
-            .min_w_0()
-            .min_h(px(360.0))
-            .max_h(px(520.0))
-            .flex_col()
-            .overflow_y_scrollbar()
-            .child(snippet_list);
 
         let main_content = div()
             .flex()
@@ -1214,48 +1174,41 @@ impl Render for CodeSnippet {
             .child(list_area);
 
         design::page()
-            .child(design::page_header("代码片段", "管理常用代码片段", cx))
             .child(
                 design::card(cx)
-                    .child(design::card_header(
-                        IconName::FileText,
-                        "代码片段",
-                        "管理常用代码片段",
-                        cx,
-                    ))
-                    // 卡片头操作（tb-card-header-actions）：新建 / 导入 / 导出
+                    // 卡片头：标题居左，操作（新建 / 导入 / 导出）贴右 —— 对齐 tb-card-header
                     .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
+                        design::card_header(IconName::FileText, "代码片段", "", cx)
                             .child(
-                                Button::new("new-snippet")
-                                    .primary()
-                                    .compact()
-                                    .icon(Icon::new(IconName::Plus))
-                                    .tooltip("新建")
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.start_add(window, cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new("import-snippets")
-                                    .compact()
-                                    .icon(Icon::new(IconName::ArrowUp))
-                                    .tooltip("导入 JSON")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.import_snippets(cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new("export-snippets")
-                                    .compact()
-                                    .icon(Icon::new(IconName::ArrowDown))
-                                    .tooltip("导出 JSON")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.export_snippets(cx);
-                                    })),
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap_2()
+                                    .child(
+                                        Button::new("new-snippet")
+                                            .primary()
+                                            .icon(Icon::new(IconName::Plus))
+                                            .tooltip("新建")
+                                            .on_click(cx.listener(|this, _, window, cx| {
+                                                this.start_add(window, cx);
+                                            })),
+                                    )
+                                    .child(
+                                        Button::new("import-snippets")
+                                            .icon(Icon::new(IconName::ArrowUp))
+                                            .tooltip("导入")
+                                            .on_click(cx.listener(|this, _, window, cx| {
+                                                this.import_snippets(window, cx);
+                                            })),
+                                    )
+                                    .child(
+                                        Button::new("export-snippets")
+                                            .icon(Icon::new(IconName::ArrowDown))
+                                            .tooltip("导出")
+                                            .on_click(cx.listener(|this, _, window, cx| {
+                                                this.export_snippets(window, cx);
+                                            })),
+                                    ),
                             ),
                     )
                     // 工具栏：搜索 + 计数（.snippet-toolbar）
@@ -1274,7 +1227,12 @@ impl Render for CodeSnippet {
                                     .child(if let Some(search_input) =
                                         &self.search_input_state
                                     {
-                                        div().child(Input::new(search_input))
+                                        // 对齐 Vue：搜索前缀图标 + clearable
+                                        div().child(
+                                            Input::new(search_input)
+                                                .cleanable(true)
+                                                .prefix(Icon::new(IconName::Search)),
+                                        )
                                     } else {
                                         div()
                                     }),
@@ -1287,10 +1245,7 @@ impl Render for CodeSnippet {
                                     .child(format!("{} 条", filtered.len())),
                             ),
                     )
-                    .child(main_content)
-                    .when(!self.status.is_empty(), |card| {
-                        card.child(self.status_line(cx))
-                    }),
+                    .child(main_content),
             )
     }
 }

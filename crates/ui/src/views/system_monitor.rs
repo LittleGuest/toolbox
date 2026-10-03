@@ -3,12 +3,15 @@ use std::{
     time::Duration,
 };
 
-use gpui_kit::{prelude::FluentBuilder, *};
-use gpui_kit::component::{
-    button::*,
-    input::{Input, InputEvent, InputState},
-    scroll::ScrollableElement,
-    switch::Switch,
+use gpui_kit::{
+    component::{
+        button::*,
+        input::{Input, InputEvent, InputState},
+        scroll::ScrollableElement,
+        switch::Switch,
+        *,
+    },
+    prelude::FluentBuilder,
     *,
 };
 use sysinfo::{Components, Disks, MemoryRefreshKind, ProcessesToUpdate, System};
@@ -247,12 +250,7 @@ impl SystemMonitor {
                     .text_color(cx.theme().muted_foreground)
                     .child(label.to_string()),
             )
-            .child(
-                div()
-                    .text_size(px(16.0))
-                    .font_semibold()
-                    .child(value),
-            )
+            .child(div().text_size(px(16.0)).font_semibold().child(value))
     }
 
     /// 可点击 metric 行（点击打开对应抽屉）
@@ -397,9 +395,15 @@ impl SystemMonitor {
     }
 
     fn open_disk_drawer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let disks = self.disks.clone();
-        window.open_sheet_at(Placement::Right, cx, move |this, _, cx| {
-            this.overlay(true)
+        // 同 CPU 抽屉：builder 每帧读取实时磁盘数据
+        let this = cx.entity().downgrade();
+        window.open_sheet_at(Placement::Right, cx, move |sheet, _, cx| {
+            let disks = this
+                .upgrade()
+                .map(|m| m.read(cx).disks.clone())
+                .unwrap_or_default();
+            sheet
+                .overlay(true)
                 .overlay_closable(true)
                 .size(px(500.))
                 .title("磁盘详情")
@@ -478,17 +482,25 @@ impl SystemMonitor {
     }
 
     fn open_cpu_drawer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let cpu_cores = self.cpu_cores.clone();
-        let global_usage = if cpu_cores.is_empty() {
-            0.0
-        } else {
-            cpu_cores.iter().map(|c| c.usage).sum::<f32>() / cpu_cores.len() as f32
-        };
-        let chip_name = self.cpu_chip_name.clone();
-        let physical_core_count = self.physical_core_count;
+        // 捕获实体弱引用，builder 每帧重执行时读取实时数据（对齐 Tauri 抽屉内容随采集刷新）
+        let this = cx.entity().downgrade();
+        window.open_sheet_at(Placement::Right, cx, move |sheet, _, cx| {
+            let monitor = this.upgrade();
+            let (cpu_cores, chip_name, physical_core_count) = monitor
+                .as_ref()
+                .map(|m| {
+                    let m = m.read(cx);
+                    (m.cpu_cores.clone(), m.cpu_chip_name.clone(), m.physical_core_count)
+                })
+                .unwrap_or_default();
+            let global_usage = if cpu_cores.is_empty() {
+                0.0
+            } else {
+                cpu_cores.iter().map(|c| c.usage).sum::<f32>() / cpu_cores.len() as f32
+            };
 
-        window.open_sheet_at(Placement::Right, cx, move |this, _, cx| {
-            this.overlay(true)
+            sheet
+                .overlay(true)
                 .overlay_closable(true)
                 .size(px(500.))
                 .title("CPU详情")
@@ -520,13 +532,7 @@ impl SystemMonitor {
                                     cx,
                                 )),
                         )
-                        .child(
-                            div()
-                                .text_sm()
-                                .font_semibold()
-                                .mb_1()
-                                .child("核心详情"),
-                        )
+                        .child(div().text_sm().font_semibold().mb_1().child("核心详情"))
                         .children(cpu_cores.iter().enumerate().map(|(i, core)| {
                             div()
                                 .p_2()
@@ -549,12 +555,7 @@ impl SystemMonitor {
                                         )
                                         .child(format!("{:.2}%", core.usage)),
                                 )
-                                .child(Self::render_progress_bar(
-                                    core.usage,
-                                    COLOR_CPU,
-                                    8.0,
-                                    cx,
-                                ))
+                                .child(Self::render_progress_bar(core.usage, COLOR_CPU, 8.0, cx))
                                 .child(Self::drawer_row(
                                     "频率:",
                                     format!("{} MHz", core.frequency),
@@ -567,16 +568,19 @@ impl SystemMonitor {
 }
 
 impl Render for SystemMonitor {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let monitoring_enabled = self.monitoring_enabled;
 
         // 监控关闭态：居中开关面板（monitor-switch-panel）
         if !monitoring_enabled {
+            // 对齐 Tauri 的 min-height: calc(100vh - 160px)：
+            // 顶栏 56 + 页面 padding 40 + 余量，保证面板在视口中垂直居中
+            let min_h_center = (window.viewport_size().height - px(160.0)).max(px(320.0));
             return design::page()
-                .child(design::page_header("系统监控", "实时监控 CPU、内存与磁盘", cx))
                 .child(
                     div()
                         .flex_1()
+                        .min_h(min_h_center)
                         .flex()
                         .items_center()
                         .justify_center()
@@ -599,19 +603,11 @@ impl Render for SystemMonitor {
                                         .font_semibold()
                                         .child("系统监控已关闭"),
                                 )
-                                .child(
-                                    Switch::new("monitor-toggle")
-                                        .checked(false)
-                                        .on_click(cx.listener(|this, v: &bool, _, cx| {
-                                            this.toggle_monitoring(*v, cx);
-                                        })),
-                                )
-                                .child(
-                                    div()
-                                        .text_size(px(13.0))
-                                        .text_color(cx.theme().muted_foreground)
-                                        .child("打开开关后开始采集 CPU、内存、磁盘和进程信息"),
-                                ),
+                                .child(Switch::new("monitor-toggle").checked(false).on_click(
+                                    cx.listener(|this, v: &bool, _, cx| {
+                                        this.toggle_monitoring(*v, cx);
+                                    }),
+                                )),
                         ),
                 )
                 .into_any_element();
@@ -620,7 +616,7 @@ impl Render for SystemMonitor {
         let global_cpu_usage = self.global_cpu_usage();
         let memory_usage_percent = self.memory_usage_percent;
         let swap_usage_percent = self.swap_usage_percent;
-        let cpu_temperature = self.cpu_temperature;
+        
         let disks = self.disks.clone();
         let paginated = self.paginated_processes();
         let total_disk_used: u64 = disks.iter().map(|d| d.used).sum();
@@ -634,103 +630,93 @@ impl Render for SystemMonitor {
         let total_pages = self.total_pages();
         let total_filtered = self.filtered_processes().len();
 
-        // monitor-row：两张监控卡并排
+        // monitor-row：两张监控卡并排（Tauri：display:flex; gap:20px; 两卡 flex:1 等宽）
         let monitor_row = div()
             .flex()
-            .flex_wrap()
-            .gap_4()
+            .gap_5()
             .child(
-                div()
-                    .flex_1()
-                    .min_w(px(320.0))
-                    .child(
-                        design::card(cx).child(
-                            div()
-                                .flex()
-                                .flex_col()
-                                .gap(px(15.0))
-                                // CPU使用率（点击打开 CPU 详情抽屉）
-                                .child(Self::render_clickable_metric(
+                div().flex_1().child(
+                    design::card(cx).child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap(px(15.0))
+                            // CPU使用率（点击打开 CPU 详情抽屉）
+                            .child(
+                                Self::render_clickable_metric(
                                     "cpu-metric",
                                     "CPU使用率",
                                     format!("{:.2}%", global_cpu_usage),
                                     cx,
-                                ))
-                                .child(Self::render_progress_bar(
-                                    global_cpu_usage,
-                                    COLOR_CPU,
-                                    12.0,
-                                    cx,
-                                ))
-                                .child(
-                                    div()
-                                        .flex()
-                                        .justify_between()
-                                        .items_center()
-                                        .child(div())
-                                        .child(
-                                            div()
-                                                .text_xs()
-                                                .text_color(cx.theme().muted_foreground)
-                                                .child(if cpu_temperature > 0.0 {
-                                                    format!("{:.1}°C", cpu_temperature)
-                                                } else {
-                                                    String::new()
-                                                }),
-                                        ),
                                 )
-                                // 磁盘使用率（点击打开磁盘详情抽屉）
-                                .child(Self::render_clickable_metric(
+                                .on_click(cx.listener(
+                                    |this, _, window, cx| {
+                                        this.open_cpu_drawer(window, cx);
+                                    },
+                                )),
+                            )
+                            .child(Self::render_progress_bar(
+                                global_cpu_usage,
+                                COLOR_CPU,
+                                12.0,
+                                cx,
+                            ))
+                            // 磁盘使用率（点击打开磁盘详情抽屉）
+                            .child(
+                                Self::render_clickable_metric(
                                     "disk-metric",
                                     "磁盘使用率",
                                     format!("{:.2}%", disk_usage_percent),
                                     cx,
-                                ))
-                                .child(Self::render_progress_bar(
-                                    disk_usage_percent,
-                                    COLOR_DISK,
-                                    12.0,
-                                    cx,
+                                )
+                                .on_click(cx.listener(
+                                    |this, _, window, cx| {
+                                        this.open_disk_drawer(window, cx);
+                                    },
                                 )),
-                        ),
+                            )
+                            .child(Self::render_progress_bar(
+                                disk_usage_percent,
+                                COLOR_DISK,
+                                12.0,
+                                cx,
+                            )),
                     ),
+                ),
             )
             .child(
-                div()
-                    .flex_1()
-                    .min_w(px(320.0))
-                    .child(
-                        design::card(cx).child(
-                            div()
-                                .flex()
-                                .flex_col()
-                                .gap(px(15.0))
-                                // 物理内存
-                                .child(Self::render_metric(
-                                    "物理内存",
-                                    format!("{:.2}%", memory_usage_percent),
-                                    cx,
-                                ))
-                                .child(Self::render_progress_bar(
-                                    memory_usage_percent,
-                                    COLOR_MEM,
-                                    8.0,
-                                    cx,
-                                ))
-                                // 交换内存
-                                .child(Self::render_metric(
-                                    "交换内存",
-                                    format!("{:.2}%", swap_usage_percent),
-                                    cx,
-                                ))
-                                .child(Self::render_progress_bar(
-                                    swap_usage_percent,
-                                    COLOR_SWAP,
-                                    8.0,
-                                    cx,
-                                )),
-                        ),
+                div().flex_1().child(
+                    design::card(cx).child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap(px(15.0))
+                            // 物理内存
+                            .child(Self::render_metric(
+                                "物理内存",
+                                format!("{:.2}%", memory_usage_percent),
+                                cx,
+                            ))
+                            .child(Self::render_progress_bar(
+                                memory_usage_percent,
+                                COLOR_MEM,
+                                10.0,
+                                cx,
+                            ))
+                            // 交换内存
+                            .child(Self::render_metric(
+                                "交换内存",
+                                format!("{:.2}%", swap_usage_percent),
+                                cx,
+                            ))
+                            .child(Self::render_progress_bar(
+                                swap_usage_percent,
+                                COLOR_SWAP,
+                                10.0,
+                                cx,
+                            )),
                     ),
+                ),
             );
 
         // 进程表头（n-data-table 表头：xs 加粗 次要色）
@@ -743,12 +729,7 @@ impl Render for SystemMonitor {
             .py_1p5()
             .border_b_1()
             .border_color(cx.theme().border)
-            .child(
-                div()
-                    .flex_1()
-                    .min_w_0()
-                    .child("名称"),
-            )
+            .child(div().flex_1().min_w_0().child("名称"))
             .child(div().w(px(90.0)).child("PID"))
             .child(div().w(px(110.0)).child("内存"))
             .child(div().w(px(80.0)).child("CPU(%)"))
@@ -782,11 +763,7 @@ impl Render for SystemMonitor {
                             .font_family("monospace")
                             .child(format!("{}", pid)),
                     )
-                    .child(
-                        div()
-                            .w(px(110.0))
-                            .child(Self::format_bytes(process.memory)),
-                    )
+                    .child(div().w(px(110.0)).child(Self::format_bytes(process.memory)))
                     .child(
                         div()
                             .w(px(80.0))
@@ -833,14 +810,12 @@ impl Render for SystemMonitor {
                             .items_center()
                             .gap_2()
                             .child(Input::new(&self.input_state).w(px(200.0)))
-                            .child(
-                                design::stat_pill(
-                                    format!("{}", total_filtered),
-                                    "个进程",
-                                    cx.theme().primary,
-                                    cx,
-                                ),
-                            ),
+                            .child(design::stat_pill(
+                                format!("{}", total_filtered),
+                                "个进程",
+                                cx.theme().primary,
+                                cx,
+                            )),
                     ),
             )
             .child(table_header)
@@ -907,7 +882,6 @@ impl Render for SystemMonitor {
             );
 
         design::page()
-            .child(design::page_header("系统监控", "实时监控 CPU、内存与磁盘", cx))
             .child(monitor_row)
             .child(process_card)
             .flex_1()

@@ -109,19 +109,10 @@ impl Render for JwtDecoder {
         let decoded = self.decoded.clone();
 
         design::page()
-            .child(design::page_header(
-                "JWT 解析",
-                "解码并查看 JWT 的 Header / Payload",
-                cx,
-            ))
+
             .child(
                 design::card(cx)
-                    .child(design::card_header(
-                        IconName::Info,
-                        "JWT 解析",
-                        "解码并查看 JWT 的 Header / Payload",
-                        cx,
-                    ))
+
                     // Token 编辑器（tb-editor：标签 + 文本域 + 动作行）
                     .child(
                         div()

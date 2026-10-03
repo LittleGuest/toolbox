@@ -482,20 +482,11 @@ impl Render for EscapeTools {
         let error = self.error.clone();
         let output_empty = self.output.is_empty();
 
-        design::page()
-            .child(design::page_header(
-                "转义工具",
-                "HTML / XML / JSON / JS / CSV / SQL 转义与反转义",
-                cx,
-            ))
+        div().w_full().flex_col().gap_4()
+
             .child(
-                design::card(cx)
-                    .child(design::card_header(
-                        IconName::SquareTerminal,
-                        "转义工具",
-                        "多语言字符串转义与反转义",
-                        cx,
-                    ))
+                div().w_full().flex_col().gap_4()
+
                     // 配置行：模式
                     .child(
                         div()

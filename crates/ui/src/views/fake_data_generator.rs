@@ -4,7 +4,7 @@ use gpui_kit::component::{
     WindowExt,
     button::*,
     checkbox::Checkbox,
-    input::{Input, InputState, NumberInput},
+    input::{Input, InputEvent, InputState, NumberInput},
     scroll::ScrollableElement,
     select::{Select, SelectEvent, SelectGroup, SelectItem, SelectState, SearchableVec},
     *,
@@ -241,6 +241,15 @@ impl FakeDataGenerator {
                     cx.notify();
                 },
             ),
+            cx.subscribe_in(&table_filter_state, window, {
+                let table_filter_state = table_filter_state.clone();
+                move |this, _, ev: &InputEvent, _, cx| {
+                    if let InputEvent::Change = ev {
+                        this.table_filter = table_filter_state.read(cx).value().to_string();
+                        cx.notify();
+                    }
+                }
+            }),
         ];
 
         let mut this = Self {
@@ -1959,7 +1968,7 @@ impl Render for FakeDataGenerator {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         design::page()
             .h_full()
-            .child(design::page_header("假数据生成", "生成模拟业务数据", cx))
+
             .child(match self.active_view {
                 FakerView::ConnectionList => self.render_connection_list(cx),
                 FakerView::Generator => self.render_generator(window, cx),

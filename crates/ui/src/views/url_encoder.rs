@@ -23,15 +23,26 @@ impl UrlEncoder {
             TextareaState::new(window, cx).placeholder("编码 / 解码结果将显示在这里...")
         });
 
-        let _subscriptions = vec![cx.subscribe_in(&input_state, window, {
-            let input_state = input_state.clone();
-            move |this, _, ev: &InputEvent, _, cx| {
-                if let InputEvent::Change = ev {
-                    this.input = input_state.read(cx).value().to_string();
-                    cx.notify();
+        let _subscriptions = vec![
+            cx.subscribe_in(&input_state, window, {
+                let input_state = input_state.clone();
+                move |this, _, ev: &InputEvent, _, cx| {
+                    if let InputEvent::Change = ev {
+                        this.input = input_state.read(cx).value().to_string();
+                        cx.notify();
+                    }
                 }
-            }
-        })];
+            }),
+            cx.subscribe_in(&output_state, window, {
+                let output_state = output_state.clone();
+                move |this, _, ev: &InputEvent, _, cx| {
+                    if let InputEvent::Change = ev {
+                        this.output = output_state.read(cx).value().to_string();
+                        cx.notify();
+                    }
+                }
+            }),
+        ];
 
         Self {
             input: String::new(),
@@ -195,19 +206,10 @@ impl Render for UrlEncoder {
         let error = self.error.clone();
 
         design::page()
-            .child(design::page_header(
-                "URL 编码 / 解码",
-                "URL 百分号编码与解码",
-                cx,
-            ))
+
             .child(
                 design::card(cx)
-                    .child(design::card_header(
-                        IconName::Globe,
-                        "URL 编码 / 解码",
-                        "URL 百分号编码与解码",
-                        cx,
-                    ))
+
                     .child(self.editor("输入", &self.input_state, "input", cx))
                     .child(
                         design::action_row()

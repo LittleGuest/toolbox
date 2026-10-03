@@ -234,16 +234,11 @@ impl Render for MessyCodeRecover {
         let status = self.status.clone();
         let status_error = self.status_error;
 
-        design::page()
-            .child(design::page_header("乱码恢复", "修复乱码文本", cx))
+        div().w_full().flex_col().gap_4()
+
             .child(
-                design::card(cx)
-                    .child(design::card_header(
-                        IconName::FileText,
-                        "乱码恢复",
-                        "尝试恢复乱码文本",
-                        cx,
-                    ))
+                div().w_full().flex_col().gap_4()
+
                     .child(
                         div().flex_col().gap_1p5().child(design::editor_label("输入", cx)).child(
                             Textarea::new(&self.input_state)
@@ -294,7 +289,7 @@ impl Render for MessyCodeRecover {
                     }),
             )
             .child(
-                design::card(cx)
+                div().w_full().flex_col().gap_4()
                     .child(design::editor_label("结果", cx))
                     .child(if has_results {
                         self.result_table(cx).into_any_element()

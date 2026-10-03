@@ -1386,7 +1386,7 @@ impl Render for CronConverter {
         let result_panel = self.render_result(cx);
 
         design::page()
-            .child(design::page_header("Cron 表达式", "解析、生成 Cron 表达式", cx))
+
             .child(kind_switch)
             .child(kind_hint)
             .child(

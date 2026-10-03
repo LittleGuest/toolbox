@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use gpui_kit::{prelude::FluentBuilder as _, *};
 use gpui_kit::component::{
     button::*,
-    input::{InputEvent, TextareaState},
+    input::{InputEvent, Textarea, TextareaState},
     scroll::ScrollableElement,
     *,
 };
@@ -30,7 +30,7 @@ impl JsonEditor {
         let input_state = cx.new(|cx| {
             TextareaState::new(window, cx)
                 .placeholder("请输入JSON...")
-                
+
         });
 
         let _subscriptions = vec![cx.subscribe_in(&input_state, window, {
@@ -220,14 +220,24 @@ impl Render for JsonEditor {
         let tree_error = self.tree_error.clone();
 
         design::page()
-            .child(design::page_header("JSON Editor", "JSON 格式化与编辑", cx))
             .child(
                 design::card(cx)
                     .child(
                         div()
                             .flex_col()
                             .gap_1p5()
-                            .child(design::editor_label("JSON", cx))
+                            .child(design::editor_label("JSON 输入", cx))
+                            .child(
+                                Textarea::new(&self.input_state)
+                                    .h(px(180.0))
+                                    .font_family("monospace"),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .flex_col()
+                            .gap_1p5()
+                            .child(design::editor_label("树查看器", cx))
                             .child(tree_viewer_panel(self, cx)),
                     )
                     .child(

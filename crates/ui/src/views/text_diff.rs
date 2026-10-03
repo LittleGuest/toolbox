@@ -486,15 +486,10 @@ impl Render for TextDiffTool {
         let copy_right_label = if is_json { "复制 B" } else { "复制右侧" };
 
         design::page()
-            .child(design::page_header("文本 / JSON 差异", "对比文本或 JSON", cx))
+
             .child(
                 design::card(cx)
-                    .child(design::card_header(
-                        IconName::Search,
-                        "文本 / JSON 差异",
-                        "对比文本或 JSON",
-                        cx,
-                    ))
+
                     // 输入行（input-row：原始 | 动作列 | 对比）
                     .child(
                         div()

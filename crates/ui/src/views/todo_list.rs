@@ -1,11 +1,15 @@
 use std::collections::HashMap;
 
-use gpui_kit::{prelude::FluentBuilder, *};
-use gpui_kit::component::{
-    button::*,
-    checkbox::Checkbox,
-    input::{Input, InputEvent, InputState},
-    scroll::ScrollableElement,
+use gpui_kit::{
+    component::{
+        button::*,
+        checkbox::Checkbox,
+        input::{Input, InputEvent, InputState},
+        notification::Notification,
+        scroll::ScrollableElement,
+        *,
+    },
+    prelude::FluentBuilder,
     *,
 };
 
@@ -53,13 +57,11 @@ pub struct TodoList {
     filter: SharedString,
     editing_id: Option<i64>,
     editing_text: SharedString,
-    save_edit_pending: bool,
     expanded_ids: Vec<i64>,
     adding_sub_for: Option<i64>,
     input_state: Option<Entity<InputState>>,
     sub_input_states: HashMap<i64, Entity<InputState>>,
     editing_input_states: HashMap<i64, Entity<InputState>>,
-    status: String,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -71,13 +73,11 @@ impl TodoList {
             filter: SharedString::from("all"),
             editing_id: None,
             editing_text: SharedString::default(),
-            save_edit_pending: false,
             expanded_ids: Vec::new(),
             adding_sub_for: None,
             input_state: None,
             sub_input_states: HashMap::new(),
             editing_input_states: HashMap::new(),
-            status: String::new(),
             _subscriptions: Vec::new(),
         }
     }
@@ -95,7 +95,7 @@ impl TodoList {
                     cx.notify()
                 }
                 InputEvent::PressEnter { .. } => {
-                    this.add_todo(cx);
+                    this.add_todo(_window, cx);
                     cx.notify()
                 }
                 _ => {}
@@ -105,20 +105,13 @@ impl TodoList {
         self.input_state = Some(input_state);
         self._subscriptions = _subscriptions;
 
-        self.status = "正在加载待办...".to_string();
         cx.notify();
         cx.spawn(async move |this: WeakEntity<Self>, cx| {
             let result = config_store::load_todos().await;
             let _ = this.update(cx, |this, cx| {
-                match result {
-                    Ok(records) => {
-                        this.todos = records.into_iter().map(TodoItem::from_record).collect();
-                        this.sort_todos();
-                        this.status = format!("已加载 {} 条待办。", this.todos.len());
-                    }
-                    Err(err) => {
-                        this.status = format!("加载待办失败：{err}");
-                    }
+                if let Ok(records) = result {
+                    this.todos = records.into_iter().map(TodoItem::from_record).collect();
+                    this.sort_todos();
                 }
                 cx.notify();
             });
@@ -176,10 +169,9 @@ impl TodoList {
         self.todos.iter().any(|t| t.parent_id == Some(id))
     }
 
-    fn add_todo(&mut self, cx: &mut Context<Self>) {
+    fn add_todo(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.new_todo_text.trim().is_empty() {
-            self.status = "请输入待办事项内容".to_string();
-            cx.notify();
+            window.push_notification(Notification::warning("请输入待办事项内容"), cx);
             return;
         }
 
@@ -199,12 +191,9 @@ impl TodoList {
         };
         let content_clone = text;
 
-        self.status = "正在保存待办...".to_string();
-        cx.notify();
-
-        cx.spawn(async move |this: WeakEntity<Self>, cx| {
+        cx.spawn_in(window, async move |this: WeakEntity<Self>, cx| {
             let result = config_store::save_todo(record).await;
-            let _ = this.update(cx, |this, cx| {
+            let _ = this.update_in(cx, |this, window, cx| {
                 match result {
                     Ok(new_id) => {
                         this.todos.insert(
@@ -218,10 +207,12 @@ impl TodoList {
                             },
                         );
                         this.sort_todos();
-                        this.status = "待办已添加。".to_string();
                     }
                     Err(err) => {
-                        this.status = format!("保存待办失败：{err}");
+                        window.push_notification(
+                            Notification::error(format!("保存待办失败：{err}")),
+                            cx,
+                        );
                     }
                 }
                 this.new_todo_text = SharedString::default();
@@ -241,7 +232,8 @@ impl TodoList {
             self.expanded_ids.push(id);
         }
         if !self.sub_input_states.contains_key(&id) {
-            let sub_state = cx.new(|cx| InputState::new(window, cx).placeholder("输入子任务内容..."));
+            let sub_state =
+                cx.new(|cx| InputState::new(window, cx).placeholder("输入子任务内容..."));
             let sub_state_clone = sub_state.clone();
             let _ = cx.subscribe_in(&sub_state, window, {
                 move |this, _, ev: &InputEvent, _window, cx| match ev {
@@ -277,8 +269,7 @@ impl TodoList {
             None => return,
         };
         if text.is_empty() {
-            self.status = "请输入子任务内容".to_string();
-            cx.notify();
+            window.push_notification(Notification::warning("请输入子任务内容"), cx);
             return;
         }
 
@@ -295,12 +286,9 @@ impl TodoList {
             created_at: now,
         };
 
-        self.status = "正在保存子待办...".to_string();
-        cx.notify();
-
-        cx.spawn(async move |this: WeakEntity<Self>, cx| {
+        cx.spawn_in(window, async move |this: WeakEntity<Self>, cx| {
             let result = config_store::save_todo(record).await;
-            let _ = this.update(cx, |this, cx| {
+            let _ = this.update_in(cx, |this, window, cx| {
                 match result {
                     Ok(new_id) => {
                         this.todos.insert(
@@ -314,10 +302,13 @@ impl TodoList {
                             },
                         );
                         this.sort_todos();
-                        this.status = "子任务已添加。".to_string();
+                        window.push_notification(Notification::success("子任务已添加"), cx);
                     }
                     Err(err) => {
-                        this.status = format!("保存子待办失败：{err}");
+                        window.push_notification(
+                            Notification::error(format!("保存子待办失败：{err}")),
+                            cx,
+                        );
                     }
                 }
                 if this.adding_sub_for == Some(parent_id) {
@@ -464,10 +455,10 @@ impl TodoList {
                         .child("是否确认删除？将同时删除其所有子任务。"),
                 )
                 .confirm()
-                .on_ok(move |_, _, cx| {
+                .on_ok(move |_, window, cx| {
                     if let Some(this) = this.upgrade() {
                         this.update(cx, |this, cx| {
-                            this.confirm_delete_todo(id, cx);
+                            this.confirm_delete_todo(id, window, cx);
                         });
                     }
                     true
@@ -475,13 +466,10 @@ impl TodoList {
         });
     }
 
-    fn confirm_delete_todo(&mut self, id: i64, cx: &mut Context<Self>) {
-        self.status = "正在删除待办...".to_string();
-        cx.notify();
-
-        cx.spawn(async move |this: WeakEntity<Self>, cx| {
+    fn confirm_delete_todo(&mut self, id: i64, window: &mut Window, cx: &mut Context<Self>) {
+        cx.spawn_in(window, async move |this: WeakEntity<Self>, cx| {
             let result = config_store::delete_todo(id).await;
-            let _ = this.update(cx, |this, cx| {
+            let _ = this.update_in(cx, |this, window, cx| {
                 match result {
                     Ok(true) => {
                         let mut ids_to_delete = vec![id];
@@ -499,13 +487,16 @@ impl TodoList {
                         }
                         this.todos
                             .retain(|t| t.id.map_or(true, |tid| !ids_to_delete.contains(&tid)));
-                        this.status = "待办事项已删除。".to_string();
+                        window.push_notification(Notification::success("待办事项已删除"), cx);
                     }
                     Ok(false) => {
-                        this.status = "未找到要删除的待办。".to_string();
+                        window.push_notification(Notification::warning("未找到要删除的待办"), cx);
                     }
                     Err(err) => {
-                        this.status = format!("删除待办失败：{err}");
+                        window.push_notification(
+                            Notification::error(format!("删除待办失败：{err}")),
+                            cx,
+                        );
                     }
                 }
                 cx.notify();
@@ -514,7 +505,7 @@ impl TodoList {
         .detach();
     }
 
-    fn clear_completed(&mut self, cx: &mut Context<Self>) {
+    fn clear_completed(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let top_completed: Vec<i64> = self
             .todos
             .iter()
@@ -526,17 +517,14 @@ impl TodoList {
             return;
         }
 
-        self.status = format!("正在清除 {} 个已完成的顶级待办...", top_completed.len());
-        cx.notify();
-
-        cx.spawn(async move |this: WeakEntity<Self>, cx| {
+        cx.spawn_in(window, async move |this: WeakEntity<Self>, cx| {
             let mut deleted = 0;
             for id in &top_completed {
                 if config_store::delete_todo(*id).await.map_or(false, |ok| ok) {
                     deleted += 1;
                 }
             }
-            let _ = this.update(cx, |this, cx| {
+            let _ = this.update_in(cx, |this, window, cx| {
                 let mut ids_to_delete = top_completed.clone();
                 let mut index = 0;
                 while index < ids_to_delete.len() {
@@ -552,7 +540,11 @@ impl TodoList {
                 }
                 this.todos
                     .retain(|t| t.id.map_or(true, |tid| !ids_to_delete.contains(&tid)));
-                this.status = format!("已清除 {} 个已完成的顶级待办。", deleted);
+                if deleted == top_completed.len() {
+                    window.push_notification(Notification::success("已清除所有已完成的待办事项"), cx);
+                } else {
+                    window.push_notification(Notification::error("清除待办失败"), cx);
+                }
                 cx.notify();
             });
         })
@@ -571,15 +563,14 @@ impl TodoList {
                 let editing_input_state_clone = editing_input_state.clone();
 
                 let _ = cx.subscribe_in(&editing_input_state, window, {
-                    move |this, _, ev: &InputEvent, _window, cx| match ev {
+                    move |this, _, ev: &InputEvent, window, cx| match ev {
                         InputEvent::Change => {
                             let value = editing_input_state_clone.read(cx).value();
                             this.editing_text = value.clone();
                             cx.notify()
                         }
                         InputEvent::PressEnter { .. } => {
-                            this.save_edit_pending = true;
-                            cx.notify()
+                            this.save_edit(window, cx);
                         }
                         _ => {}
                     }
@@ -602,8 +593,7 @@ impl TodoList {
             if let Some(editing_input_state) = self.editing_input_states.get(&id) {
                 let value = editing_input_state.read(cx).value().to_string();
                 if value.trim().is_empty() {
-                    self.status = "待办事项内容不能为空".to_string();
-                    cx.notify();
+                    window.push_notification(Notification::warning("待办事项内容不能为空"), cx);
                     return;
                 }
                 if let Some(todo) = self.todos.iter_mut().find(|t| t.id == Some(id)) {
@@ -611,10 +601,10 @@ impl TodoList {
                     let record = todo.to_record();
                     let id_for_update = id;
 
-                    cx.spawn(async move |this: WeakEntity<Self>, cx| {
+                    cx.spawn_in(window, async move |this: WeakEntity<Self>, cx| {
                         let _ = config_store::update_todo(id_for_update, record).await;
-                        let _ = this.update(cx, |this, cx| {
-                            this.status = "待办事项已更新。".to_string();
+                        let _ = this.update_in(cx, |this, window, cx| {
+                            window.push_notification(Notification::success("待办事项已更新"), cx);
                             cx.notify();
                         });
                     })
@@ -624,14 +614,12 @@ impl TodoList {
         }
         self.editing_id = None;
         self.editing_text = SharedString::default();
-        self.save_edit_pending = false;
         let _ = window;
     }
 
     fn cancel_edit(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
         self.editing_id = None;
         self.editing_text = SharedString::default();
-        self.save_edit_pending = false;
         cx.notify();
     }
 
@@ -644,29 +632,34 @@ impl TodoList {
             .border_color(cx.theme().border)
             .overflow_hidden()
             .bg(cx.theme().background)
-            .children(FILTER_OPTIONS.iter().enumerate().map(|(i, (value, label))| {
-                let active = self.filter.as_str() == *value;
-                div()
-                    .id(("filter", i))
-                    .px_3()
-                    .py_1()
-                    .text_sm()
-                    .bg(if active {
-                        cx.theme().primary
-                    } else {
-                        gpui::black().opacity(0.0)
-                    })
-                    .text_color(if active {
-                        gpui::white()
-                    } else {
-                        cx.theme().muted_foreground
-                    })
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        this.filter = SharedString::from(*value);
-                        cx.notify();
-                    }))
-                    .child(label.to_string())
-            }))
+            .children(
+                FILTER_OPTIONS
+                    .iter()
+                    .enumerate()
+                    .map(|(i, (value, label))| {
+                        let active = self.filter.as_str() == *value;
+                        div()
+                            .id(("filter", i))
+                            .px_3()
+                            .py_1()
+                            .text_sm()
+                            .bg(if active {
+                                cx.theme().primary
+                            } else {
+                                gpui::black().opacity(0.0)
+                            })
+                            .text_color(if active {
+                                gpui::white()
+                            } else {
+                                cx.theme().muted_foreground
+                            })
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.filter = SharedString::from(*value);
+                                cx.notify();
+                            }))
+                            .child(label.to_string())
+                    }),
+            )
     }
 
     fn render_todo_item(
@@ -736,7 +729,13 @@ impl TodoList {
 
         if is_editing {
             // 编辑模式
-            let mut edit_row = div().flex().items_center().flex_1().min_w_0().ml_3().gap_2();
+            let mut edit_row = div()
+                .flex()
+                .items_center()
+                .flex_1()
+                .min_w_0()
+                .ml_3()
+                .gap_2();
             if let Some(editing_input_state) = self.editing_input_states.get(&id) {
                 edit_row = edit_row.child(div().flex_1().child(Input::new(editing_input_state)));
             }
@@ -783,7 +782,7 @@ impl TodoList {
                         })),
                 );
             }
-                actions = actions
+            actions = actions
                 .child(
                     Button::new(("edit", id_usize))
                         .ghost()
@@ -878,15 +877,11 @@ impl TodoList {
         if depth == 0 && is_expanded && has_sub {
             let sub_todos = self.sub_todos(id);
             item = item.child(
-                div()
-                    .w_full()
-                    .mt_2()
-                    .flex_col()
-                    .children(
-                        sub_todos
-                            .iter()
-                            .map(|sub_todo| self.render_todo_item(sub_todo, depth + 1, window, cx)),
-                    ),
+                div().w_full().mt_2().flex_col().children(
+                    sub_todos
+                        .iter()
+                        .map(|sub_todo| self.render_todo_item(sub_todo, depth + 1, window, cx)),
+                ),
             );
         }
 
@@ -906,19 +901,7 @@ impl Render for TodoList {
 
         let input_state = self.input_state.as_ref().unwrap();
 
-        let status_bar = if self.status.is_empty() {
-            None
-        } else {
-            Some(
-                div()
-                    .text_xs()
-                    .text_color(cx.theme().muted_foreground)
-                    .child(self.status.clone()),
-            )
-        };
-
         design::page()
-            .child(design::page_header("待办事项", "简单的任务清单", cx))
             .child(
                 design::card(cx)
                     // 添加行（add-todo）
@@ -934,8 +917,8 @@ impl Render for TodoList {
                                     .icon(Icon::new(IconName::Plus))
                                     .tooltip("添加")
                                     .disabled(!can_add)
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.add_todo(cx);
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.add_todo(window, cx);
                                         cx.notify();
                                     })),
                             ),
@@ -958,14 +941,13 @@ impl Render for TodoList {
                                         .icon(Icon::new(IconName::CircleX))
                                         .tooltip("清除已完成")
                                         .label(format!("清除已完成 ({})", completed_count))
-                                        .on_click(cx.listener(|this, _, _, cx| {
-                                            this.clear_completed(cx);
+                                        .on_click(cx.listener(|this, _, window, cx| {
+                                            this.clear_completed(window, cx);
                                             cx.notify();
                                         })),
                                 )
                             }),
-                    )
-                    .children(status_bar),
+                    ),
             )
             .child(
                 design::card(cx)

@@ -171,16 +171,11 @@ impl Utf8UnicodeConverter {
 
 impl Render for Utf8UnicodeConverter {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        design::page()
-            .child(design::page_header("UTF8 / Unicode", "文本与 \\u Unicode 转义序列互转", cx))
+        div().w_full().flex_col().gap_4()
+
             .child(
-                design::card(cx)
-                    .child(design::card_header(
-                        IconName::FileText,
-                        "UTF8 / Unicode",
-                        "\\u 转义序列编解码",
-                        cx,
-                    ))
+                div().w_full().flex_col().gap_4()
+
                     .child(
                         div()
                             .flex_col()

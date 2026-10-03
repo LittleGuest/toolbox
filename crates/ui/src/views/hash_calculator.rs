@@ -194,16 +194,11 @@ impl Render for HashCalculator {
         let sha3_256 = self.sha3_256.clone();
         let sha3_512 = self.sha3_512.clone();
 
-        design::page()
-            .child(design::page_header("文本 Hash", "计算文本 MD5 / SHA / SHA3 散列值", cx))
+        div().w_full().flex_col().gap_4()
+
             .child(
-                design::card(cx)
-                    .child(design::card_header(
-                        IconName::Asterisk,
-                        "文本 Hash",
-                        "输入即时计算，支持 MD5 / SHA1 / SHA2 / SHA3",
-                        cx,
-                    ))
+                div().w_full().flex_col().gap_4()
+
                     // tb-editor：输入
                     .child(
                         div()

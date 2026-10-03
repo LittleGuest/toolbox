@@ -1,12 +1,17 @@
+#![recursion_limit = "1024"]
+
 use std::sync::LazyLock;
 
 use gpui_kit::*;
-use gpui_kit::component::{button::*, scroll::ScrollableElement, sidebar::*, *};
+use gpui_kit::prelude::FluentBuilder;
+use gpui_kit::component::{button::*, command::{Command, CommandItem, CommandState}, scroll::ScrollableElement, sidebar::*, Theme, ThemeMode, *};
 use gpui_kit::assets::Assets;
 mod config_store;
 mod excalidraw_store;
+mod search_pinyin;
 mod views;
 use views::*;
+use search_pinyin::{label_pinyin, label_pinyin_initials, TOOL_INDEX};
 
 static TOKIO_RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
     tokio::runtime::Builder::new_multi_thread()
@@ -26,28 +31,20 @@ pub enum ViewType {
     TransformBaseConversion,
     TransformCron,
     TransformRmb,
-    EncodeDecodeBase64,
     EncodeDecodeUrl,
     EncodeDecodeJwt,
     EncodeDecodeCharset,
-    EncodeDecodeMessyCode,
-    EncodeDecodeBase64Image,
-    EncodeDecodeEscape,
     EncodeDecodeBaseEncoding,
-    EncodeDecodeUtf8Unicode,
     EncodeDecodeSymmetric,
     FormatterJson,
     FormatterSql,
     FormatterXml,
     GeneratorUuid,
     GeneratorHash,
-    GeneratorChecksum,
     DatabaseDatafaker,
     DatabaseDiff,
     TextMarkdown,
-    TextCase,
     TextTextTools,
-    TextStrHex,
     TextDiff,
     RandomString,
     RandomNumber,
@@ -66,15 +63,12 @@ pub enum ViewType {
     OtherQrCode,
     OtherClipboard,
     RegexVisualizer,
-    Settings,
 }
 
 pub struct App {
     current_view: ViewType,
     sidebar_collapsed: bool,
     uuid_generator: Option<Entity<UuidGenerator>>,
-    hash_calculator: Option<Entity<HashCalculator>>,
-    base64_encoder: Option<Entity<Base64Encoder>>,
     url_encoder: Option<Entity<UrlEncoder>>,
     jwt_decoder: Option<Entity<JwtDecoder>>,
     timestamp_converter: Option<Entity<TimestampConverter>>,
@@ -83,11 +77,8 @@ pub struct App {
     markdown_editor: Option<Entity<MarkdownEditor>>,
     code_snippet: Option<Entity<CodeSnippet>>,
     todo_list: Option<Entity<TodoList>>,
-    charset_encoder: Option<Entity<CharsetEncoder>>,
-    messy_code_recover: Option<Entity<MessyCodeRecover>>,
     sql_formatter: Option<Entity<SqlFormatter>>,
     xml_formatter: Option<Entity<XmlFormatter>>,
-    file_verify: Option<Entity<FileVerify>>,
     fake_data_generator: Option<Entity<FakeDataGenerator>>,
     database_diff: Option<Entity<DatabaseDiff>>,
     system_monitor: Option<Entity<SystemMonitor>>,
@@ -97,16 +88,10 @@ pub struct App {
     clipboard_manager: Option<Entity<ClipboardManager>>,
     regex_visualizer: Option<Entity<RegexVisualizer>>,
     excalidraw: Option<Entity<ExcalidrawView>>,
-    settings: Option<Entity<SettingsView>>,
     cron_converter: Option<Entity<CronConverter>>,
-    base64_image: Option<Entity<Base64ImageConverter>>,
-    escape_tools: Option<Entity<EscapeTools>>,
     base_encoding: Option<Entity<BaseEncodingConverter>>,
-    utf8_unicode: Option<Entity<Utf8UnicodeConverter>>,
     symmetric_encrypt: Option<Entity<SymmetricEncryptor>>,
-    case_converter: Option<Entity<CaseConverter>>,
     text_tools: Option<Entity<TextTools>>,
-    str_hex: Option<Entity<StrHexConverter>>,
     text_diff: Option<Entity<TextDiffTool>>,
     random_string: Option<Entity<RandomStringGenerator>>,
     random_number: Option<Entity<RandomNumberGenerator>>,
@@ -121,6 +106,9 @@ pub struct App {
     pdf_edit: Option<Entity<PdfEditTool>>,
     pdf_page_number: Option<Entity<PdfPageNumberTool>>,
     pdf_split: Option<Entity<PdfSplitTool>>,
+    text_encoding: Option<Entity<TextEncodingPage>>,
+    hash_page: Option<Entity<HashPage>>,
+    command_state: Option<Entity<CommandState>>,
 }
 
 impl App {
@@ -129,8 +117,6 @@ impl App {
             current_view: ViewType::Home,
             sidebar_collapsed: false,
             uuid_generator: None,
-            hash_calculator: None,
-            base64_encoder: None,
             url_encoder: None,
             jwt_decoder: None,
             timestamp_converter: None,
@@ -139,11 +125,8 @@ impl App {
             markdown_editor: None,
             code_snippet: None,
             todo_list: None,
-            charset_encoder: None,
-            messy_code_recover: None,
             sql_formatter: None,
             xml_formatter: None,
-            file_verify: None,
             fake_data_generator: None,
             database_diff: None,
             system_monitor: None,
@@ -153,16 +136,10 @@ impl App {
             clipboard_manager: None,
             regex_visualizer: None,
             excalidraw: None,
-            settings: None,
             cron_converter: None,
-            base64_image: None,
-            escape_tools: None,
             base_encoding: None,
-            utf8_unicode: None,
             symmetric_encrypt: None,
-            case_converter: None,
             text_tools: None,
-            str_hex: None,
             text_diff: None,
             random_string: None,
             random_number: None,
@@ -177,6 +154,9 @@ impl App {
             pdf_edit: None,
             pdf_page_number: None,
             pdf_split: None,
+            text_encoding: None,
+            hash_page: None,
+            command_state: None,
         }
     }
 
@@ -189,11 +169,130 @@ impl App {
         self.sidebar_collapsed = !self.sidebar_collapsed;
         cx.notify();
     }
+
+    /// 对齐 Tauri：侧栏品牌行的 Sun/Moon 一键切换主题，切换后立即持久化。
+    fn toggle_theme(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let new_mode = if cx.theme().mode.is_dark() {
+            ThemeMode::Light
+        } else {
+            ThemeMode::Dark
+        };
+        Theme::change(new_mode, Some(window), cx);
+        let value = if new_mode.is_dark() { "dark" } else { "light" };
+        cx.spawn(async move |this, cx| {
+            let _ = config_store::set_setting("theme", value).await;
+            let _ = this.update(cx, |_, _| {});
+        })
+        .detach();
+        cx.notify();
+    }
+
+    fn open_search(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.command_state.is_none() {
+            self.command_state = Some(cx.new(|cx| CommandState::new(window, cx)));
+        }
+        let state = self.command_state.clone().unwrap();
+        // 对齐 Tauri：选中工具后清空输入框，等价于每次打开都从空查询开始
+        state.update(cx, |s, cx| s.set_query("", window, cx));
+        let weak = cx.entity().downgrade();
+        window.open_sheet_at(Placement::Top, cx, move |sheet, _, _cx| {
+            sheet
+                .overlay(false)
+                .overlay_closable(true)
+                .size(px(640.))
+                .child(
+                    Command::new(&state)
+                        .searchable(true)
+                        .filterable(true)
+                        .placeholder("搜索工具，快速切换…")
+                        .max_h(px(420.0))
+                        .items(TOOL_INDEX.iter().map(|tool| {
+                            // 对齐 Tauri：选项显示 `${label}（${group}）`
+                            let label: SharedString = if tool.group.is_empty() {
+                                tool.label.into()
+                            } else {
+                                format!("{}（{}）", tool.label, tool.group).into()
+                            };
+                            let pinyin = label_pinyin(tool.label);
+                            let initials = label_pinyin_initials(tool.label);
+                            // 对齐 Tauri：分组 / 路由 key / 全拼 / 首字母 全部参与匹配
+                            let mut keywords: Vec<String> = Vec::new();
+                            if !tool.group.is_empty() {
+                                keywords.push(tool.group.to_string());
+                            }
+                            if !tool.key.is_empty() {
+                                keywords.push(tool.key.to_string());
+                            }
+                            keywords.push(pinyin);
+                            keywords.push(initials);
+                            CommandItem::new()
+                                .label(label)
+                                .icon(Icon::new(tool.icon.clone()))
+                                .keywords(keywords)
+                        }))
+                        .on_confirm({
+                            let weak = weak.clone();
+                            move |index, window, cx| {
+                                if index.section == 0 {
+                                    let row = index.row;
+                                    if let Some(this) = weak.upgrade() {
+                                        if let Some(view) =
+                                            TOOL_INDEX.get(row).map(|tool| tool.view)
+                                        {
+                                            this.update(cx, |this, cx| {
+                                                this.set_view(view, cx);
+                                            });
+                                        }
+                                    }
+                                    window.close_sheet(cx);
+                                }
+                            }
+                        }),
+                )
+        });
+    }
+
+    /// 对齐 Tauri：56px 顶栏 + 居中搜索框（--tb-header-h / max-w 560px），点击打开命令面板。
+    fn render_topbar(&self, cx: &Context<Self>) -> impl IntoElement {
+        div()
+            .flex_shrink_0()
+            .h(px(56.0))
+            .flex()
+            .items_center()
+            .justify_center()
+            .px(px(20.0))
+            .border_b_1()
+            .border_color(cx.theme().border)
+            .bg(cx.theme().popover)
+            .child(
+                div()
+                    .id("topbar-search")
+                    .w_full()
+                    .max_w(px(560.0))
+                    .h(px(38.0))
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .px(px(12.0))
+                    .rounded(px(8.0))
+                    .border_1()
+                    .border_color(cx.theme().border)
+                    .bg(cx.theme().background)
+                    .text_color(cx.theme().muted_foreground)
+                    .text_size(px(14.0))
+                    .cursor_pointer()
+                    .hover(|s| s.border_color(cx.theme().primary.opacity(0.45)))
+                    .on_click(cx.listener(|this, _, window, cx| {
+                        this.open_search(window, cx);
+                    }))
+                    .child(Icon::new(IconName::Search))
+                    .child("搜索工具，快速切换…"),
+            )
+    }
 }
 
 impl Render for App {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let current_view = self.current_view;
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {        let current_view = self.current_view;
         let sheet_layer = Root::render_sheet_layer(window, cx);
         let dialog_layer = Root::render_dialog_layer(window, cx);
         let notification_layer = Root::render_notification_layer(window, cx);
@@ -211,12 +310,47 @@ impl Render for App {
                             .side(Side::Left)
                             .collapsed(self.sidebar_collapsed)
                             .header(
-                                SidebarToggleButton::new()
-                                    .side(Side::Left)
-                                    .collapsed(self.sidebar_collapsed)
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.toggle_sidebar(cx);
-                                    })),
+                                SidebarHeader::new()
+                                    .child(
+                                        div()
+                                            .flex()
+                                            .items_center()
+                                            .gap_2()
+                                            .child(
+                                                SidebarToggleButton::new()
+                                                    .side(Side::Left)
+                                                    .collapsed(self.sidebar_collapsed)
+                                                    .on_click(cx.listener(|this, _, _, cx| {
+                                                        this.toggle_sidebar(cx);
+                                                    })),
+                                            )
+                                            .when(!self.sidebar_collapsed, |this| {
+                                                this.child(
+                                                    div()
+                                                        .text_size(px(16.0))
+                                                        .font_weight(FontWeight::SEMIBOLD)
+                                                        .child("ToolBox"),
+                                                )
+                                            }),
+                                    )
+                                    .child(
+                                        Button::new("theme-toggle")
+                                            .ghost()
+                                            .small()
+                                            .icon(Icon::new(if cx.theme().mode.is_dark() {
+                                                IconName::Sun
+                                            } else {
+                                                IconName::Moon
+                                            }))
+                                            .tooltip(if cx.theme().mode.is_dark() {
+                                                "切换浅色模式"
+                                            } else {
+                                                "切换深色模式"
+                                            })
+                                            .on_click(cx.listener(|this, _, window, cx| {
+                                                this.toggle_theme(window, cx);
+                                            })),
+                                    ),
                             )
                             .children([SidebarMenu::new().children([
                                 SidebarMenuItem::new("首页")
@@ -232,7 +366,7 @@ impl Render for App {
                                         this.set_view(ViewType::SystemMonitor, cx);
                                     })),
                                 SidebarMenuItem::new("代码片段")
-                                    .icon(Icon::new(IconName::File))
+                                    .icon(Icon::new(IconName::FileText))
                                     .active(current_view == ViewType::CodeSnippet)
                                     .on_click(cx.listener(|this, _, _, cx| {
                                         this.set_view(ViewType::CodeSnippet, cx);
@@ -285,11 +419,14 @@ impl Render for App {
                                     .icon(Icon::new(IconName::Dash))
                                     .click_to_open(true)
                                     .children([
-                                        SidebarMenuItem::new("Base64")
+                                        SidebarMenuItem::new("Base 编码")
                                             .icon(Icon::new(IconName::CaseSensitive))
-                                            .active(current_view == ViewType::EncodeDecodeBase64)
+                                            .active(current_view == ViewType::EncodeDecodeBaseEncoding)
                                             .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::EncodeDecodeBase64, cx);
+                                                this.set_view(
+                                                    ViewType::EncodeDecodeBaseEncoding,
+                                                    cx,
+                                                );
                                             })),
                                         SidebarMenuItem::new("URL")
                                             .icon(Icon::new(IconName::ExternalLink))
@@ -303,61 +440,19 @@ impl Render for App {
                                             .on_click(cx.listener(|this, _, _, cx| {
                                                 this.set_view(ViewType::EncodeDecodeJwt, cx);
                                             })),
-                                        SidebarMenuItem::new("字符编码")
+                                        SidebarMenuItem::new("文本编码")
                                             .icon(Icon::new(IconName::CaseSensitive))
                                             .active(current_view == ViewType::EncodeDecodeCharset)
                                             .on_click(cx.listener(|this, _, _, cx| {
                                                 this.set_view(ViewType::EncodeDecodeCharset, cx);
                                             })),
-                                        SidebarMenuItem::new("乱码恢复")
-                                            .icon(Icon::new(IconName::CaseSensitive))
-                                            .active(current_view == ViewType::EncodeDecodeMessyCode)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::EncodeDecodeMessyCode, cx);
-                                            })),
-                                        SidebarMenuItem::new("Base64 图片")
-                                            .icon(Icon::new(IconName::Frame))
-                                            .active(current_view == ViewType::EncodeDecodeBase64Image)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(
-                                                    ViewType::EncodeDecodeBase64Image,
-                                                    cx,
-                                                );
-                                            })),
-                                        SidebarMenuItem::new("转义工具")
-                                            .icon(Icon::new(IconName::Dash))
-                                            .active(current_view == ViewType::EncodeDecodeEscape)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::EncodeDecodeEscape, cx);
-                                            })),
-                                        SidebarMenuItem::new("Base32 / Base58")
-                                            .icon(Icon::new(IconName::CaseSensitive))
-                                            .active(current_view == ViewType::EncodeDecodeBaseEncoding)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(
-                                                    ViewType::EncodeDecodeBaseEncoding,
-                                                    cx,
-                                                );
-                                            })),
-                                        SidebarMenuItem::new("UTF8 / Unicode")
-                                            .icon(Icon::new(IconName::CaseSensitive))
-                                            .active(current_view == ViewType::EncodeDecodeUtf8Unicode)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(
-                                                    ViewType::EncodeDecodeUtf8Unicode,
-                                                    cx,
-                                                );
-                                            })),
-                                        SidebarMenuItem::new("对称加密")
-                                            .icon(Icon::new(IconName::SquareTerminal))
-                                            .active(current_view == ViewType::EncodeDecodeSymmetric)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(
-                                                    ViewType::EncodeDecodeSymmetric,
-                                                    cx,
-                                                );
-                                            })),
                                     ]),
+                                SidebarMenuItem::new("加密")
+                                    .icon(Icon::new(IconName::EyeOff))
+                                    .active(current_view == ViewType::EncodeDecodeSymmetric)
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.set_view(ViewType::EncodeDecodeSymmetric, cx);
+                                    })),
                                 SidebarMenuItem::new("格式化")
                                     .icon(Icon::new(IconName::Replace))
                                     .click_to_open(true)
@@ -391,17 +486,11 @@ impl Render for App {
                                             .on_click(cx.listener(|this, _, _, cx| {
                                                 this.set_view(ViewType::GeneratorUuid, cx);
                                             })),
-                                        SidebarMenuItem::new("文本Hash")
+                                        SidebarMenuItem::new("Hash 计算")
                                             .icon(Icon::new(IconName::Asterisk))
                                             .active(current_view == ViewType::GeneratorHash)
                                             .on_click(cx.listener(|this, _, _, cx| {
                                                 this.set_view(ViewType::GeneratorHash, cx);
-                                            })),
-                                        SidebarMenuItem::new("文件校验")
-                                            .icon(Icon::new(IconName::File))
-                                            .active(current_view == ViewType::GeneratorChecksum)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::GeneratorChecksum, cx);
                                             })),
                                     ]),
                                 SidebarMenuItem::new("数据库")
@@ -431,23 +520,11 @@ impl Render for App {
                                             .on_click(cx.listener(|this, _, _, cx| {
                                                 this.set_view(ViewType::TextMarkdown, cx);
                                             })),
-                                        SidebarMenuItem::new("大小写转换")
-                                            .icon(Icon::new(IconName::ALargeSmall))
-                                            .active(current_view == ViewType::TextCase)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::TextCase, cx);
-                                            })),
                                         SidebarMenuItem::new("文本工具")
                                             .icon(Icon::new(IconName::BookOpen))
                                             .active(current_view == ViewType::TextTextTools)
                                             .on_click(cx.listener(|this, _, _, cx| {
                                                 this.set_view(ViewType::TextTextTools, cx);
-                                            })),
-                                        SidebarMenuItem::new("字符串进制转换")
-                                            .icon(Icon::new(IconName::ALargeSmall))
-                                            .active(current_view == ViewType::TextStrHex)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::TextStrHex, cx);
                                             })),
                                         SidebarMenuItem::new("文本 / JSON 差异")
                                             .icon(Icon::new(IconName::Replace))
@@ -472,12 +549,6 @@ impl Render for App {
                                             .on_click(cx.listener(|this, _, _, cx| {
                                                 this.set_view(ViewType::RandomNumber, cx);
                                             })),
-                                        SidebarMenuItem::new("随机 IP / MAC / 时间")
-                                            .icon(Icon::new(IconName::Globe))
-                                            .active(current_view == ViewType::RandomOther)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::RandomOther, cx);
-                                            })),
                                         SidebarMenuItem::new("随机数据")
                                             .icon(Icon::new(IconName::Folder))
                                             .active(current_view == ViewType::RandomData)
@@ -485,32 +556,41 @@ impl Render for App {
                                                 this.set_view(ViewType::RandomData, cx);
                                             })),
                                     ]),
-                                SidebarMenuItem::new("数字")
-                                    .icon(Icon::new(IconName::Globe))
+                                SidebarMenuItem::new("网络")
+                                    .icon(Icon::new(IconName::Network))
                                     .click_to_open(true)
                                     .children([
                                         SidebarMenuItem::new("IP 地址转换")
-                                            .icon(Icon::new(IconName::Globe))
+                                            .icon(Icon::new(IconName::Network))
                                             .active(current_view == ViewType::NetworkIp)
                                             .on_click(cx.listener(|this, _, _, cx| {
                                                 this.set_view(ViewType::NetworkIp, cx);
                                             })),
-                                        SidebarMenuItem::new("按位计算器")
-                                            .icon(Icon::new(IconName::SquareTerminal))
-                                            .active(current_view == ViewType::NumberBitwise)
+                                        SidebarMenuItem::new("随机 IP / MAC / 时间")
+                                            .icon(Icon::new(IconName::Calendar))
+                                            .active(current_view == ViewType::RandomOther)
                                             .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::NumberBitwise, cx);
+                                                this.set_view(ViewType::RandomOther, cx);
                                             })),
                                     ]),
+                                SidebarMenuItem::new("按位计算器")
+                                    .icon(Icon::new(IconName::SquareTerminal))
+                                    .active(current_view == ViewType::NumberBitwise)
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.set_view(ViewType::NumberBitwise, cx);
+                                    })),
                                 SidebarMenuItem::new("颜色转换")
-                                    .icon(Icon::new(IconName::Frame))
-                                    .click_to_open(true)
-                                    .children([SidebarMenuItem::new("颜色转换")
-                                        .icon(Icon::new(IconName::Frame))
-                                        .active(current_view == ViewType::ColorConverter)
-                                        .on_click(cx.listener(|this, _, _, cx| {
-                                            this.set_view(ViewType::ColorConverter, cx);
-                                        }))]),
+                                    .icon(Icon::new(IconName::Palette))
+                                    .active(current_view == ViewType::ColorConverter)
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.set_view(ViewType::ColorConverter, cx);
+                                    })),
+                                SidebarMenuItem::new("正则")
+                                    .icon(Icon::new(IconName::Dash))
+                                    .active(current_view == ViewType::RegexVisualizer)
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.set_view(ViewType::RegexVisualizer, cx);
+                                    })),
                                 SidebarMenuItem::new("图像")
                                     .icon(Icon::new(IconName::Frame))
                                     .click_to_open(true)
@@ -580,31 +660,24 @@ impl Render for App {
                                                 this.set_view(ViewType::OtherClipboard, cx);
                                             })),
                                     ]),
-                                SidebarMenuItem::new("正则")
-                                    .icon(Icon::new(IconName::Dash))
-                                    .click_to_open(true)
-                                    .children([SidebarMenuItem::new("正则可视化")
-                                        .icon(Icon::new(IconName::Dash))
-                                        .active(current_view == ViewType::RegexVisualizer)
-                                        .on_click(cx.listener(|this, _, _, cx| {
-                                            this.set_view(ViewType::RegexVisualizer, cx);
-                                        }))]),
-                                SidebarMenuItem::new("设置")
-                                    .icon(Icon::new(IconName::Settings))
-                                    .active(current_view == ViewType::Settings)
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.set_view(ViewType::Settings, cx);
-                                    })),
                             ])]),
                     )
                     .child(
                         div()
                             .flex_1()
                             .min_w(px(640.0))
-                            .overflow_y_scrollbar()
-                            .bg(cx.theme().background)
-                            .text_color(cx.theme().foreground)
-                            .child(match current_view {
+                            .flex()
+                            .flex_col()
+                            .overflow_hidden()
+                            // 对齐 Tauri：56px 顶栏，居中搜索框（点击打开命令面板）
+                            .child(self.render_topbar(cx))
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .overflow_y_scrollbar()
+                                    .bg(cx.theme().background)
+                                    .text_color(cx.theme().foreground)
+                                    .child(match current_view {
                                 ViewType::Home => render_home_view(cx),
                                 ViewType::SystemMonitor => {
                                     render_system_monitor_view(self, window, cx)
@@ -622,9 +695,6 @@ impl Render for App {
                                 }
                                 ViewType::TransformCron => render_cron_view(self, window, cx),
                                 ViewType::TransformRmb => render_rmb_case_view(self, window, cx),
-                                ViewType::EncodeDecodeBase64 => {
-                                    render_base64_encoder_view(self, window, cx)
-                                }
                                 ViewType::EncodeDecodeUrl => {
                                     render_url_encoder_view(self, window, cx)
                                 }
@@ -632,22 +702,10 @@ impl Render for App {
                                     render_jwt_decoder_view(self, window, cx)
                                 }
                                 ViewType::EncodeDecodeCharset => {
-                                    render_encode_decode_charset_view(self, window, cx)
-                                }
-                                ViewType::EncodeDecodeMessyCode => {
-                                    render_encode_decode_messy_code_view(self, window, cx)
-                                }
-                                ViewType::EncodeDecodeBase64Image => {
-                                    render_base64_image_view(self, window, cx)
-                                }
-                                ViewType::EncodeDecodeEscape => {
-                                    render_escape_tools_view(self, window, cx)
+                                    render_text_encoding_page(self, window, cx)
                                 }
                                 ViewType::EncodeDecodeBaseEncoding => {
                                     render_base_encoding_view(self, window, cx)
-                                }
-                                ViewType::EncodeDecodeUtf8Unicode => {
-                                    render_utf8_unicode_view(self, window, cx)
                                 }
                                 ViewType::EncodeDecodeSymmetric => {
                                     render_symmetric_encrypt_view(self, window, cx)
@@ -664,12 +722,7 @@ impl Render for App {
                                 ViewType::GeneratorUuid => {
                                     render_uuid_generator_view(self, window, cx)
                                 }
-                                ViewType::GeneratorHash => {
-                                    render_hash_calculator_view(self, window, cx)
-                                }
-                                ViewType::GeneratorChecksum => {
-                                    render_generator_checksum_view(self, window, cx)
-                                }
+                                ViewType::GeneratorHash => render_hash_page(self, window, cx),
                                 ViewType::DatabaseDatafaker => {
                                     render_database_datafaker_view(self, window, cx)
                                 }
@@ -679,11 +732,9 @@ impl Render for App {
                                 ViewType::TextMarkdown => {
                                     render_markdown_editor_view(self, window, cx)
                                 }
-                                ViewType::TextCase => render_case_converter_view(self, window, cx),
                                 ViewType::TextTextTools => {
                                     render_text_tools_view(self, window, cx)
                                 }
-                                ViewType::TextStrHex => render_str_hex_view(self, window, cx),
                                 ViewType::TextDiff => render_text_diff_view(self, window, cx),
                                 ViewType::RandomString => {
                                     render_random_string_view(self, window, cx)
@@ -726,8 +777,8 @@ impl Render for App {
                                 ViewType::RegexVisualizer => {
                                     render_regex_visualizer_view(self, window, cx)
                                 }
-                                ViewType::Settings => render_settings_view(self, window, cx),
                             }),
+                            ),
                     ),
             )
             .children(sheet_layer)
@@ -737,182 +788,220 @@ impl Render for App {
 }
 
 fn render_home_view(cx: &mut Context<App>) -> Div {
+    // 与 Tauri Home.vue 完全对齐：卡片 = menu.ts 扁平列表，文案 = toolDesc，顺序 = menus 顺序
     let items: &[(&str, &str, IconName)] = &[
-        ("系统监控", "实时监控 CPU、内存与磁盘", IconName::ChartPie),
-        ("代码片段", "管理常用代码片段", IconName::File),
-        ("待办事项", "简单的任务清单", IconName::Check),
-        ("文件格式转换", "转换各类文件格式", IconName::Replace),
+        // 常用（顶层直接项）
+        ("系统监控", "系统资源实时监控", IconName::ChartPie),
+        ("代码片段", "代码片段管理", IconName::File),
+        ("待办事项", "待办事项清单", IconName::Check),
+        ("加密", "AES / DES / RC4 等对称加密", IconName::EyeOff),
+        ("按位计算器", "按位运算计算器", IconName::SquareTerminal),
+        ("颜色转换", "颜色格式转换", IconName::Palette),
+        ("正则", "正则表达式可视化", IconName::Dash),
+        // 转换
+        ("文件格式转换", "文件类型识别与转换", IconName::File),
         ("时间戳", "时间戳与日期互转", IconName::Calendar),
-        ("进制转换", "十进制 / 十六进制 / 二进制", IconName::ALargeSmall),
-        ("Cron 表达式", "解析与生成 Cron", IconName::Calendar),
-        ("人民币大小写", "金额与中文大写互转", IconName::ALargeSmall),
-        ("Base64", "Base64 编码与解码", IconName::CaseSensitive),
-        ("Base64 图片", "图片与 Base64 互转", IconName::Frame),
+        ("进制转换", "进制及字符串进制互转", IconName::ALargeSmall),
+        ("Cron 表达式", "Cron 表达式解析与生成", IconName::Calendar),
+        ("人民币大小写", "", IconName::ALargeSmall),
+        // 编码/解码
+        ("Base 编码", "Base64 / Base32 / Base58 编码解码", IconName::CaseSensitive),
         ("URL", "URL 编码与解码", IconName::ExternalLink),
-        ("JWT", "解析与校验 JWT", IconName::File),
-        ("字符编码", "字符集编码转换", IconName::CaseSensitive),
-        ("乱码恢复", "修复乱码文本", IconName::CaseSensitive),
-        ("转义工具", "HTML / 字符串转义", IconName::Dash),
-        ("Base32 / Base58", "Base32 与 Base58 编码", IconName::CaseSensitive),
-        ("UTF8 / Unicode", "UTF8 与 Unicode 互转", IconName::CaseSensitive),
-        ("对称加密", "AES / DES / RC4 / Rabbit", IconName::SquareTerminal),
-        ("JSON Editor", "JSON 格式化与编辑", IconName::File),
-        ("SQL", "SQL 格式化", IconName::SquareTerminal),
-        ("XML", "XML 格式化", IconName::File),
-        ("UUID", "生成多种 UUID", IconName::ALargeSmall),
-        ("文本Hash", "计算文本散列值", IconName::Asterisk),
-        ("文件校验", "校验文件散列值", IconName::File),
-        ("假数据生成", "生成模拟业务数据", IconName::Folder),
-        ("数据库差异", "对比两个数据库结构", IconName::Folder),
+        ("JWT", "JWT 解析与验证", IconName::File),
+        ("文本编码", "字符集 / 乱码 / 转义 / Unicode 编码转换", IconName::CaseSensitive),
+        // 格式化
+        ("JSON Editor", "JSON 编辑与格式化", IconName::File),
+        ("SQL", "SQL 语句格式化", IconName::SquareTerminal),
+        ("XML", "XML 格式化与压缩", IconName::File),
+        // 生成器
+        ("UUID", "批量生成 UUID", IconName::ALargeSmall),
+        ("Hash 计算", "文本与文件 Hash 计算", IconName::Asterisk),
+        // 数据库
+        ("假数据生成", "可视化构造假数据", IconName::Folder),
+        ("数据库差异", "数据库结构与数据对比", IconName::Folder),
+        // 文本
         ("Markdown", "Markdown 编辑与预览", IconName::BookOpen),
-        ("大小写转换", "文本大小写快速转换", IconName::ALargeSmall),
-        ("文本工具", "常用文本处理工具", IconName::BookOpen),
-        ("字符串进制转换", "字符串与十六进制互转", IconName::ALargeSmall),
-        ("文本 / JSON 差异", "对比文本或 JSON", IconName::Replace),
-        ("随机字符串", "生成随机字符串", IconName::CaseSensitive),
-        ("随机数字", "生成随机数字", IconName::Asterisk),
-        ("随机 IP / MAC / 时间", "生成随机 IP / MAC / 时间", IconName::Globe),
-        ("随机数据", "生成随机数据记录", IconName::Folder),
-        ("IP 地址转换", "IP 与整数互转", IconName::Globe),
-        ("按位计算器", "二进制位运算", IconName::SquareTerminal),
-        ("颜色转换", "HEX / RGB / HSL / CMYK", IconName::Frame),
-        ("Excalidraw", "白板绘图", IconName::Frame),
-        ("图片格式转换", "常见图片格式互转", IconName::Frame),
-        ("图片转 PDF", "图片合成为 PDF", IconName::File),
-        ("PDF 合并", "多个 PDF 合并", IconName::File),
-        ("PDF 编辑", "删除 / 旋转 / 排序页面", IconName::File),
-        ("PDF 添加页码", "添加页码或自定义文本", IconName::File),
-        ("PDF 拆分", "按页码范围拆分", IconName::File),
+        ("文本工具", "大小写 / 清理 / 统计等文本处理", IconName::BookOpen),
+        ("文本 / JSON 差异", "文本 / JSON 差异对比", IconName::Replace),
+        // 随机
+        ("随机字符串", "随机字符串生成", IconName::CaseSensitive),
+        ("随机数字", "随机数字生成", IconName::Asterisk),
+        ("随机数据", "结构化随机数据", IconName::Folder),
+        // 网络
+        ("IP 地址转换", "IP 地址数值转换", IconName::Network),
+        ("随机 IP / MAC / 时间", "随机 IP / MAC / 时间", IconName::Calendar),
+        // 图像
+        ("图片格式转换", "图片格式转换", IconName::Frame),
+        ("Excalidraw", "手绘风格画板", IconName::Frame),
+        // PDF
+        ("图片转 PDF", "多张图片合成 PDF", IconName::File),
+        ("PDF 合并", "合并多个 PDF", IconName::File),
+        ("PDF 编辑", "编辑 PDF 页面", IconName::File),
+        ("PDF 添加页码", "为 PDF 添加页码", IconName::File),
+        ("PDF 拆分", "拆分 PDF 页面", IconName::File),
+        // 其它
         ("二维码", "生成二维码", IconName::Frame),
-        ("剪贴板管理", "剪贴板历史记录", IconName::Settings2),
-        ("正则可视化", "正则表达式调试", IconName::Dash),
-        ("设置", "应用偏好设置", IconName::Settings),
+        ("剪贴板管理", "剪贴板历史管理", IconName::Settings2),
     ];
-    div()
-        .p_6()
-        .size_full()
-        .flex_col()
-        .gap_4()
-        .child(design::page_header("工具箱", "选择工具开始使用", cx))
-        .child(
+    // 分组顺序与 Tauri Home.vue 的 groupedCards 一致（按首次出现分组）
+    let group_order = [
+        "常用",
+        "转换",
+        "编码/解码",
+        "格式化",
+        "生成器",
+        "数据库",
+        "文本",
+        "随机",
+        "网络",
+        "图像",
+        "PDF",
+        "其它",
+    ];
+
+    let card = |i: usize,
+                title: &'static str,
+                desc: &'static str,
+                icon: IconName,
+                cx: &mut Context<App>| {
+        div()
+            .id(ElementId::Name(SharedString::from(format!("home-card-{i}"))))
+            .w(px(248.0))
+            .min_w(px(248.0))
+            .flex()
+            .items_start()
+            .gap_3()
+            .border_1()
+            .border_color(cx.theme().border)
+            .rounded(px(14.0))
+            .p(px(18.0))
+            .bg(cx.theme().popover)
+            .cursor_pointer()
+            .hover(|style| {
+                style
+                    .border_color(cx.theme().primary.opacity(0.45))
+                    .bg(cx.theme().secondary)
+            })
+            .on_click(cx.listener(move |this, _, _, cx| {
+                if let Some(view) = view_for_title(title) {
+                    this.set_view(view, cx);
+                }
+            }))
+            .child(
+                div()
+                    .w(px(40.0))
+                    .h(px(40.0))
+                    .rounded(px(11.0))
+                    .bg(cx.theme().primary.opacity(0.12))
+                    .text_color(cx.theme().primary)
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .child(Icon::new(icon).size(px(20.0))),
+            )
+            .child(
+                div()
+                    .flex_1()
+                    .flex_col()
+                    .gap_0p5()
+                    .child(div().text_sm().font_semibold().child(title))
+                    .child(
+                        div()
+                            .text_xs()
+                            .text_color(cx.theme().muted_foreground)
+                            .child(desc),
+                    ),
+            )
+    };
+
+    let mut groups: Vec<Div> = Vec::new();
+    for group in group_order {
+        let mut cards: Vec<AnyElement> = Vec::new();
+        for (i, &(title, desc, ref icon)) in items.iter().enumerate() {
+            let g = TOOL_INDEX
+                .iter()
+                .find(|t| t.label == title)
+                .map(|t| t.group)
+                .unwrap_or("");
+            let gname = if g.is_empty() { "常用" } else { g };
+            if gname == group {
+                cards.push(card(i, title, desc, icon.clone(), cx).into_any_element());
+            }
+        }
+        if cards.is_empty() {
+            continue;
+        }
+        groups.push(
             div()
-                .flex()
-                .flex_wrap()
+                .flex_col()
                 .gap_3()
-                .children(items.iter().enumerate().map(|(i, &(title, desc, ref icon))| {
+                .child(
                     div()
-                        .id(ElementId::Name(SharedString::from(format!("home-card-{i}"))))
-                        .w(px(248.0))
-                        .min_w(px(248.0))
-                        .flex()
-                        .items_start()
-                        .gap_3()
-                        .border_1()
-                        .border_color(cx.theme().border)
-                        .rounded(px(12.0))
-                        .p_4()
-                        .bg(cx.theme().popover)
-                        .cursor_pointer()
-                        .hover(|style| {
-                            style.border_color(cx.theme().primary.opacity(0.45)).bg(cx.theme().secondary)
-                        })
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            if let Some(view) = view_for_title(title) {
-                                this.set_view(view, cx);
-                            }
-                        }))
-                        .child(
-                            div()
-                                .w(px(36.0))
-                                .h(px(36.0))
-                                .rounded(px(10.0))
-                                .bg(cx.theme().primary.opacity(0.12))
-                                .text_color(cx.theme().primary)
-                                .flex()
-                                .items_center()
-                                .justify_center()
-                                .child(Icon::new(icon.clone()).size(px(18.0))),
-                        )
-                        .child(
-                            div()
-                                .flex_1()
-                                .flex_col()
-                                .gap_0p5()
-                                .child(div().text_sm().font_semibold().child(title))
-                                .child(
-                                    div()
-                                        .text_xs()
-                                        .text_color(cx.theme().muted_foreground)
-                                        .child(desc),
-                                ),
-                        )
-                })),
-        )
+                        .text_size(px(13.0))
+                        .font_semibold()
+                        .text_color(cx.theme().muted_foreground)
+                        .child(group.to_string()),
+                )
+                .child(div().flex().flex_wrap().gap(px(14.0)).children(cards)),
+        );
+    }
+
+    div()
+        .w_full()
+        .max_w(px(1280.0))
+        .flex_col()
+        .gap_6()
+        .pt(px(8.0))
+        .px(px(24.0))
+        .pb(px(40.0))
+        .children(groups)
         .child(
             div()
-                .mt_2()
-                .pt_4()
+                .mt(px(24.0))
+                .pt(px(20.0))
                 .border_t_1()
                 .border_color(cx.theme().border)
                 .text_center()
-                .text_xs()
+                .text_size(px(12.5))
                 .text_color(cx.theme().muted_foreground)
-                .child("ToolBox"),
+                .child("ToolBox · 开发工具集合"),
         )
 }
 
 fn view_for_title(title: &str) -> Option<ViewType> {
-    match title {
-        "系统监控" => Some(ViewType::SystemMonitor),
-        "代码片段" => Some(ViewType::CodeSnippet),
-        "待办事项" => Some(ViewType::Todo),
-        "文件格式转换" => Some(ViewType::TransformFiletype),
-        "时间戳" => Some(ViewType::TransformTime),
-        "进制转换" => Some(ViewType::TransformBaseConversion),
-        "Cron 表达式" => Some(ViewType::TransformCron),
-        "人民币大小写" => Some(ViewType::TransformRmb),
-        "Base64" => Some(ViewType::EncodeDecodeBase64),
-        "Base64 图片" => Some(ViewType::EncodeDecodeBase64Image),
-        "URL" => Some(ViewType::EncodeDecodeUrl),
-        "JWT" => Some(ViewType::EncodeDecodeJwt),
-        "字符编码" => Some(ViewType::EncodeDecodeCharset),
-        "乱码恢复" => Some(ViewType::EncodeDecodeMessyCode),
-        "转义工具" => Some(ViewType::EncodeDecodeEscape),
-        "Base32 / Base58" => Some(ViewType::EncodeDecodeBaseEncoding),
-        "UTF8 / Unicode" => Some(ViewType::EncodeDecodeUtf8Unicode),
-        "对称加密" => Some(ViewType::EncodeDecodeSymmetric),
-        "JSON Editor" => Some(ViewType::FormatterJson),
-        "SQL" => Some(ViewType::FormatterSql),
-        "XML" => Some(ViewType::FormatterXml),
-        "UUID" => Some(ViewType::GeneratorUuid),
-        "文本Hash" => Some(ViewType::GeneratorHash),
-        "文件校验" => Some(ViewType::GeneratorChecksum),
-        "假数据生成" => Some(ViewType::DatabaseDatafaker),
-        "数据库差异" => Some(ViewType::DatabaseDiff),
-        "Markdown" => Some(ViewType::TextMarkdown),
-        "大小写转换" => Some(ViewType::TextCase),
-        "文本工具" => Some(ViewType::TextTextTools),
-        "字符串进制转换" => Some(ViewType::TextStrHex),
-        "文本 / JSON 差异" => Some(ViewType::TextDiff),
-        "随机字符串" => Some(ViewType::RandomString),
-        "随机数字" => Some(ViewType::RandomNumber),
-        "随机 IP / MAC / 时间" => Some(ViewType::RandomOther),
-        "随机数据" => Some(ViewType::RandomData),
-        "IP 地址转换" => Some(ViewType::NetworkIp),
-        "按位计算器" => Some(ViewType::NumberBitwise),
-        "颜色转换" => Some(ViewType::ColorConverter),
-        "Excalidraw" => Some(ViewType::ImageExcalidraw),
-        "图片格式转换" => Some(ViewType::ImageConvert),
-        "图片转 PDF" => Some(ViewType::PdfImagesToPdf),
-        "PDF 合并" => Some(ViewType::PdfMerge),
-        "PDF 编辑" => Some(ViewType::PdfEdit),
-        "PDF 添加页码" => Some(ViewType::PdfPageNumber),
-        "PDF 拆分" => Some(ViewType::PdfSplit),
-        "二维码" => Some(ViewType::OtherQrCode),
-        "剪贴板管理" => Some(ViewType::OtherClipboard),
-        "正则可视化" => Some(ViewType::RegexVisualizer),
-        "设置" => Some(ViewType::Settings),
-        _ => None,
+    TOOL_INDEX
+        .iter()
+        .find(|tool| tool.label == title)
+        .map(|tool| tool.view)
+}
+
+// TOOL_INDEX / ToolEntry / 拼音索引见 search_pinyin 模块（含单元测试）。
+
+fn render_text_encoding_page(
+    app: &mut App,
+    window: &mut Window,
+    cx: &mut Context<App>,
+) -> Div {
+    if app.text_encoding.is_none() {
+        app.text_encoding = Some(cx.new(|cx| TextEncodingPage::new(window, cx)));
+    }
+
+    if let Some(ref page) = app.text_encoding {
+        div().child(page.clone())
+    } else {
+        div().child("Loading...")
+    }
+}
+
+fn render_hash_page(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {
+    if app.hash_page.is_none() {
+        app.hash_page = Some(cx.new(|cx| HashPage::new(window, cx)));
+    }
+
+    if let Some(ref page) = app.hash_page {
+        div().child(page.clone())
+    } else {
+        div().child("Loading...")
     }
 }
 
@@ -922,9 +1011,9 @@ fn render_system_monitor_view(app: &mut App, window: &mut Window, cx: &mut Conte
     }
 
     if let Some(ref sys_monitor) = app.system_monitor {
-        div().p_6().child(sys_monitor.clone())
+        div().child(sys_monitor.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -934,9 +1023,9 @@ fn render_code_snippet_view(app: &mut App, cx: &mut Context<App>) -> Div {
     }
 
     if let Some(ref code_snip) = app.code_snippet {
-        div().p_6().child(code_snip.clone())
+        div().child(code_snip.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -947,9 +1036,9 @@ fn render_todo_view(app: &mut App, cx: &mut Context<App>) -> Div {
     }
 
     if let Some(ref todo) = app.todo_list {
-        div().p_6().child(todo.clone())
+        div().child(todo.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -963,43 +1052,13 @@ fn render_transform_filetype_view(
     }
 
     if let Some(ref transform) = app.transform_filetype {
-        div().p_6().child(transform.clone())
+        div().child(transform.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
-fn render_encode_decode_charset_view(
-    app: &mut App,
-    window: &mut Window,
-    cx: &mut Context<App>,
-) -> Div {
-    if app.charset_encoder.is_none() {
-        app.charset_encoder = Some(cx.new(|cx| CharsetEncoder::new(window, cx)));
-    }
 
-    if let Some(ref charset_enc) = app.charset_encoder {
-        div().p_6().child(charset_enc.clone())
-    } else {
-        div().p_6().child("Loading...")
-    }
-}
-
-fn render_encode_decode_messy_code_view(
-    app: &mut App,
-    window: &mut Window,
-    cx: &mut Context<App>,
-) -> Div {
-    if app.messy_code_recover.is_none() {
-        app.messy_code_recover = Some(cx.new(|cx| MessyCodeRecover::new(window, cx)));
-    }
-
-    if let Some(ref messy) = app.messy_code_recover {
-        div().p_6().child(messy.clone())
-    } else {
-        div().p_6().child("Loading...")
-    }
-}
 
 fn render_formatter_sql_view(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {
     if app.sql_formatter.is_none() {
@@ -1007,9 +1066,9 @@ fn render_formatter_sql_view(app: &mut App, window: &mut Window, cx: &mut Contex
     }
 
     if let Some(ref sql_fmt) = app.sql_formatter {
-        div().p_6().child(sql_fmt.clone())
+        div().child(sql_fmt.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1019,27 +1078,12 @@ fn render_formatter_xml_view(app: &mut App, window: &mut Window, cx: &mut Contex
     }
 
     if let Some(ref xml_fmt) = app.xml_formatter {
-        div().p_6().child(xml_fmt.clone())
+        div().child(xml_fmt.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
-fn render_generator_checksum_view(
-    app: &mut App,
-    window: &mut Window,
-    cx: &mut Context<App>,
-) -> Div {
-    if app.file_verify.is_none() {
-        app.file_verify = Some(cx.new(|cx| FileVerify::new(window, cx)));
-    }
-
-    if let Some(ref file_verify) = app.file_verify {
-        div().p_6().child(file_verify.clone())
-    } else {
-        div().p_6().child("Loading...")
-    }
-}
 
 fn render_database_datafaker_view(
     app: &mut App,
@@ -1063,9 +1107,9 @@ fn render_database_diff_view(app: &mut App, window: &mut Window, cx: &mut Contex
     }
 
     if let Some(ref db_diff) = app.database_diff {
-        div().p_6().child(db_diff.clone())
+        div().child(db_diff.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1075,33 +1119,9 @@ fn render_uuid_generator_view(app: &mut App, window: &mut Window, cx: &mut Conte
     }
 
     if let Some(ref uuid_gen) = app.uuid_generator {
-        div().p_6().child(uuid_gen.clone())
+        div().child(uuid_gen.clone())
     } else {
-        div().p_6().child("Loading...")
-    }
-}
-
-fn render_hash_calculator_view(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {
-    if app.hash_calculator.is_none() {
-        app.hash_calculator = Some(cx.new(|cx| HashCalculator::new(window, cx)));
-    }
-
-    if let Some(ref hash_calc) = app.hash_calculator {
-        div().p_6().child(hash_calc.clone())
-    } else {
-        div().p_6().child("Loading...")
-    }
-}
-
-fn render_base64_encoder_view(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {
-    if app.base64_encoder.is_none() {
-        app.base64_encoder = Some(cx.new(|cx| Base64Encoder::new(window, cx)));
-    }
-
-    if let Some(ref base64_enc) = app.base64_encoder {
-        div().p_6().child(base64_enc.clone())
-    } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1111,9 +1131,9 @@ fn render_url_encoder_view(app: &mut App, window: &mut Window, cx: &mut Context<
     }
 
     if let Some(ref url_enc) = app.url_encoder {
-        div().p_6().child(url_enc.clone())
+        div().child(url_enc.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1127,9 +1147,9 @@ fn render_timestamp_converter_view(
     }
 
     if let Some(ref ts_conv) = app.timestamp_converter {
-        div().p_6().child(ts_conv.clone())
+        div().child(ts_conv.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1139,9 +1159,9 @@ fn render_jwt_decoder_view(app: &mut App, window: &mut Window, cx: &mut Context<
     }
 
     if let Some(ref jwt) = app.jwt_decoder {
-        div().p_6().child(jwt.clone())
+        div().child(jwt.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1151,9 +1171,9 @@ fn render_ip_converter_view(app: &mut App, window: &mut Window, cx: &mut Context
     }
 
     if let Some(ref ip) = app.ip_converter {
-        div().p_6().child(ip.clone())
+        div().child(ip.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1163,9 +1183,9 @@ fn render_qrcode_generator_view(app: &mut App, window: &mut Window, cx: &mut Con
     }
 
     if let Some(ref qrcode) = app.qrcode_generator {
-        div().p_6().child(qrcode.clone())
+        div().child(qrcode.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1175,9 +1195,9 @@ fn render_clipboard_manager_view(app: &mut App, window: &mut Window, cx: &mut Co
     }
 
     if let Some(ref clipboard) = app.clipboard_manager {
-        div().p_6().child(clipboard.clone())
+        div().child(clipboard.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1195,7 +1215,7 @@ fn render_regex_visualizer_view(app: &mut App, window: &mut Window, cx: &mut Con
             .pb(px(24.0))
             .child(regex.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1217,27 +1237,15 @@ fn render_excalidraw_view(app: &mut App, window: &mut Window, cx: &mut Context<A
     }
 }
 
-fn render_settings_view(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {
-    if app.settings.is_none() {
-        app.settings = Some(cx.new(|cx| SettingsView::new(window, cx)));
-    }
-
-    if let Some(ref settings) = app.settings {
-        div().p_6().child(settings.clone())
-    } else {
-        div().p_6().child("Loading...")
-    }
-}
-
 fn render_rmb_case_view(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {
     if app.rmb_case.is_none() {
         app.rmb_case = Some(cx.new(|cx| RmbCase::new(window, cx)));
     }
 
     if let Some(ref view) = app.rmb_case {
-        div().p_6().child(view.clone())
+        div().child(view.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1247,9 +1255,9 @@ fn render_image_convert_view(app: &mut App, window: &mut Window, cx: &mut Contex
     }
 
     if let Some(ref view) = app.image_convert {
-        div().p_6().child(view.clone())
+        div().child(view.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1261,9 +1269,9 @@ fn render_pdf_images_to_pdf_view(app: &mut App, cx: &mut Context<App>) -> Div {
     }
 
     if let Some(ref view) = app.pdf_images_to_pdf {
-        div().p_6().child(view.clone())
+        div().child(view.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1273,9 +1281,9 @@ fn render_pdf_merge_view(app: &mut App, cx: &mut Context<App>) -> Div {
     }
 
     if let Some(ref view) = app.pdf_merge {
-        div().p_6().child(view.clone())
+        div().child(view.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1285,9 +1293,9 @@ fn render_pdf_edit_view(app: &mut App, window: &mut Window, cx: &mut Context<App
     }
 
     if let Some(ref view) = app.pdf_edit {
-        div().p_6().child(view.clone())
+        div().child(view.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1297,9 +1305,9 @@ fn render_pdf_page_number_view(app: &mut App, window: &mut Window, cx: &mut Cont
     }
 
     if let Some(ref view) = app.pdf_page_number {
-        div().p_6().child(view.clone())
+        div().child(view.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1309,9 +1317,9 @@ fn render_pdf_split_view(app: &mut App, window: &mut Window, cx: &mut Context<Ap
     }
 
     if let Some(ref view) = app.pdf_split {
-        div().p_6().child(view.clone())
+        div().child(view.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1321,9 +1329,9 @@ fn render_base_converter_view(app: &mut App, window: &mut Window, cx: &mut Conte
     }
 
     if let Some(ref base_conv) = app.base_converter {
-        div().p_6().child(base_conv.clone())
+        div().child(base_conv.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1333,9 +1341,9 @@ fn render_json_editor_view(app: &mut App, window: &mut Window, cx: &mut Context<
     }
 
     if let Some(ref json_edit) = app.json_editor {
-        div().p_6().child(json_edit.clone())
+        div().child(json_edit.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1345,9 +1353,9 @@ fn render_markdown_editor_view(app: &mut App, window: &mut Window, cx: &mut Cont
     }
 
     if let Some(ref md_edit) = app.markdown_editor {
-        div().p_6().child(md_edit.clone())
+        div().child(md_edit.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1357,33 +1365,9 @@ fn render_cron_view(app: &mut App, window: &mut Window, cx: &mut Context<App>) -
     }
 
     if let Some(ref view) = app.cron_converter {
-        div().p_6().child(view.clone())
+        div().child(view.clone())
     } else {
-        div().p_6().child("Loading...")
-    }
-}
-
-fn render_base64_image_view(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {
-    if app.base64_image.is_none() {
-        app.base64_image = Some(cx.new(|cx| Base64ImageConverter::new(window, cx)));
-    }
-
-    if let Some(ref view) = app.base64_image {
-        div().p_6().child(view.clone())
-    } else {
-        div().p_6().child("Loading...")
-    }
-}
-
-fn render_escape_tools_view(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {
-    if app.escape_tools.is_none() {
-        app.escape_tools = Some(cx.new(|cx| EscapeTools::new(window, cx)));
-    }
-
-    if let Some(ref view) = app.escape_tools {
-        div().p_6().child(view.clone())
-    } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1393,21 +1377,9 @@ fn render_base_encoding_view(app: &mut App, window: &mut Window, cx: &mut Contex
     }
 
     if let Some(ref view) = app.base_encoding {
-        div().p_6().child(view.clone())
+        div().child(view.clone())
     } else {
-        div().p_6().child("Loading...")
-    }
-}
-
-fn render_utf8_unicode_view(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {
-    if app.utf8_unicode.is_none() {
-        app.utf8_unicode = Some(cx.new(|cx| Utf8UnicodeConverter::new(window, cx)));
-    }
-
-    if let Some(ref view) = app.utf8_unicode {
-        div().p_6().child(view.clone())
-    } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1417,21 +1389,9 @@ fn render_symmetric_encrypt_view(app: &mut App, window: &mut Window, cx: &mut Co
     }
 
     if let Some(ref view) = app.symmetric_encrypt {
-        div().p_6().child(view.clone())
+        div().child(view.clone())
     } else {
-        div().p_6().child("Loading...")
-    }
-}
-
-fn render_case_converter_view(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {
-    if app.case_converter.is_none() {
-        app.case_converter = Some(cx.new(|cx| CaseConverter::new(window, cx)));
-    }
-
-    if let Some(ref view) = app.case_converter {
-        div().p_6().child(view.clone())
-    } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1441,21 +1401,9 @@ fn render_text_tools_view(app: &mut App, window: &mut Window, cx: &mut Context<A
     }
 
     if let Some(ref view) = app.text_tools {
-        div().p_6().child(view.clone())
+        div().child(view.clone())
     } else {
-        div().p_6().child("Loading...")
-    }
-}
-
-fn render_str_hex_view(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {
-    if app.str_hex.is_none() {
-        app.str_hex = Some(cx.new(|cx| StrHexConverter::new(window, cx)));
-    }
-
-    if let Some(ref view) = app.str_hex {
-        div().p_6().child(view.clone())
-    } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1465,9 +1413,9 @@ fn render_text_diff_view(app: &mut App, window: &mut Window, cx: &mut Context<Ap
     }
 
     if let Some(ref view) = app.text_diff {
-        div().p_6().child(view.clone())
+        div().child(view.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1477,9 +1425,9 @@ fn render_random_string_view(app: &mut App, window: &mut Window, cx: &mut Contex
     }
 
     if let Some(ref view) = app.random_string {
-        div().p_6().child(view.clone())
+        div().child(view.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1489,9 +1437,9 @@ fn render_random_number_view(app: &mut App, window: &mut Window, cx: &mut Contex
     }
 
     if let Some(ref view) = app.random_number {
-        div().p_6().child(view.clone())
+        div().child(view.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1501,9 +1449,9 @@ fn render_random_other_view(app: &mut App, window: &mut Window, cx: &mut Context
     }
 
     if let Some(ref view) = app.random_other {
-        div().p_6().child(view.clone())
+        div().child(view.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1513,9 +1461,9 @@ fn render_random_data_view(app: &mut App, window: &mut Window, cx: &mut Context<
     }
 
     if let Some(ref view) = app.random_data {
-        div().p_6().child(view.clone())
+        div().child(view.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1525,9 +1473,9 @@ fn render_bitwise_calculator_view(app: &mut App, window: &mut Window, cx: &mut C
     }
 
     if let Some(ref view) = app.bitwise_calculator {
-        div().p_6().child(view.clone())
+        div().child(view.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1537,9 +1485,9 @@ fn render_color_converter_view(app: &mut App, window: &mut Window, cx: &mut Cont
     }
 
     if let Some(ref view) = app.color_converter {
-        div().p_6().child(view.clone())
+        div().child(view.clone())
     } else {
-        div().p_6().child("Loading...")
+        div().child("Loading...")
     }
 }
 
@@ -1554,8 +1502,18 @@ fn main() {
         gpui_kit::init(cx);
         let bounds = Bounds::centered(None, size(px(1200.0), px(800.0)), cx);
 
-        cx.spawn(async move |cx| {
-            cx.open_window(
+    cx.spawn(async move |cx| {
+        // 对齐 Tauri Provider：启动时读取并应用已保存的主题
+        if let Ok(Some(saved)) = config_store::get_setting("theme").await {
+            let mode = if saved == "dark" {
+                ThemeMode::Dark
+            } else {
+                ThemeMode::Light
+            };
+            let _ = cx.update(|cx| Theme::change(mode, None, cx));
+        }
+
+        cx.open_window(
                 WindowOptions {
                     window_bounds: Some(WindowBounds::Windowed(bounds)),
                     titlebar: Some(TitlebarOptions {

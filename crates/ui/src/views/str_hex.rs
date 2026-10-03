@@ -50,6 +50,16 @@ impl StrHexConverter {
                     }
                 }
             }),
+            cx.subscribe_in(&output_state, window, {
+                let output_state = output_state.clone();
+                move |this, _, ev: &InputEvent, _, cx| {
+                    if let InputEvent::Change = ev {
+                        let value = output_state.read(cx).value();
+                        this.output = value.to_string();
+                        cx.notify();
+                    }
+                }
+            }),
             cx.subscribe_in(
                 &radix_state,
                 window,
@@ -242,15 +252,10 @@ impl Render for StrHexConverter {
         let error = self.error.clone();
 
         design::page()
-            .child(design::page_header("字符串进制转换", "字符串与十六进制 / 二进制 / 十进制互转", cx))
+
             .child(
                 design::card(cx)
-                    .child(design::card_header(
-                        IconName::Replace,
-                        "字符串进制转换",
-                        "文本按所选进制编码 / 解码",
-                        cx,
-                    ))
+
                     .child(
                         div()
                             .flex()

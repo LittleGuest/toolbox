@@ -545,7 +545,7 @@ impl Render for QrCodeGenerator {
             );
 
         design::page()
-            .child(design::page_header("二维码生成", "生成二维码", cx))
+
             .child(
                 design::card(cx)
                     .child(design::card_header(

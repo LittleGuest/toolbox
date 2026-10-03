@@ -1739,7 +1739,7 @@ impl Render for DatabaseDiff {
         let status = self.status.clone();
 
         design::page()
-            .child(design::page_header("数据库差异", "数据库结构对比、差异 SQL、规范检查与代码生成", cx))
+
             .when(!status.is_empty(), |this| {
                 this.child(
                     div()

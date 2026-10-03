@@ -501,16 +501,11 @@ impl Render for Base64ImageConverter {
                 )
             });
 
-        design::page()
-            .child(design::page_header("Base64 图片", "图片与 Base64 / Data URL 互转", cx))
+        div().w_full().flex_col().gap_4()
+
             .child(
-                design::card(cx)
-                    .child(design::card_header(
-                        IconName::Frame,
-                        "Base64 图片",
-                        "图片编码为 Base64，或将 Base64 解码为图片",
-                        cx,
-                    ))
+                div().w_full().flex_col().gap_4()
+
                     .child(div().grid().grid_cols(2).gap_6().child(left).child(right))
                     .when(!status.is_empty(), |this| {
                         this.child(

@@ -21,7 +21,7 @@ impl SqlFormatter {
         let input_state = cx.new(|cx| {
             TextareaState::new(window, cx)
                 .placeholder("请输入SQL语句...")
-                
+
         });
 
         let indent_state = cx.new(|cx| {
@@ -314,7 +314,7 @@ impl SqlFormatter {
 impl Render for SqlFormatter {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         design::page()
-            .child(design::page_header("SQL 格式化", "格式化 SQL 文本", cx))
+
             .child(
                 design::card(cx)
                     .child(

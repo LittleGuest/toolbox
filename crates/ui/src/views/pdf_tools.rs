@@ -553,7 +553,7 @@ impl Render for PdfFromFiles {
             );
 
         design::page()
-            .child(design::page_header(kind.title(), kind.subtitle(), cx))
+
             .child(
                 design::card(cx)
                     .child(design::card_header(
@@ -968,7 +968,7 @@ impl Render for PdfEditTool {
         }
 
         design::page()
-            .child(design::page_header("编辑 PDF", "删除 / 旋转 / 调整页面顺序", cx))
+
             .child(
                 design::card(cx)
                     .child(design::card_header(
@@ -1413,11 +1413,7 @@ impl Render for PdfPageNumberTool {
             .child(" 总页数");
 
         design::page()
-            .child(design::page_header(
-                "PDF 添加页码",
-                "在指定位置添加页码或自定义文本",
-                cx,
-            ))
+
             .child(
                 design::card(cx)
                     .child(design::card_header(
@@ -1800,11 +1796,7 @@ impl Render for PdfSplitTool {
         let range_check = check_ranges(&ranges_now);
 
         design::page()
-            .child(design::page_header(
-                "拆分 PDF",
-                "按页码范围将 PDF 拆分为多个文件",
-                cx,
-            ))
+
             .child(
                 design::card(cx)
                     .child(design::card_header(

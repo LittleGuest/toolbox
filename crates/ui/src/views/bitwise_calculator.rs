@@ -9,6 +9,8 @@ use gpui_kit::component::{
 
 const BASE_OPTIONS: [&str; 3] = ["十进制", "十六进制", "二进制"];
 const BIT_WIDTHS: [&str; 4] = ["8 位", "16 位", "32 位", "64 位"];
+/// 与 BIT_WIDTHS 一一对应的位宽数值
+const BIT_WIDTH_VALUES: [u32; 4] = [8, 16, 32, 64];
 
 const OPERATIONS: [(&str, &str, &str, bool); 9] = [
     // (op, symbol, label, needs_b)
@@ -266,7 +268,7 @@ impl BitwiseCalculator {
             .overflow_hidden()
             .bg(cx.theme().background)
             .children(options.iter().enumerate().map(|(i, opt)| {
-                let active = (i as u32 + 1) * 8 == selected;
+                let active = BIT_WIDTH_VALUES.get(i).copied().unwrap_or(0) == selected;
                 div()
                     .id(("bits", i))
                     .px_3()
@@ -283,7 +285,7 @@ impl BitwiseCalculator {
                         cx.theme().muted_foreground
                     })
                     .on_click(cx.listener(move |this, _, _, cx| {
-                        this.bits = (i as u32 + 1) * 8;
+                        this.bits = BIT_WIDTH_VALUES.get(i).copied().unwrap_or(32);
                         this.res_expr.clear();
                         this.res_dec.clear();
                         this.res_hex.clear();
@@ -364,7 +366,7 @@ impl Render for BitwiseCalculator {
         };
 
         design::page()
-            .child(design::page_header("按位计算器", "AND / OR / XOR / 移位等二进制位运算", cx))
+
             .child(
                 design::card(cx)
                     .child(

@@ -211,19 +211,10 @@ impl Render for RandomStringGenerator {
         let status = self.status.clone();
 
         design::page()
-            .child(design::page_header(
-                "随机字符串",
-                "自定义字符集批量生成随机串 / 密码",
-                cx,
-            ))
+
             .child(
                 design::card(cx)
-                    .child(design::card_header(
-                        IconName::Asterisk,
-                        "随机字符串",
-                        "字符集自由组合，支持密码模式",
-                        cx,
-                    ))
+
                     // tb-config-row：长度 / 数量
                     .child(
                         div()

@@ -332,6 +332,51 @@ impl BaseConverter {
                     }
                 }
             }),
+            cx.subscribe_in(&hex_input_state, window, {
+                let hex_input_state = hex_input_state.clone();
+                move |this, _, ev: &InputEvent, _, cx| {
+                    if let InputEvent::Change = ev {
+                        this.hex_input = hex_input_state.read(cx).value().to_string();
+                        cx.notify();
+                    }
+                }
+            }),
+            cx.subscribe_in(&hex_output_state, window, {
+                let hex_output_state = hex_output_state.clone();
+                move |this, _, ev: &InputEvent, _, cx| {
+                    if let InputEvent::Change = ev {
+                        this.hex_output = hex_output_state.read(cx).value().to_string();
+                        cx.notify();
+                    }
+                }
+            }),
+            cx.subscribe_in(&bin_input_state, window, {
+                let bin_input_state = bin_input_state.clone();
+                move |this, _, ev: &InputEvent, _, cx| {
+                    if let InputEvent::Change = ev {
+                        this.bin_input = bin_input_state.read(cx).value().to_string();
+                        cx.notify();
+                    }
+                }
+            }),
+            cx.subscribe_in(&bin_output_state, window, {
+                let bin_output_state = bin_output_state.clone();
+                move |this, _, ev: &InputEvent, _, cx| {
+                    if let InputEvent::Change = ev {
+                        this.bin_output = bin_output_state.read(cx).value().to_string();
+                        cx.notify();
+                    }
+                }
+            }),
+            cx.subscribe_in(&ascii_input_state, window, {
+                let ascii_input_state = ascii_input_state.clone();
+                move |this, _, ev: &InputEvent, _, cx| {
+                    if let InputEvent::Change = ev {
+                        this.ascii_input = ascii_input_state.read(cx).value().to_string();
+                        cx.notify();
+                    }
+                }
+            }),
         ];
 
         Self {
@@ -618,15 +663,10 @@ impl Render for BaseConverter {    fn render(&mut self, _: &mut Window, cx: &mut
         let tab = self.tab;
 
         design::page()
-            .child(design::page_header("进制转换", "常见进制 / 任意进制 / 字符串互转", cx))
+
             .child(
                 design::card(cx)
-                    .child(design::card_header(
-                        IconName::Replace,
-                        "进制转换",
-                        "二进制 / 八进制 / 十进制 / 十六进制互转",
-                        cx,
-                    ))
+
                     .child(self.tab_bar(cx))
                     .child(match tab {
                         0 => self.render_common(cx).into_any_element(),

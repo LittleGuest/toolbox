@@ -619,19 +619,10 @@ impl RandomNumberGenerator {
 impl Render for RandomNumberGenerator {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         design::page()
-            .child(design::page_header(
-                "随机数字",
-                "整数 / 小数 / 素数 / 十六进制 / 二进制 / 字节",
-                cx,
-            ))
+
             .child(
                 design::card(cx)
-                    .child(design::card_header(
-                        IconName::Play,
-                        "随机数字",
-                        "六类随机数字一键生成",
-                        cx,
-                    ))
+
                     // n-tabs type="line"
                     .child(
                         div()

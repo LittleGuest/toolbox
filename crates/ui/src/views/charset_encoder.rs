@@ -580,16 +580,11 @@ impl Render for CharsetEncoder {
                     ),
             );
 
-        design::page()
-            .child(design::page_header("字符编码", "字符集编码转换", cx))
+        div().w_full().flex_col().gap_4()
+
             .child(
-                design::card(cx)
-                    .child(design::card_header(
-                        IconName::ALargeSmall,
-                        "字符编码",
-                        "多字符集编码转换与进制表示",
-                        cx,
-                    ))
+                div().w_full().flex_col().gap_4()
+
                     .child(config_row)
                     .child(options_row)
                     // 输入编辑器

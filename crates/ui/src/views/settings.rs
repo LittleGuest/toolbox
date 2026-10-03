@@ -284,15 +284,10 @@ impl Render for SettingsView {
         let status_ok = self.status.contains("失败");
 
         design::page()
-            .child(design::page_header("设置", "应用偏好设置", cx))
+
             .child(
                 design::card(cx)
-                    .child(design::card_header(
-                        IconName::Settings,
-                        "设置",
-                        "应用偏好设置",
-                        cx,
-                    ))
+
                     // 语言
                     .child(Self::config_row("语言", cx).child(
                         div()

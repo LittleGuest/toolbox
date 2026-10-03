@@ -186,16 +186,11 @@ impl Render for FileVerify {
         let matched = checksum == valid_value;
         let show_match = !valid_value.is_empty();
 
-        design::page()
-            .child(design::page_header("文件校验", "计算文件散列值并与对比值比对", cx))
+        div().w_full().flex_col().gap_4()
+
             .child(
-                design::card(cx)
-                    .child(design::card_header(
-                        IconName::FileText,
-                        "文件校验",
-                        "md5 / sha1 / sha2 / sha3 全家桶",
-                        cx,
-                    ))
+                div().w_full().flex_col().gap_4()
+
                     // tb-config-row：文件 + 选择按钮 + 路径
                     .child(
                         div()

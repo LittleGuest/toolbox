@@ -52,15 +52,26 @@ impl RmbCase {
                 .placeholder("如：壹仟贰佰叁拾肆元伍角陆分（支持壹/一、元/圆、整/正等写法）")
         });
 
-        let _subscriptions = vec![cx.subscribe_in(&amount_state, window, {
-            let amount_state = amount_state.clone();
-            move |this, _, ev: &InputEvent, _, cx| {
-                if let InputEvent::Change = ev {
-                    this.amount = amount_state.read(cx).value().to_string();
-                    this.convert_to_upper(cx);
+        let _subscriptions = vec![
+            cx.subscribe_in(&amount_state, window, {
+                let amount_state = amount_state.clone();
+                move |this, _, ev: &InputEvent, window, cx| {
+                    if let InputEvent::Change = ev {
+                        this.amount = amount_state.read(cx).value().to_string();
+                        this.convert_to_upper(window, cx);
+                    }
                 }
-            }
-        })];
+            }),
+            cx.subscribe_in(&upper_input_state, window, {
+                let upper_input_state = upper_input_state.clone();
+                move |this, _, ev: &InputEvent, window, cx| {
+                    if let InputEvent::Change = ev {
+                        this.upper_input = upper_input_state.read(cx).value().to_string();
+                        this.parse_upper(cx);
+                    }
+                }
+            }),
+        ];
 
         Self {
             mode: 0,
@@ -91,22 +102,31 @@ impl RmbCase {
         ZHENG_UNITS.get(self.zheng_index).copied().unwrap_or("整")
     }
 
-    fn convert_to_upper(&mut self, cx: &mut Context<Self>) {
+    fn convert_to_upper(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let value = self.amount.trim().to_string();
         if value.is_empty() {
             self.upper_result.clear();
             self.upper_error.clear();
+            self.upper_result_state.update(cx, |state, cx| {
+                state.set_value("".to_string(), window, cx);
+            });
             cx.notify();
             return;
         }
         match ::base::rmb_to_upper(&value, Some(self.yuan()), Some(self.zheng()), self.zheng_yuan, self.jiao_zheng) {
             Ok(upper) => {
-                self.upper_result = upper;
+                self.upper_result = upper.clone();
                 self.upper_error.clear();
+                self.upper_result_state.update(cx, |state, cx| {
+                    state.set_value(upper, window, cx);
+                });
             }
             Err(e) => {
                 self.upper_result.clear();
                 self.upper_error = e.to_string();
+                self.upper_result_state.update(cx, |state, cx| {
+                    state.set_value("".to_string(), window, cx);
+                });
             }
         }
         cx.notify();
@@ -140,7 +160,7 @@ impl RmbCase {
         self.amount_state.update(cx, |state, cx| {
             state.set_value(example, window, cx);
         });
-        self.convert_to_upper(cx);
+        self.convert_to_upper(window, cx);
     }
 
     fn fill_upper_example(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -160,7 +180,7 @@ impl RmbCase {
                 self.amount_state.update(cx, |state, cx| {
                     state.set_value(text.to_string(), window, cx);
                 });
-                self.convert_to_upper(cx);
+                self.convert_to_upper(window, cx);
             }
         }
     }
@@ -238,13 +258,13 @@ impl RmbCase {
                     } else {
                         cx.theme().muted_foreground
                     })
-                    .on_click(cx.listener(move |this, _, _, cx| {
+                    .on_click(cx.listener(move |this, _, window, cx| {
                         if name == "yuan" {
                             this.yuan_index = i;
                         } else {
                             this.zheng_index = i;
                         }
-                        this.convert_to_upper(cx);
+                        this.convert_to_upper(window, cx);
                         this.parse_upper(cx);
                     }))
                     .child(opt.to_string())
@@ -327,9 +347,9 @@ impl RmbCase {
                         "仅当没有角、分时追加结尾字，如 100 → 壹佰元{}；取消勾选则输出 壹佰元",
                         self.zheng()
                     ))
-                    .on_click(cx.listener(|this, checked: &bool, _, cx| {
+                    .on_click(cx.listener(|this, checked: &bool, window, cx| {
                         this.zheng_yuan = *checked;
-                        this.convert_to_upper(cx);
+                        this.convert_to_upper(window, cx);
                         this.parse_upper(cx);
                     })),
             )
@@ -341,9 +361,9 @@ impl RmbCase {
                         "仅当有角无分时追加结尾字，如 100.50 → 壹佰元伍角{}",
                         self.zheng()
                     ))
-                    .on_click(cx.listener(|this, checked: &bool, _, cx| {
+                    .on_click(cx.listener(|this, checked: &bool, window, cx| {
                         this.jiao_zheng = *checked;
-                        this.convert_to_upper(cx);
+                        this.convert_to_upper(window, cx);
                         this.parse_upper(cx);
                     })),
             )
@@ -355,7 +375,7 @@ impl Render for RmbCase {
         let mode = self.mode;
 
         design::page()
-            .child(design::page_header("人民币大小写", "金额数字与中文大写金额互转", cx))
+
             .child(
                 design::card(cx)
                     .child(self.config_row(cx))
@@ -395,8 +415,8 @@ impl RmbCase {
                             .primary()
                             .icon(Icon::new(IconName::Replace))
                             .tooltip("转换")
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.convert_to_upper(cx);
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.convert_to_upper(window, cx);
                             })),
                     )
                     .child(
