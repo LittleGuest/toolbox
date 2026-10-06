@@ -1,6 +1,6 @@
 use anyhow::{Error, Result};
 use serde::Serialize;
-use time::{macros::format_description, OffsetDateTime, PrimitiveDateTime, UtcOffset};
+use time::{OffsetDateTime, PrimitiveDateTime, UtcOffset, macros::format_description};
 
 pub fn now() -> OffsetDateTime {
     time::OffsetDateTime::now_utc()
@@ -22,21 +22,26 @@ pub fn timestamp_convert(
 ) -> Result<Vec<TimestampRow>> {
     let offset = UtcOffset::from_whole_seconds(tz_offset_secs)?;
     let mut rows = Vec::with_capacity(values.len());
-    let fmt = format_description!(
-        "[year]-[month]-[day] [hour]:[minute]:[second].[subsecond digits:3]"
-    );
+    let fmt =
+        format_description!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond digits:3]");
 
     for value in values {
         let v = value.trim();
         let row = match mode {
             "ts_to_dt" => {
-                let ts: i64 = v.parse().map_err(|_| Error::msg(format!("无效的时间戳: {v}")))?;
+                let ts: i64 = v
+                    .parse()
+                    .map_err(|_| Error::msg(format!("无效的时间戳: {v}")))?;
                 let secs = if unit == "ms" {
                     ts.div_euclid(1000)
                 } else {
                     ts
                 };
-                let millis = if unit == "ms" { ts } else { ts.saturating_mul(1000) };
+                let millis = if unit == "ms" {
+                    ts
+                } else {
+                    ts.saturating_mul(1000)
+                };
                 let dt = OffsetDateTime::from_unix_timestamp(secs)
                     .map_err(|e| Error::msg(e.to_string()))?
                     .to_offset(offset);
@@ -44,9 +49,7 @@ pub fn timestamp_convert(
                     input: value.to_string(),
                     second_ts: Some(secs),
                     milli_ts: Some(millis),
-                    datetime: dt
-                        .format(&fmt)
-                        .map_err(|e| Error::msg(e.to_string()))?,
+                    datetime: dt.format(&fmt).map_err(|e| Error::msg(e.to_string()))?,
                 }
             }
             _ => {
@@ -68,9 +71,8 @@ pub fn timestamp_convert(
 
 fn parse_datetime_in_offset(s: &str, offset: UtcOffset) -> Result<(i64, u32)> {
     let f_sec = format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
-    let f_frac = format_description!(
-        "[year]-[month]-[day] [hour]:[minute]:[second] [subsecond digits:3]"
-    );
+    let f_frac =
+        format_description!("[year]-[month]-[day] [hour]:[minute]:[second] [subsecond digits:3]");
     let comp = PrimitiveDateTime::parse(s.trim(), &f_frac)
         .or_else(|_| PrimitiveDateTime::parse(s.trim(), &f_sec))
         .map_err(|e| Error::msg(format!("无法识别的时间: {s}（{e}）")))?;

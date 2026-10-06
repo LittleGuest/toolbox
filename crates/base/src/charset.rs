@@ -508,11 +508,12 @@ fn is_readable_text(text: &str) -> bool {
     let readable_count = text
         .chars()
         .filter(|c| {
-            c.is_ascii_graphic() || *c == ' '
-        || (*c >= '\u{4e00}' && *c <= '\u{9fa5}')
-        || (*c >= '\u{3040}' && *c <= '\u{309f}')
-        || (*c >= '\u{30a0}' && *c <= '\u{30ff}')
-        || r#"，。！？、；：''""（）》《》【】「」『』·…—￥$€£%&=+-*/|～<>{}"# .contains(*c)
+            c.is_ascii_graphic()
+                || *c == ' '
+                || (*c >= '\u{4e00}' && *c <= '\u{9fa5}')
+                || (*c >= '\u{3040}' && *c <= '\u{309f}')
+                || (*c >= '\u{30a0}' && *c <= '\u{30ff}')
+                || r#"，。！？、；：''""（）》《》【】「」『』·…—￥$€£%&=+-*/|～<>{}"#.contains(*c)
         })
         .count();
 

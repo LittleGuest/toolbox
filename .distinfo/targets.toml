@@ -1,0 +1,40 @@
+[targets.linux-base]
+target = "x86_64-unknown-linux-gnu"
+format = "tgz"
+binaries = ["toolbox"]
+
+# [targets.deb]
+# inherit = "linux-base"
+# format = "deb"
+# binaries = ["toolbox"]
+# files = [
+#   [
+#     "toolbox.desktop",
+#     "usr/share/applications/toolbox.desktop",
+#     "644",
+#   ],
+#   [
+#     "icons/toolbox.svg",
+#     "usr/share/icons/hicolor/128x128/apps/toolbox.svg",
+#     "644",
+#   ],
+# ]
+# extra = {}
+
+[targets.arch]
+inherit = "linux-base"
+format = "pkg.tar.zst"
+binaries = ["toolbox"]
+files = [
+  [
+    "toolbox.desktop",
+    "usr/share/applications/toolbox.desktop",
+    "644",
+  ],
+  [
+    "icons/toolbox.svg",
+    "usr/share/icons/hicolor/128x128/apps/toolbox.svg",
+    "644",
+  ],
+]
+extra = { license = "MIT" }

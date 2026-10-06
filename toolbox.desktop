@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Toolbox
+Comment=A toolbox application
+Exec=toolbox
+Icon=toolbox
+Terminal=false
+StartupWMClass=toolbox

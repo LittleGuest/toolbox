@@ -1,0 +1,702 @@
+use gpui_kit::{
+    component::{
+        button::*,
+        checkbox::Checkbox,
+        input::{Input, InputEvent, InputState, Textarea, TextareaState},
+        select::{Select, SelectEvent, SelectState},
+        *,
+    },
+    prelude::FluentBuilder as _,
+    *,
+};
+
+pub struct CharsetEncoder {
+    input: String,
+    output: String,
+    input_type: String,
+    target_charset: String,
+    output_type: String,
+    delimiter_type: String,
+    custom_delimiter: String,
+    base_format: String,
+    byte_count: usize,
+    char_count: usize,
+    show_unicode: bool,
+    show_escape: bool,
+    show_c_array: bool,
+    show_assembly: bool,
+    show_auto: bool,
+    invert_non_printable: bool,
+    append_null: bool,
+    detected_charset: String,
+    error: String,
+    input_state: Entity<TextareaState>,
+    output_state: Entity<TextareaState>,
+    custom_delimiter_state: Entity<InputState>,
+    input_type_state: Entity<SelectState<Vec<String>>>,
+    target_charset_state: Entity<SelectState<Vec<String>>>,
+    output_type_state: Entity<SelectState<Vec<String>>>,
+    delimiter_state: Entity<SelectState<Vec<String>>>,
+    base_format_state: Entity<SelectState<Vec<String>>>,
+    _subscriptions: Vec<Subscription>,
+}
+
+impl CharsetEncoder {
+    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let input_state =
+            cx.new(|cx| TextareaState::new(window, cx).placeholder("请输入文本或编码数据"));
+        let output_state = cx.new(|cx| TextareaState::new(window, cx).placeholder("转换结果"));
+        let custom_delimiter_state =
+            cx.new(|cx| InputState::new(window, cx).placeholder("输入自定义分隔符"));
+
+        let input_type_items = vec![
+            "文本".to_string(),
+            "十六进制".to_string(),
+            "十进制".to_string(),
+            "八进制".to_string(),
+            "二进制".to_string(),
+        ];
+        let target_charset_items = vec![
+            "UTF-8".to_string(),
+            "GBK".to_string(),
+            "UTF-16BE".to_string(),
+            "UTF-16LE".to_string(),
+            "UTF-32BE".to_string(),
+            "UTF-32LE".to_string(),
+            "ASCII".to_string(),
+        ];
+        let output_type_items = vec![
+            "十六进制(Hex)".to_string(),
+            "十进制(Dec)".to_string(),
+            "八进制(Oct)".to_string(),
+            "二进制(Bin)".to_string(),
+        ];
+        let delimiter_items = vec![
+            "空格".to_string(),
+            ", ".to_string(),
+            ": ".to_string(),
+            "; ".to_string(),
+            "换行".to_string(),
+            "自定义".to_string(),
+        ];
+        let base_format_items = vec![
+            "无".to_string(),
+            "0x前缀".to_string(),
+            "0b前缀".to_string(),
+            "0o前缀".to_string(),
+            "h后缀".to_string(),
+        ];
+
+        let input_type_state = cx.new(|cx| {
+            let mut state = SelectState::new(input_type_items, None, window, cx);
+            state.set_selected_value(&"文本".to_string(), window, cx);
+            state
+        });
+        let target_charset_state = cx.new(|cx| {
+            let mut state = SelectState::new(target_charset_items, None, window, cx);
+            state.set_selected_value(&"UTF-8".to_string(), window, cx);
+            state
+        });
+        let output_type_state = cx.new(|cx| {
+            let mut state = SelectState::new(output_type_items, None, window, cx);
+            state.set_selected_value(&"十六进制(Hex)".to_string(), window, cx);
+            state
+        });
+        let delimiter_state = cx.new(|cx| {
+            let mut state = SelectState::new(delimiter_items, None, window, cx);
+            state.set_selected_value(&"空格".to_string(), window, cx);
+            state
+        });
+        let base_format_state = cx.new(|cx| {
+            let mut state = SelectState::new(base_format_items, None, window, cx);
+            state.set_selected_value(&"无".to_string(), window, cx);
+            state
+        });
+
+        let _subscriptions = vec![
+            cx.subscribe_in(&input_state, window, {
+                let input_state = input_state.clone();
+                move |this, _, ev: &InputEvent, _, cx| {
+                    if let InputEvent::Change = ev {
+                        this.input = input_state.read(cx).value().to_string();
+                        cx.notify();
+                    }
+                }
+            }),
+            cx.subscribe_in(
+                &input_type_state,
+                window,
+                move |this, _, ev: &SelectEvent<Vec<String>>, _, cx| {
+                    if let SelectEvent::Confirm(Some(value)) = ev {
+                        this.input_type = match value.as_str() {
+                            "文本" => "text",
+                            "十六进制" => "hex",
+                            "十进制" => "decimal",
+                            "八进制" => "octal",
+                            "二进制" => "binary",
+                            _ => "text",
+                        }
+                        .to_string();
+                        cx.notify();
+                    }
+                },
+            ),
+            cx.subscribe_in(
+                &target_charset_state,
+                window,
+                move |this, _, ev: &SelectEvent<Vec<String>>, _, cx| {
+                    if let SelectEvent::Confirm(Some(value)) = ev {
+                        this.target_charset = value.clone();
+                        cx.notify();
+                    }
+                },
+            ),
+            cx.subscribe_in(
+                &output_type_state,
+                window,
+                move |this, _, ev: &SelectEvent<Vec<String>>, _, cx| {
+                    if let SelectEvent::Confirm(Some(value)) = ev {
+                        this.output_type = match value.as_str() {
+                            "十六进制(Hex)" => "hex",
+                            "十进制(Dec)" => "decimal",
+                            "八进制(Oct)" => "octal",
+                            "二进制(Bin)" => "binary",
+                            _ => "hex",
+                        }
+                        .to_string();
+                        cx.notify();
+                    }
+                },
+            ),
+            cx.subscribe_in(
+                &delimiter_state,
+                window,
+                move |this, _, ev: &SelectEvent<Vec<String>>, _, cx| {
+                    if let SelectEvent::Confirm(Some(value)) = ev {
+                        this.delimiter_type = value.clone();
+                        cx.notify();
+                    }
+                },
+            ),
+            cx.subscribe_in(
+                &base_format_state,
+                window,
+                move |this, _, ev: &SelectEvent<Vec<String>>, _, cx| {
+                    if let SelectEvent::Confirm(Some(value)) = ev {
+                        this.base_format = match value.as_str() {
+                            "无" => "none",
+                            "0x前缀" => "0x",
+                            "0b前缀" => "0b",
+                            "0o前缀" => "0o",
+                            "h后缀" => "h",
+                            _ => "none",
+                        }
+                        .to_string();
+                        cx.notify();
+                    }
+                },
+            ),
+        ];
+
+        Self {
+            input: String::new(),
+            output: String::new(),
+            input_type: "text".to_string(),
+            target_charset: "UTF-8".to_string(),
+            output_type: "hex".to_string(),
+            delimiter_type: "空格".to_string(),
+            custom_delimiter: String::new(),
+            base_format: "none".to_string(),
+            byte_count: 0,
+            char_count: 0,
+            show_unicode: false,
+            show_escape: false,
+            show_c_array: false,
+            show_assembly: false,
+            show_auto: false,
+            invert_non_printable: false,
+            append_null: false,
+            detected_charset: String::new(),
+            error: String::new(),
+            input_state,
+            output_state,
+            custom_delimiter_state,
+            input_type_state,
+            target_charset_state,
+            output_type_state,
+            delimiter_state,
+            base_format_state,
+            _subscriptions,
+        }
+    }
+
+    fn get_delimiter(&self) -> String {
+        match self.delimiter_type.as_str() {
+            "空格" => " ".to_string(),
+            ", " => ", ".to_string(),
+            ": " => ": ".to_string(),
+            "; " => "; ".to_string(),
+            "换行" => "\n".to_string(),
+            "自定义" => self.custom_delimiter.clone(),
+            _ => " ".to_string(),
+        }
+    }
+
+    fn sync_custom_delimiter(&mut self, cx: &App) {
+        self.custom_delimiter = self.custom_delimiter_state.read(cx).value().to_string();
+    }
+
+    fn auto_detect(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.input.trim().is_empty() {
+            self.error = "请先输入内容".to_string();
+            cx.notify();
+            return;
+        }
+        match ::base::auto_detect_charset(&self.input) {
+            Ok(charset) => {
+                self.detected_charset = format!("自动检测到编码: {charset}");
+                self.error.clear();
+                self.target_charset = charset.clone();
+                self.target_charset_state.update(cx, |state, cx| {
+                    state.set_selected_value(&charset, window, cx);
+                });
+                self.convert(window, cx);
+            }
+            Err(e) => {
+                self.detected_charset.clear();
+                self.error = format!("自动检测失败: {e}");
+            }
+        }
+        cx.notify();
+    }
+
+    fn convert(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.sync_custom_delimiter(cx);
+
+        if self.input.trim().is_empty() {
+            self.output.clear();
+            self.byte_count = 0;
+            self.char_count = 0;
+            self.output_state.update(cx, |state, cx| {
+                state.set_value("".to_string(), window, cx);
+            });
+            return;
+        }
+
+        let delimiter = self.get_delimiter();
+        let result = ::base::charset_encode(
+            &self.input,
+            &self.input_type,
+            &self.target_charset,
+            &self.output_type,
+            &delimiter,
+            &self.base_format,
+            self.show_unicode,
+            self.show_escape,
+            self.show_c_array,
+            self.show_assembly,
+            self.show_auto,
+            self.invert_non_printable,
+            self.append_null,
+        );
+
+        match result {
+            Ok(result) => {
+                self.output = result.output;
+                self.byte_count = result.byte_count;
+                self.char_count = result.char_count;
+                self.error.clear();
+            }
+            Err(e) => {
+                self.error = e.to_string();
+            }
+        }
+
+        let output = self.output.clone();
+        self.output_state.update(cx, |state, cx| {
+            state.set_value(output, window, cx);
+        });
+        cx.notify();
+    }
+
+    fn clear(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.input.clear();
+        self.output.clear();
+        self.byte_count = 0;
+        self.char_count = 0;
+        self.error.clear();
+        self.detected_charset.clear();
+        self.input_state.update(cx, |state, cx| {
+            state.set_value("".to_string(), window, cx);
+        });
+        self.output_state.update(cx, |state, cx| {
+            state.set_value("".to_string(), window, cx);
+        });
+        cx.notify();
+    }
+
+    fn paste(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(item) = cx.read_from_clipboard() {
+            if let Some(text) = item.text() {
+                self.input = text.to_string();
+                self.input_state.update(cx, |state, cx| {
+                    state.set_value(text.to_string(), window, cx);
+                });
+                cx.notify();
+            }
+        }
+    }
+
+    fn copy_input(&mut self, cx: &mut Context<Self>) {
+        if !self.input.is_empty() {
+            cx.write_to_clipboard(ClipboardItem::new_string(self.input.clone()));
+        }
+    }
+
+    fn copy_output(&mut self, cx: &mut Context<Self>) {
+        if !self.output.is_empty() {
+            cx.write_to_clipboard(ClipboardItem::new_string(self.output.clone()));
+        }
+    }
+
+    fn paste_output(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(item) = cx.read_from_clipboard() {
+            if let Some(text) = item.text() {
+                self.output = text.to_string();
+                self.output_state.update(cx, |state, cx| {
+                    state.set_value(self.output.clone(), window, cx);
+                });
+                cx.notify();
+            }
+        }
+    }
+}
+
+impl Render for CharsetEncoder {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let error = self.error.clone();
+        let detected = self.detected_charset.clone();
+
+        // 配置行 1（tb-config-row：各配置项换行排列）
+        let config_row = div()
+            .flex()
+            .flex_wrap()
+            .items_center()
+            .gap_y_3()
+            .gap_x_5()
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .child(
+                        div()
+                            .text_size(px(13.0))
+                            .text_color(gpui::black().opacity(0.65))
+                            .child("输入类型"),
+                    )
+                    .child(
+                        div()
+                            .w(px(160.0))
+                            .child(Select::new(&self.input_type_state)),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .child(
+                        div()
+                            .text_size(px(13.0))
+                            .text_color(gpui::black().opacity(0.65))
+                            .child("目标编码"),
+                    )
+                    .child(
+                        div()
+                            .w(px(160.0))
+                            .child(Select::new(&self.target_charset_state)),
+                    )
+                    .when(!detected.is_empty(), |row| {
+                        row.child(
+                            div()
+                                .text_size(px(12.5))
+                                .text_color(Hsla::from(rgb(design::OK_GREEN)))
+                                .child(detected),
+                        )
+                    }),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .child(
+                        div()
+                            .text_size(px(13.0))
+                            .text_color(gpui::black().opacity(0.65))
+                            .child("输出类型"),
+                    )
+                    .child(
+                        div()
+                            .w(px(160.0))
+                            .child(Select::new(&self.output_type_state)),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .child(
+                        div()
+                            .text_size(px(13.0))
+                            .text_color(gpui::black().opacity(0.65))
+                            .child("分隔符"),
+                    )
+                    .child(div().w(px(120.0)).child(Select::new(&self.delimiter_state))),
+            )
+            .when(self.delimiter_type == "自定义", |row| {
+                row.child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap_2()
+                        .child(
+                            div()
+                                .text_size(px(13.0))
+                                .text_color(gpui::black().opacity(0.65))
+                                .child("自定义分隔符"),
+                        )
+                        .child(
+                            div()
+                                .w(px(160.0))
+                                .child(Input::new(&self.custom_delimiter_state)),
+                        ),
+                )
+            })
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .child(
+                        div()
+                            .text_size(px(13.0))
+                            .text_color(gpui::black().opacity(0.65))
+                            .child("进制格式"),
+                    )
+                    .child(
+                        div()
+                            .w(px(140.0))
+                            .child(Select::new(&self.base_format_state)),
+                    ),
+            );
+
+        // 配置行 2：显示选项复选框组
+        let options_row = div()
+            .flex()
+            .flex_wrap()
+            .items_center()
+            .gap_2()
+            .child(
+                div()
+                    .text_size(px(13.0))
+                    .text_color(gpui::black().opacity(0.65))
+                    .child("显示选项"),
+            )
+            .child(
+                div()
+                    .flex()
+                    .flex_wrap()
+                    .items_center()
+                    .gap_y_1()
+                    .gap_x_4()
+                    .child(
+                        Checkbox::new("opt-unicode")
+                            .label("Unicode码点")
+                            .checked(self.show_unicode)
+                            .on_click(cx.listener(|this, v: &bool, _, cx| {
+                                this.show_unicode = *v;
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        Checkbox::new("opt-escape")
+                            .label("转义序列")
+                            .checked(self.show_escape)
+                            .on_click(cx.listener(|this, v: &bool, _, cx| {
+                                this.show_escape = *v;
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        Checkbox::new("opt-carray")
+                            .label("C/C++数组")
+                            .checked(self.show_c_array)
+                            .on_click(cx.listener(|this, v: &bool, _, cx| {
+                                this.show_c_array = *v;
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        Checkbox::new("opt-asm")
+                            .label("汇编数据")
+                            .checked(self.show_assembly)
+                            .on_click(cx.listener(|this, v: &bool, _, cx| {
+                                this.show_assembly = *v;
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        Checkbox::new("opt-auto")
+                            .label("自动")
+                            .checked(self.show_auto)
+                            .on_click(cx.listener(|this, v: &bool, _, cx| {
+                                this.show_auto = *v;
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        Checkbox::new("opt-invert")
+                            .label("反转不可打印字符")
+                            .checked(self.invert_non_printable)
+                            .on_click(cx.listener(|this, v: &bool, _, cx| {
+                                this.invert_non_printable = *v;
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        Checkbox::new("opt-null")
+                            .label("追加NUL结尾")
+                            .checked(self.append_null)
+                            .on_click(cx.listener(|this, v: &bool, _, cx| {
+                                this.append_null = *v;
+                                cx.notify();
+                            })),
+                    ),
+            );
+
+        div().w_full().flex_col().gap_4().child(
+            div()
+                .w_full()
+                .flex_col()
+                .gap_4()
+                .child(config_row)
+                .child(options_row)
+                // 输入编辑器
+                .child(
+                    div()
+                        .flex_col()
+                        .gap_1p5()
+                        .child(design::editor_label("输入", cx))
+                        .child(
+                            Textarea::new(&self.input_state)
+                                .h(design::CODE_BOX_HEIGHT)
+                                .font_family("monospace"),
+                        )
+                        .child(
+                            design::toolbar()
+                                .child(
+                                    Button::new("paste-input")
+                                        .icon(Icon::new(IconName::Inbox))
+                                        .tooltip("粘贴")
+                                        .on_click(cx.listener(|this, _, window, cx| {
+                                            this.paste(window, cx);
+                                        })),
+                                )
+                                .child(
+                                    Button::new("copy-input")
+                                        .icon(Icon::new(IconName::Copy))
+                                        .tooltip("复制")
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.copy_input(cx);
+                                        })),
+                                )
+                                .child(
+                                    Button::new("auto-detect")
+                                        .icon(Icon::new(IconName::Search))
+                                        .tooltip("自动检测")
+                                        .on_click(cx.listener(|this, _, window, cx| {
+                                            this.auto_detect(window, cx);
+                                        })),
+                                )
+                                .child(
+                                    Button::new("clear-input")
+                                        .icon(Icon::new(IconName::Close))
+                                        .tooltip("清除")
+                                        .on_click(cx.listener(|this, _, window, cx| {
+                                            this.clear(window, cx);
+                                        })),
+                                ),
+                        ),
+                )
+                // 转换动作行
+                .child(
+                    design::action_row().child(
+                        Button::new("convert")
+                            .primary()
+                            .icon(Icon::new(IconName::ArrowDown))
+                            .tooltip("转换")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.convert(window, cx);
+                            })),
+                    ),
+                )
+                // 输出编辑器
+                .child(
+                    div()
+                        .flex_col()
+                        .gap_1p5()
+                        .child(design::editor_label("输出", cx))
+                        .child(
+                            Textarea::new(&self.output_state)
+                                .h(design::CODE_BOX_HEIGHT)
+                                .font_family("monospace"),
+                        )
+                        .child(
+                            design::toolbar()
+                                .child(
+                                    Button::new("paste-output")
+                                        .icon(Icon::new(IconName::Inbox))
+                                        .tooltip("粘贴")
+                                        .on_click(cx.listener(|this, _, window, cx| {
+                                            this.paste_output(window, cx);
+                                        })),
+                                )
+                                .child(
+                                    Button::new("copy-output")
+                                        .icon(Icon::new(IconName::Copy))
+                                        .tooltip("复制")
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.copy_output(cx);
+                                        })),
+                                )
+                                .child(
+                                    Button::new("clear-output")
+                                        .icon(Icon::new(IconName::Close))
+                                        .tooltip("清除")
+                                        .on_click(cx.listener(|this, _, window, cx| {
+                                            this.clear(window, cx);
+                                        })),
+                                ),
+                        )
+                        .child(design::hint(
+                            format!(
+                                "统计信息：字节 {} · 字符 {}",
+                                self.byte_count, self.char_count
+                            ),
+                            cx,
+                        )),
+                )
+                .when(!error.is_empty(), |card| {
+                    card.child(
+                        div()
+                            .text_size(px(12.5))
+                            .text_color(Hsla::from(rgb(design::ERROR_RED)))
+                            .child(error),
+                    )
+                }),
+        )
+    }
+}

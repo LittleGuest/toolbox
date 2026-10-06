@@ -1,10 +1,14 @@
+use std::{
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+};
+
 use anyhow::{Error, Result};
 use lopdf::{
+    Document, Object, ObjectId, Stream,
     content::{Content, Operation},
-    dictionary, Document, Object, ObjectId, Stream,
+    dictionary,
 };
-use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
 
 type Id = (u32, u16);
 
@@ -82,7 +86,8 @@ pub fn pdf_edit(
     rotate: &[(u32, f32)],
     order: &[u32],
 ) -> Result<()> {
-    let mut doc = Document::load(input).map_err(|e| Error::msg(format!("读取 {input} 失败: {e}")))?;
+    let mut doc =
+        Document::load(input).map_err(|e| Error::msg(format!("读取 {input} 失败: {e}")))?;
     let page_map = doc.get_pages();
     let page_count = page_map.len() as u32;
 
@@ -134,7 +139,9 @@ pub fn pdf_split(input: &str, output_dir: &str, ranges: &str) -> Result<Vec<Stri
         }
         if let Some(&max_p) = pages.iter().max() {
             if max_p > page_count {
-                return Err(Error::msg(format!("页码 {max_p} 超出文档总页数 {page_count}")));
+                return Err(Error::msg(format!(
+                    "页码 {max_p} 超出文档总页数 {page_count}"
+                )));
             }
         }
         let mut merged = build_combined(vec![(doc.clone(), pages.clone())])?;
@@ -156,7 +163,8 @@ pub fn pdf_add_page_numbers(
     format_pattern: &str,
     start_at: i32,
 ) -> Result<()> {
-    let mut doc = Document::load(input).map_err(|e| Error::msg(format!("读取 {input} 失败: {e}")))?;
+    let mut doc =
+        Document::load(input).map_err(|e| Error::msg(format!("读取 {input} 失败: {e}")))?;
     let margin = font_size;
 
     let font_id = doc.add_object(dictionary! {

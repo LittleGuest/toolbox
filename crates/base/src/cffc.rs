@@ -144,4 +144,3 @@ impl Data {
         quick_xml::se::to_string(&v).map_err(|e| Error::msg(e.to_string()))
     }
 }
-

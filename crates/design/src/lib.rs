@@ -1,6 +1,4 @@
-
-use gpui_kit::*;
-use gpui_kit::component::*;
+use gpui_kit::{component::*, *};
 
 /// 页面容器（对应 Tauri `global.scss` 的 `.tb-page`）
 /// padding: 16px 20px 24px；纵向 gap 16px
@@ -182,4 +180,3 @@ pub fn stat_pill(
 pub fn submit_row() -> Div {
     div().mt_auto().pt(px(18.0))
 }
-

@@ -1,8 +1,10 @@
 use std::collections::BTreeSet;
 
 use anyhow::{Error, Result};
-use chrono::offset::{LocalResult, TimeZone};
-use chrono::{DateTime, Datelike, Local, NaiveDate, Timelike};
+use chrono::{
+    DateTime, Datelike, Local, NaiveDate, Timelike,
+    offset::{LocalResult, TimeZone},
+};
 use serde::Serialize;
 
 type ValueSet = BTreeSet<u32>;
@@ -214,13 +216,7 @@ pub fn parse_expression(expr: &str, count: u32, ty_str: &str) -> Result<CronPars
     let (sec_s, min_s, hour_s, dom_s, month_s, dow_s, year_s) = match ty {
         CronType::Linux => ("0", parts[0], parts[1], parts[2], parts[3], parts[4], None),
         CronType::Spring => (
-            parts[0],
-            parts[1],
-            parts[2],
-            parts[3],
-            parts[4],
-            parts[5],
-            None,
+            parts[0], parts[1], parts[2], parts[3], parts[4], parts[5], None,
         ),
         CronType::Quartz => (
             parts[0],
@@ -247,11 +243,7 @@ pub fn parse_expression(expr: &str, count: u32, ty_str: &str) -> Result<CronPars
         Some(y) => {
             let mut set = parse_field(y, 1970, 2099, &[])?;
             compact_all(&mut set, 1970, 2099);
-            if set.is_empty() {
-                None
-            } else {
-                Some(set)
-            }
+            if set.is_empty() { None } else { Some(set) }
         }
         None => None,
     };
@@ -469,7 +461,10 @@ fn parse_dow_number(s: &str, ty: CronType) -> Result<u32> {
     if let Ok(n) = s.parse::<u32>() {
         let (min, max) = ty.dow_range();
         if n < min || n > max {
-            return Err(Error::msg(format!("周数值应在 {}-{} 之间：{}", min, max, s)));
+            return Err(Error::msg(format!(
+                "周数值应在 {}-{} 之间：{}",
+                min, max, s
+            )));
         }
         Ok(n)
     } else if let Some(v) = name_value(s, ty.dow_names()) {
@@ -498,10 +493,7 @@ fn parse_value(s: &str, names: &[(&str, u32)], min: u32, max: u32, what: &str) -
 fn name_value(s: &str, names: &[(&str, u32)]) -> Option<u32> {
     let upper = s.to_ascii_uppercase();
     let key = &upper[..upper.len().min(3)];
-    names
-        .iter()
-        .find(|(k, _)| *k == key)
-        .map(|(_, v)| *v)
+    names.iter().find(|(k, _)| *k == key).map(|(_, v)| *v)
 }
 
 fn parse_uint(s: &str, what: &str) -> Result<u32> {
@@ -556,7 +548,11 @@ fn range_from(set: &ValueSet, min: u32, max: u32, from: u32) -> Vec<u32> {
     }
 }
 
-fn find_next(schedule: &Schedule, after: &DateTime<Local>, start_year: u32) -> Option<DateTime<Local>> {
+fn find_next(
+    schedule: &Schedule,
+    after: &DateTime<Local>,
+    start_year: u32,
+) -> Option<DateTime<Local>> {
     let ay = after.year() as u32;
     let years: Vec<u32> = match &schedule.years {
         Some(set) => set.range(ay..).copied().take(130).collect(),
@@ -581,12 +577,12 @@ fn find_next(schedule: &Schedule, after: &DateTime<Local>, start_year: u32) -> O
                 days
             };
             for day in days {
-                let hours: Vec<u32> =
-                    if year == ay && month == after.month() && day == after.day() {
-                        range_from(&schedule.hours, 0, 23, after.hour())
-                    } else {
-                        iter_vals(&schedule.hours, 0, 23)
-                    };
+                let hours: Vec<u32> = if year == ay && month == after.month() && day == after.day()
+                {
+                    range_from(&schedule.hours, 0, 23, after.hour())
+                } else {
+                    iter_vals(&schedule.hours, 0, 23)
+                };
                 for hour in hours {
                     let minutes: Vec<u32> = if year == ay
                         && month == after.month()
@@ -623,7 +619,14 @@ fn find_next(schedule: &Schedule, after: &DateTime<Local>, start_year: u32) -> O
     None
 }
 
-fn build_dt(year: u32, month: u32, day: u32, hour: u32, minute: u32, sec: u32) -> Option<DateTime<Local>> {
+fn build_dt(
+    year: u32,
+    month: u32,
+    day: u32,
+    hour: u32,
+    minute: u32,
+    sec: u32,
+) -> Option<DateTime<Local>> {
     match Local.with_ymd_and_hms(year as i32, month, day, hour, minute, sec) {
         LocalResult::Single(dt) => Some(dt),
         LocalResult::Ambiguous(earlier, _) => Some(earlier),
@@ -642,7 +645,11 @@ fn matching_days(schedule: &Schedule, year: u32, month: u32, dim: u32) -> Vec<u3
     }
     if !dow_all {
         if dom_all {
-            days.retain(|d| schedule.dow.matches(weekday_index(year, month, *d), *d, dim));
+            days.retain(|d| {
+                schedule
+                    .dow
+                    .matches(weekday_index(year, month, *d), *d, dim)
+            });
         } else {
             for d in 1..=dim {
                 if schedule.dow.matches(weekday_index(year, month, d), d, dim) {
@@ -730,11 +737,7 @@ fn step_pattern(set: &ValueSet, min: u32, _max: u32) -> Option<u32> {
         return None;
     }
     let expected: ValueSet = (first..=last).step_by(step as usize).collect();
-    if *set == expected {
-        Some(step)
-    } else {
-        None
-    }
+    if *set == expected { Some(step) } else { None }
 }
 
 fn contiguous_range(set: &ValueSet) -> Option<(u32, u32)> {
@@ -900,11 +903,7 @@ fn describe_dow(dow: &DowField) -> String {
             let v = *dow.values.iter().next().unwrap();
             parts.push(format!("每{}", DOW_NAMES[v as usize]));
         } else {
-            let names: Vec<&str> = dow
-                .values
-                .iter()
-                .map(|v| DOW_NAMES[*v as usize])
-                .collect();
+            let names: Vec<&str> = dow.values.iter().map(|v| DOW_NAMES[*v as usize]).collect();
             parts.push(format!("每{}", names.join("、")));
         }
     }
@@ -1085,19 +1084,31 @@ mod tests {
     #[test]
     fn description_examples() {
         assert_eq!(
-            parse_expression("*/5 * * * *", 2, "linux").unwrap().description.unwrap(),
+            parse_expression("*/5 * * * *", 2, "linux")
+                .unwrap()
+                .description
+                .unwrap(),
             "每 5 分钟执行一次"
         );
         assert_eq!(
-            parse_expression("0 9 * * 1-5", 2, "linux").unwrap().description.unwrap(),
+            parse_expression("0 9 * * 1-5", 2, "linux")
+                .unwrap()
+                .description
+                .unwrap(),
             "每周一至周五，09:00执行"
         );
         assert_eq!(
-            parse_expression("0 0 8 * * *", 2, "spring").unwrap().description.unwrap(),
+            parse_expression("0 0 8 * * *", 2, "spring")
+                .unwrap()
+                .description
+                .unwrap(),
             "每天，08:00:00执行"
         );
         assert_eq!(
-            parse_expression("0 0 0 L * ?", 2, "quartz").unwrap().description.unwrap(),
+            parse_expression("0 0 0 L * ?", 2, "quartz")
+                .unwrap()
+                .description
+                .unwrap(),
             "每月最后一天，00:00:00执行"
         );
     }

@@ -1,9 +1,13 @@
-use anyhow::{Error, Result};
-use image::{ImageFormat, DynamicImage, codecs::jpeg::JpegEncoder, codecs::pnm::PnmSubtype};
 use std::{
     fs::File,
     io::BufWriter,
     path::{Path, PathBuf},
+};
+
+use anyhow::{Error, Result};
+use image::{
+    DynamicImage, ImageFormat,
+    codecs::{jpeg::JpegEncoder, pnm::PnmSubtype},
 };
 
 fn out_spec(name: &str) -> Result<(String, &'static str)> {
@@ -63,16 +67,18 @@ fn write_image(img: &DynamicImage, path: &Path, kind: &str) -> Result<()> {
         }
         "ppm" => {
             let file = BufWriter::new(File::create(path)?);
-            let enc = image::codecs::pnm::PnmEncoder::new(file)
-                .with_subtype(PnmSubtype::Pixmap(image::codecs::pnm::SampleEncoding::Binary));
+            let enc = image::codecs::pnm::PnmEncoder::new(file).with_subtype(PnmSubtype::Pixmap(
+                image::codecs::pnm::SampleEncoding::Binary,
+            ));
             img.to_rgb8()
                 .write_with_encoder(enc)
                 .map_err(|e| Error::msg(e.to_string()))?;
         }
         "pgm" => {
             let file = BufWriter::new(File::create(path)?);
-            let enc = image::codecs::pnm::PnmEncoder::new(file)
-                .with_subtype(PnmSubtype::Graymap(image::codecs::pnm::SampleEncoding::Binary));
+            let enc = image::codecs::pnm::PnmEncoder::new(file).with_subtype(PnmSubtype::Graymap(
+                image::codecs::pnm::SampleEncoding::Binary,
+            ));
             img.to_luma8()
                 .write_with_encoder(enc)
                 .map_err(|e| Error::msg(e.to_string()))?;

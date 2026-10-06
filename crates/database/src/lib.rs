@@ -12,7 +12,7 @@ pub use database_core::{
     error::{Error, Result},
 };
 pub use diff::{
-    CheckReportBo, DiffReport, FieldInfo, IndexInfo, Suggest, StandardCheck, TableInfo,
+    CheckReportBo, DiffReport, FieldInfo, IndexInfo, StandardCheck, Suggest, TableInfo,
     diff_report, diff_sql, standard_check,
 };
 

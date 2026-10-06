@@ -4,15 +4,8 @@
   <img src="public/toolbox.svg" alt="toolbox" width="50" height="50">
 </p>
 
-一个基于 `Tauri2`、`Vue3` + `TypeScript` 和 `Rust` 开发的跨平台离线工具箱，提供多种实用工具，满足日常开发和工作需求。
+一个基于 `GPUI` 和 `Rust` 开发的跨平台离线工具箱，提供多种实用工具，满足日常开发和工作需求。
 
-## 项目概述
-
-- **桌面框架**: `Tauri 2`
-- **前端**: `Vue 3`、`TypeScript`、`Vite`、`Naive UI`
-- **后端**: `Rust`（workspace 多 crate：`base`、`database`、`datafaker`、`monitor`，使用 `sqlx`、`tokio` 及多个 Tauri 插件）
-- **数据存储**: `SQLite`（tauri-plugin-sql）
-- **特点**: 离线运行、轻量级、跨平台、功能丰富
 - **支持平台**: `Windows`、`macOS`、`Linux`
 
 ## 功能菜单
@@ -113,29 +106,3 @@
 
 - 二维码: 二维码生成（可调尺寸、颜色、纠错级别，支持导出 PNG）
 - 剪贴板管理: 剪贴板管理
-
-## 安装与运行
-
-### 前置条件
-
-- 安装 [Node.js](https://nodejs.org/)
-- 安装 [Rust](https://www.rust-lang.org/)
-- 安装 [Tauri 开发环境](https://tauri.app/zh-cn/start/prerequisites/)
-
-### 开发环境运行
-
-```bash
-# 安装依赖
-yarn
-
-# 运行开发服务器
-cargo tauri dev
-```
-
-### 构建生产版本
-
-```bash
-# 构建应用
-cargo tauri build
-```
-

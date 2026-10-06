@@ -503,5 +503,12 @@ pub fn pdf_add_page_numbers(
     format_pattern: &str,
     start_at: i32,
 ) -> Result<()> {
-    pdf::pdf_add_page_numbers(input, output_path, position, font_size, format_pattern, start_at)
+    pdf::pdf_add_page_numbers(
+        input,
+        output_path,
+        position,
+        font_size,
+        format_pattern,
+        start_at,
+    )
 }

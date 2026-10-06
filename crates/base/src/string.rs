@@ -81,7 +81,5 @@ pub fn inverse_case(data: &str) -> Result<String> {
 mod tests {
 
     #[test]
-    fn test() {
-
-    }
+    fn test() {}
 }

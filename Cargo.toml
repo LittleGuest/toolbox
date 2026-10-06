@@ -8,9 +8,9 @@ members = [
   "crates/design",
   "crates/excalidraw",
   "crates/monitor",
-  "crates/ui",
-  "src-tauri",
+  "crates/toolbox",
 ]
+default-members = ["crates/toolbox"]
 
 [workspace.package]
 edition = "2024"
@@ -26,9 +26,6 @@ design = { path = "crates/design" }
 excalidraw = { path = "crates/excalidraw" }
 monitor = { path = "crates/monitor" }
 database-core = { git = "https://github.com/LittleGuest/database", package = "database", branch = "main" }
-tauri = { version = "2", features = [] }
-tauri-build = { version = "2", features = [] }
-tauri-plugin-opener = "2.5.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 base64 = "0.22.1"
@@ -62,8 +59,6 @@ image = { version = "0.25.6" }
 time = { version = "0.3.41", features = ["formatting"] }
 base-converter = "2.0.0"
 chrono = { version = "0.4", features = ["clock"] }
-tauri-plugin-clipboard-manager = "2"
-tauri-plugin-notification = "2"
 tokio = { version = "1.45.0", features = ["full"] }
 dirs = "6"
 tera = { version = "1.20.0", default-features = false }
@@ -75,8 +70,6 @@ sqlx = { version = "0.8.6", features = [
   "any",
   "all-databases",
 ] }
-tauri-plugin-store = "2"
-tauri-plugin-sql = { version = "2.2.0", features = ["sqlite"] }
 fastrand = "2.3.0"
 anyhow = "1.0.98"
 Inflector = "0.11.4"
@@ -86,7 +79,6 @@ rand = "0.9.1"
 rand_regex = "0.18.1"
 regex-syntax = "0.8.5"
 indexmap = "2.10.0"
-tauri-plugin-dialog = "2"
 sysinfo = "0.37.1"
 battery = "0.7.8"
 dotenv = "0.15.0"

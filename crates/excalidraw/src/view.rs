@@ -1,14 +1,13 @@
-use std::{
-    cell::Cell,
-    rc::Rc,
-    sync::Arc,
-};
+use std::{cell::Cell, rc::Rc, sync::Arc};
 
-use gpui_kit::{prelude::FluentBuilder as _, *};
-use gpui_kit::component::{
-    WindowExt,
-    button::*,
-    input::{Input, InputState},
+use gpui_kit::{
+    component::{
+        WindowExt,
+        button::*,
+        input::{Input, InputState},
+        *,
+    },
+    prelude::FluentBuilder as _,
     *,
 };
 use serde::{Deserialize, Serialize};
@@ -188,11 +187,7 @@ pub struct ExcalidrawView {
 
 impl ExcalidrawView {
     /// 用宿主提供的存储实现构造视图。
-    pub fn new(
-        store: Arc<dyn DocStore>,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) -> Self {
+    pub fn new(store: Arc<dyn DocStore>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let canvas_origin = Rc::new(Cell::new(point(px(0.0), px(0.0))));
         Self {
             elements: Vec::new(),
@@ -828,9 +823,7 @@ impl ExcalidrawView {
                 if let Some(path) = path {
                     match png {
                         Ok(bytes) => match std::fs::write(&path, bytes) {
-                            Ok(_) => {
-                                this.status = format!("已导出 PNG：{}", path.display())
-                            }
+                            Ok(_) => this.status = format!("已导出 PNG：{}", path.display()),
                             Err(err) => this.status = format!("写入 PNG 失败：{err}"),
                         },
                         Err(err) => this.status = format!("渲染 PNG 失败：{err}"),
@@ -1009,23 +1002,24 @@ fn history_island(_this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> D
 
 /// 汉堡菜单展开面板（对齐官方菜单：白底圆角轻阴影、竖排图标+文字项）
 fn menu_panel(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
-    let menu_item = |id: &'static str,
-                     icon: IconName,
-                     label: &'static str,
-                     cx: &mut Context<ExcalidrawView>,
-                     action: fn(&mut ExcalidrawView, &mut Context<ExcalidrawView>)| {
-        div().w_full().child(
-            Button::new(id)
-                .ghost()
-                .label(label)
-                .icon(Icon::new(icon))
-                .w_full()
-                .on_click(cx.listener(move |this, _, _, cx| {
-                    action(this, cx);
-                    this.close_menu(cx);
-                })),
-        )
-    };
+    let menu_item =
+        |id: &'static str,
+         icon: IconName,
+         label: &'static str,
+         cx: &mut Context<ExcalidrawView>,
+         action: fn(&mut ExcalidrawView, &mut Context<ExcalidrawView>)| {
+            div().w_full().child(
+                Button::new(id)
+                    .ghost()
+                    .label(label)
+                    .icon(Icon::new(icon))
+                    .w_full()
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        action(this, cx);
+                        this.close_menu(cx);
+                    })),
+            )
+        };
 
     div()
         .w(px(240.0))
@@ -1265,10 +1259,9 @@ fn style_panel(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
 
     panel = panel.child(div().text_xs().font_semibold().child("描边"));
     let stroke_color = this.stroke_color;
-    let stroke_grid = color_presets()
-        .iter()
-        .enumerate()
-        .fold(div().flex().flex_wrap().gap_1(), |acc, (i, preset)| {
+    let stroke_grid = color_presets().iter().enumerate().fold(
+        div().flex().flex_wrap().gap_1(),
+        |acc, (i, preset)| {
             let arr = preset.arr;
             let is_active = stroke_color == arr;
             acc.child(
@@ -1294,15 +1287,15 @@ fn style_panel(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
                         }),
                     ),
             )
-        });
+        },
+    );
     panel = panel.child(stroke_grid);
 
     panel = panel.child(div().text_xs().font_semibold().child("填充"));
     let fill_color = this.fill_color;
-    let fill_grid = color_presets()
-        .iter()
-        .enumerate()
-        .fold(div().flex().flex_wrap().gap_1(), |acc, (i, preset)| {
+    let fill_grid = color_presets().iter().enumerate().fold(
+        div().flex().flex_wrap().gap_1(),
+        |acc, (i, preset)| {
             let arr = preset.arr;
             let is_active = fill_color == arr;
             acc.child(
@@ -1328,27 +1321,29 @@ fn style_panel(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
                         }),
                     ),
             )
-        });
+        },
+    );
     panel = panel.child(fill_grid);
 
     panel = panel.child(div().text_xs().font_semibold().child("线宽"));
-    let width_row = [1.0f32, 2.0, 4.0]
-        .iter()
-        .enumerate()
-        .fold(div().flex().gap_1(), |acc, (i, width)| {
-            let is_active = (this.stroke_width - width).abs() < 0.01;
-            let w = *width;
-            acc.child(
-                Button::new(("stroke-width", i))
-                    .small()
-                    .label(format!("{w}"))
-                    .tooltip(format!("线宽 {w}"))
-                    .when(is_active, |btn| btn.primary())
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        this.set_stroke_width(w, cx);
-                    })),
-            )
-        });
+    let width_row =
+        [1.0f32, 2.0, 4.0]
+            .iter()
+            .enumerate()
+            .fold(div().flex().gap_1(), |acc, (i, width)| {
+                let is_active = (this.stroke_width - width).abs() < 0.01;
+                let w = *width;
+                acc.child(
+                    Button::new(("stroke-width", i))
+                        .small()
+                        .label(format!("{w}"))
+                        .tooltip(format!("线宽 {w}"))
+                        .when(is_active, |btn| btn.primary())
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.set_stroke_width(w, cx);
+                        })),
+                )
+            });
     panel = panel.child(width_row);
 
     panel = panel.child(div().text_xs().font_semibold().child("样式"));
@@ -1460,7 +1455,8 @@ fn canvas_container(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> 
                         let mut y = start_y;
                         while y < f32::from(bounds.size.height) {
                             let dot_bounds = Bounds::new(
-                                bounds.origin + point(px(x - dot_size / 2.0), px(y - dot_size / 2.0)),
+                                bounds.origin
+                                    + point(px(x - dot_size / 2.0), px(y - dot_size / 2.0)),
                                 size(px(dot_size), px(dot_size)),
                             );
                             window.paint_quad(fill(dot_bounds, dot_color));
@@ -1553,20 +1549,18 @@ fn canvas_container(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> 
                     this.selection = None;
                     cx.notify();
                 }
-                _ if !m.control && !m.alt && !m.platform => {
-                    match key {
-                        "v" => this.set_tool(Tool::Select, cx),
-                        "r" => this.set_tool(Tool::Rectangle, cx),
-                        "o" => this.set_tool(Tool::Ellipse, cx),
-                        "d" => this.set_tool(Tool::Diamond, cx),
-                        "l" => this.set_tool(Tool::Line, cx),
-                        "a" => this.set_tool(Tool::Arrow, cx),
-                        "t" => this.set_tool(Tool::Text, cx),
-                        "p" => this.set_tool(Tool::Freedraw, cx),
-                        "e" => this.set_tool(Tool::Eraser, cx),
-                        _ => {}
-                    }
-                }
+                _ if !m.control && !m.alt && !m.platform => match key {
+                    "v" => this.set_tool(Tool::Select, cx),
+                    "r" => this.set_tool(Tool::Rectangle, cx),
+                    "o" => this.set_tool(Tool::Ellipse, cx),
+                    "d" => this.set_tool(Tool::Diamond, cx),
+                    "l" => this.set_tool(Tool::Line, cx),
+                    "a" => this.set_tool(Tool::Arrow, cx),
+                    "t" => this.set_tool(Tool::Text, cx),
+                    "p" => this.set_tool(Tool::Freedraw, cx),
+                    "e" => this.set_tool(Tool::Eraser, cx),
+                    _ => {}
+                },
                 _ => {}
             }
         }))
@@ -1871,8 +1865,7 @@ fn render_elements_to_png(elements: &[ExcalidrawElement]) -> anyhow::Result<Vec<
     let w = ((maxx - minx + pad * 2.0).ceil() as u32).clamp(1, 4096);
     let h = ((maxy - miny + pad * 2.0).ceil() as u32).clamp(1, 4096);
 
-    let mut pix = tiny_skia::Pixmap::new(w, h)
-        .ok_or_else(|| anyhow::anyhow!("创建位图失败"))?;
+    let mut pix = tiny_skia::Pixmap::new(w, h).ok_or_else(|| anyhow::anyhow!("创建位图失败"))?;
     pix.fill(tiny_skia::Color::WHITE);
     let transform = tiny_skia::Transform::from_translate(-left, -top);
     {
@@ -1923,7 +1916,13 @@ fn draw_element_into(
         ShapeKind::Rectangle => {
             if let Some(path) = rect_path(e.x, e.y, e.width, e.height) {
                 if has_fill {
-                    pm.fill_path(&path, &fill_paint, tiny_skia::FillRule::Winding, transform, None);
+                    pm.fill_path(
+                        &path,
+                        &fill_paint,
+                        tiny_skia::FillRule::Winding,
+                        transform,
+                        None,
+                    );
                 }
                 pm.stroke_path(&path, &stroke_paint, &stroke, transform, None);
             }
@@ -1933,7 +1932,13 @@ fn draw_element_into(
             let cy = e.y + e.height / 2.0;
             if let Some(path) = ellipse_path(cx, cy, e.width / 2.0, e.height / 2.0) {
                 if has_fill {
-                    pm.fill_path(&path, &fill_paint, tiny_skia::FillRule::Winding, transform, None);
+                    pm.fill_path(
+                        &path,
+                        &fill_paint,
+                        tiny_skia::FillRule::Winding,
+                        transform,
+                        None,
+                    );
                 }
                 pm.stroke_path(&path, &stroke_paint, &stroke, transform, None);
             }
@@ -1941,7 +1946,13 @@ fn draw_element_into(
         ShapeKind::Diamond => {
             if let Some(path) = diamond_path(e.x, e.y, e.width, e.height) {
                 if has_fill {
-                    pm.fill_path(&path, &fill_paint, tiny_skia::FillRule::Winding, transform, None);
+                    pm.fill_path(
+                        &path,
+                        &fill_paint,
+                        tiny_skia::FillRule::Winding,
+                        transform,
+                        None,
+                    );
                 }
                 pm.stroke_path(&path, &stroke_paint, &stroke, transform, None);
             }
@@ -1965,9 +1976,7 @@ fn draw_element_into(
         }
         ShapeKind::Text => {
             if let Some(rect) = tiny_skia::Rect::from_xywh(e.x, e.y, e.width, e.height) {
-                let block = solid_paint(
-                    tiny_skia::Color::from_rgba(1.0, 0.96, 0.8, 1.0).unwrap(),
-                );
+                let block = solid_paint(tiny_skia::Color::from_rgba(1.0, 0.96, 0.8, 1.0).unwrap());
                 pm.fill_rect(rect, &block, transform, None);
                 if let Some(path) = rect_path(e.x, e.y, e.width, e.height) {
                     pm.stroke_path(&path, &stroke_paint, &stroke, transform, None);
@@ -2324,8 +2333,14 @@ mod tests {
 
     #[test]
     fn degenerate_geometry_yields_no_path() {
-        assert!(ellipse_path(10.0, 10.0, 0.0, 5.0).is_none(), "零半径不是椭圆");
-        assert!(ellipse_path(10.0, 10.0, 5.0, -1.0).is_none(), "负半径不是椭圆");
+        assert!(
+            ellipse_path(10.0, 10.0, 0.0, 5.0).is_none(),
+            "零半径不是椭圆"
+        );
+        assert!(
+            ellipse_path(10.0, 10.0, 5.0, -1.0).is_none(),
+            "负半径不是椭圆"
+        );
         assert!(ellipse_path(10.0, 10.0, 5.0, 5.0).is_some());
         assert!(diamond_path(0.0, 0.0, 10.0, 10.0).is_some());
         assert!(line_path(0.0, 0.0, 1.0, 1.0).is_some());

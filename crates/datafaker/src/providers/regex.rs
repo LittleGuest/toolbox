@@ -1,4 +1,3 @@
-
 use rand::prelude::*;
 
 use crate::{DefaultComponent, Error, NullComponent, Result, UniqueComponent};

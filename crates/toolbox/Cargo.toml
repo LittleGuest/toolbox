@@ -1,0 +1,43 @@
+[package]
+name = "toolbox"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+gpui-kit = { workspace = true }
+anyhow = { workspace = true }
+uuid = { workspace = true }
+base = { workspace = true }
+datafaker = { workspace = true }
+database = { workspace = true }
+design = { workspace = true }
+excalidraw = { workspace = true }
+async-trait = { workspace = true }
+md-5 = { workspace = true }
+sha1 = { workspace = true }
+sha2 = { workspace = true }
+sha3 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+rand = { workspace = true }
+regex = { workspace = true }
+time = { workspace = true, features = ["parsing", "local-offset"] }
+tokio = { workspace = true }
+rfd = { workspace = true }
+sysinfo = { workspace = true }
+sqlx = { workspace = true }
+dirs = { workspace = true }
+qrcode-generator = { workspace = true }
+data-encoding = { workspace = true }
+bs58 = { workspace = true }
+similar = { workspace = true }
+aes = { workspace = true }
+des = { workspace = true }
+ecb = { workspace = true }
+cbc = { workspace = true }
+unicode-normalization = "0.1.25"
+regex-syntax = "0.8.11"
+tiny-skia = "0.11.4"
+png = "0.17.16"
+pinyin = { version = "0.11", default-features = false, features = ["plain"] }

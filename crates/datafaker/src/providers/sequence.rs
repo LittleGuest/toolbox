@@ -1,4 +1,3 @@
-
 use crate::{Error, Result};
 
 pub struct SequenceGenerator {
