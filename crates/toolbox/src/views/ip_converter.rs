@@ -9,7 +9,6 @@ use gpui_kit::{
     *,
 };
 
-/// 对应 IpConverter.vue 的 6 种输入格式
 const FORMATS: [&str; 6] = ["IPv4", "十进制", "十六进制", "二进制", "八进制", "IPv6"];
 
 const PLACEHOLDERS: [&str; 6] = [
@@ -91,7 +90,6 @@ impl IpConverter {
         cx.notify();
     }
 
-    /// 与 IpConverter.vue 的 convert 逻辑一致
     fn convert(&mut self, cx: &mut Context<Self>) {
         let raw = self.input_state.read(cx).value().trim().to_string();
         if raw.is_empty() {
@@ -211,7 +209,6 @@ fn int_to_ipv4(v: u128) -> String {
     )
 }
 
-/// 与 IpConverter.vue 的 ipv6ToInt 一致（支持 :: 压缩）
 fn parse_ipv6(s: &str) -> Option<u128> {
     let s = s.trim().to_lowercase();
     if s.is_empty() || s.matches("::").count() > 1 {

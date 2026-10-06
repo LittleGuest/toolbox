@@ -142,7 +142,6 @@ impl Base64Encoder {
         }
     }
 
-    /// 输入 / 输出编辑器（对应 tb-editor：标签 + 文本域 + 工具行）
     fn editor(
         &self,
         label: &'static str,

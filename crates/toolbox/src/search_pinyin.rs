@@ -1,6 +1,3 @@
-//! 权威工具索引 + 搜索拼音索引。
-//! 首页、全局搜索、标题映射统一由此驱动，避免三处各自维护、命名漂移。
-
 use gpui_kit::component::IconName;
 
 use crate::ViewType;
@@ -8,7 +5,7 @@ use crate::ViewType;
 pub struct ToolEntry {
     pub label: &'static str,
     pub group: &'static str,
-    /// Tauri 版路由 key（menu.ts），参与搜索匹配；Tauri 中作为其它页面 Tab 存在的工具此项为空。
+
     pub key: &'static str,
     pub view: ViewType,
     pub icon: IconName,
@@ -100,11 +97,18 @@ pub const TOOL_INDEX: &[ToolEntry] = &[
         icon: IconName::CaseSensitive,
     },
     ToolEntry {
-        label: "加密",
-        group: "",
-        key: "/crypto",
+        label: "对称加密",
+        group: "加密",
+        key: "/crypto/symmetric",
         view: ViewType::EncodeDecodeSymmetric,
         icon: IconName::EyeOff,
+    },
+    ToolEntry {
+        label: "国密算法",
+        group: "加密",
+        key: "/crypto/sm",
+        view: ViewType::EncodeDecodeSmCrypto,
+        icon: IconName::Asterisk,
     },
     ToolEntry {
         label: "JSON Editor",
@@ -126,6 +130,13 @@ pub const TOOL_INDEX: &[ToolEntry] = &[
         key: "/formatter/xml",
         view: ViewType::FormatterXml,
         icon: IconName::File,
+    },
+    ToolEntry {
+        label: "JSON Schema",
+        group: "格式化",
+        key: "/formatter/jsonschema",
+        view: ViewType::FormatterJsonSchema,
+        icon: IconName::Check,
     },
     ToolEntry {
         label: "UUID",
@@ -282,11 +293,25 @@ pub const TOOL_INDEX: &[ToolEntry] = &[
         icon: IconName::File,
     },
     ToolEntry {
+        label: "编码格式转换",
+        group: "编码/解码",
+        key: "/encodedecode/encodingformat",
+        view: ViewType::EncodeDecodeEncodingFormat,
+        icon: IconName::Replace,
+    },
+    ToolEntry {
         label: "二维码",
-        group: "其它",
-        key: "/other/qrcode",
+        group: "编码/解码",
+        key: "/encodedecode/qrcode",
         view: ViewType::OtherQrCode,
         icon: IconName::Frame,
+    },
+    ToolEntry {
+        label: "二维码解码",
+        group: "编码/解码",
+        key: "/encodedecode/qrcodedecode",
+        view: ViewType::OtherQrCodeDecode,
+        icon: IconName::Search,
     },
     ToolEntry {
         label: "剪贴板管理",
@@ -297,7 +322,6 @@ pub const TOOL_INDEX: &[ToolEntry] = &[
     },
 ];
 
-/// 中文标签的全拼（小写、无声调），非中文字符跳过（拉丁部分由 label 本身匹配）。
 pub fn label_pinyin(label: &str) -> String {
     use pinyin::ToPinyin;
     let mut out = String::with_capacity(label.len());
@@ -307,7 +331,6 @@ pub fn label_pinyin(label: &str) -> String {
     out
 }
 
-/// 中文标签的拼音首字母（小写），非中文字符跳过。
 pub fn label_pinyin_initials(label: &str) -> String {
     use pinyin::ToPinyin;
     let mut out = String::with_capacity(label.len());
@@ -326,18 +349,15 @@ mod tests {
         assert_eq!(label_pinyin("人民币大小写"), "renminbidaxiaoxie");
         assert_eq!(label_pinyin_initials("人民币大小写"), "rmbdxx");
 
-        // 中英混合：非中文部分不产出，由 label 自身匹配兜底
         assert_eq!(label_pinyin("Base 编码"), "bianma");
         assert_eq!(label_pinyin_initials("Cron 表达式"), "bds");
 
-        // 纯拉丁标签产出空串，不影响 label 匹配
         assert_eq!(label_pinyin("URL"), "");
         assert_eq!(label_pinyin_initials("JWT"), "");
     }
 
     #[test]
     fn every_tool_is_reachable_by_pinyin() {
-        // 保证 TOOL_INDEX 中每个含中文的 label 都能生成可匹配的拼音关键词
         for tool in TOOL_INDEX {
             let has_cjk = tool
                 .label

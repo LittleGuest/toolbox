@@ -20,7 +20,6 @@ enum CellKind {
     Blank,
 }
 
-/// 文本差异单元格（Vue LineCell：text/type/no）
 struct LineCell {
     kind: CellKind,
     text: String,
@@ -34,7 +33,6 @@ enum JsonKind {
     Modify,
 }
 
-/// JSON 差异条目（Vue JsonDiffItem：path/type/oldText/newText）
 struct JsonDiffItem {
     path: String,
     kind: JsonKind,
@@ -78,7 +76,6 @@ fn fmt_value(v: &Value) -> String {
     }
 }
 
-/// 递归对比两个 JSON 值（对齐 Vue diffValue）
 fn diff_value(a: &Value, b: &Value, path: &str, out: &mut Vec<JsonDiffItem>) {
     let a_container = a.is_object() || a.is_array();
     let b_container = b.is_object() || b.is_array();
@@ -232,7 +229,6 @@ impl TextDiffTool {
         self.json_compared = false;
     }
 
-    /// 文本差异：构建左右两栏单元格（对齐 Vue runTextDiff）
     fn run_text_diff(&mut self, cx: &mut Context<Self>) {
         let a: Vec<&str> = self.left.split('\n').collect();
         let b: Vec<&str> = self.right.split('\n').collect();
@@ -313,7 +309,6 @@ impl TextDiffTool {
         cx.notify();
     }
 
-    /// JSON 差异：结构化对比（对齐 Vue runJsonDiff）
     fn run_json_diff(&mut self, cx: &mut Context<Self>) {
         let a: Value = match serde_json::from_str(&self.left) {
             Ok(v) => v,
@@ -363,7 +358,7 @@ impl TextDiffTool {
         self.right_state.update(cx, |state, cx| {
             state.set_value(right, window, cx);
         });
-        // 对齐 Vue：交换后若已有结果则重新对比
+
         let rerun = if self.is_json_mode() {
             self.json_compared
         } else {
@@ -402,7 +397,6 @@ impl TextDiffTool {
         cx.notify();
     }
 
-    /// 分段选择器（对应 n-radio-button 组：文本差异/JSON 差异）
     fn mode_segmented(&self, cx: &mut Context<Self>) -> Div {
         div()
             .flex()
@@ -436,7 +430,6 @@ impl TextDiffTool {
             }))
     }
 
-    /// 差异面板（Vue diff-pane：行号 + 前缀 + 文本 + tint 高亮）
     fn render_pane(&self, cells: &[LineCell], cx: &mut Context<Self>) -> impl IntoElement {
         let mut pane = div()
             .flex_1()
@@ -514,7 +507,6 @@ impl Render for TextDiffTool {
 
         design::page().child(
             design::card(cx)
-                // 输入行（input-row：原始 | 动作列 | 对比）
                 .child(
                     div()
                         .flex()
@@ -571,7 +563,6 @@ impl Render for TextDiffTool {
                                 ),
                         ),
                 )
-                // 模式条（mode-bar）
                 .child(div().mt_1().child(self.mode_segmented(cx)))
                 .when(!message.is_empty(), |card| {
                     card.child(
@@ -581,7 +572,6 @@ impl Render for TextDiffTool {
                             .child(message.clone()),
                     )
                 })
-                // 文本差异结果
                 .when(show_text, |card| {
                     card.child(
                         div()
@@ -614,7 +604,6 @@ impl Render for TextDiffTool {
                             .child(self.render_pane(&self.right_cells, cx)),
                     )
                 })
-                // JSON 差异结果
                 .when(json_identical, |card| {
                     card.child(
                         div()
@@ -649,7 +638,6 @@ impl Render for TextDiffTool {
                     )
                     .child(self.render_json_items(cx))
                 })
-                // 底部动作条（bottom-bar）
                 .child(
                     div()
                         .mt_2()
@@ -686,7 +674,6 @@ impl Render for TextDiffTool {
 }
 
 impl TextDiffTool {
-    /// JSON 差异列表（Vue diff-list / diff-item）
     fn render_json_items(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let mut list = div()
             .mt_2()

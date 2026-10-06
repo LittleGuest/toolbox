@@ -33,3 +33,8 @@ base-converter = { workspace = true }
 chrono = { workspace = true }
 anyhow = { workspace = true }
 lopdf = "0.38"
+sm2 = { workspace = true }
+sm3 = { workspace = true }
+sm4 = { workspace = true }
+jsonschema = { workspace = true }
+rqrr = { workspace = true }

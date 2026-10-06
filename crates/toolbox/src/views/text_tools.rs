@@ -11,10 +11,6 @@ use gpui_kit::{
     *,
 };
 
-// ---------------------------------------------------------------------------
-// 纯文本处理函数
-// ---------------------------------------------------------------------------
-
 fn split_lines(s: &str) -> Vec<String> {
     let mut lines = Vec::new();
     let mut cur = String::new();
@@ -36,7 +32,6 @@ fn split_lines(s: &str) -> Vec<String> {
 }
 
 fn is_punct_like(c: char) -> bool {
-    // 对齐 Tauri 的 [\p{P}]：ASCII 下需排除属于 \p{S} 的符号字符
     if c.is_ascii() {
         return c.is_ascii_punctuation()
             && !matches!(c, '$' | '+' | '<' | '=' | '>' | '^' | '`' | '|' | '~');
@@ -306,10 +301,6 @@ fn upside_down_char(c: char) -> char {
     }
 }
 
-// ---------------------------------------------------------------------------
-// 视图状态
-// ---------------------------------------------------------------------------
-
 #[derive(Clone, Copy, PartialEq)]
 enum Tone {
     Success,
@@ -379,7 +370,6 @@ impl TextTools {
             cx.new(|cx| TextareaState::new(window, cx).placeholder("请输入要转换的文本"));
         let case_output_state = cx.new(|cx| TextareaState::new(window, cx).placeholder("转换结果"));
 
-        // 对齐 Tauri：提取分隔符输入框支持回车直接触发提取
         let _subscriptions = vec![cx.subscribe_in(&extract_state, window, {
             move |this, _, ev: &InputEvent, window, cx| {
                 if let InputEvent::PressEnter { .. } = ev {
@@ -432,7 +422,6 @@ impl TextTools {
         self.set_msg(Tone::Success, "复制成功", cx);
     }
 
-    /// 统一处理：读指定输入 -> 变换 -> 写指定输出（对齐 Vue cleanApply / sortApply）
     fn apply_pair<F>(
         input: &Entity<TextareaState>,
         output: &Entity<TextareaState>,
@@ -461,7 +450,6 @@ impl TextTools {
         Self::apply_pair(input, output, |s| f(split_lines(s)).join("\n"), window, cx);
     }
 
-    /// 清理工具：clean 输入 -> clean 输出
     fn clean_apply<F>(&mut self, f: F, window: &mut Window, cx: &mut Context<Self>)
     where
         F: FnOnce(&str) -> String,
@@ -490,7 +478,6 @@ impl TextTools {
         self.clear_msg(cx);
     }
 
-    /// 排序与提取：sort 输入 -> sort 输出
     fn sort_apply_lines<F>(&mut self, f: F, window: &mut Window, cx: &mut Context<Self>)
     where
         F: FnOnce(Vec<String>) -> Vec<String>,
@@ -518,8 +505,6 @@ impl TextTools {
             state.set_value("".to_string(), window, cx);
         });
     }
-
-    // -- 清理工具 -----------------------------------------------------------
 
     fn op_dedupe(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.clean_apply_lines(
@@ -586,8 +571,6 @@ impl TextTools {
     fn op_strip_html(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.clean_apply(strip_html, window, cx);
     }
-
-    // -- 排序与提取 ---------------------------------------------------------
 
     fn op_sort_asc(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.sort_apply_lines(
@@ -658,8 +641,6 @@ impl TextTools {
         });
     }
 
-    // -- 查找替换与重复 -----------------------------------------------------
-
     fn op_replace(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let find = self.find_state.read(cx).value().to_string();
         if find.is_empty() {
@@ -701,8 +682,6 @@ impl TextTools {
             state.set_value(out, window, cx);
         });
     }
-
-    // -- 斜线与翻转 ---------------------------------------------------------
 
     fn op_add_slashes(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let input = self.slash_input_state.read(cx).value().to_string();
@@ -749,8 +728,6 @@ impl TextTools {
         self.clear_msg(cx);
     }
 
-    // -- 大小写转换（对齐 CaseConverter.vue） --------------------------------
-
     fn op_case<F>(&mut self, f: F, window: &mut Window, cx: &mut Context<Self>)
     where
         F: FnOnce(&str) -> String,
@@ -772,8 +749,6 @@ impl TextTools {
             }
         }
     }
-
-    // -- 输出区复制 / 清除 ---------------------------------------------------
 
     fn clear_clean(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         Self::clear_pair(
@@ -841,10 +816,6 @@ impl TextTools {
     }
 }
 
-// ---------------------------------------------------------------------------
-// 渲染
-// ---------------------------------------------------------------------------
-
 impl TextTools {
     fn tab_btn(&self, idx: usize, cx: &mut Context<Self>) -> Stateful<Div> {
         let active = self.tab == idx;
@@ -885,7 +856,6 @@ impl TextTools {
             .children((0..TABS.len()).map(|i| self.tab_btn(i, cx)))
     }
 
-    /// tb-toolbar：复制输出 + 清除
     fn output_toolbar(
         &self,
         id: &'static str,
@@ -923,8 +893,6 @@ impl TextTools {
                     })),
             )
     }
-
-    // -- Tab 1：字符统计 -----------------------------------------------------
 
     fn render_stats(&mut self, cx: &mut Context<Self>) -> Div {
         let stat_text = self.stat_state.read(cx).value().to_string();
@@ -1003,8 +971,6 @@ impl TextTools {
                     ),
             )
     }
-
-    // -- Tab 2：清理工具 -----------------------------------------------------
 
     fn render_clean(&mut self, cx: &mut Context<Self>) -> Div {
         div()
@@ -1130,8 +1096,6 @@ impl TextTools {
             )
     }
 
-    // -- Tab 3：排序与提取 ---------------------------------------------------
-
     fn render_sort(&mut self, cx: &mut Context<Self>) -> Div {
         div()
             .flex_col()
@@ -1242,8 +1206,6 @@ impl TextTools {
             )
     }
 
-    // -- Tab 4：查找替换与重复 -----------------------------------------------
-
     fn render_find(&mut self, cx: &mut Context<Self>) -> Div {
         div()
             .flex_col()
@@ -1346,8 +1308,6 @@ impl TextTools {
             )
     }
 
-    // -- Tab 5：斜线与翻转 ---------------------------------------------------
-
     fn render_slash(&mut self, cx: &mut Context<Self>) -> Div {
         div()
             .flex_col()
@@ -1435,8 +1395,6 @@ impl TextTools {
                     )),
             )
     }
-
-    // -- Tab 6：大小写转换 ---------------------------------------------------
 
     fn render_case(&mut self, cx: &mut Context<Self>) -> Div {
         div()

@@ -35,7 +35,6 @@ fn base58_decode(s: &str) -> Result<String, String> {
 
 const TABS: [&str; 4] = ["Base64 文本", "Base64 图片", "Base32", "Base58"];
 
-/// 单个编码页的输入 / 输出对（对应 Vue 的 xxxInput / xxxOutput ref 对）
 struct PairState {
     input: String,
     output: String,
@@ -49,7 +48,7 @@ pub struct BaseEncodingConverter {
     b64: PairState,
     b32: PairState,
     b58: PairState,
-    /// 「Base64 图片」Tab（对齐 Tauri BaseEncoding.vue 的 base64img pane）
+
     b64img: Option<Entity<crate::views::Base64ImageConverter>>,
     _subscriptions: Vec<Subscription>,
 }
@@ -223,7 +222,6 @@ impl BaseEncodingConverter {
         cx.notify();
     }
 
-    /// 线型标签页（对应 n-tabs type="line"）
     fn tab_bar(&self, cx: &mut Context<Self>) -> Div {
         div()
             .flex()
@@ -261,7 +259,7 @@ impl BaseEncodingConverter {
 
     fn render_tab(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Div {
         let tab = self.tab;
-        // 「Base64 图片」Tab：承载独立的 Base64ImageConverter 视图（对齐 Tauri base64img pane）
+
         if tab == 1 {
             if self.b64img.is_none() {
                 self.b64img =
@@ -282,7 +280,6 @@ impl BaseEncodingConverter {
         div()
             .flex_col()
             .gap_3()
-            // 输入编辑器
             .child(
                 div()
                     .flex_col()
@@ -314,7 +311,6 @@ impl BaseEncodingConverter {
                             ),
                     ),
             )
-            // 编码 / 解码动作行
             .child(
                 design::action_row()
                     .child(
@@ -336,7 +332,6 @@ impl BaseEncodingConverter {
                             })),
                     ),
             )
-            // 输出编辑器
             .child(
                 div()
                     .flex_col()

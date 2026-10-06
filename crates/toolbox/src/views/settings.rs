@@ -284,7 +284,6 @@ impl Render for SettingsView {
 
         design::page().child(
             design::card(cx)
-                // 语言
                 .child(
                     Self::config_row("语言", cx).child(
                         div()
@@ -292,7 +291,6 @@ impl Render for SettingsView {
                             .children(language_state.map(|s| Select::new(&s))),
                     ),
                 )
-                // 智能检测
                 .child(
                     Self::config_row("智能检测", cx).child(
                         Switch::new("smart-detect")
@@ -302,7 +300,6 @@ impl Render for SettingsView {
                             })),
                     ),
                 )
-                // 字体
                 .child(
                     Self::config_row("字体", cx).child(
                         div()
@@ -310,7 +307,6 @@ impl Render for SettingsView {
                             .children(font_state.map(|s| Select::new(&s))),
                     ),
                 )
-                // 紧凑模式
                 .child(
                     Self::config_row("紧凑模式", cx).child(
                         Switch::new("compact-mode")
@@ -320,7 +316,6 @@ impl Render for SettingsView {
                             })),
                     ),
                 )
-                // 主题（GPUI 特有能力）
                 .child(
                     Self::config_row("主题", cx).child(
                         div()
@@ -328,7 +323,6 @@ impl Render for SettingsView {
                             .children(theme_state.map(|s| Select::new(&s))),
                     ),
                 )
-                // 操作按钮（对应 Vue 保存设置 / 恢复默认）
                 .child(
                     design::action_row()
                         .child(

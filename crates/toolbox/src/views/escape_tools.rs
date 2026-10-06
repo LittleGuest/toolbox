@@ -489,7 +489,6 @@ impl Render for EscapeTools {
                 .w_full()
                 .flex_col()
                 .gap_4()
-                // 配置行：模式
                 .child(
                     div()
                         .flex()
@@ -504,7 +503,6 @@ impl Render for EscapeTools {
                         )
                         .child(div().w(px(260.0)).child(Select::new(&self.mode_state))),
                 )
-                // 输入编辑器（Vue 原版输入区无工具行）
                 .child(
                     div()
                         .flex_col()
@@ -516,7 +514,6 @@ impl Render for EscapeTools {
                                 .font_family("monospace"),
                         ),
                 )
-                // 转义 / 反转义动作行
                 .child(
                     design::action_row()
                         .child(
@@ -538,7 +535,6 @@ impl Render for EscapeTools {
                                 })),
                         ),
                 )
-                // 输出编辑器
                 .child(
                     div()
                         .flex_col()

@@ -9,7 +9,6 @@ use gpui_kit::{
     *,
 };
 
-/// （显示名, base 类型值）：对齐 Vue checksumOptions
 const ALGORITHMS: [(&str, &str); 9] = [
     ("md5sum", "md5sum"),
     ("sha1sum", "sha1sum"),
@@ -22,7 +21,6 @@ const ALGORITHMS: [(&str, &str); 9] = [
     ("sha3_512sum", "sha3_512sum"),
 ];
 
-/// 配置项：12px 灰色 label + 控件（对应 tb-config-item）
 fn config_item(label: &'static str, control: Div) -> Div {
     div()
         .flex()
@@ -183,7 +181,7 @@ impl Render for FileVerify {
         let valid_value = self.valid_value.clone();
         let is_calculating = self.is_calculating;
         let error = self.error.clone();
-        // 对齐 Vue checksumMatched：有对比值即比较
+
         let matched = checksum == valid_value;
         let show_match = !valid_value.is_empty();
 
@@ -192,7 +190,6 @@ impl Render for FileVerify {
                 .w_full()
                 .flex_col()
                 .gap_4()
-                // tb-config-row：文件 + 选择按钮 + 路径
                 .child(
                     div()
                         .flex()
@@ -229,7 +226,6 @@ impl Render for FileVerify {
                                 }),
                         ),
                 )
-                // tb-config-row：校验算法 + 计算
                 .child(
                     div()
                         .flex()
@@ -251,7 +247,6 @@ impl Render for FileVerify {
                                 })),
                         ),
                 )
-                // tb-editor：校验值（只读展示） + 复制
                 .child(
                     div()
                         .flex_col()
@@ -288,7 +283,6 @@ impl Render for FileVerify {
                             ),
                         ),
                 )
-                // tb-editor：对比值 + 粘贴 / 复制
                 .child(
                     div()
                         .flex_col()
@@ -324,7 +318,6 @@ impl Render for FileVerify {
                                 ),
                         ),
                 )
-                // tb-action-row：比对结果大字（24px 绿/红）
                 .when(show_match, |card| {
                     card.child(
                         div().flex().items_center().gap_2().child(

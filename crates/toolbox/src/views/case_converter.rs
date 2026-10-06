@@ -23,7 +23,6 @@ fn to_lower(s: &str) -> String {
     s.to_lowercase()
 }
 
-/// 单词首字母大写（等价 \b\w 大写 + 其余小写）
 fn title_case(s: &str) -> String {
     s.split(|c: char| !c.is_alphanumeric())
         .filter(|w| !w.is_empty())
@@ -32,7 +31,6 @@ fn title_case(s: &str) -> String {
         .join(" ")
 }
 
-/// 句子首字母大写：句首（起始或 .!?。！？ 之后的第一个非空白字符）大写，其余不动
 fn sentence_case(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut sentence_start = true;
@@ -50,7 +48,6 @@ fn sentence_case(s: &str) -> String {
     out
 }
 
-/// 小写全文，分隔符（空白/_/-）后的字母转大写；首字母小写
 fn camel_case(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut upper_next = false;
@@ -80,7 +77,6 @@ fn pascal_case(s: &str) -> String {
     }
 }
 
-/// 蛇形：trim + 连续空白/_/- 折叠为 _（保留原大小写）
 fn snake_case(s: &str) -> String {
     join_folded(s, "_")
 }
@@ -178,7 +174,7 @@ fn upside_down(s: &str) -> String {
     let mut chars = s.chars().peekable();
     while let Some(c) = chars.next() {
         let mut matched = false;
-        // 优先匹配双字符序列（当前表内均为单字符，保留扩展性）
+
         let rest: String = c.to_string();
         if let Some(&next) = chars.peek() {
             let two = format!("{rest}{next}");
@@ -271,7 +267,6 @@ impl CaseConverter {
         }
     }
 
-    /// 转换操作按钮（对应 Vue 的 11 个图标按钮 + tooltip）
     fn op_button(
         &self,
         id: &'static str,

@@ -155,11 +155,6 @@ fn color_presets() -> Vec<ColorPreset> {
     ]
 }
 
-/// Excalidraw 白板视图。
-///
-/// 一个自包含的画布：元素集合、当前工具、选择、视口、历史栈、样式、
-/// 文档存取都在内部管理，宿主只需要把它挂进元素树（见 `ui` 的
-/// `render_excalidraw_view`）。
 pub struct ExcalidrawView {
     elements: Vec<ExcalidrawElement>,
     tool: Tool,
@@ -181,12 +176,11 @@ pub struct ExcalidrawView {
     saved_docs: Vec<DocRecord>,
     canvas_origin: Rc<Cell<Point<Pixels>>>,
     menu_open: bool,
-    /// 持久化实现由宿主注入 —— 内核不认识 SQLite。
+
     store: Arc<dyn DocStore>,
 }
 
 impl ExcalidrawView {
-    /// 用宿主提供的存储实现构造视图。
     pub fn new(store: Arc<dyn DocStore>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let canvas_origin = Rc::new(Cell::new(point(px(0.0), px(0.0))));
         Self {
@@ -838,7 +832,6 @@ impl ExcalidrawView {
     }
 }
 
-/// 状态文本配色（对齐内联 message 反馈：错误红 / 成功绿 / 进行中灰）
 fn status_color(status: &str, cx: &App) -> Hsla {
     if status.contains("失败") || status.contains("无法") || status.contains("请输入") {
         Hsla::from(rgb(design::ERROR_RED))
@@ -860,7 +853,6 @@ fn toolbar_separator(cx: &mut Context<ExcalidrawView>) -> Div {
 
 impl Render for ExcalidrawView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // 对齐官方 Excalidraw：左上汉堡菜单按钮、左中工具栏、选中面板在菜单正下方、右下 undo/redo+缩放
         div().size_full().child(
             div()
                 .size_full()
@@ -871,7 +863,6 @@ impl Render for ExcalidrawView {
                 .overflow_hidden()
                 .relative()
                 .child(canvas_container(self, cx))
-                // 左中：工具岛（垂直居中）
                 .child(
                     div()
                         .absolute()
@@ -883,7 +874,6 @@ impl Render for ExcalidrawView {
                         .justify_center()
                         .child(toolbar(self, cx)),
                 )
-                // 左上：汉堡菜单按钮岛（官方菜单按钮）
                 .child(
                     div()
                         .absolute()
@@ -891,7 +881,6 @@ impl Render for ExcalidrawView {
                         .left(px(12.0))
                         .child(hamburger_island(self, cx)),
                 )
-                // 选中元素属性岛：官方位置 = 左上菜单按钮正下方
                 .when(self.selection.is_some(), |el| {
                     el.child(
                         div()
@@ -901,7 +890,6 @@ impl Render for ExcalidrawView {
                             .child(style_panel(self, cx)),
                     )
                 })
-                // 左下：状态文本岛
                 .child(
                     div()
                         .absolute()
@@ -910,7 +898,6 @@ impl Render for ExcalidrawView {
                         .max_w(px(460.0))
                         .child(status_island(self, cx)),
                 )
-                // 右下：撤销/重做 + 缩放岛（官方布局）
                 .child(
                     div()
                         .absolute()
@@ -922,7 +909,6 @@ impl Render for ExcalidrawView {
                         .child(history_island(self, cx))
                         .child(zoom_island(self, cx)),
                 )
-                // 菜单面板：打开时从左上展开（后添加保证 z 序在上）
                 .when(self.menu_open, |el| {
                     el.child(
                         div()
@@ -949,7 +935,6 @@ fn island_container(cx: &Context<ExcalidrawView>) -> Div {
         .shadow_lg()
 }
 
-/// 左上汉堡菜单按钮（官方 Excalidraw：单按钮岛，点开菜单面板）
 fn hamburger_island(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
     island_container(cx).child(
         Button::new("menu-toggle")
@@ -964,7 +949,6 @@ fn hamburger_island(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> 
     )
 }
 
-/// 右下撤销/重做/删除岛（官方 undo/redo 位于右下角）
 fn history_island(_this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
     island_container(cx)
         .child(
@@ -1000,7 +984,6 @@ fn history_island(_this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> D
         )
 }
 
-/// 汉堡菜单展开面板（对齐官方菜单：白底圆角轻阴影、竖排图标+文字项）
 fn menu_panel(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
     let menu_item =
         |id: &'static str,
@@ -1032,7 +1015,6 @@ fn menu_panel(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
         .border_1()
         .border_color(cx.theme().border)
         .shadow_lg()
-        // 文档保存/加载
         .child(
             div()
                 .flex()
@@ -1160,7 +1142,6 @@ fn zoom_island(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
         )
 }
 
-/// 自绘几何工具图标（gpui 图标库无 shape 语义图标，用 div/几何字符对齐官方）
 fn tool_glyph(tool: Tool, cx: &Context<ExcalidrawView>) -> Div {
     let color = cx.theme().foreground;
     match tool {
@@ -1207,7 +1188,6 @@ fn toolbar(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
         Tool::Eraser,
     ];
 
-    // 对齐官方 Excalidraw：左中垂直工具栏，34px 方形按钮、选中浅灰底
     let mut group = div()
         .flex()
         .flex_col()
@@ -2162,17 +2142,12 @@ fn doc_load_dialog_content(
 
 #[cfg(test)]
 mod tests {
-    // 注意：这里**不能**写 `use super::*;`。父模块 `use gpui_kit::*` 会连带把
-    // `gpui_kit::test` 一并引入，在 test-support 特性下遮蔽内置的 `#[test]`
-    // 属性宏，报 "recursion limit reached while expanding `#[test]`"。
-    // 必须逐个显式引入。
+
     use super::{
         ExcalidrawElement, ShapeKind, StrokeStyleKind, TEXT_FONT_SIZE, diamond_path,
         element_to_svg, ellipse_path, freedraw_path, hit_test, line_path, rect_path, rgba_color,
     };
 
-    /// 单测能直接构造元素、直呼内部函数 —— 这些函数在 `ui` 里被 View 包着，
-    /// 抽成 crate 之后才具备独立验证的条件。
     fn elem(kind: ShapeKind) -> ExcalidrawElement {
         ExcalidrawElement {
             id: 1,
@@ -2289,8 +2264,6 @@ mod tests {
 
     #[test]
     fn elements_survive_a_json_round_trip() {
-        // 这份 JSON 就是 `config_store.excalidraw_docs.elements_json` 里存的东西，
-        // 改字段等于改存档格式 —— 用测试固定住。
         let mut e = elem(ShapeKind::Freedraw);
         e.points = vec![(1.0, 2.0), (3.0, 4.0)];
         e.text = "hello".to_string();

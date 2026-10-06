@@ -187,7 +187,6 @@ impl Render for ImageConvert {
 
         design::page().child(
             design::card(cx)
-                // 目标格式
                 .child(
                     div()
                         .flex()
@@ -202,7 +201,6 @@ impl Render for ImageConvert {
                         )
                         .child(div().w(px(140.0)).child(Select::new(&self.format_state))),
                 )
-                // 所选图片
                 .child(
                     div()
                         .flex_col()
@@ -253,7 +251,6 @@ impl Render for ImageConvert {
                             ))
                         }),
                 )
-                // 输出目录
                 .child(
                     div()
                         .flex()
@@ -296,7 +293,6 @@ impl Render for ImageConvert {
                                 }),
                         ),
                 )
-                // 转换动作
                 .child(
                     design::action_row().child(
                         Button::new("convert-images")
@@ -317,7 +313,6 @@ impl Render for ImageConvert {
                             .child(error),
                     )
                 })
-                // 转换结果（单列表格）
                 .when(!self.outputs.is_empty(), |card| {
                     let total = self.outputs.len();
                     card.child(

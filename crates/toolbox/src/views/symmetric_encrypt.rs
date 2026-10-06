@@ -566,7 +566,6 @@ impl SymmetricEncryptor {
         }
     }
 
-    /// 分段选择器（对应 n-radio-button 组）
     fn segmented_format(&self, cx: &mut Context<Self>) -> Div {
         div()
             .flex()
@@ -615,7 +614,6 @@ impl Render for SymmetricEncryptor {
         let error = self.error.clone();
         let success = self.success.clone();
 
-        // 明文编辑器（tb-editor）
         let plain_editor = div()
             .flex_col()
             .flex_1()
@@ -638,7 +636,6 @@ impl Render for SymmetricEncryptor {
                     .font_family("monospace"),
             );
 
-        // 密文编辑器（tb-editor）
         let cipher_editor = div()
             .flex_col()
             .flex_1()
@@ -666,7 +663,6 @@ impl Render for SymmetricEncryptor {
             .child(
                 design::card(cx)
 
-                    // 配置行（tb-config-row）
                     .child(
                         div()
                             .flex()
@@ -730,7 +726,7 @@ impl Render for SymmetricEncryptor {
                                     .child(self.segmented_format(cx)),
                             ),
                     )
-                    // 明文 / 密文编辑区（tb-editor-grid）
+
                     .child(
                         div()
                             .flex()
@@ -739,7 +735,7 @@ impl Render for SymmetricEncryptor {
                             .child(plain_editor)
                             .child(cipher_editor),
                     )
-                    // 动作行（tb-action-row）
+
                     .child(
                         div()
                             .flex()
@@ -764,7 +760,7 @@ impl Render for SymmetricEncryptor {
                                     })),
                             ),
                     )
-                    // 结果编辑器
+
                     .child(
                         div()
                             .flex_col()
@@ -804,7 +800,7 @@ impl Render for SymmetricEncryptor {
                                     .font_family("monospace"),
                             ),
                     )
-                    // 状态反馈（内联 message 替代）
+
                     .when(!error.is_empty(), |card| {
                         card.child(
                             div()
@@ -821,7 +817,7 @@ impl Render for SymmetricEncryptor {
                                 .child(success),
                         )
                     })
-                    // 提示文本
+
                     .child(design::hint(
                         "提示：ECB 模式不推荐用于生产环境（相同明文块产生相同密文，易被模式分析攻击）；CBC 模式建议使用随机 IV 并妥善保存。解密失败常见原因：密钥或 IV 不一致、密文格式与「输出格式」不匹配、密文被截断或篡改（padding 校验失败）。",
                         cx,

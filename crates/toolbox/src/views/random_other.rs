@@ -31,7 +31,6 @@ fn parse_date(s: &str) -> Option<Date> {
     Date::from_calendar_date(year, Month::try_from(month).ok()?, day).ok()
 }
 
-/// 从 DatePicker 读取 "YYYY-MM-DD"
 fn picker_date_string(date: &PickerDate) -> Option<String> {
     match date {
         PickerDate::Single(Some(d)) => Some(d.to_string()),
@@ -282,7 +281,6 @@ impl RandomOtherGenerator {
         cx.notify();
     }
 
-    /// 分段选择器（对应 n-radio-button 组）
     fn segmented(
         &self,
         name: &'static str,
@@ -333,7 +331,6 @@ impl RandomOtherGenerator {
             .child(text)
     }
 
-    /// 线型标签页（对应 n-tabs type="line"）
     fn tab_bar(&self, cx: &mut Context<Self>) -> Div {
         div()
             .flex()
@@ -376,7 +373,6 @@ impl RandomOtherGenerator {
             .child(label.to_string())
     }
 
-    /// 输出区：editor_label + textarea + 复制/清除工具行
     fn output_editor(
         &self,
         id: &'static str,

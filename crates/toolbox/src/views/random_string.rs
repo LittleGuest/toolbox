@@ -18,7 +18,6 @@ const SIMILAR_CHARS: &[char] = &['O', '0', 'I', 'l', '1'];
 const MAX_LENGTH: usize = 10000;
 const MAX_COUNT: usize = 1000;
 
-/// 配置项：12px 灰色 label + 控件（对应 tb-config-item）
 fn config_item(label: &'static str, control: Div) -> Div {
     div()
         .flex()
@@ -58,7 +57,6 @@ impl RandomStringGenerator {
         let output_state =
             cx.new(|cx| TextareaState::new(window, cx).placeholder("生成结果（每行一个）"));
 
-        // 对齐 Vue watch：任意配置变化即时重新生成
         let mut _subscriptions = Vec::new();
         for state in [&length_state, &count_state, &custom_charset_state] {
             _subscriptions.push(cx.subscribe_in(
@@ -222,7 +220,6 @@ impl Render for RandomStringGenerator {
 
         design::page().child(
             design::card(cx)
-                // tb-config-row：长度 / 数量
                 .child(
                     div()
                         .flex()
@@ -238,7 +235,6 @@ impl Render for RandomStringGenerator {
                             div().w(px(160.0)).child(Input::new(&self.count_state)),
                         )),
                 )
-                // tb-config-row：字符集
                 .child(config_item(
                     "字符集",
                     div()
@@ -283,14 +279,12 @@ impl Render for RandomStringGenerator {
                                 })),
                         ),
                 ))
-                // tb-config-row：自定义字符集
                 .child(config_item(
                     "自定义字符集",
                     div()
                         .w(px(340.0))
                         .child(Input::new(&self.custom_charset_state)),
                 ))
-                // tb-config-row：排除相似 / 密码模式 / 生成
                 .child(
                     div()
                         .flex()
@@ -333,7 +327,6 @@ impl Render for RandomStringGenerator {
                             )
                         }),
                 )
-                // tb-editor：输出 + 重新生成 / 复制全部 / 清除
                 .child(
                     div()
                         .flex_col()

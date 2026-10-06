@@ -45,7 +45,10 @@ pub enum ViewType {
     EncodeDecodeCharset,
     EncodeDecodeBaseEncoding,
     EncodeDecodeSymmetric,
+    EncodeDecodeSmCrypto,
+    EncodeDecodeEncodingFormat,
     FormatterJson,
+    FormatterJsonSchema,
     FormatterSql,
     FormatterXml,
     GeneratorUuid,
@@ -70,6 +73,7 @@ pub enum ViewType {
     PdfPageNumber,
     PdfSplit,
     OtherQrCode,
+    OtherQrCodeDecode,
     OtherClipboard,
     RegexVisualizer,
 }
@@ -100,6 +104,10 @@ pub struct App {
     cron_converter: Option<Entity<CronConverter>>,
     base_encoding: Option<Entity<BaseEncodingConverter>>,
     symmetric_encrypt: Option<Entity<SymmetricEncryptor>>,
+    sm_crypto: Option<Entity<SmCrypto>>,
+    encoding_format: Option<Entity<EncodingFormatConvert>>,
+    json_schema: Option<Entity<JsonSchemaValidator>>,
+    qrcode_decoder: Option<Entity<QrCodeDecoder>>,
     text_tools: Option<Entity<TextTools>>,
     text_diff: Option<Entity<TextDiffTool>>,
     random_string: Option<Entity<RandomStringGenerator>>,
@@ -148,6 +156,10 @@ impl App {
             cron_converter: None,
             base_encoding: None,
             symmetric_encrypt: None,
+            sm_crypto: None,
+            encoding_format: None,
+            json_schema: None,
+            qrcode_decoder: None,
             text_tools: None,
             text_diff: None,
             random_string: None,
@@ -179,7 +191,6 @@ impl App {
         cx.notify();
     }
 
-    /// 对齐 Tauri：侧栏品牌行的 Sun/Moon 一键切换主题，切换后立即持久化。
     fn toggle_theme(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let new_mode = if cx.theme().mode.is_dark() {
             ThemeMode::Light
@@ -201,7 +212,7 @@ impl App {
             self.command_state = Some(cx.new(|cx| CommandState::new(window, cx)));
         }
         let state = self.command_state.clone().unwrap();
-        // 对齐 Tauri：选中工具后清空输入框，等价于每次打开都从空查询开始
+
         state.update(cx, |s, cx| s.set_query("", window, cx));
         let weak = cx.entity().downgrade();
         window.open_sheet_at(Placement::Top, cx, move |sheet, _, _cx| {
@@ -216,7 +227,6 @@ impl App {
                         .placeholder("搜索工具，快速切换…")
                         .max_h(px(420.0))
                         .items(TOOL_INDEX.iter().map(|tool| {
-                            // 对齐 Tauri：选项显示 `${label}（${group}）`
                             let label: SharedString = if tool.group.is_empty() {
                                 tool.label.into()
                             } else {
@@ -224,7 +234,7 @@ impl App {
                             };
                             let pinyin = label_pinyin(tool.label);
                             let initials = label_pinyin_initials(tool.label);
-                            // 对齐 Tauri：分组 / 路由 key / 全拼 / 首字母 全部参与匹配
+
                             let mut keywords: Vec<String> = Vec::new();
                             if !tool.group.is_empty() {
                                 keywords.push(tool.group.to_string());
@@ -261,7 +271,6 @@ impl App {
         });
     }
 
-    /// 对齐 Tauri：56px 顶栏 + 居中搜索框（--tb-header-h / max-w 560px），点击打开命令面板。
     fn render_topbar(&self, cx: &Context<Self>) -> impl IntoElement {
         div()
             .flex_shrink_0()
@@ -460,13 +469,48 @@ impl Render for App {
                                             .on_click(cx.listener(|this, _, _, cx| {
                                                 this.set_view(ViewType::EncodeDecodeCharset, cx);
                                             })),
+                                        SidebarMenuItem::new("编码格式转换")
+                                            .icon(Icon::new(IconName::Replace))
+                                            .active(
+                                                current_view
+                                                    == ViewType::EncodeDecodeEncodingFormat,
+                                            )
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.set_view(
+                                                    ViewType::EncodeDecodeEncodingFormat,
+                                                    cx,
+                                                );
+                                            })),
+                                        SidebarMenuItem::new("二维码")
+                                            .icon(Icon::new(IconName::Frame))
+                                            .active(current_view == ViewType::OtherQrCode)
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.set_view(ViewType::OtherQrCode, cx);
+                                            })),
+                                        SidebarMenuItem::new("二维码解码")
+                                            .icon(Icon::new(IconName::Search))
+                                            .active(current_view == ViewType::OtherQrCodeDecode)
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.set_view(ViewType::OtherQrCodeDecode, cx);
+                                            })),
                                     ]),
                                 SidebarMenuItem::new("加密")
                                     .icon(Icon::new(IconName::EyeOff))
-                                    .active(current_view == ViewType::EncodeDecodeSymmetric)
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.set_view(ViewType::EncodeDecodeSymmetric, cx);
-                                    })),
+                                    .click_to_open(true)
+                                    .children([
+                                        SidebarMenuItem::new("对称加密")
+                                            .icon(Icon::new(IconName::EyeOff))
+                                            .active(current_view == ViewType::EncodeDecodeSymmetric)
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.set_view(ViewType::EncodeDecodeSymmetric, cx);
+                                            })),
+                                        SidebarMenuItem::new("国密算法")
+                                            .icon(Icon::new(IconName::Asterisk))
+                                            .active(current_view == ViewType::EncodeDecodeSmCrypto)
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.set_view(ViewType::EncodeDecodeSmCrypto, cx);
+                                            })),
+                                    ]),
                                 SidebarMenuItem::new("格式化")
                                     .icon(Icon::new(IconName::Replace))
                                     .click_to_open(true)
@@ -488,6 +532,12 @@ impl Render for App {
                                             .active(current_view == ViewType::FormatterXml)
                                             .on_click(cx.listener(|this, _, _, cx| {
                                                 this.set_view(ViewType::FormatterXml, cx);
+                                            })),
+                                        SidebarMenuItem::new("JSON Schema")
+                                            .icon(Icon::new(IconName::Check))
+                                            .active(current_view == ViewType::FormatterJsonSchema)
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.set_view(ViewType::FormatterJsonSchema, cx);
                                             })),
                                     ]),
                                 SidebarMenuItem::new("生成器")
@@ -660,20 +710,12 @@ impl Render for App {
                                 SidebarMenuItem::new("其它")
                                     .icon(Icon::new(IconName::Settings2))
                                     .click_to_open(true)
-                                    .children([
-                                        SidebarMenuItem::new("二维码")
-                                            .icon(Icon::new(IconName::Frame))
-                                            .active(current_view == ViewType::OtherQrCode)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::OtherQrCode, cx);
-                                            })),
-                                        SidebarMenuItem::new("剪贴板管理")
-                                            .icon(Icon::new(IconName::Settings2))
-                                            .active(current_view == ViewType::OtherClipboard)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::OtherClipboard, cx);
-                                            })),
-                                    ]),
+                                    .children([SidebarMenuItem::new("剪贴板管理")
+                                        .icon(Icon::new(IconName::Settings2))
+                                        .active(current_view == ViewType::OtherClipboard)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::OtherClipboard, cx);
+                                        }))]),
                             ])]),
                     )
                     .child(
@@ -683,7 +725,6 @@ impl Render for App {
                             .flex()
                             .flex_col()
                             .overflow_hidden()
-                            // 对齐 Tauri：56px 顶栏，居中搜索框（点击打开命令面板）
                             .child(self.render_topbar(cx))
                             .child(
                                 div()
@@ -728,8 +769,17 @@ impl Render for App {
                                         ViewType::EncodeDecodeSymmetric => {
                                             render_symmetric_encrypt_view(self, window, cx)
                                         }
+                                        ViewType::EncodeDecodeSmCrypto => {
+                                            render_sm_crypto_view(self, window, cx)
+                                        }
+                                        ViewType::EncodeDecodeEncodingFormat => {
+                                            render_encoding_format_view(self, window, cx)
+                                        }
                                         ViewType::FormatterJson => {
                                             render_json_editor_view(self, window, cx)
+                                        }
+                                        ViewType::FormatterJsonSchema => {
+                                            render_json_schema_view(self, window, cx)
                                         }
                                         ViewType::FormatterSql => {
                                             render_formatter_sql_view(self, window, cx)
@@ -799,6 +849,9 @@ impl Render for App {
                                         ViewType::OtherQrCode => {
                                             render_qrcode_generator_view(self, window, cx)
                                         }
+                                        ViewType::OtherQrCodeDecode => {
+                                            render_qrcode_decoder_view(self, window, cx)
+                                        }
                                         ViewType::OtherClipboard => {
                                             render_clipboard_manager_view(self, window, cx)
                                         }
@@ -816,23 +869,24 @@ impl Render for App {
 }
 
 fn render_home_view(cx: &mut Context<App>) -> Div {
-    // 与 Tauri Home.vue 完全对齐：卡片 = menu.ts 扁平列表，文案 = toolDesc，顺序 = menus 顺序
     let items: &[(&str, &str, IconName)] = &[
-        // 常用（顶层直接项）
         ("系统监控", "系统资源实时监控", IconName::ChartPie),
         ("代码片段", "代码片段管理", IconName::File),
         ("待办事项", "待办事项清单", IconName::Check),
-        ("加密", "AES / DES / RC4 等对称加密", IconName::EyeOff),
+        ("对称加密", "AES / DES / RC4 等对称加密", IconName::EyeOff),
+        (
+            "国密算法",
+            "SM2 / SM3 / SM4 国密算法工具",
+            IconName::Asterisk,
+        ),
         ("按位计算器", "按位运算计算器", IconName::SquareTerminal),
         ("颜色转换", "颜色格式转换", IconName::Palette),
         ("正则", "正则表达式可视化", IconName::Dash),
-        // 转换
         ("文件格式转换", "文件类型识别与转换", IconName::File),
         ("时间戳", "时间戳与日期互转", IconName::Calendar),
         ("进制转换", "进制及字符串进制互转", IconName::ALargeSmall),
         ("Cron 表达式", "Cron 表达式解析与生成", IconName::Calendar),
         ("人民币大小写", "", IconName::ALargeSmall),
-        // 编码/解码
         (
             "Base 编码",
             "Base64 / Base32 / Base58 编码解码",
@@ -845,17 +899,21 @@ fn render_home_view(cx: &mut Context<App>) -> Div {
             "字符集 / 乱码 / 转义 / Unicode 编码转换",
             IconName::CaseSensitive,
         ),
-        // 格式化
+        (
+            "编码格式转换",
+            "UTF-8 / GBK / ISO-8859-1 等字符集互转",
+            IconName::Replace,
+        ),
+        ("二维码", "生成二维码", IconName::Frame),
+        ("二维码解码", "从图片识别并解码二维码", IconName::Search),
         ("JSON Editor", "JSON 编辑与格式化", IconName::File),
         ("SQL", "SQL 语句格式化", IconName::SquareTerminal),
         ("XML", "XML 格式化与压缩", IconName::File),
-        // 生成器
+        ("JSON Schema", "JSON Schema 校验", IconName::Check),
         ("UUID", "批量生成 UUID", IconName::ALargeSmall),
         ("Hash 计算", "文本与文件 Hash 计算", IconName::Asterisk),
-        // 数据库
         ("假数据生成", "可视化构造假数据", IconName::Folder),
         ("数据库差异", "数据库结构与数据对比", IconName::Folder),
-        // 文本
         ("Markdown", "Markdown 编辑与预览", IconName::BookOpen),
         (
             "文本工具",
@@ -867,35 +925,30 @@ fn render_home_view(cx: &mut Context<App>) -> Div {
             "文本 / JSON 差异对比",
             IconName::Replace,
         ),
-        // 随机
         ("随机字符串", "随机字符串生成", IconName::CaseSensitive),
         ("随机数字", "随机数字生成", IconName::Asterisk),
         ("随机数据", "结构化随机数据", IconName::Folder),
-        // 网络
         ("IP 地址转换", "IP 地址数值转换", IconName::Network),
         (
             "随机 IP / MAC / 时间",
             "随机 IP / MAC / 时间",
             IconName::Calendar,
         ),
-        // 图像
         ("图片格式转换", "图片格式转换", IconName::Frame),
         ("Excalidraw", "手绘风格画板", IconName::Frame),
-        // PDF
         ("图片转 PDF", "多张图片合成 PDF", IconName::File),
         ("PDF 合并", "合并多个 PDF", IconName::File),
         ("PDF 编辑", "编辑 PDF 页面", IconName::File),
         ("PDF 添加页码", "为 PDF 添加页码", IconName::File),
         ("PDF 拆分", "拆分 PDF 页面", IconName::File),
-        // 其它
-        ("二维码", "生成二维码", IconName::Frame),
         ("剪贴板管理", "剪贴板历史管理", IconName::Settings2),
     ];
-    // 分组顺序与 Tauri Home.vue 的 groupedCards 一致（按首次出现分组）
+
     let group_order = [
         "常用",
         "转换",
         "编码/解码",
+        "加密",
         "格式化",
         "生成器",
         "数据库",
@@ -1024,8 +1077,6 @@ fn view_for_title(title: &str) -> Option<ViewType> {
         .find(|tool| tool.label == title)
         .map(|tool| tool.view)
 }
-
-// TOOL_INDEX / ToolEntry / 拼音索引见 search_pinyin 模块（含单元测试）。
 
 fn render_text_encoding_page(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {
     if app.text_encoding.is_none() {
@@ -1220,6 +1271,50 @@ fn render_ip_converter_view(app: &mut App, window: &mut Window, cx: &mut Context
     }
 }
 
+fn render_encoding_format_view(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {
+    if app.encoding_format.is_none() {
+        app.encoding_format = Some(cx.new(|cx| EncodingFormatConvert::new(window, cx)));
+    }
+    if let Some(ref view) = app.encoding_format {
+        div().child(view.clone())
+    } else {
+        div().child("Loading...")
+    }
+}
+
+fn render_sm_crypto_view(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {
+    if app.sm_crypto.is_none() {
+        app.sm_crypto = Some(cx.new(|cx| SmCrypto::new(window, cx)));
+    }
+    if let Some(ref view) = app.sm_crypto {
+        div().child(view.clone())
+    } else {
+        div().child("Loading...")
+    }
+}
+
+fn render_json_schema_view(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {
+    if app.json_schema.is_none() {
+        app.json_schema = Some(cx.new(|cx| JsonSchemaValidator::new(window, cx)));
+    }
+    if let Some(ref view) = app.json_schema {
+        div().child(view.clone())
+    } else {
+        div().child("Loading...")
+    }
+}
+
+fn render_qrcode_decoder_view(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {
+    if app.qrcode_decoder.is_none() {
+        app.qrcode_decoder = Some(cx.new(|cx| QrCodeDecoder::new(window, cx)));
+    }
+    if let Some(ref view) = app.qrcode_decoder {
+        div().child(view.clone())
+    } else {
+        div().child("Loading...")
+    }
+}
+
 fn render_qrcode_generator_view(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {
     if app.qrcode_generator.is_none() {
         app.qrcode_generator = Some(cx.new(|cx| QrCodeGenerator::new(window, cx)));
@@ -1250,7 +1345,6 @@ fn render_regex_visualizer_view(app: &mut App, window: &mut Window, cx: &mut Con
     }
 
     if let Some(ref regex) = app.regex_visualizer {
-        // 对齐 Vue：tb-page padding(16/20/24) + 卡片撑满剩余高度
         div()
             .h_full()
             .pt(px(16.0))
@@ -1269,7 +1363,6 @@ fn render_excalidraw_view(app: &mut App, window: &mut Window, cx: &mut Context<A
     }
 
     if let Some(ref excalidraw) = app.excalidraw {
-        // 对齐 Vue excalidraw-page：padding 4px 12px 12px
         div()
             .size_full()
             .pt(px(4.0))
@@ -1549,7 +1642,6 @@ fn main() {
         let bounds = Bounds::centered(None, size(px(1200.0), px(800.0)), cx);
 
         cx.spawn(async move |cx| {
-            // 对齐 Tauri Provider：启动时读取并应用已保存的主题
             if let Ok(Some(saved)) = config_store::get_setting("theme").await {
                 let mode = if saved == "dark" {
                     ThemeMode::Dark

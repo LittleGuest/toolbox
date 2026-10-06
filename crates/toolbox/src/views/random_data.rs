@@ -71,10 +71,6 @@ fn rand_char(s: &str, rng: &mut impl Rng) -> char {
     s.chars().nth(rng.random_range(0..len)).unwrap_or('a')
 }
 
-// ---------------------------------------------------------------------------
-// 假数据字段推断（对齐 Vue fieldValue）
-// ---------------------------------------------------------------------------
-
 #[derive(Clone, Copy, PartialEq)]
 enum Kind {
     Str,
@@ -166,10 +162,6 @@ fn build_row(fields: &[String], rng: &mut impl Rng) -> Row {
         .collect()
 }
 
-// ---------------------------------------------------------------------------
-// 正则随机数据（对齐 Vue RegexParser）
-// ---------------------------------------------------------------------------
-
 #[derive(Clone)]
 enum ClassPart {
     Set(String),
@@ -231,7 +223,6 @@ impl RegexParser {
         self.src.get(self.pos).copied()
     }
 
-    /// 判断 self.pos 处的 "{...}" 是否为量词（不消费）
     fn is_quant_ahead(&self) -> bool {
         if self.peek() != Some('{') {
             return false;
@@ -258,7 +249,6 @@ impl RegexParser {
         false
     }
 
-    /// 消费 self.pos 处的量词
     fn parse_quant(&mut self) -> Option<(usize, Option<usize>)> {
         match self.peek() {
             Some('*') => {
@@ -431,7 +421,7 @@ impl RegexParser {
     }
 
     fn parse_class(&mut self) -> Result<Node, String> {
-        self.pos += 1; // [
+        self.pos += 1;
         let mut negated = false;
         if self.peek() == Some('^') {
             negated = true;
@@ -479,7 +469,7 @@ impl RegexParser {
         if self.pos >= self.src.len() {
             return Err("unbalanced bracket".to_string());
         }
-        self.pos += 1; // ]
+        self.pos += 1;
         if !chars.is_empty() {
             parts.push(ClassPart::Set(chars.iter().collect()));
         }
@@ -554,11 +544,6 @@ fn generate_regex_line(alts: &[Vec<Node>], rng: &mut impl Rng) -> String {
     out
 }
 
-// ---------------------------------------------------------------------------
-// 视图
-// ---------------------------------------------------------------------------
-
-/// 配置项：12px 灰色 label + 控件（对应 tb-config-item）
 fn config_item(label: &'static str, control: Div) -> Div {
     div()
         .flex()
@@ -818,10 +803,6 @@ impl RandomDataGenerator {
         cx.notify();
     }
 
-    // ------------------------------------------------------------------
-    // 渲染
-    // ------------------------------------------------------------------
-
     fn tab_btn(
         &self,
         id: &'static str,
@@ -989,7 +970,6 @@ impl RandomDataGenerator {
                         .items_center()
                         .gap_3()
                         .child(
-                            // n-radio-button 组：逗号 / 制表符
                             div()
                                 .flex()
                                 .rounded(px(6.0))

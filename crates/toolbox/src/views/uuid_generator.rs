@@ -22,7 +22,6 @@ const VERSIONS: [(&str, u8); 7] = [
     ("v8", 8),
 ];
 
-/// 配置项：12px 灰色 label + 控件（对应 tb-config-item）
 fn config_item(label: &'static str, control: Div) -> Div {
     div()
         .flex()
@@ -166,7 +165,6 @@ impl Render for UuidGenerator {
 
         design::page().child(
             design::card(cx)
-                // tb-config-row：大写 / 去掉连接符 / 版本 / 生成数量
                 .child(
                     div()
                         .flex()
@@ -204,7 +202,6 @@ impl Render for UuidGenerator {
                                 .child(NumberInput::new(&self.number_state)),
                         )),
                 )
-                // tb-action-row：生成（主色图标按钮）
                 .child(
                     div().flex().items_center().gap_2().child(
                         Button::new("generate")
@@ -216,7 +213,6 @@ impl Render for UuidGenerator {
                             })),
                     ),
                 )
-                // tb-editor：UUID 列表 + 复制
                 .child(
                     div()
                         .flex_col()

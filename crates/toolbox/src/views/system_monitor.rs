@@ -24,7 +24,6 @@ static COMPONENTS: LazyLock<Mutex<Components>> =
 
 const PAGE_SIZE: usize = 20;
 
-// 与 Vue 版 n-progress 颜色对齐
 const COLOR_CPU: u32 = 0x4caf50;
 const COLOR_DISK: u32 = 0x9c27b0;
 const COLOR_MEM: u32 = 0x2196f3;
@@ -220,7 +219,6 @@ impl SystemMonitor {
         }
     }
 
-    /// n-progress line：底槽 + 固定颜色填充（height 单位 px）
     fn render_progress_bar(percent: f32, color: u32, height: f32, cx: &App) -> Div {
         let percent = percent.clamp(0.0, 100.0);
         div()
@@ -238,7 +236,6 @@ impl SystemMonitor {
             )
     }
 
-    /// metric 行（item-content .metric：label 左 灰 14px + 值右 16px 加粗）
     fn render_metric(label: &str, value: String, cx: &App) -> Div {
         div()
             .flex()
@@ -253,7 +250,6 @@ impl SystemMonitor {
             .child(div().text_size(px(16.0)).font_semibold().child(value))
     }
 
-    /// 可点击 metric 行（点击打开对应抽屉）
     fn render_clickable_metric(
         id: &'static str,
         label: &str,
@@ -372,7 +368,7 @@ impl SystemMonitor {
         self.monitoring_enabled = enabled;
         if enabled {
             self.refresh();
-            // Vue：cpuMemoryTimer 2s / diskTimer 30s / processTimer 10s，此处统一刷新
+
             cx.spawn(async move |this: WeakEntity<Self>, cx| {
                 loop {
                     cx.background_executor().timer(Duration::from_secs(2)).await;
@@ -395,7 +391,6 @@ impl SystemMonitor {
     }
 
     fn open_disk_drawer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        // 同 CPU 抽屉：builder 每帧读取实时磁盘数据
         let this = cx.entity().downgrade();
         window.open_sheet_at(Placement::Right, cx, move |sheet, _, cx| {
             let disks = this
@@ -482,7 +477,6 @@ impl SystemMonitor {
     }
 
     fn open_cpu_drawer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        // 捕获实体弱引用，builder 每帧重执行时读取实时数据（对齐 Tauri 抽屉内容随采集刷新）
         let this = cx.entity().downgrade();
         window.open_sheet_at(Placement::Right, cx, move |sheet, _, cx| {
             let monitor = this.upgrade();
@@ -575,10 +569,7 @@ impl Render for SystemMonitor {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let monitoring_enabled = self.monitoring_enabled;
 
-        // 监控关闭态：居中开关面板（monitor-switch-panel）
         if !monitoring_enabled {
-            // 对齐 Tauri 的 min-height: calc(100vh - 160px)：
-            // 顶栏 56 + 页面 padding 40 + 余量，保证面板在视口中垂直居中
             let min_h_center = (window.viewport_size().height - px(160.0)).max(px(320.0));
             return design::page()
                 .child(
@@ -634,7 +625,6 @@ impl Render for SystemMonitor {
         let total_pages = self.total_pages();
         let total_filtered = self.filtered_processes().len();
 
-        // monitor-row：两张监控卡并排（Tauri：display:flex; gap:20px; 两卡 flex:1 等宽）
         let monitor_row = div()
             .flex()
             .gap_5()
@@ -645,7 +635,6 @@ impl Render for SystemMonitor {
                             .flex()
                             .flex_col()
                             .gap(px(15.0))
-                            // CPU使用率（点击打开 CPU 详情抽屉）
                             .child(
                                 Self::render_clickable_metric(
                                     "cpu-metric",
@@ -665,7 +654,6 @@ impl Render for SystemMonitor {
                                 12.0,
                                 cx,
                             ))
-                            // 磁盘使用率（点击打开磁盘详情抽屉）
                             .child(
                                 Self::render_clickable_metric(
                                     "disk-metric",
@@ -695,7 +683,6 @@ impl Render for SystemMonitor {
                             .flex()
                             .flex_col()
                             .gap(px(15.0))
-                            // 物理内存
                             .child(Self::render_metric(
                                 "物理内存",
                                 format!("{:.2}%", memory_usage_percent),
@@ -707,7 +694,6 @@ impl Render for SystemMonitor {
                                 10.0,
                                 cx,
                             ))
-                            // 交换内存
                             .child(Self::render_metric(
                                 "交换内存",
                                 format!("{:.2}%", swap_usage_percent),
@@ -723,7 +709,6 @@ impl Render for SystemMonitor {
                 ),
             );
 
-        // 进程表头（n-data-table 表头：xs 加粗 次要色）
         let table_header = div()
             .flex()
             .text_xs()
@@ -739,7 +724,6 @@ impl Render for SystemMonitor {
             .child(div().w(px(80.0)).child("CPU(%)"))
             .child(div().w(px(76.0)).child("操作"));
 
-        // 进程行
         let table_rows = paginated
             .iter()
             .map(|process| {
@@ -796,7 +780,6 @@ impl Render for SystemMonitor {
         let process_card = design::card(cx)
             .flex_1()
             .child(
-                // 卡片头：标题 + 右侧搜索框（Vue：header 内右对齐搜索）
                 div()
                     .flex()
                     .flex_wrap()

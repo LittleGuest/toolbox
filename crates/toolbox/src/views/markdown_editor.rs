@@ -9,17 +9,12 @@ use gpui_kit::{
     *,
 };
 
-/// 可复用的 Markdown 编辑面板（工具栏 + 编辑/预览分栏）。
-///
-/// 对齐 Tauri 里两处共用的 `md-editor-v3` 的 `<MdEditor>`：
-/// - `src/views/text/Markdown.vue`（独立「Markdown 编辑器」页面）
-/// - `src/views/snippet/CodeSnippet.vue` 抽屉里的内容字段
 pub struct MarkdownPane {
     content: String,
     show_preview: bool,
-    /// 是否显示「保存为 .md」：片段抽屉里落库由外层「保存」负责，故隐藏
+
     file_actions: bool,
-    /// 编辑器高度 = 视口高度 - height_offset，且不低于 min_height
+
     height_offset: f32,
     min_height: f32,
     status: String,
@@ -84,7 +79,6 @@ fn find_closing_backtick(chars: &[char], start: usize) -> Option<usize> {
 
 impl MarkdownPane {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        // 对齐 md-editor-v3 的默认 placeholder「请输入内容...」
         let input_state = cx.new(|cx| TextareaState::new(window, cx).placeholder("请输入内容..."));
 
         let _subscriptions = vec![cx.subscribe_in(&input_state, window, {
@@ -111,25 +105,21 @@ impl MarkdownPane {
         }
     }
 
-    /// 是否显示「保存为 .md」按钮（片段抽屉传 false）
     pub fn file_actions(mut self, on: bool) -> Self {
         self.file_actions = on;
         self
     }
 
-    /// 编辑器高度策略（对齐 Tauri：页面 `calc(100vh - 160px)`、片段抽屉 `calc(100vh - 290px)`）
     pub fn editor_height(mut self, offset: f32, min_height: f32) -> Self {
         self.height_offset = offset;
         self.min_height = min_height;
         self
     }
 
-    /// 当前 Markdown 原文（片段抽屉保存时读取）
     pub fn content(&self) -> &str {
         &self.content
     }
 
-    /// 覆写内容（编辑已有片段时预填）
     pub fn set_content(&mut self, value: String, window: &mut Window, cx: &mut Context<Self>) {
         self.content = value.clone();
         self.input_state.update(cx, |state, cx| {
@@ -255,7 +245,6 @@ impl MarkdownPane {
         }
     }
 
-    /// 保存为 .md 文件（对应 md-editor-v3 工具栏的保存动作）
     fn save_to_file(&mut self, cx: &mut Context<Self>) {
         if self.content.is_empty() {
             self.error = "内容为空，无法保存".to_string();
@@ -573,7 +562,7 @@ impl Render for MarkdownPane {
         let error = self.error.clone();
         let show_preview = self.show_preview;
         let file_actions = self.file_actions;
-        // 对齐 Tauri：`height: calc(100vh - Npx)`，并保留一个下限避免窗口过矮时挤扁
+
         let editor_h =
             (window.viewport_size().height - px(self.height_offset)).max(px(self.min_height));
         let char_count = content.chars().count();
@@ -583,7 +572,6 @@ impl Render for MarkdownPane {
             content.lines().count()
         };
 
-        // 工具栏（对齐 md-editor-v3：加粗/下划线/斜体/删除线 · 标题 · 引用/列表 · 代码 · 链接/图片 · 表格/分割线 · 操作）
         let toolbar = div()
             .flex()
             .flex_wrap()
@@ -776,8 +764,6 @@ impl Render for MarkdownPane {
                                 this.copy(cx);
                             })),
                     )
-                    // 「保存为 .md」只在独立 Markdown 页面出现；
-                    // 片段抽屉里由外层「保存」按钮负责落库，避免出现无意义的落盘入口
                     .when(file_actions, |group| {
                         group.child(
                             Button::new("md-save")
@@ -818,7 +804,6 @@ impl Render for MarkdownPane {
                     ),
             );
 
-        // 编辑 / 预览 分栏（md-editor-v3 单卡片双栏）
         let editor_col = div()
             .flex_col()
             .gap_1p5()
@@ -860,7 +845,6 @@ impl Render for MarkdownPane {
             editor_col
         };
 
-        // 面板本体：不含 page/card 外框，方便被页面或抽屉直接嵌入
         div()
             .flex()
             .flex_col()
@@ -912,7 +896,6 @@ impl Render for MarkdownPane {
     }
 }
 
-/// 「Markdown 编辑器」页面 —— 对齐 Tauri `src/views/text/Markdown.vue`：`tb-page > tb-card > MdEditor`
 pub struct MarkdownEditor {
     pane: Option<Entity<MarkdownPane>>,
 }
@@ -926,7 +909,6 @@ impl MarkdownEditor {
 impl Render for MarkdownEditor {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         if self.pane.is_none() {
-            // 对齐 Tauri `.md-editor { height: calc(100vh - 160px); min-height: 480px; }`
             self.pane =
                 Some(cx.new(|cx| MarkdownPane::new(window, cx).editor_height(160.0, 480.0)));
         }

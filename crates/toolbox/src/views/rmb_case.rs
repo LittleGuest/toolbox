@@ -237,7 +237,6 @@ impl RmbCase {
         }
     }
 
-    /// 分段选择器（对应 n-radio-button 组）
     fn segmented(
         &self,
         name: &'static str,
@@ -282,7 +281,6 @@ impl RmbCase {
             }))
     }
 
-    /// 线型标签页（对应 n-tabs type="line"）
     fn tab_bar(&self, cx: &mut Context<Self>) -> Div {
         div()
             .flex()

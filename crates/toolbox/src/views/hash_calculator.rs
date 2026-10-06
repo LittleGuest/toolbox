@@ -130,7 +130,6 @@ impl HashCalculator {
         }
     }
 
-    /// hash-row：88px 算法名 + 只读散列值 + 复制按钮
     fn hash_row(
         &self,
         id: &'static str,
@@ -200,7 +199,6 @@ impl Render for HashCalculator {
                 .w_full()
                 .flex_col()
                 .gap_4()
-                // tb-editor：输入
                 .child(
                     div()
                         .flex_col()
@@ -244,7 +242,6 @@ impl Render for HashCalculator {
                                 ),
                         ),
                 )
-                // tb-editor：结果
                 .child(
                     div()
                         .flex_col()

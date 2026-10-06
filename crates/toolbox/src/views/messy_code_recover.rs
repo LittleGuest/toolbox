@@ -106,7 +106,6 @@ impl MessyCodeRecover {
         }
     }
 
-    /// 结果表格（对应 n-data-table）
     fn result_table(&self, cx: &mut Context<Self>) -> Div {
         let header = |label: &'static str, width: Pixels| {
             div()

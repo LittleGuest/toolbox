@@ -894,7 +894,6 @@ impl DatabaseDiff {
         let weak = cx.entity().downgrade();
 
         window.open_sheet_at(Placement::Right, cx, move |sheet, window, cx| {
-            // 每次渲染实时读取实体状态（对应 Vue 的响应式 form）
             let Some(entity) = weak.upgrade() else {
                 return sheet;
             };
@@ -1000,7 +999,6 @@ impl DatabaseDiff {
                 }
             }
 
-            // 包名输入：只显示已勾选的 .java 文件类型（对应 packageFileTypes）
             let mut package_fields = div().flex().flex_col().gap_2();
             if is_java {
                 let package_defs = [
@@ -1215,7 +1213,7 @@ impl DatabaseDiff {
     fn open_report_drawer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let report = self.report_output.clone();
         let scroll_handle = ScrollHandle::default();
-        // 折叠状态（对应 Vue 的 item.close / closeColumn）
+
         let collapsed: Rc<RefCell<HashSet<usize>>> = Rc::new(RefCell::new(HashSet::new()));
 
         window.open_sheet_at(Placement::Right, cx, move |sheet, window, cx| {
@@ -1457,7 +1455,6 @@ impl DatabaseDiff {
                 );
             }
 
-            // 下载内容（报告文本）
             let report_text = report
                 .as_ref()
                 .map(|r| serde_json::to_string_pretty(r).unwrap_or_default())
@@ -1761,7 +1758,7 @@ impl Render for DatabaseDiff {
                         .child(status),
                 )
             })
-            // 卡片一：差异报告（头部右侧 新建连接）
+
             .child(
                 design::card(cx)
                     .child(
@@ -1793,7 +1790,7 @@ impl Render for DatabaseDiff {
                             ),
                     ),
             )
-            // 卡片二：差异 SQL
+
             .child(
                 design::card(cx).child(
                     config_row()
@@ -1814,7 +1811,7 @@ impl Render for DatabaseDiff {
                         ),
                 ),
             )
-            // 卡片三：规范检查
+
             .child(
                 design::card(cx).child(
                     config_row()
@@ -1839,7 +1836,7 @@ impl Render for DatabaseDiff {
                         ),
                 ),
             )
-            // 卡片四：逆向生成
+
             .child(
                 design::card(cx).child(
                     config_row()
@@ -1857,7 +1854,7 @@ impl Render for DatabaseDiff {
                         ),
                 ),
             )
-            // 卡片五：连接列表
+
             .child(design::card(cx).child(saved_datasource_panel(self, cx)))
     }
 }
@@ -2582,12 +2579,10 @@ fn standard_check_option(
     Some(StandardCheckOption { code, desc })
 }
 
-/// 配置行（对应 tb-config-row）
 fn config_row() -> Div {
     div().flex().flex_wrap().items_center().gap_3()
 }
 
-/// 行标题 + 帮助提示图标（对应 n-form-item 内的标题 + n-tooltip 问号）
 fn row_title(title: &'static str, tooltip_text: &'static str) -> Div {
     div()
         .flex()
@@ -2603,7 +2598,6 @@ fn row_title(title: &'static str, tooltip_text: &'static str) -> Div {
         )
 }
 
-/// 标签 + 下拉选择（对应 n-form-item label + n-select 250px）
 fn select_field(label: &'static str, state: &Entity<SelectState<Vec<String>>>) -> Div {
     div()
         .flex()
@@ -2613,7 +2607,6 @@ fn select_field(label: &'static str, state: &Entity<SelectState<Vec<String>>>) -
         .child(div().w(px(250.0)).child(Select::new(state)))
 }
 
-/// 差异报告小节：标题 + 标签组
 fn report_tag_block(title: &str, items: &[String], color: Hsla, cx: &App) -> Div {
     div()
         .border_1()
@@ -2638,7 +2631,6 @@ fn report_tag_block(title: &str, items: &[String], color: Hsla, cx: &App) -> Div
         )
 }
 
-/// 差异报告小节：标题 + 数据表格（对应 n-data-table）
 fn report_table_block(
     title: &str,
     headers: &[(&str, f32)],
@@ -2703,7 +2695,6 @@ fn report_table_block(
         .child(table)
 }
 
-/// "A 变更为 B"（仅变化时显示，对应 Vue getContent）
 fn change_text(changed: bool, source: String, target: String) -> String {
     if changed {
         format!("{source} 变更为 {target}")
@@ -2720,7 +2711,6 @@ fn opt_num(value: Option<i32>) -> String {
     value.map(|v| v.to_string()).unwrap_or_default()
 }
 
-/// 通过系统对话框保存文本（对应 Vue 的下载按钮）
 fn save_text_file(default_name: &str, content: String, cx: &App) {
     if content.is_empty() {
         return;

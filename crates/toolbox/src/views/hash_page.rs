@@ -1,6 +1,3 @@
-//! 「Hash 计算」容器页 —— 严格对齐 Tauri `src/views/generator/Hash.vue`：
-//! 单页 2 个 Tab（文本 / 文件校验），文件校验之前被拆成独立侧栏项，现合并回同一页面。
-
 use gpui_kit::{
     component::tab::{Tab, TabBar},
     *,
@@ -57,7 +54,6 @@ impl Render for HashPage {
             _ => div().children(self.file_verify.clone()),
         };
 
-        // 对齐 Tauri Hash.vue：tb-page > tb-card > n-tabs，Tab 在 card 内
         design::page().child(
             design::card(cx)
                 .child(div().mb_1().child(tab_bar))

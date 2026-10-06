@@ -51,7 +51,6 @@ impl Snippet {
     }
 }
 
-/// 首个非空行（对齐 Vue firstLine）
 fn first_line(code: &str) -> String {
     code.split('\n')
         .map(|l| l.trim_end_matches('\r'))
@@ -60,7 +59,6 @@ fn first_line(code: &str) -> String {
         .to_string()
 }
 
-/// 行数（对齐 Vue lineCount）
 fn line_count(code: &str) -> usize {
     if code.is_empty() {
         0
@@ -73,14 +71,13 @@ pub struct CodeSnippet {
     snippets: Vec<Snippet>,
     tags: Vec<SharedString>,
     selected_tags: Vec<SharedString>,
-    /// 列表当前高亮项（对齐 Vue `selectedSnippetId`）
+
     selected_snippet_id: Option<i64>,
-    /// 正在编辑的片段 id（对齐 Vue `form.id`；None 表示新增）
+
     editing_id: Option<i64>,
     search_input_state: Option<Entity<InputState>>,
     title_input_state: Option<Entity<InputState>>,
-    /// 内容字段使用 Markdown 编辑器（对齐 Tauri 抽屉里的 `<MdEditor>`）；
-    /// 每次打开抽屉重建，保证内容与被编辑的片段一致
+
     md_editor: Option<Entity<MarkdownPane>>,
     tag_input_state: Option<Entity<InputState>>,
     search_text: SharedString,
@@ -153,7 +150,7 @@ impl CodeSnippet {
                         this.tag_input_text = value.clone();
                         cx.notify()
                     }
-                    // 对齐 Vue `n-select tag filterable`：回车即提交标签
+
                     InputEvent::PressEnter { .. } => {
                         this.add_tag(window, cx);
                     }
@@ -167,7 +164,6 @@ impl CodeSnippet {
         self.tag_input_state = Some(tag_input_state);
         self._subscriptions = _subscriptions;
 
-        // 对齐 Vue onMounted 静默加载；仅在失败时用统一提示反馈
         cx.spawn_in(window, async move |this: WeakEntity<Self>, cx| {
             let result = config_store::load_snippets().await;
             let _ = this.update_in(cx, |this, window, cx| {
@@ -232,7 +228,7 @@ impl CodeSnippet {
     fn reset_form(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.current_title = SharedString::default();
         self.current_tags = Vec::new();
-        // 对齐 Vue addSnippets：form.language = ""
+
         self.current_language = SharedString::default();
         self.tag_input_text = SharedString::default();
         self.md_editor = None;
@@ -249,8 +245,6 @@ impl CodeSnippet {
         }
     }
 
-    /// 新建 / 编辑抽屉的内容编辑器（对齐 Tauri 的 `<MdEditor>`）。
-    /// 高度取 `calc(100vh - 290px)`，与 Tauri 抽屉里的写法一致。
     fn new_md_editor(
         &self,
         initial: &str,
@@ -271,7 +265,6 @@ impl CodeSnippet {
     }
 
     fn start_add(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        // 对齐 Vue addSnippets：form.id = null（新增），不动列表高亮
         self.editing_id = None;
         self.reset_form(window, cx);
         self.md_editor = Some(self.new_md_editor("", window, cx));
@@ -279,7 +272,6 @@ impl CodeSnippet {
     }
 
     fn start_edit(&mut self, id: i64, window: &mut Window, cx: &mut Context<Self>) {
-        // 先把被编辑片段的数据取出来（避免与后面的 &mut self 冲突）
         let Some((title, code, tags, language)) =
             self.snippets.iter().find(|s| s.id == Some(id)).map(|s| {
                 (
@@ -293,7 +285,6 @@ impl CodeSnippet {
             return;
         };
 
-        // 对齐 Vue editSnippets：form.id = snippet.id（走更新分支）
         self.editing_id = Some(id);
         self.reset_form(window, cx);
         self.current_title = title.clone();
@@ -317,7 +308,6 @@ impl CodeSnippet {
     }
 
     fn cancel_edit(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        // 对齐 Vue handleClose：仅重置表单，不改列表高亮
         self.editing_id = None;
         self.reset_form(window, cx);
         window.close_sheet(cx);
@@ -325,7 +315,7 @@ impl CodeSnippet {
 
     fn open_edit_sheet(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let weak = cx.entity().downgrade();
-        // 对齐 Vue `form.id ? '编辑' : '添加'`
+
         let is_edit = self.editing_id.is_some();
         let title_state = self.title_input_state.clone();
         let md_editor = self.md_editor.clone();
@@ -342,8 +332,6 @@ impl CodeSnippet {
             sheet
                 .overlay(true)
                 .overlay_closable(true)
-                // 对齐 Vue：`placement="bottom" resizable :height="'100%'"`
-                // （内容字段是 Markdown 编辑器 `calc(100vh - 290px)`，需要整屏高度）
                 .size(relative(1.0))
                 .resizable(true)
                 .title(if is_edit { "编辑" } else { "添加" })
@@ -353,7 +341,6 @@ impl CodeSnippet {
                         .flex_col()
                         .gap_3()
                         .p_4()
-                        // 一句话（标题）
                         .child(
                             div()
                                 .flex_col()
@@ -365,7 +352,6 @@ impl CodeSnippet {
                                     div()
                                 }),
                         )
-                        // 标签
                         .child(
                             div()
                                 .flex_col()
@@ -480,15 +466,12 @@ impl CodeSnippet {
                                     )
                                 }),
                         )
-                        // 代码内容（对齐 Vue `n-form-item path="code" :show-labels="false"`：
-                        // 无标签；字段本体是 `md-editor-v3` 的 `<MdEditor>`）
                         .child(
                             div()
                                 .flex_col()
                                 .gap_1p5()
                                 .child(div().children(md_editor.clone())),
                         )
-                        // 底部操作
                         .child(
                             div()
                                 .flex()
@@ -510,7 +493,7 @@ impl CodeSnippet {
                                 })
                                 .child({
                                     let weak = weak.clone();
-                                    // 对齐 Vue：保存按钮始终可点，校验失败时提示且抽屉不关闭（非 primary）
+
                                     Button::new("sheet-save")
                                         .icon(Icon::new(IconName::Check))
                                         .tooltip("保存")
@@ -567,7 +550,6 @@ impl CodeSnippet {
         self.current_tags.retain(|t| t != tag);
     }
 
-    /// 保存（对齐 Vue saveSnippet）。返回 true 表示校验通过、已开始保存。
     fn save_snippet(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
         if self.current_title.trim().is_empty() {
             window.push_notification(Notification::error("请一句话描述"), cx);
@@ -577,7 +559,7 @@ impl CodeSnippet {
             window.push_notification(Notification::error("请选择或输入标签"), cx);
             return false;
         }
-        // 内容取自 Markdown 编辑器面板（对齐 Vue `form.code` 由 `<MdEditor>` 双向绑定）
+
         let code = self
             .md_editor
             .as_ref()
@@ -680,7 +662,6 @@ impl CodeSnippet {
             alert
                 .title(div().text_lg().font_semibold().child("确认删除"))
                 .width(px(420.))
-                // 对齐 Vue `n-popconfirm`：是否确认删除？
                 .description(div().py_4().text_sm().child("是否确认删除？"))
                 .confirm()
                 .on_ok(move |_, window, cx| {
@@ -724,7 +705,6 @@ impl CodeSnippet {
         .detach();
     }
 
-    /// 导入 JSON（对齐 Vue handleImportFile：支持数组或 { snippets: [...] } 包装）
     fn import_snippets(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let task = cx.background_executor().spawn(async move {
             rfd::AsyncFileDialog::new()
@@ -775,7 +755,7 @@ impl CodeSnippet {
                 if title.is_empty() || code.is_empty() {
                     continue;
                 }
-                // normalizeTags：数组或逗号分隔字符串 → 逗号分隔串
+
                 let tags_str = match item.get("tags") {
                     Some(serde_json::Value::Array(arr)) => arr
                         .iter()
@@ -842,7 +822,6 @@ impl CodeSnippet {
         .detach();
     }
 
-    /// 导出当前筛选结果（对齐 Vue exportSnippets：{ version, snippets }）
     fn export_snippets(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let data: Vec<serde_json::Value> = self
             .filtered_snippets()
@@ -858,7 +837,6 @@ impl CodeSnippet {
             .collect();
 
         if data.is_empty() {
-            // 对齐 Vue message.warning("没有可导出的代码片段")
             window.push_notification(Notification::warning("没有可导出的代码片段"), cx);
             return;
         }
@@ -898,7 +876,6 @@ impl CodeSnippet {
     }
 
     fn update_tags(&mut self) {
-        // 保持首次出现顺序（对齐 Vue [...new Set(tagSet)]）
         let mut ordered: Vec<SharedString> = Vec::new();
         for snippet in &self.snippets {
             for tag in &snippet.tags {
@@ -910,7 +887,6 @@ impl CodeSnippet {
         self.tags = ordered;
     }
 
-    /// 标签侧栏（对齐 .tag-sidebar）
     fn render_tag_sidebar(&self, cx: &mut Context<Self>) -> Div {
         let all_tags = self.tags.clone();
         let selected_tags = self.selected_tags.clone();
@@ -986,7 +962,6 @@ impl CodeSnippet {
             .child(tag_list)
     }
 
-    /// 片段卡片（对齐 .snippet-item）
     fn render_snippet_item(&self, snippet: &Snippet, cx: &mut Context<Self>) -> Stateful<Div> {
         let id = snippet.id.unwrap_or(0);
         let id_usize = id as usize;
@@ -1026,7 +1001,6 @@ impl CodeSnippet {
                     .child(tag.clone())
             }));
 
-        // 对齐 Vue `&:hover .snippet-item-actions, &.active .snippet-item-actions { opacity: 1 }`
         let group_id = SharedString::from(format!("snippet-item-group-{id_usize}"));
 
         div()
@@ -1090,7 +1064,6 @@ impl CodeSnippet {
                     )
                     .when(!tags.is_empty(), |item| item.child(tags_row)),
             )
-            // 操作区：仅 编辑 / 删除（对齐 Vue snippet-item-actions），默认隐藏、悬停或选中时显示
             .child(
                 div()
                     .flex()
@@ -1135,10 +1108,7 @@ impl Render for CodeSnippet {
         let filtered = self.filtered_snippets();
         let has_tags = !self.tags.is_empty();
 
-        // 空态不能放进 Scrollable（其子项 flex_1 会被折叠成 0 高，文字不可见）；
-        // 且外层 flex 增长不会按 min_h 解析，故空态直接给固定高度做居中。
         let list_area: AnyElement = if filtered.is_empty() {
-            // 对齐 Vue `<n-empty description="暂无代码片段" />`：不区分是否处于筛选态
             div()
                 .flex_1()
                 .min_w_0()
@@ -1175,7 +1145,6 @@ impl Render for CodeSnippet {
 
         design::page().child(
             design::card(cx)
-                // 卡片头：标题居左，操作（新建 / 导入 / 导出）贴右 —— 对齐 tb-card-header
                 .child(
                     design::card_header(IconName::FileText, "代码片段", "", cx).child(
                         div()
@@ -1209,7 +1178,6 @@ impl Render for CodeSnippet {
                             ),
                     ),
                 )
-                // 工具栏：搜索 + 计数（.snippet-toolbar）
                 .child(
                     div()
                         .flex()
@@ -1220,7 +1188,6 @@ impl Render for CodeSnippet {
                         .border_color(cx.theme().border)
                         .child(div().flex_1().min_w(px(200.0)).child(
                             if let Some(search_input) = &self.search_input_state {
-                                // 对齐 Vue：搜索前缀图标 + clearable
                                 div().child(
                                     Input::new(search_input)
                                         .cleanable(true)

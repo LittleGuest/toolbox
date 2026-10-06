@@ -216,7 +216,6 @@ impl TimestampConverter {
         }
     }
 
-    /// 分段选择器（对应 n-radio-button 组）
     fn segmented(
         &self,
         name: &'static str,
@@ -335,7 +334,6 @@ impl TimestampConverter {
             )
     }
 
-    /// 结果表格（对应 n-data-table）
     fn result_table(&self, cx: &mut Context<Self>) -> Div {
         let header = div()
             .flex()

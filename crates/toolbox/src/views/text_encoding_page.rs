@@ -1,7 +1,3 @@
-//! 「文本编码」容器页 —— 严格对齐 Tauri `src/views/encodedecode/TextEncoding.vue`：
-//! 单页 4 个 Tab（字符编码 / 乱码恢复 / 转义工具 / Unicode 转义），
-//! 之前被拆成 4 个独立侧栏项，现合并回同一页面。
-
 use gpui_kit::{
     component::tab::{Tab, TabBar},
     *,
@@ -33,7 +29,6 @@ impl TextEncodingPage {
 
 impl Render for TextEncodingPage {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // 懒创建当前 Tab 的子视图（与 main.rs 的 render_xxx_view 缓存模式一致）
         match self.active_tab {
             0 if self.charset.is_none() => {
                 self.charset = Some(cx.new(|cx| CharsetEncoder::new(window, cx)));
@@ -71,7 +66,6 @@ impl Render for TextEncodingPage {
             _ => div().children(self.unicode.clone()),
         };
 
-        // 对齐 Tauri TextEncoding.vue：tb-page > tb-card > n-tabs，Tab 在 card 内
         design::page().child(
             design::card(cx)
                 .child(div().mb_1().child(tab_bar))

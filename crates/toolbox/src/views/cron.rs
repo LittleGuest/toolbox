@@ -684,7 +684,6 @@ impl CronConverter {
     fn on_cron_type_changed(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let cron_type = self.cron_type.clone();
 
-        // Vue watch(cronType)：重置默认表达式
         let default_expr = match cron_type.as_str() {
             "spring" => DEFAULT_SPRING_EXPR,
             "quartz" => DEFAULT_QUARTZ_EXPR,
@@ -940,7 +939,6 @@ impl CronConverter {
         let mut container = div().flex().flex_col().gap_3().mt_2();
 
         if !self.error.is_empty() {
-            // n-alert error："表达式无效" + 描述，可关闭
             return container.child(
                 div()
                     .flex()
@@ -1034,7 +1032,6 @@ impl CronConverter {
             );
         }
 
-        // result-banner：类型 tag + 表达式 + 描述 + 复制/清除
         let type_label = match result.cron_type.as_str() {
             "linux" => "Linux",
             "spring" => "Java Spring",
@@ -1107,7 +1104,6 @@ impl CronConverter {
             );
         container = container.child(banner);
 
-        // 接下来 10 次执行时间
         container = container.child(design::editor_label("接下来 10 次执行时间", cx));
         let time_chips = result
             .next_times
@@ -1159,7 +1155,6 @@ impl Render for CronConverter {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let is_generate = self.active_tab == Tab::Generate;
 
-        // kind-switch：三张方言单选卡
         let type_cards: [(&str, &str, &str); 3] = [
             ("linux", "Linux", "5 字段 · 无秒"),
             ("spring", "Java Spring", "6 字段 · 秒级"),
@@ -1226,7 +1221,6 @@ impl Render for CronConverter {
                         )
                 }));
 
-        // kind-hint：信息图标 + 当前方言提示
         let kind_hint = div()
             .flex()
             .items_center()
@@ -1245,7 +1239,6 @@ impl Render for CronConverter {
                     .child(self.hint()),
             );
 
-        // 预设 chip（preset-chip：label + mono 表达式，当前输入高亮）
         let presets = self.presets();
         let preset_grid =
             div()
@@ -1295,7 +1288,6 @@ impl Render for CronConverter {
                         )
                 }));
 
-        // 生成字段卡
         let gen_cards = self
             .visible_keys()
             .iter()
@@ -1304,7 +1296,6 @@ impl Render for CronConverter {
 
         let generated = self.generated_expr();
 
-        // expr-bar：生成的表达式 + 解析预览 + 复制
         let expr_bar = div()
             .flex()
             .flex_wrap()

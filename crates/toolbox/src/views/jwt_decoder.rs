@@ -111,7 +111,6 @@ impl Render for JwtDecoder {
 
         design::page().child(
             design::card(cx)
-                // Token 编辑器（tb-editor：标签 + 文本域 + 动作行）
                 .child(
                     div()
                         .flex_col()
@@ -162,7 +161,6 @@ impl Render for JwtDecoder {
                             .child(error),
                     )
                 })
-                // Header / Payload 双栏（tb-editor-grid）
                 .child(
                     div()
                         .flex()
@@ -170,7 +168,6 @@ impl Render for JwtDecoder {
                         .child(json_panel("Header", "copy-header", header, cx))
                         .child(json_panel("Payload", "copy-payload", payload, cx)),
                 )
-                // 完整解码结果
                 .child(json_panel("完整解码结果", "copy-decoded", decoded, cx)),
         )
     }

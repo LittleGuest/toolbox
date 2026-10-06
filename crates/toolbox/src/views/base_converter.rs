@@ -24,7 +24,6 @@ fn is_valid_in_base(s: &str, base: u32) -> bool {
     !s.is_empty() && s.chars().all(|c| digit_value(c).is_some_and(|v| v < base))
 }
 
-/// 任意进制转换（大数安全，对应 Vue BigInt 实现），结果大写
 fn convert_base_str(s: &str, from: u32, to: u32) -> Result<String, String> {
     let s = s.trim().to_lowercase();
     if s.is_empty() {
@@ -34,7 +33,6 @@ fn convert_base_str(s: &str, from: u32, to: u32) -> Result<String, String> {
         return Err(format!("\"{s}\" 不是合法的 {from} 进制数"));
     }
 
-    // 十进制大数位（低位在前）
     let mut digits: Vec<u8> = vec![0];
     for ch in s.chars() {
         let v = digit_value(ch).unwrap_or(0);
@@ -56,7 +54,6 @@ fn convert_base_str(s: &str, from: u32, to: u32) -> Result<String, String> {
         return Ok("0".to_string());
     }
 
-    // 除 base 取余
     let mut out = Vec::new();
     while !(digits.len() == 1 && digits[0] == 0) {
         let mut rem = 0u32;
@@ -155,7 +152,6 @@ fn base_options() -> Vec<String> {
 pub struct BaseConverter {
     tab: usize,
 
-    // 常见进制
     input: String,
     binary: String,
     octal: String,
@@ -165,7 +161,6 @@ pub struct BaseConverter {
     input_state: Entity<InputState>,
     input_type_state: Entity<SelectState<Vec<String>>>,
 
-    // 任意进制
     conv_input: String,
     conv_output: String,
     conv_error: String,
@@ -176,7 +171,6 @@ pub struct BaseConverter {
     from_base_state: Entity<SelectState<Vec<String>>>,
     to_base_state: Entity<SelectState<Vec<String>>>,
 
-    // 字符串 ↔ 十六进制
     hex_input: String,
     hex_output: String,
     hex_error: String,
@@ -184,14 +178,12 @@ pub struct BaseConverter {
     hex_input_state: Entity<TextareaState>,
     hex_output_state: Entity<TextareaState>,
 
-    // 字符串 ↔ 二进制
     bin_input: String,
     bin_output: String,
     bin_error: String,
     bin_input_state: Entity<TextareaState>,
     bin_output_state: Entity<TextareaState>,
 
-    // 文本 ↔ ASCII 码
     ascii_input: String,
     ascii_output: String,
     ascii_error: String,
@@ -564,8 +556,6 @@ impl BaseConverter {
         }
     }
 
-    // ---------- 渲染助手 ----------
-
     fn tab_bar(&self, cx: &mut Context<Self>) -> Div {
         const TABS: [&str; 5] = [
             "常见进制",
@@ -674,7 +664,6 @@ impl Render for BaseConverter {
 }
 
 impl BaseConverter {
-    // 常见进制
     fn render_common(&mut self, cx: &mut Context<Self>) -> Div {
         let binary = self.binary.clone();
         let octal = self.octal.clone();
@@ -750,7 +739,6 @@ impl BaseConverter {
             )
     }
 
-    // 任意进制
     fn render_arbitrary(&mut self, cx: &mut Context<Self>) -> Div {
         let conv_output = self.conv_output.clone();
         let conv_error = self.conv_error.clone();
@@ -866,7 +854,6 @@ impl BaseConverter {
             })
     }
 
-    // 字符串 ↔ 十六进制
     fn render_hex(&mut self, cx: &mut Context<Self>) -> Div {
         let hex_output = self.hex_output.clone();
         let hex_error = self.hex_error.clone();
@@ -984,7 +971,6 @@ impl BaseConverter {
             })
     }
 
-    // 字符串 ↔ 二进制
     fn render_bin(&mut self, cx: &mut Context<Self>) -> Div {
         let bin_output = self.bin_output.clone();
         let bin_error = self.bin_error.clone();
@@ -1091,7 +1077,6 @@ impl BaseConverter {
             })
     }
 
-    // 文本 ↔ ASCII 码
     fn render_ascii(&mut self, cx: &mut Context<Self>) -> Div {
         let ascii_output = self.ascii_output.clone();
         let ascii_error = self.ascii_error.clone();

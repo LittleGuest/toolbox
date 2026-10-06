@@ -19,7 +19,6 @@ fn file_name(path: &str) -> String {
         .to_string()
 }
 
-/// 内联状态反馈（对齐 Vue message.success / message.error 的内联替代）
 fn status_line(success: &str, error: &str, cx: &App) -> Div {
     if !error.is_empty() {
         div()
@@ -36,7 +35,6 @@ fn status_line(success: &str, error: &str, cx: &App) -> Div {
     }
 }
 
-/// PDF 源文件磁贴（对齐 PdfInputTile.vue / tb-file-tile），由调用方附加 .id(...).on_click(...)
 fn pdf_input_tile(path: &str, placeholder: &str, cx: &App) -> Div {
     let picked = !path.is_empty();
     let name = if picked {
@@ -125,10 +123,6 @@ async fn save_pdf_file(default_name: String) -> Option<String> {
         .map(|f| f.path().to_string_lossy().to_string())
 }
 
-// ---------------------------------------------------------------------------
-// 图片转 PDF / 合并 PDF（共用：MultiFilePicker 布局 + 保存对话框）
-// ---------------------------------------------------------------------------
-
 #[derive(Clone, Copy, PartialEq)]
 pub enum PdfFromFilesKind {
     ImagesToPdf,
@@ -157,7 +151,6 @@ impl PdfFromFilesKind {
         }
     }
 
-    /// MultiFilePicker 的 title 属性
     fn picker_title(self) -> &'static str {
         match self {
             Self::ImagesToPdf => "选择图片",
@@ -172,7 +165,6 @@ impl PdfFromFilesKind {
         }
     }
 
-    /// 拖放区右侧的扩展名展示（extensions.slice(0, 4)）
     fn ext_display(self) -> &'static str {
         match self {
             Self::ImagesToPdf => ".png / .jpg / .jpeg / .webp",
@@ -382,7 +374,6 @@ impl Render for PdfFromFiles {
         let busy = self.busy;
         let count = self.files.len();
 
-        // 拖放区（pfp-drop）
         let drop_zone = div()
             .id("pfp-drop")
             .flex()
@@ -438,7 +429,6 @@ impl Render for PdfFromFiles {
                     .child(kind.ext_display().to_string()),
             );
 
-        // 文件列表（pfp-item）
         let mut list = div().flex_col().gap_1p5();
         let total = self.files.len();
         for (i, path) in self.files.iter().enumerate() {
@@ -527,7 +517,6 @@ impl Render for PdfFromFiles {
             );
         }
 
-        // 继续添加（dashed 全宽按钮）
         let add_more = div()
             .id("pfp-add")
             .flex()
@@ -566,7 +555,6 @@ impl Render for PdfFromFiles {
                     kind.subtitle(),
                     cx,
                 ))
-                // pfp-head：标题 + 计数胶囊 + 清空
                 .child(
                     div()
                         .flex()
@@ -620,10 +608,6 @@ impl Render for PdfFromFiles {
         )
     }
 }
-
-// ---------------------------------------------------------------------------
-// 编辑 PDF：删除 / 旋转 / 调整顺序
-// ---------------------------------------------------------------------------
 
 #[derive(Clone, Copy)]
 struct PageOp {
@@ -786,7 +770,6 @@ impl Render for PdfEditTool {
         let keep = self.pages.len() - del;
         let total_text_filled = !self.total_state.read(cx).value().trim().is_empty();
 
-        // 页面操作列表（ed-item）
         let mut list = div().flex_col().gap_1p5();
         let total = self.pages.len();
         for (i, page) in self.pages.iter().enumerate() {
@@ -874,7 +857,6 @@ impl Render for PdfEditTool {
                     })
                     .bg(cx.theme().background)
                     .when(deleted, |row| row.opacity(0.55))
-                    // 序号徽章（ed-item-seq）
                     .child(
                         div()
                             .w(px(26.0))
@@ -968,7 +950,6 @@ impl Render for PdfEditTool {
                     "删除 / 旋转 / 调整页面顺序",
                     cx,
                 ))
-                // 源文件磁贴
                 .child(
                     div()
                         .flex_col()
@@ -980,7 +961,6 @@ impl Render for PdfEditTool {
                                 .on_click(cx.listener(Self::pick_input_handler())),
                         ),
                 )
-                // 页面数
                 .child(
                     div()
                         .mt(px(18.0))
@@ -1014,7 +994,6 @@ impl Render for PdfEditTool {
                                 .child(design::hint("当前工具需手动指定总页数后逐页操作", cx)),
                         ),
                 )
-                // 统计药丸 + 页面操作
                 .when(!self.pages.is_empty(), |card| {
                     card.child(
                         div()
@@ -1067,7 +1046,6 @@ impl Render for PdfEditTool {
                 .when(!error.is_empty() || !success.is_empty(), |card| {
                     card.child(status_line(&success, &error, cx))
                 })
-                // 三态提交按钮
                 .child(
                     design::submit_row().child(
                         Button::new("export-edit")
@@ -1114,10 +1092,6 @@ impl PdfEditTool {
         }
     }
 }
-
-// ---------------------------------------------------------------------------
-// PDF 添加页码
-// ---------------------------------------------------------------------------
 
 const POSITIONS: [(&str, &str); 9] = [
     ("顶部靠左", "top-left"),
@@ -1283,7 +1257,6 @@ impl Render for PdfPageNumberTool {
         let success = self.success.clone();
         let busy = self.busy;
 
-        // 预览参数（sampleText / 字号钳制 / 活动方位）
         let font_size = self
             .font_size_state
             .read(cx)
@@ -1307,7 +1280,6 @@ impl Render for PdfPageNumberTool {
             .replace("{total}", "10");
         let active_idx = position_index(self.position);
 
-        // 3×3 方位选择按钮（pn-slot-btn）
         let slot_buttons = div().grid().grid_cols(3).gap_2().mt(px(14.0)).children(
             POSITIONS.iter().enumerate().map(|(i, (label, value))| {
                 let value: &'static str = value;
@@ -1347,7 +1319,6 @@ impl Render for PdfPageNumberTool {
             }),
         );
 
-        // 占位符说明（pn-code 高亮）
         let placeholder_hint = div()
             .mt_2()
             .flex()
@@ -1390,7 +1361,6 @@ impl Render for PdfPageNumberTool {
                     "为 PDF 每页插入页码或自定义文本",
                     cx,
                 ))
-                // 源文件磁贴
                 .child(
                     div()
                         .flex_col()
@@ -1402,7 +1372,6 @@ impl Render for PdfPageNumberTool {
                                 .on_click(cx.listener(Self::pick_input_handler())),
                         ),
                 )
-                // 页码设置：pn-grid（配置列 + 预览列）
                 .child(
                     div()
                         .mt(px(18.0))
@@ -1415,7 +1384,6 @@ impl Render for PdfPageNumberTool {
                                 .items_stretch()
                                 .gap(px(18.0))
                                 .child(
-                                    // 配置列
                                     div()
                                         .flex_1()
                                         .min_w_0()
@@ -1480,7 +1448,6 @@ impl Render for PdfPageNumberTool {
                                         ),
                                 )
                                 .child(
-                                    // 预览列（pn-preview）
                                     div()
                                         .w(px(220.0))
                                         .flex_shrink_0()
@@ -1499,7 +1466,6 @@ impl Render for PdfPageNumberTool {
                                                 .child("预览"),
                                         )
                                         .child(
-                                            // 3:4 页面（pn-preview-page）
                                             div()
                                                 .w_full()
                                                 .h(px(261.0))
@@ -1607,11 +1573,6 @@ impl PdfPageNumberTool {
     }
 }
 
-// ---------------------------------------------------------------------------
-// PDF 拆分
-// ---------------------------------------------------------------------------
-
-/// 页码范围校验：返回 Ok(范围数) 或 Err(错误信息)
 fn check_ranges(ranges: &str) -> Result<usize, String> {
     if ranges.trim().is_empty() {
         return Err("请填写页码范围".to_string());
@@ -1635,7 +1596,6 @@ fn check_ranges(ranges: &str) -> Result<usize, String> {
     Ok(tokens.len())
 }
 
-/// 匹配 ^\d+(-\d+)?$
 fn is_range_token(t: &str) -> bool {
     let mut it = t.splitn(3, '-');
     match (it.next(), it.next(), it.next()) {
@@ -1741,7 +1701,6 @@ impl Render for PdfSplitTool {
         let success = self.success.clone();
         let busy = self.busy;
 
-        // 实时范围校验（对齐 Vue computed rangeError）
         let ranges_now = self.ranges_state.read(cx).value().trim().to_string();
         let range_check = check_ranges(&ranges_now);
 
@@ -1753,7 +1712,6 @@ impl Render for PdfSplitTool {
                     "按页码范围将 PDF 拆分为多个文件",
                     cx,
                 ))
-                // 源文件磁贴
                 .child(
                     div()
                         .flex_col()
@@ -1765,7 +1723,6 @@ impl Render for PdfSplitTool {
                                 .on_click(cx.listener(Self::pick_input_handler())),
                         ),
                 )
-                // 页码范围
                 .child(
                     div()
                         .mt(px(18.0))
@@ -1812,7 +1769,6 @@ impl Render for PdfSplitTool {
                             _ => vec![],
                         }),
                 )
-                // 输出文件（out-item）
                 .when(!self.outputs.is_empty(), |card| {
                     card.child(
                         div()

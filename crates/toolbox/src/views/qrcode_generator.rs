@@ -300,7 +300,6 @@ impl QrCodeGenerator {
         cx.notify();
     }
 
-    /// 分段选择器（对应 n-radio-button 组）
     fn segmented(&self, cx: &mut Context<Self>) -> Div {
         div()
             .flex()
@@ -407,7 +406,6 @@ impl Render for QrCodeGenerator {
             None
         };
 
-        // 预览：矩阵自绘（支持边距与前景/背景色）
         let preview = if self.matrix.is_empty() {
             div()
                 .flex()
@@ -466,7 +464,6 @@ impl Render for QrCodeGenerator {
                 )
         };
 
-        // 表单列（对应 qr-form）
         let form = div()
             .flex()
             .flex_col()
@@ -557,7 +554,6 @@ impl Render for QrCodeGenerator {
                     "生成二维码",
                     cx,
                 ))
-                // 头部动作行（tb-card-header-actions）
                 .child(
                     div()
                         .flex()
@@ -607,7 +603,6 @@ impl Render for QrCodeGenerator {
                                 })),
                         ),
                 )
-                // 双栏主体（qr-body：表单 | 预览）
                 .child(
                     div().flex().items_start().gap_4().child(form).child(
                         div()

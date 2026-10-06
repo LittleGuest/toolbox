@@ -303,10 +303,6 @@ impl RandomNumberGenerator {
         cx.notify();
     }
 
-    // ------------------------------------------------------------------
-    // 渲染
-    // ------------------------------------------------------------------
-
     fn tab_btn(
         &self,
         id: &'static str,
@@ -341,7 +337,6 @@ impl RandomNumberGenerator {
             .child(label.to_string())
     }
 
-    /// 每个标签页共用的输出编辑器：editor_label + textarea + 复制/清除
     fn output_editor(
         &self,
         copy_id: &'static str,
@@ -642,7 +637,6 @@ impl Render for RandomNumberGenerator {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         design::page().child(
             design::card(cx)
-                // n-tabs type="line"
                 .child(
                     div()
                         .flex()

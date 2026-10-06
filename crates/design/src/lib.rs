@@ -1,7 +1,5 @@
 use gpui_kit::{component::*, *};
 
-/// 页面容器（对应 Tauri `global.scss` 的 `.tb-page`）
-/// padding: 16px 20px 24px；纵向 gap 16px
 pub fn page() -> Div {
     div()
         .w_full()
@@ -12,8 +10,6 @@ pub fn page() -> Div {
         .pb(px(24.0))
 }
 
-/// 卡片容器（对应 Tauri `global.scss` 的 `.tb-card`）
-/// border-radius 14px；padding 20px；子块间距 16px
 pub fn card(cx: &App) -> Div {
     div()
         .w_full()
@@ -44,18 +40,15 @@ pub fn action_row() -> Div {
 
 pub const CODE_BOX_HEIGHT: Pixels = px(220.0);
 
-// 与 Tauri/Vue 版 global.scss 对齐的语义色
 pub const ERROR_RED: u32 = 0xd03050;
 pub const OK_GREEN: u32 = 0x18a058;
 pub const WARN_AMBER: u32 = 0xf0a020;
 pub const ACCENT: u32 = 0x7c5cff;
 
-/// 半透明色（模拟 rgba(hex, alpha) 叠加在浅色背景上的效果）
 pub fn tint(hex: u32, alpha: f32) -> Hsla {
     Hsla::from(rgb(hex)).opacity(alpha)
 }
 
-/// 卡片头：左侧 图标盒 + 标题，右侧 副标题（对应 tb-card-header）
 pub fn card_header(
     icon: IconName,
     title: impl Into<SharedString>,
@@ -106,7 +99,6 @@ pub fn card_header(
         )
 }
 
-/// 小节标签（对应 tb-editor-label：12px 加粗 灰色）
 pub fn editor_label(text: impl Into<SharedString>, cx: &App) -> Div {
     div()
         .text_size(px(12.0))
@@ -115,7 +107,6 @@ pub fn editor_label(text: impl Into<SharedString>, cx: &App) -> Div {
         .child(text.into())
 }
 
-/// 提示文本（对应 tb-hint：12.5px 次要色）
 pub fn hint(text: impl Into<SharedString>, cx: &App) -> Div {
     div()
         .text_size(px(12.5))
@@ -123,7 +114,6 @@ pub fn hint(text: impl Into<SharedString>, cx: &App) -> Div {
         .child(text.into())
 }
 
-/// 计数胶囊（对应 pfp-count：主色底 圆角药丸）
 pub fn pill(text: impl Into<SharedString>, cx: &App) -> Div {
     div()
         .px_2()
@@ -136,7 +126,6 @@ pub fn pill(text: impl Into<SharedString>, cx: &App) -> Div {
         .child(text.into())
 }
 
-/// 迷你标签（对应 n-tag size=tiny）
 pub fn mini_tag(text: impl Into<SharedString>, bg: Hsla, fg: Hsla) -> Div {
     div()
         .text_size(px(11.0))
@@ -148,7 +137,6 @@ pub fn mini_tag(text: impl Into<SharedString>, bg: Hsla, fg: Hsla) -> Div {
         .child(text.into())
 }
 
-/// 统计药丸（对应 ed-stat：加粗数字 + 说明）
 pub fn stat_pill(
     count: impl Into<SharedString>,
     label: impl Into<SharedString>,
@@ -176,7 +164,6 @@ pub fn stat_pill(
         .child(label.into())
 }
 
-/// 提交区（对应 tb-submit-row：贴底 + 上边距）
 pub fn submit_row() -> Div {
     div().mt_auto().pt(px(18.0))
 }

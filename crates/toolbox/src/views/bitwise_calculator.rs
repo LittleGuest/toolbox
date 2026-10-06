@@ -11,11 +11,10 @@ use gpui_kit::{
 
 const BASE_OPTIONS: [&str; 3] = ["十进制", "十六进制", "二进制"];
 const BIT_WIDTHS: [&str; 4] = ["8 位", "16 位", "32 位", "64 位"];
-/// 与 BIT_WIDTHS 一一对应的位宽数值
+
 const BIT_WIDTH_VALUES: [u32; 4] = [8, 16, 32, 64];
 
 const OPERATIONS: [(&str, &str, &str, bool); 9] = [
-    // (op, symbol, label, needs_b)
     ("and", "&", "AND", true),
     ("or", "|", "OR", true),
     ("xor", "^", "XOR", true),
@@ -252,7 +251,6 @@ impl BitwiseCalculator {
         }
     }
 
-    /// 分段选择器（对应 n-radio-button 组）
     fn segmented(&self, options: &[&'static str], selected: u32, cx: &mut Context<Self>) -> Div {
         div()
             .flex()

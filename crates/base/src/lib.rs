@@ -512,3 +512,91 @@ pub fn pdf_add_page_numbers(
         start_at,
     )
 }
+
+mod sm_crypto;
+pub use sm_crypto::*;
+
+mod charset_transcode;
+mod json_schema;
+mod qrcode_decode;
+pub use charset_transcode::*;
+pub use json_schema::*;
+pub use qrcode_decode::*;
+
+#[cfg(test)]
+mod new_tools_smoke {
+    #[test]
+    fn sm3_known_vector() {
+        let got = crate::sm3_hex(b"abc");
+        assert_eq!(
+            got,
+            "66c7f0f462eeedd9d1f2d46bdc10e4e24167c4875cf2f7a2297da02b8f4ba8e0"
+        );
+    }
+
+    #[test]
+    fn sm4_roundtrip() {
+        let key = "0123456789abcdeffedcba9876543210";
+        let iv = "00000000000000000000000000000000";
+        let msg = "国密 SM4 测试";
+        let ct = crate::sm4_encrypt(msg.as_bytes(), key, "CBC", iv, true).unwrap();
+        let pt = crate::sm4_decrypt(&ct, key, "CBC", iv, true).unwrap();
+        assert_eq!(String::from_utf8(pt).unwrap(), msg);
+    }
+
+    #[test]
+    fn sm2_sign_verify_and_pke() {
+        let pair = crate::sm2_generate_keypair().unwrap();
+        let sig = crate::sm2_sign(&pair.private_hex, crate::DEFAULT_DISTID, b"hello sm2").unwrap();
+        assert!(
+            crate::sm2_verify(&pair.public_hex, crate::DEFAULT_DISTID, b"hello sm2", &sig).unwrap()
+        );
+        assert!(
+            !crate::sm2_verify(&pair.public_hex, crate::DEFAULT_DISTID, b"other", &sig).unwrap()
+        );
+        let ct = crate::sm2_encrypt(&pair.public_hex, b"secret payload").unwrap();
+        let pt = crate::sm2_decrypt(&pair.private_hex, &ct).unwrap();
+        assert_eq!(pt, b"secret payload");
+    }
+
+    #[test]
+    fn schema_reports_expected_errors() {
+        let schema = crate::schema_template();
+        let bad = r#"{"id":0,"email":"nope","tags":["a","a"]}"#;
+        let report = crate::validate(schema, bad, "自动").unwrap();
+        assert!(!report.valid);
+        assert!(
+            report.total_errors >= 3,
+            "issues: {:?}",
+            report.issues.len()
+        );
+        let good = crate::instance_template();
+        let ok = crate::validate(schema, good, "自动").unwrap();
+        assert!(ok.valid, "{:?}", ok.issues);
+    }
+
+    #[test]
+    fn charset_transcode_gbk_roundtrip() {
+        let utf8 = "中文编码转换测试";
+        let to_gbk = crate::transcode(utf8, "UTF-8", "GBK").unwrap();
+        assert!(!to_gbk.lossy);
+        assert_eq!(to_gbk.byte_count, 16);
+        assert_eq!(to_gbk.text, utf8);
+        let gbk_bytes = crate::parse_hex(&to_gbk.hex).unwrap();
+        let back = crate::transcode_from_bytes(&gbk_bytes, "GBK", "UTF-8").unwrap();
+        assert_eq!(back.text, utf8);
+        let latin = crate::transcode("café", "UTF-8", "ISO-8859-1").unwrap();
+        assert_eq!(latin.byte_count, 4);
+    }
+
+    #[test]
+    fn qrcode_roundtrip_through_matrix() {
+        let matrix = qrcode_generator::to_matrix_from_str(
+            "https://workbuddy.cn",
+            qrcode_generator::QrCodeEcc::Medium,
+        )
+        .unwrap();
+        let out = crate::decode_matrix(&matrix).unwrap();
+        assert_eq!(out[0].content, "https://workbuddy.cn");
+    }
+}

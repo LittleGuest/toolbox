@@ -503,12 +503,12 @@ mod tests {
             amount_to_upper("10000.00", Some("圆"), Some("正"), false, false).unwrap(),
             "壹万圆"
         );
-        // 关闭整字只影响整数金额，角、分照常输出
+
         assert_eq!(
             amount_to_upper("100.56", None, None, false, true).unwrap(),
             "壹佰元伍角陆分"
         );
-        // 两个开关相互独立：角位「加整」仍按自身开关追加结尾字
+
         assert_eq!(
             amount_to_upper("100.50", None, None, false, true).unwrap(),
             "壹佰元伍角整"
@@ -550,7 +550,6 @@ mod tests {
             assert_eq!(result.amount, expect, "输入：{input}");
         }
 
-        // 关闭整字时，规范大写同样不再追加结尾字
         let result = upper_to_amount("壹佰元", None, None, false).unwrap();
         assert_eq!(result.amount, "100.00");
         assert_eq!(result.upper, "壹佰元");

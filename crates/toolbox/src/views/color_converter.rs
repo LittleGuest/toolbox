@@ -52,7 +52,6 @@ fn rgb_to_hex((r, g, b): Rgb) -> String {
     format!("#{:02x}{:02x}{:02x}", r, g, b)
 }
 
-/// Hsla → "#rrggbb"（取色器回调使用）
 fn hsla_to_hex(color: Hsla) -> String {
     let v = u32::from(Rgba::from(color));
     format!("#{:06x}", v & 0xffffff)
@@ -370,7 +369,6 @@ impl Render for ColorConverter {
 
         design::page().child(
             design::card(cx)
-                // 预览色块（preview-block）
                 .child(
                     div()
                         .h(px(110.0))
@@ -387,7 +385,6 @@ impl Render for ColorConverter {
                         .font_semibold()
                         .child(preview_hex),
                 )
-                // 取色器行（preview-actions）
                 .child(
                     design::action_row()
                         .mt_3()

@@ -37,7 +37,6 @@ fn chunk_lines(s: &str, width: usize, max_lines: usize) -> Vec<String> {
         .collect()
 }
 
-/// 信息标签（对应 info-tags：n-tag mime + n-tag size）
 fn info_tags(mime: &str, size: &str, cx: &App) -> Div {
     div()
         .flex()
@@ -55,7 +54,6 @@ fn info_tags(mime: &str, size: &str, cx: &App) -> Div {
         ))
 }
 
-/// 预览框（对应 .preview：虚线边框 + 内容）
 fn preview_box(children: impl IntoIterator<Item = AnyElement>, cx: &App) -> Div {
     div()
         .w_full()
@@ -341,7 +339,6 @@ impl Render for Base64ImageConverter {
         let status_error = status.contains("失败");
         let status_warn = status.starts_with("请");
 
-        // 左栏：图片 → Base64
         let left = div()
             .flex_col()
             .gap_2p5()
@@ -426,7 +423,6 @@ impl Render for Base64ImageConverter {
                 )
             });
 
-        // 右栏：Base64 → 图片
         let right = div()
             .flex_col()
             .gap_2p5()

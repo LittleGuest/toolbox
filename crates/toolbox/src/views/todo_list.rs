@@ -224,7 +224,6 @@ impl TodoList {
         self.new_todo_text = SharedString::default();
     }
 
-    /// 开始为某个待办添加子任务（对齐 Vue startAddSubTodo）
     fn start_add_sub(&mut self, id: i64, window: &mut Window, cx: &mut Context<Self>) {
         self.editing_id = None;
         self.adding_sub_for = Some(id);
@@ -262,7 +261,6 @@ impl TodoList {
         cx.notify();
     }
 
-    /// 添加子任务（对齐 Vue addSubTodo，子任务不能再有子任务）
     fn add_sub_todo(&mut self, parent_id: i64, window: &mut Window, cx: &mut Context<Self>) {
         let text = match self.sub_input_states.get(&parent_id) {
             Some(state) => state.read(cx).value().trim().to_string(),
@@ -624,7 +622,6 @@ impl TodoList {
         cx.notify();
     }
 
-    /// 过滤分段选择器（对应 n-radio-button 组：全部/未完成/已完成）
     fn filter_segmented(&self, cx: &mut Context<Self>) -> Div {
         div()
             .flex()
@@ -679,11 +676,9 @@ impl TodoList {
         let is_editing = self.editing_id == Some(id);
         let is_adding_sub = self.adding_sub_for == Some(id);
 
-        // 行主体（todo-item-content）
         let mut content = div().flex().items_center().w_full().gap_2();
 
         if depth == 0 {
-            // 展开/收起按钮或占位（expand-btn / expand-placeholder）
             if has_sub {
                 content = content.child(
                     div().w(px(24.0)).flex_shrink_0().child(
@@ -706,7 +701,6 @@ impl TodoList {
                 content = content.child(div().w(px(24.0)).h(px(24.0)).flex_shrink_0());
             }
         } else {
-            // 子任务缩进（sub-todo-indent：虚线左边框）
             content = content.child(
                 div()
                     .w(px(20.0))
@@ -729,7 +723,6 @@ impl TodoList {
         );
 
         if is_editing {
-            // 编辑模式
             let mut edit_row = div()
                 .flex()
                 .items_center()
@@ -769,7 +762,6 @@ impl TodoList {
             );
             content = content.child(edit_row);
         } else {
-            // 展示模式（display-mode）
             let mut actions = div().flex().items_center().gap(px(2.0)).flex_shrink_0();
             if depth == 0 {
                 actions = actions.child(
@@ -833,7 +825,6 @@ impl TodoList {
             .border_color(cx.theme().border)
             .child(content);
 
-        // 行内添加子任务（add-sub-todo-container）
         if is_adding_sub && depth == 0 {
             let mut add_row = div()
                 .flex()
@@ -874,7 +865,6 @@ impl TodoList {
             item = item.child(add_row);
         }
 
-        // 子任务列表（sub-todos-container）
         if depth == 0 && is_expanded && has_sub {
             let sub_todos = self.sub_todos(id);
             item = item.child(
@@ -905,7 +895,6 @@ impl Render for TodoList {
         design::page()
             .child(
                 design::card(cx)
-                    // 添加行（add-todo）
                     .child(
                         div()
                             .flex()
@@ -924,7 +913,6 @@ impl Render for TodoList {
                                     })),
                             ),
                     )
-                    // 过滤行（filter-container）
                     .child(
                         div()
                             .flex()

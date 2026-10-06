@@ -7,7 +7,6 @@ use gpui_kit::{
     *,
 };
 
-/// 对应 Vue unicodeEscape：每个字符（含代理对）转 \uXXXX
 fn unicode_escape(s: &str) -> String {
     let mut out = String::new();
     for c in s.chars() {
@@ -24,7 +23,6 @@ fn unicode_escape(s: &str) -> String {
     out
 }
 
-/// 对应 Vue unicodeUnescape：\uXXXX → 字符，支持代理对组合
 fn unicode_unescape(s: &str) -> String {
     let chars: Vec<char> = s.chars().collect();
     let mut out = String::new();

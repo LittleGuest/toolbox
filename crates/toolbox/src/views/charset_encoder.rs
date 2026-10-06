@@ -377,7 +377,6 @@ impl Render for CharsetEncoder {
         let error = self.error.clone();
         let detected = self.detected_charset.clone();
 
-        // 配置行 1（tb-config-row：各配置项换行排列）
         let config_row = div()
             .flex()
             .flex_wrap()
@@ -493,7 +492,6 @@ impl Render for CharsetEncoder {
                     ),
             );
 
-        // 配置行 2：显示选项复选框组
         let options_row = div()
             .flex()
             .flex_wrap()
@@ -584,7 +582,6 @@ impl Render for CharsetEncoder {
                 .gap_4()
                 .child(config_row)
                 .child(options_row)
-                // 输入编辑器
                 .child(
                     div()
                         .flex_col()
@@ -631,7 +628,6 @@ impl Render for CharsetEncoder {
                                 ),
                         ),
                 )
-                // 转换动作行
                 .child(
                     design::action_row().child(
                         Button::new("convert")
@@ -643,7 +639,6 @@ impl Render for CharsetEncoder {
                             })),
                     ),
                 )
-                // 输出编辑器
                 .child(
                     div()
                         .flex_col()
