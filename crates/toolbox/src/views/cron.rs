@@ -541,11 +541,11 @@ impl CronConverter {
                     &state,
                     window,
                     move |this, _, ev: &SelectEvent<Vec<String>>, _, cx| {
-                        if let SelectEvent::Confirm(Some(label)) = ev {
-                            if let Some(n) = parse_dow_number(label) {
-                                this.field_mut(key).special_dow = n;
-                                cx.notify();
-                            }
+                        if let SelectEvent::Confirm(Some(label)) = ev
+                            && let Some(n) = parse_dow_number(label)
+                        {
+                            this.field_mut(key).special_dow = n;
+                            cx.notify();
                         }
                     },
                 ));
@@ -673,6 +673,7 @@ impl CronConverter {
         parts.join(" ")
     }
 
+    #[allow(dead_code)]
     fn type_label(&self) -> &'static str {
         match self.cron_type.as_str() {
             "spring" => "Java Spring",

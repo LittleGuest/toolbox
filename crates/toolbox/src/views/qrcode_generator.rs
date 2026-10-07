@@ -10,7 +10,10 @@ use gpui_kit::{
     },
     *,
 };
-use qrcode_generator::QrCodeEcc;
+use qrcode_generator::{
+    Renderer,
+    qr::{Encoder, ErrorCorrection},
+};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum EccLevel {
@@ -30,12 +33,12 @@ impl EccLevel {
         }
     }
 
-    fn to_ecc(self) -> QrCodeEcc {
+    fn to_ecc(self) -> ErrorCorrection {
         match self {
-            Self::Low => QrCodeEcc::Low,
-            Self::Medium => QrCodeEcc::Medium,
-            Self::Quartile => QrCodeEcc::Quartile,
-            Self::High => QrCodeEcc::High,
+            Self::Low => ErrorCorrection::Low,
+            Self::Medium => ErrorCorrection::Medium,
+            Self::Quartile => ErrorCorrection::Quartile,
+            Self::High => ErrorCorrection::High,
         }
     }
 }
@@ -195,20 +198,20 @@ impl QrCodeGenerator {
             return;
         }
 
-        let ecc = self.ecc_level.to_ecc();
-
-        match qrcode_generator::to_matrix_from_str(&self.text, ecc) {
-            Ok(matrix) => self.matrix = matrix,
+        let symbol = match Encoder::new(self.ecc_level.to_ecc()).encode_text(&self.text) {
+            Ok(symbol) => symbol,
             Err(err) => {
                 self.matrix.clear();
                 self.png_data = None;
                 self.error = err.to_string();
                 return;
             }
-        }
+        };
+
+        self.matrix = symbol.to_matrix();
 
         let size = self.size.max(120);
-        match qrcode_generator::to_png_to_vec_from_str(&self.text, ecc, size) {
+        match Renderer::new(&symbol, size).to_png_vec() {
             Ok(data) => self.png_data = Some(data),
             Err(err) => {
                 self.png_data = None;
@@ -218,15 +221,15 @@ impl QrCodeGenerator {
     }
 
     fn paste(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                self.text = text.to_string();
-                self.input_state.update(cx, |state, cx| {
-                    state.set_value(self.text.clone(), window, cx);
-                });
-                self.generate();
-                cx.notify();
-            }
+        if let Some(item) = cx.read_from_clipboard()
+            && let Some(text) = item.text()
+        {
+            self.text = text.to_string();
+            self.input_state.update(cx, |state, cx| {
+                state.set_value(self.text.clone(), window, cx);
+            });
+            self.generate();
+            cx.notify();
         }
     }
 

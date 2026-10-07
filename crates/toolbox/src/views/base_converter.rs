@@ -85,7 +85,7 @@ fn bytes_to_utf8(bytes: Vec<u8>) -> Result<String, String> {
 
 fn hex_decode(text: &str) -> Result<String, String> {
     let clean: String = text.chars().filter(|c| !c.is_whitespace()).collect();
-    if clean.len() % 2 != 0 || !clean.chars().all(|c| c.is_ascii_hexdigit()) {
+    if !clean.len().is_multiple_of(2) || !clean.chars().all(|c| c.is_ascii_hexdigit()) {
         return Err("无效的十六进制输入".to_string());
     }
     let bytes: Vec<u8> = (0..clean.len() / 2)
@@ -104,7 +104,7 @@ fn bin_encode(text: &str) -> String {
 
 fn bin_decode(text: &str) -> Result<String, String> {
     let clean: String = text.chars().filter(|c| !c.is_whitespace()).collect();
-    if clean.len() % 8 != 0 || !clean.chars().all(|c| c == '0' || c == '1') {
+    if !clean.len().is_multiple_of(8) || !clean.chars().all(|c| c == '0' || c == '1') {
         return Err("无效的二进制输入".to_string());
     }
     let bytes: Vec<u8> = (0..clean.len() / 8)
@@ -409,12 +409,7 @@ impl BaseConverter {
         if self.input.is_empty() {
             return;
         }
-        let input_type = match self.input_type {
-            ::base::Base::Binary => ::base::Base::Binary,
-            ::base::Base::Octal => ::base::Base::Octal,
-            ::base::Base::Decimal => ::base::Base::Decimal,
-            ::base::Base::Hex => ::base::Base::Hex,
-        };
+        let input_type = self.input_type;
         if let Ok(result) = ::base::number_base(Some(input_type), self.input.clone()) {
             self.binary = result.get("binary").cloned().unwrap_or_default();
             self.octal = result.get("octal").cloned().unwrap_or_default();
@@ -521,15 +516,15 @@ impl BaseConverter {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                self.input = text.to_string();
-                state.update(cx, |s, cx| {
-                    s.set_value(self.input.clone(), window, cx);
-                });
-                self.convert();
-                cx.notify();
-            }
+        if let Some(item) = cx.read_from_clipboard()
+            && let Some(text) = item.text()
+        {
+            self.input = text.to_string();
+            state.update(cx, |s, cx| {
+                s.set_value(self.input.clone(), window, cx);
+            });
+            self.convert();
+            cx.notify();
         }
     }
 
@@ -539,13 +534,13 @@ impl BaseConverter {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> String {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                target.update(cx, |s, cx| {
-                    s.set_value(text.clone(), window, cx);
-                });
-                return text.to_string();
-            }
+        if let Some(item) = cx.read_from_clipboard()
+            && let Some(text) = item.text()
+        {
+            target.update(cx, |s, cx| {
+                s.set_value(text.clone(), window, cx);
+            });
+            return text.to_string();
         }
         String::new()
     }
@@ -807,14 +802,14 @@ impl BaseConverter {
                             .icon(Icon::new(IconName::Inbox))
                             .tooltip("粘贴输入")
                             .on_click(cx.listener(|this, _, window, cx| {
-                                if let Some(item) = cx.read_from_clipboard() {
-                                    if let Some(text) = item.text() {
-                                        this.conv_input = text.to_string();
-                                        this.conv_input_state.update(cx, |s, cx| {
-                                            s.set_value(text.to_string(), window, cx);
-                                        });
-                                        cx.notify();
-                                    }
+                                if let Some(item) = cx.read_from_clipboard()
+                                    && let Some(text) = item.text()
+                                {
+                                    this.conv_input = text.to_string();
+                                    this.conv_input_state.update(cx, |s, cx| {
+                                        s.set_value(text.to_string(), window, cx);
+                                    });
+                                    cx.notify();
                                 }
                             })),
                     )

@@ -5,6 +5,8 @@ use serde::{Deserialize, Deserializer, Serialize};
 use sqlx::{Connection, MySqlConnection, PgConnection, Row, SqliteConnection};
 
 mod diff;
+
+#[allow(dead_code)]
 mod generator;
 
 pub use database_core::{
@@ -16,6 +18,7 @@ pub use diff::{
     diff_report, diff_sql, standard_check,
 };
 
+#[allow(dead_code)]
 #[derive(Embed)]
 #[folder = "templates/"]
 struct Templates;

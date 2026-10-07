@@ -178,13 +178,10 @@ impl IpConverter {
             binary: format!("{:0width$b}", value, width = bit_len),
             octal: format!("0{:o}", value),
             ipv6_binary: if is_v6 {
-                Some(
-                    (0..8)
-                        .map(|i| format!("{:016b}", (value >> ((7 - i) * 16)) & 0xffff))
-                        .collect::<Vec<_>>()
-                        .join(" "),
-                )
-                .unwrap_or_default()
+                (0..8)
+                    .map(|i| format!("{:016b}", (value >> ((7 - i) * 16)) & 0xffff))
+                    .collect::<Vec<_>>()
+                    .join(" ")
             } else {
                 String::new()
             },

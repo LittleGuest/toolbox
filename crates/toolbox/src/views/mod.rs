@@ -1,8 +1,10 @@
+#[allow(dead_code)]
 pub mod base64_encoder;
 pub mod base64_image;
 pub mod base_converter;
 pub mod base_encoding;
 pub mod bitwise_calculator;
+#[allow(dead_code)]
 pub mod case_converter;
 pub mod charset_encoder;
 pub mod clipboard_manager;
@@ -32,9 +34,11 @@ pub mod random_other;
 pub mod random_string;
 pub mod regex_visualizer;
 pub mod rmb_case;
+#[allow(dead_code)]
 pub mod settings;
 pub mod sm_crypto;
 pub mod sql_formatter;
+#[allow(dead_code)]
 pub mod str_hex;
 pub mod symmetric_encrypt;
 pub mod syntax_highlight;

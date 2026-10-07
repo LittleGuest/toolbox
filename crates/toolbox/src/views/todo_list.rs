@@ -230,7 +230,7 @@ impl TodoList {
         if !self.expanded_ids.contains(&id) {
             self.expanded_ids.push(id);
         }
-        if !self.sub_input_states.contains_key(&id) {
+        if let std::collections::hash_map::Entry::Vacant(e) = self.sub_input_states.entry(id) {
             let sub_state =
                 cx.new(|cx| InputState::new(window, cx).placeholder("输入子任务内容..."));
             let sub_state_clone = sub_state.clone();
@@ -247,7 +247,7 @@ impl TodoList {
                     _ => {}
                 }
             });
-            self.sub_input_states.insert(id, sub_state);
+            e.insert(sub_state);
         } else if let Some(state) = self.sub_input_states.get(&id) {
             state.update(cx, |state, cx| {
                 state.set_value(String::new(), window, cx);
@@ -475,16 +475,16 @@ impl TodoList {
                         while index < ids_to_delete.len() {
                             let current_id = ids_to_delete[index];
                             for todo in this.todos.iter() {
-                                if todo.parent_id == Some(current_id) {
-                                    if let Some(todo_id) = todo.id {
-                                        ids_to_delete.push(todo_id);
-                                    }
+                                if todo.parent_id == Some(current_id)
+                                    && let Some(todo_id) = todo.id
+                                {
+                                    ids_to_delete.push(todo_id);
                                 }
                             }
                             index += 1;
                         }
                         this.todos
-                            .retain(|t| t.id.map_or(true, |tid| !ids_to_delete.contains(&tid)));
+                            .retain(|t| t.id.is_none_or(|tid| !ids_to_delete.contains(&tid)));
                         window.push_notification(Notification::success("待办事项已删除"), cx);
                     }
                     Ok(false) => {
@@ -518,7 +518,7 @@ impl TodoList {
         cx.spawn_in(window, async move |this: WeakEntity<Self>, cx| {
             let mut deleted = 0;
             for id in &top_completed {
-                if config_store::delete_todo(*id).await.map_or(false, |ok| ok) {
+                if config_store::delete_todo(*id).await.unwrap_or(false) {
                     deleted += 1;
                 }
             }
@@ -528,16 +528,16 @@ impl TodoList {
                 while index < ids_to_delete.len() {
                     let current_id = ids_to_delete[index];
                     for todo in this.todos.iter() {
-                        if todo.parent_id == Some(current_id) {
-                            if let Some(todo_id) = todo.id {
-                                ids_to_delete.push(todo_id);
-                            }
+                        if todo.parent_id == Some(current_id)
+                            && let Some(todo_id) = todo.id
+                        {
+                            ids_to_delete.push(todo_id);
                         }
                     }
                     index += 1;
                 }
                 this.todos
-                    .retain(|t| t.id.map_or(true, |tid| !ids_to_delete.contains(&tid)));
+                    .retain(|t| t.id.is_none_or(|tid| !ids_to_delete.contains(&tid)));
                 if deleted == top_completed.len() {
                     window
                         .push_notification(Notification::success("已清除所有已完成的待办事项"), cx);
@@ -556,7 +556,7 @@ impl TodoList {
             self.editing_id = Some(id);
             self.editing_text = todo.text.clone();
 
-            if !self.editing_input_states.contains_key(&id) {
+            self.editing_input_states.entry(id).or_insert_with(|| {
                 let editing_input_state =
                     cx.new(|cx| InputState::new(window, cx).placeholder("编辑待办事项..."));
                 let editing_input_state_clone = editing_input_state.clone();
@@ -575,8 +575,8 @@ impl TodoList {
                     }
                 });
 
-                self.editing_input_states.insert(id, editing_input_state);
-            }
+                editing_input_state
+            });
 
             if let Some(editing_input_state) = self.editing_input_states.get(&id) {
                 editing_input_state.update(cx, |input_state, cx| {
@@ -588,27 +588,27 @@ impl TodoList {
     }
 
     fn save_edit(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(id) = self.editing_id {
-            if let Some(editing_input_state) = self.editing_input_states.get(&id) {
-                let value = editing_input_state.read(cx).value().to_string();
-                if value.trim().is_empty() {
-                    window.push_notification(Notification::warning("待办事项内容不能为空"), cx);
-                    return;
-                }
-                if let Some(todo) = self.todos.iter_mut().find(|t| t.id == Some(id)) {
-                    todo.text = SharedString::from(value.clone());
-                    let record = todo.to_record();
-                    let id_for_update = id;
+        if let Some(id) = self.editing_id
+            && let Some(editing_input_state) = self.editing_input_states.get(&id)
+        {
+            let value = editing_input_state.read(cx).value().to_string();
+            if value.trim().is_empty() {
+                window.push_notification(Notification::warning("待办事项内容不能为空"), cx);
+                return;
+            }
+            if let Some(todo) = self.todos.iter_mut().find(|t| t.id == Some(id)) {
+                todo.text = SharedString::from(value.clone());
+                let record = todo.to_record();
+                let id_for_update = id;
 
-                    cx.spawn_in(window, async move |this: WeakEntity<Self>, cx| {
-                        let _ = config_store::update_todo(id_for_update, record).await;
-                        let _ = this.update_in(cx, |this, window, cx| {
-                            window.push_notification(Notification::success("待办事项已更新"), cx);
-                            cx.notify();
-                        });
-                    })
-                    .detach();
-                }
+                cx.spawn_in(window, async move |this: WeakEntity<Self>, cx| {
+                    let _ = config_store::update_todo(id_for_update, record).await;
+                    let _ = this.update_in(cx, |_this, window, cx| {
+                        window.push_notification(Notification::success("待办事项已更新"), cx);
+                        cx.notify();
+                    });
+                })
+                .detach();
             }
         }
         self.editing_id = None;
@@ -664,7 +664,7 @@ impl TodoList {
         &self,
         todo: &TodoItem,
         depth: usize,
-        window: &mut Window,
+        _window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Div {
         let id = todo.id.unwrap_or(0);
@@ -871,7 +871,7 @@ impl TodoList {
                 div().w_full().mt_2().flex_col().children(
                     sub_todos
                         .iter()
-                        .map(|sub_todo| self.render_todo_item(sub_todo, depth + 1, window, cx)),
+                        .map(|sub_todo| self.render_todo_item(sub_todo, depth + 1, _window, cx)),
                 ),
             );
         }

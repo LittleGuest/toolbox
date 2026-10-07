@@ -246,7 +246,7 @@ fn js_unescape(s: &str) -> Result<String, String> {
 }
 
 fn csv_escape_field(field: &str) -> String {
-    if field.contains(|c| matches!(c, '"' | ',' | '\n' | '\r' | '\t')) {
+    if field.contains(['"', ',', '\n', '\r', '\t']) {
         format!("\"{}\"", field.replace('"', "\"\""))
     } else {
         field.to_string()
@@ -438,24 +438,24 @@ impl EscapeTools {
     }
 
     fn paste_input(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                self.input = text.to_string();
-                self.input_state.update(cx, |state, cx| {
-                    state.set_value(self.input.clone(), window, cx);
-                });
-                cx.notify();
-            }
+        if let Some(item) = cx.read_from_clipboard()
+            && let Some(text) = item.text()
+        {
+            self.input = text.to_string();
+            self.input_state.update(cx, |state, cx| {
+                state.set_value(self.input.clone(), window, cx);
+            });
+            cx.notify();
         }
     }
 
     fn paste_output(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                self.output = text.to_string();
-                self.sync_output(window, cx);
-                cx.notify();
-            }
+        if let Some(item) = cx.read_from_clipboard()
+            && let Some(text) = item.text()
+        {
+            self.output = text.to_string();
+            self.sync_output(window, cx);
+            cx.notify();
         }
     }
 

@@ -179,10 +179,8 @@ impl DatabaseDiff {
             cx.subscribe_in(
                 &code_datasource_select,
                 window,
-                |this, _, ev: &SelectEvent<Vec<String>>, _, cx| {
-                    if let SelectEvent::Confirm(_) = ev {
-                        this.on_code_datasource_change(cx);
-                    }
+                |this, _, _ev: &SelectEvent<Vec<String>>, _, cx| {
+                    this.on_code_datasource_change(cx);
                 },
             ),
         ];
@@ -318,7 +316,7 @@ impl DatabaseDiff {
         let form_username = self.conn_form.username.clone();
         let form_password = self.conn_form.password.clone();
 
-        window.open_sheet_at(Placement::Bottom, cx, move |sheet, _, cx| {
+        window.open_sheet_at(Placement::Bottom, cx, move |sheet, _, _cx| {
             sheet
                 .overlay(true)
                 .overlay_closable(true)
@@ -463,6 +461,7 @@ impl DatabaseDiff {
         .detach();
     }
 
+    #[allow(dead_code)]
     fn refresh_datasources(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.status = "正在刷新连接列表...".to_string();
         cx.notify();
@@ -611,7 +610,7 @@ impl DatabaseDiff {
         let this = cx.entity().downgrade();
         let selected: Rc<RefCell<HashSet<i32>>> = Rc::new(RefCell::new(HashSet::new()));
 
-        window.open_sheet_at(Placement::Bottom, cx, move |sheet, _, cx| {
+        window.open_sheet_at(Placement::Bottom, cx, move |sheet, _, _cx| {
             let weak = this.clone();
             let options_clone = options.clone();
             let selected_clone = selected.clone();
@@ -870,7 +869,7 @@ impl DatabaseDiff {
             let result =
                 generate_code_async(source, &language, &file_types, &table_names, &package_names)
                     .await;
-            let _ = this.update_in(cx, |this, window, cx| {
+            let _ = this.update_in(cx, |this, _window, cx| {
                 this.is_running = false;
                 match result {
                     Ok(codes) => {
@@ -2298,7 +2297,7 @@ fn kebab_case(value: &str) -> String {
 
 fn split_words(value: &str) -> Vec<String> {
     value
-        .split(|c: char| c == '_' || c == '-' || c == ' ' || c == '.')
+        .split(['_', '-', ' ', '.'])
         .filter(|part| !part.is_empty())
         .map(|part| part.to_string())
         .collect()

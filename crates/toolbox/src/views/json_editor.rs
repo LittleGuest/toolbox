@@ -79,6 +79,7 @@ impl JsonEditor {
         }
     }
 
+    #[allow(dead_code)]
     fn clear(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.input.clear();
         self.parsed = None;
@@ -90,14 +91,14 @@ impl JsonEditor {
     }
 
     fn paste(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                self.input = text.to_string();
-                self.input_state.update(cx, |state, cx| {
-                    state.set_value(text.to_string(), window, cx);
-                });
-                self.parse_input();
-            }
+        if let Some(item) = cx.read_from_clipboard()
+            && let Some(text) = item.text()
+        {
+            self.input = text.to_string();
+            self.input_state.update(cx, |state, cx| {
+                state.set_value(text.to_string(), window, cx);
+            });
+            self.parse_input();
         }
     }
 
@@ -373,6 +374,7 @@ fn render_tree_viewer(this: &JsonEditor, cx: &mut Context<JsonEditor>) -> Div {
         .child(inner)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_node(
     value: &serde_json::Value,
     key: &str,

@@ -7,7 +7,7 @@ use gpui_kit::{
     prelude::FluentBuilder as _,
     *,
 };
-use rand::Rng;
+use rand::{Rng, RngExt as _};
 use time::{Date, Month};
 
 const TABS: [&str; 5] = ["JSON", "XML", "CSV / TSV", "正则随机数据", "文本随机排序"];

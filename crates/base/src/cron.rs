@@ -149,15 +149,17 @@ impl DowField {
         if self.values.contains(&wd) {
             return true;
         }
-        if let Some(lx) = self.last_x {
-            if wd == lx && day + 7 > dim {
-                return true;
-            }
+        if let Some(lx) = self.last_x
+            && wd == lx
+            && day + 7 > dim
+        {
+            return true;
         }
-        if let Some((w, n)) = self.nth {
-            if wd == w && (day - 1) / 7 + 1 == n {
-                return true;
-            }
+        if let Some((w, n)) = self.nth
+            && wd == w
+            && (day - 1) / 7 + 1 == n
+        {
+            return true;
         }
         false
     }
@@ -518,7 +520,7 @@ fn compact_all(set: &mut ValueSet, min: u32, max: u32) {
 
 fn compute_next_times(schedule: &Schedule, from: &DateTime<Local>, count: usize) -> Vec<String> {
     let mut results = Vec::new();
-    let mut cursor = from.clone();
+    let mut cursor = *from;
     let start_year = from.year() as u32;
     while results.len() < count {
         match find_next(schedule, &cursor, start_year) {
@@ -605,10 +607,10 @@ fn find_next(
                             iter_vals(&schedule.seconds, 0, 59)
                         };
                         for sec in seconds {
-                            if let Some(cand) = build_dt(year, month, day, hour, minute, sec) {
-                                if cand > *after {
-                                    return Some(cand);
-                                }
+                            if let Some(cand) = build_dt(year, month, day, hour, minute, sec)
+                                && cand > *after
+                            {
+                                return Some(cand);
                             }
                         }
                     }
@@ -663,7 +665,7 @@ fn matching_days(schedule: &Schedule, year: u32, month: u32, dim: u32) -> Vec<u3
 
 fn weekday_index(year: u32, month: u32, day: u32) -> u32 {
     match NaiveDate::from_ymd_opt(year as i32, month, day) {
-        Some(d) => d.weekday().num_days_from_sunday() as u32,
+        Some(d) => d.weekday().num_days_from_sunday(),
         None => 7,
     }
 }
@@ -672,7 +674,7 @@ fn nearest_weekday(year: u32, month: u32, day: u32, dim: u32) -> u32 {
     let d = day.clamp(1, dim);
     match weekday_index(year, month, d) {
         0 => {
-            if d + 1 <= dim {
+            if d < dim {
                 d + 1
             } else {
                 d - 2
@@ -686,7 +688,7 @@ fn nearest_weekday(year: u32, month: u32, day: u32, dim: u32) -> u32 {
             }
         }
         6 => {
-            if d + 1 <= dim {
+            if d < dim {
                 d + 1
             } else {
                 d - 2
@@ -706,7 +708,9 @@ fn last_weekday(year: u32, month: u32, dim: u32) -> u32 {
 
 fn days_in_month(month: u32, year: u32) -> u32 {
     match month {
-        2 if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) => 29,
+        2 if year.is_multiple_of(4) && (!year.is_multiple_of(100) || year.is_multiple_of(400)) => {
+            29
+        }
         2 => 28,
         4 | 6 | 9 | 11 => 30,
         _ => 31,
@@ -793,10 +797,11 @@ fn describe_schedule(s: &Schedule) -> String {
                 return format!("每小时第 {} 分执行一次", fmt_list(&s.minutes));
             }
         }
-        if (min_all || min_zero) && sec_whole {
-            if let Some(k) = step_pattern(&s.hours, 0, 23) {
-                return format!("每 {} 小时执行一次", k);
-            }
+        if (min_all || min_zero)
+            && sec_whole
+            && let Some(k) = step_pattern(&s.hours, 0, 23)
+        {
+            return format!("每 {} 小时执行一次", k);
         }
     }
 

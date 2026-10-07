@@ -145,7 +145,7 @@ impl StrHexConverter {
             "bin" => {
                 if cleaned.is_empty()
                     || !cleaned.chars().all(|c| c == '0' || c == '1')
-                    || cleaned.chars().count() % 8 != 0
+                    || !cleaned.chars().count().is_multiple_of(8)
                 {
                     Err("无效的二进制输入".to_string())
                 } else {
@@ -230,24 +230,24 @@ impl StrHexConverter {
     }
 
     fn paste_input(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                self.input = text.to_string();
-                self.input_state.update(cx, |state, cx| {
-                    state.set_value(self.input.clone(), window, cx);
-                });
-            }
+        if let Some(item) = cx.read_from_clipboard()
+            && let Some(text) = item.text()
+        {
+            self.input = text.to_string();
+            self.input_state.update(cx, |state, cx| {
+                state.set_value(self.input.clone(), window, cx);
+            });
         }
     }
 
     fn paste_output(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                self.output = text.to_string();
-                self.output_state.update(cx, |state, cx| {
-                    state.set_value(self.output.clone(), window, cx);
-                });
-            }
+        if let Some(item) = cx.read_from_clipboard()
+            && let Some(text) = item.text()
+        {
+            self.output = text.to_string();
+            self.output_state.update(cx, |state, cx| {
+                state.set_value(self.output.clone(), window, cx);
+            });
         }
     }
 }

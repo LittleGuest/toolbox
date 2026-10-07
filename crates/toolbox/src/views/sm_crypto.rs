@@ -324,7 +324,7 @@ impl SmCrypto {
         Self::set_textarea(&self.sm3_output_state, pretty, window, cx);
         self.info = format!(
             "输入 {} 字节，SM3 输出 256 位（32 字节）",
-            self.sm3_input.as_bytes().len()
+            self.sm3_input.len()
         );
         self.success = "计算完成".to_string();
         cx.notify();
@@ -358,7 +358,7 @@ impl SmCrypto {
                     self.sm4_mode,
                     self.sm4_format,
                     if self.sm4_padding { "PKCS#7" } else { "无" },
-                    self.sm4_input.as_bytes().len(),
+                    self.sm4_input.len(),
                     bytes.len()
                 );
                 self.success = "SM4 加密成功".to_string();
@@ -556,10 +556,10 @@ impl SmCrypto {
     }
 
     fn paste_into(state: &Entity<TextareaState>, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                Self::set_textarea(state, text.to_string(), window, cx);
-            }
+        if let Some(item) = cx.read_from_clipboard()
+            && let Some(text) = item.text()
+        {
+            Self::set_textarea(state, text.to_string(), window, cx);
         }
     }
 

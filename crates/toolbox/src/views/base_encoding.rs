@@ -176,23 +176,23 @@ impl BaseEncodingConverter {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                let value = text.to_string();
-                let pair = self.pair_mut(tab);
-                if target_output {
-                    pair.output = value.clone();
-                    pair.output_state.update(cx, |state, cx| {
-                        state.set_value(value, window, cx);
-                    });
-                } else {
-                    pair.input = value.clone();
-                    pair.input_state.update(cx, |state, cx| {
-                        state.set_value(value, window, cx);
-                    });
-                }
-                cx.notify();
+        if let Some(item) = cx.read_from_clipboard()
+            && let Some(text) = item.text()
+        {
+            let value = text.to_string();
+            let pair = self.pair_mut(tab);
+            if target_output {
+                pair.output = value.clone();
+                pair.output_state.update(cx, |state, cx| {
+                    state.set_value(value, window, cx);
+                });
+            } else {
+                pair.input = value.clone();
+                pair.input_state.update(cx, |state, cx| {
+                    state.set_value(value, window, cx);
+                });
             }
+            cx.notify();
         }
     }
 

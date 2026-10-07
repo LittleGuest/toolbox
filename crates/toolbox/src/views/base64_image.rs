@@ -200,14 +200,14 @@ impl Base64ImageConverter {
     }
 
     fn paste_decode(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                self.decode_input = text.to_string();
-                self.decode_input_state.update(cx, |state, cx| {
-                    state.set_value(self.decode_input.clone(), window, cx);
-                });
-                self.decode(cx);
-            }
+        if let Some(item) = cx.read_from_clipboard()
+            && let Some(text) = item.text()
+        {
+            self.decode_input = text.to_string();
+            self.decode_input_state.update(cx, |state, cx| {
+                state.set_value(self.decode_input.clone(), window, cx);
+            });
+            self.decode(cx);
         }
     }
 

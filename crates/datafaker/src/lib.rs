@@ -217,6 +217,12 @@ impl Faker {
     }
 }
 
+impl Default for Faker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct DefaultComponent {
     pub default: String,
@@ -272,6 +278,12 @@ impl UniqueComponent {
     }
 }
 
+impl Default for UniqueComponent {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub async fn datafaker_providers() -> Result<HashMap<String, String>> {
     Ok(Faker::new().providers)
 }
@@ -298,7 +310,7 @@ pub async fn datafaker_adapter(
             .iter()
             .any(|token| matches!(*token, "mobile" | "phone" | "telephone"))
         {
-            return Ok(if tokens.iter().any(|token| *token == "mobile") {
+            return Ok(if tokens.contains(&"mobile") {
                 "mobile".into()
             } else {
                 "phone".into()
@@ -319,7 +331,7 @@ pub async fn datafaker_adapter(
         if matches!(
             normalized.as_str(),
             "username" | "user_name" | "account" | "login"
-        ) || tokens.iter().any(|token| *token == "username")
+        ) || tokens.contains(&"username")
         {
             return Ok("username".into());
         }
@@ -329,7 +341,7 @@ pub async fn datafaker_adapter(
         {
             return Ok("password".into());
         }
-        if tokens.iter().any(|token| *token == "qq") {
+        if tokens.contains(&"qq") {
             return Ok("qq".into());
         }
         if tokens
@@ -344,13 +356,13 @@ pub async fn datafaker_adapter(
         {
             return Ok("hostname".into());
         }
-        if tokens.iter().any(|token| *token == "ip")
+        if tokens.contains(&"ip")
             || normalized.ends_with("_ip")
             || normalized.contains("ip_address")
         {
             return Ok("ip".into());
         }
-        if tokens.iter().any(|token| *token == "mac") {
+        if tokens.contains(&"mac") {
             return Ok("mac".into());
         }
         if tokens
@@ -407,7 +419,7 @@ pub async fn datafaker_adapter(
         {
             return Ok("stock".into());
         }
-        if tokens.iter().any(|token| *token == "fund") {
+        if tokens.contains(&"fund") {
             return Ok("fund".into());
         }
         if tokens
@@ -447,7 +459,7 @@ pub async fn datafaker_adapter(
         {
             return Ok("boolean".into());
         }
-        if normalized.contains("street_address") || tokens.iter().any(|token| *token == "street") {
+        if normalized.contains("street_address") || tokens.contains(&"street") {
             return Ok("street_address".into());
         }
         if tokens
@@ -471,7 +483,7 @@ pub async fn datafaker_adapter(
         if normalized.contains("area_code") {
             return Ok("phone_area_code".into());
         }
-        if tokens.iter().any(|token| *token == "city") {
+        if tokens.contains(&"city") {
             return Ok("city".into());
         }
         if tokens
@@ -505,10 +517,10 @@ pub async fn datafaker_adapter(
         {
             return Ok("department".into());
         }
-        if tokens.iter().any(|token| *token == "industry") {
+        if tokens.contains(&"industry") {
             return Ok("industry".into());
         }
-        if tokens.iter().any(|token| *token == "degree") {
+        if tokens.contains(&"degree") {
             return Ok("degree".into());
         }
         if normalized.contains("primary_school") {
@@ -517,7 +529,7 @@ pub async fn datafaker_adapter(
         if normalized.contains("high_school") || normalized.contains("middle_school") {
             return Ok("high_school".into());
         }
-        if tokens.iter().any(|token| *token == "class") {
+        if tokens.contains(&"class") {
             return Ok("school_class".into());
         }
         if tokens
@@ -526,28 +538,28 @@ pub async fn datafaker_adapter(
         {
             return Ok("college".into());
         }
-        if tokens.iter().any(|token| *token == "major") {
+        if tokens.contains(&"major") {
             return Ok("major".into());
         }
         if normalized.contains("product_category") {
             return Ok("product_category".into());
         }
-        if normalized.contains("product_name") || tokens.iter().any(|token| *token == "product") {
+        if normalized.contains("product_name") || tokens.contains(&"product") {
             return Ok("product_name".into());
         }
-        if tokens.iter().any(|token| *token == "size") {
+        if tokens.contains(&"size") {
             return Ok("size".into());
         }
         if normalized.contains("weight_unit") {
             return Ok("weight_unit".into());
         }
-        if tokens.iter().any(|token| *token == "barcode") {
+        if tokens.contains(&"barcode") {
             return Ok("barcode".into());
         }
-        if tokens.iter().any(|token| *token == "sku") {
+        if tokens.contains(&"sku") {
             return Ok("sku".into());
         }
-        if tokens.iter().any(|token| *token == "port") {
+        if tokens.contains(&"port") {
             return Ok("port".into());
         }
         if tokens
@@ -568,13 +580,13 @@ pub async fn datafaker_adapter(
         if normalized.contains("data_tool") || normalized.contains("faker_tool") {
             return Ok("data_tool".into());
         }
-        if tokens.iter().any(|token| *token == "idiom") {
+        if tokens.contains(&"idiom") {
             return Ok("idiom".into());
         }
         if tokens.iter().any(|token| matches!(*token, "date" | "day")) {
             return Ok("date".into());
         }
-        if tokens.iter().any(|token| *token == "timestamp") {
+        if tokens.contains(&"timestamp") {
             return Ok("timestamp".into());
         }
         if normalized.contains("timezone") || normalized.contains("time_zone") {

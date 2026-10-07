@@ -1,4 +1,4 @@
-use rand::{Rng, prelude::IndexedRandom};
+use rand::{Rng, RngExt as _, prelude::IndexedRandom};
 
 use crate::{DefaultComponent, Error, NullComponent, Result};
 

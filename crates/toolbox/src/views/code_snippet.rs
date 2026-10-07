@@ -124,23 +124,21 @@ impl CodeSnippet {
 
         let _subscriptions = vec![
             cx.subscribe_in(&search_input_state, window, {
-                move |this, _, ev: &InputEvent, _window, cx| match ev {
-                    InputEvent::Change => {
+                move |this, _, ev: &InputEvent, _window, cx| {
+                    if let InputEvent::Change = ev {
                         let value = search_clone.read(cx).value();
                         this.search_text = value.clone();
                         cx.notify()
                     }
-                    _ => {}
                 }
             }),
             cx.subscribe_in(&title_input_state, window, {
-                move |this, _, ev: &InputEvent, _window, cx| match ev {
-                    InputEvent::Change => {
+                move |this, _, ev: &InputEvent, _window, cx| {
+                    if let InputEvent::Change = ev {
                         let value = title_clone.read(cx).value();
                         this.current_title = value.clone();
                         cx.notify()
                     }
-                    _ => {}
                 }
             }),
             cx.subscribe_in(&tag_input_state, window, {
@@ -189,25 +187,19 @@ impl CodeSnippet {
         let mut result: Vec<&Snippet> = self.snippets.iter().collect();
 
         if !self.selected_tags.is_empty() {
-            result = result
-                .into_iter()
-                .filter(|snippet| {
-                    self.selected_tags
-                        .iter()
-                        .all(|tag| snippet.tags.contains(tag))
-                })
-                .collect();
+            result.retain(|snippet| {
+                self.selected_tags
+                    .iter()
+                    .all(|tag| snippet.tags.contains(tag))
+            });
         }
 
         if !self.search_text.is_empty() {
             let query = self.search_text.to_lowercase();
-            result = result
-                .into_iter()
-                .filter(|snippet| {
-                    snippet.title.to_lowercase().contains(&query)
-                        || snippet.code.to_lowercase().contains(&query)
-                })
-                .collect();
+            result.retain(|snippet| {
+                snippet.title.to_lowercase().contains(&query)
+                    || snippet.code.to_lowercase().contains(&query)
+            });
         }
 
         result

@@ -2,6 +2,7 @@ use std::ops::Range;
 
 use gpui_kit::{HighlightStyle, Hsla, StyledText};
 
+#[allow(dead_code)]
 pub struct HighlightPalette {
     pub key: Hsla,
     pub string: Hsla,
@@ -113,16 +114,12 @@ pub fn json_highlights(text: &str, palette: &HighlightPalette) -> Vec<HighlightR
                     i += 1;
                 }
             }
-            b'n' => {
-                if text[i..].starts_with("null") {
-                    i += 4;
-                    ranges.push(HighlightRange {
-                        range: start..i,
-                        color: palette.null,
-                    });
-                } else {
-                    i += 1;
-                }
+            b'n' if text[i..].starts_with("null") => {
+                i += 4;
+                ranges.push(HighlightRange {
+                    range: start..i,
+                    color: palette.null,
+                });
             }
             _ => {
                 i += 1;
@@ -133,6 +130,7 @@ pub fn json_highlights(text: &str, palette: &HighlightPalette) -> Vec<HighlightR
     ranges
 }
 
+#[allow(dead_code)]
 pub fn sql_highlights(text: &str, palette: &HighlightPalette) -> Vec<HighlightRange> {
     const KEYWORDS: &[&str] = &[
         "SELECT",
@@ -297,6 +295,7 @@ pub fn sql_highlights(text: &str, palette: &HighlightPalette) -> Vec<HighlightRa
     ranges
 }
 
+#[allow(dead_code)]
 pub fn xml_highlights(text: &str, palette: &HighlightPalette) -> Vec<HighlightRange> {
     let mut ranges = Vec::new();
     let bytes = text.as_bytes();

@@ -164,7 +164,7 @@ impl SystemMonitor {
                     cpu: process.cpu_usage(),
                 })
                 .collect();
-            self.processes.sort_by(|a, b| b.memory.cmp(&a.memory));
+            self.processes.sort_by_key(|p| std::cmp::Reverse(p.memory));
         }
 
         {
@@ -333,7 +333,7 @@ impl SystemMonitor {
         if total == 0 {
             1
         } else {
-            (total + PAGE_SIZE - 1) / PAGE_SIZE
+            total.div_ceil(PAGE_SIZE)
         }
     }
 
@@ -1000,7 +1000,13 @@ impl SystemMonitor {
             .w_full()
             .flex()
             .flex_col()
-            .child(Self::lineage_section(title, icon, None, "进程自身的信息", cx))
+            .child(Self::lineage_section(
+                title,
+                icon,
+                None,
+                "进程自身的信息",
+                cx,
+            ))
             .child(
                 div()
                     .w_full()
@@ -1096,61 +1102,44 @@ impl SystemMonitor {
                     .pt(px(2.0))
                     .child(format!("子进程（{}）", lineage.children.len())),
             );
-            body = body.child(
-                div().flex().flex_wrap().gap(px(6.0)).children(
-                    lineage.children.iter().take(12).map(|child| {
-                        let color = Self::role_color(&child.role, cx);
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_1p5()
-                            .px_2()
-                            .py(px(3.0))
-                            .rounded(px(6.0))
-                            .border_1()
-                            .border_color(cx.theme().border)
-                            .bg(cx.theme().popover)
-                            .child(
-                                div()
-                                    .w(px(7.0))
-                                    .h(px(7.0))
-                                    .rounded_full()
-                                    .bg(color),
-                            )
-                            .child(
-                                div()
-                                    .text_size(px(11.5))
-                                    .child(child.name.clone()),
-                            )
-                            .child(
-                                div()
-                                    .font_family("monospace")
-                                    .text_size(px(10.5))
-                                    .text_color(cx.theme().muted_foreground)
-                                    .child(format!("{}", child.pid)),
-                            )
-                    }),
-                ),
-            );
+            body = body.child(div().flex().flex_wrap().gap(px(6.0)).children(
+                lineage.children.iter().take(12).map(|child| {
+                    let color = Self::role_color(&child.role, cx);
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap_1p5()
+                        .px_2()
+                        .py(px(3.0))
+                        .rounded(px(6.0))
+                        .border_1()
+                        .border_color(cx.theme().border)
+                        .bg(cx.theme().popover)
+                        .child(div().w(px(7.0)).h(px(7.0)).rounded_full().bg(color))
+                        .child(div().text_size(px(11.5)).child(child.name.clone()))
+                        .child(
+                            div()
+                                .font_family("monospace")
+                                .text_size(px(10.5))
+                                .text_color(cx.theme().muted_foreground)
+                                .child(format!("{}", child.pid)),
+                        )
+                }),
+            ));
         }
 
         if let Some(count) = lineage.env_count {
-            let mut env_row = div()
-                .flex()
-                .flex_col()
-                .gap_1p5()
-                .pt(px(2.0))
-                .child(
-                    div()
-                        .text_size(px(11.5))
-                        .font_semibold()
-                        .text_color(cx.theme().muted_foreground)
-                        .child(if count > 0 {
-                            format!("环境变量（{count} 项）")
-                        } else {
-                            "环境变量".to_string()
-                        }),
-                );
+            let mut env_row = div().flex().flex_col().gap_1p5().pt(px(2.0)).child(
+                div()
+                    .text_size(px(11.5))
+                    .font_semibold()
+                    .text_color(cx.theme().muted_foreground)
+                    .child(if count > 0 {
+                        format!("环境变量（{count} 项）")
+                    } else {
+                        "环境变量".to_string()
+                    }),
+            );
             if count == 0 {
                 env_row = env_row.child(
                     div()

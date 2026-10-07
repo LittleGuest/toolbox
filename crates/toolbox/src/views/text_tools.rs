@@ -73,7 +73,7 @@ fn compute_stats(s: &str) -> Vec<(&'static str, usize)> {
     };
     vec![
         ("字符数", s.chars().count()),
-        ("单词数", s.trim().split_whitespace().count()),
+        ("单词数", s.split_whitespace().count()),
         ("行数", line_count),
         (
             "非空白字符数",
@@ -741,12 +741,12 @@ impl TextTools {
     }
 
     fn op_paste_case(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                self.case_input_state.update(cx, |state, cx| {
-                    state.set_value(text.to_string(), window, cx);
-                });
-            }
+        if let Some(item) = cx.read_from_clipboard()
+            && let Some(text) = item.text()
+        {
+            self.case_input_state.update(cx, |state, cx| {
+                state.set_value(text.to_string(), window, cx);
+            });
         }
     }
 

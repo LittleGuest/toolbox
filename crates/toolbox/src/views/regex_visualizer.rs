@@ -79,7 +79,7 @@ fn select_highlight(x: f32, y: f32, w: f32, h: f32) -> Prim {
     }
 }
 
-const FLAGS: [(usize, char, &'static str, &'static str); 4] = [
+const FLAGS: [(usize, char, &str, &str); 4] = [
     (0, 'g', "全局搜索", "Global search"),
     (1, 'i', "忽略大小写", "Case-insensitive"),
     (2, 'm', "多行", "Multi-line"),
@@ -703,10 +703,10 @@ impl Ser {
             self.start = self.out.len();
         }
         self.kind(node);
-        if node.accepts_quantifier() {
-            if let Some(q) = &node.quantifier {
-                self.quantifier(q);
-            }
+        if node.accepts_quantifier()
+            && let Some(q) = &node.quantifier
+        {
+            self.quantifier(q);
         }
         if node.id != 0 && node.id == self.tail {
             self.end = self.out.len();
@@ -938,25 +938,26 @@ impl ERoot {
         let quantifier = seq[index].quantifier;
         let new_kind = spec.to_kind();
 
-        if let ContentSpec::String { value } = spec {
-            if value.chars().count() > 1 && quantifier.is_some() {
-                let inner = ENode {
-                    id,
-                    quantifier: None,
-                    kind: new_kind,
-                };
-                let group_id = id_gen.next();
-                seq[index] = ENode {
-                    id: group_id,
-                    quantifier,
-                    kind: EKind::Group {
-                        kind: EGroupKind::NonCapturing,
-                        name: String::new(),
-                        children: vec![inner],
-                    },
-                };
-                return group_id;
-            }
+        if let ContentSpec::String { value } = spec
+            && value.chars().count() > 1
+            && quantifier.is_some()
+        {
+            let inner = ENode {
+                id,
+                quantifier: None,
+                kind: new_kind,
+            };
+            let group_id = id_gen.next();
+            seq[index] = ENode {
+                id: group_id,
+                quantifier,
+                kind: EKind::Group {
+                    kind: EGroupKind::NonCapturing,
+                    name: String::new(),
+                    children: vec![inner],
+                },
+            };
+            return group_id;
         }
         let _ = fresh;
         seq[index].kind = new_kind;
@@ -1799,15 +1800,20 @@ const CLASS_OPTIONS: [(&str, &str, &str); 22] = [
 
 fn class_kind_key(value: &str) -> String {
     let bytes: Vec<char> = value.chars().collect();
-    if bytes.len() == 4 && bytes[0] == '\\' && bytes[1] == 'x' {
-        if bytes[2].is_ascii_hexdigit() && bytes[3].is_ascii_hexdigit() {
-            return r"\xhh".to_string();
-        }
+    if bytes.len() == 4
+        && bytes[0] == '\\'
+        && bytes[1] == 'x'
+        && bytes[2].is_ascii_hexdigit()
+        && bytes[3].is_ascii_hexdigit()
+    {
+        return r"\xhh".to_string();
     }
-    if bytes.len() == 6 && bytes[0] == '\\' && bytes[1] == 'u' {
-        if bytes[2..].iter().all(|c| c.is_ascii_hexdigit()) {
-            return r"\uhhhh".to_string();
-        }
+    if bytes.len() == 6
+        && bytes[0] == '\\'
+        && bytes[1] == 'u'
+        && bytes[2..].iter().all(|c| c.is_ascii_hexdigit())
+    {
+        return r"\uhhhh".to_string();
     }
     value.to_string()
 }
@@ -1828,18 +1834,17 @@ fn set_group_name(tree: &mut ERoot, id: NodeId, name: &str) {
     };
     let body = &mut tree.body;
     let seq = seq_at_mut(body, &path);
-    if let Some(node) = seq.get_mut(index) {
-        if let EKind::Group {
+    if let Some(node) = seq.get_mut(index)
+        && let EKind::Group {
             kind, name: slot, ..
         } = &mut node.kind
-        {
-            *kind = EGroupKind::NamedCapturing;
-            *slot = if name.is_empty() {
-                "name".to_string()
-            } else {
-                name.to_string()
-            };
-        }
+    {
+        *kind = EGroupKind::NamedCapturing;
+        *slot = if name.is_empty() {
+            "name".to_string()
+        } else {
+            name.to_string()
+        };
     }
 }
 
@@ -2750,6 +2755,7 @@ fn unicode_class_name(kind: &regex_syntax::ast::ClassUnicodeKind) -> String {
     }
 }
 
+#[allow(dead_code)]
 fn layout_diagram(root: &GNode) -> Diagram {
     layout_diagram_selected(root, &[])
 }
@@ -3292,6 +3298,7 @@ pub struct RegexVisualizer {
 
     edit_inputs: std::collections::HashMap<EditSlot, (Entity<InputState>, Subscription)>,
 
+    #[allow(clippy::type_complexity)]
     edit_selects:
         std::collections::HashMap<EditSlot, (Entity<SelectState<Vec<LabeledItem>>>, Subscription)>,
 
@@ -3574,6 +3581,7 @@ impl RegexVisualizer {
         self.edit_selects.retain(|k, _| select_keys.contains(k));
     }
 
+    #[allow(clippy::type_complexity)]
     fn edit_field_plan(
         &self,
     ) -> (
@@ -3651,18 +3659,18 @@ impl RegexVisualizer {
                 items,
                 quant_key(info.quantifier.as_ref()).to_string(),
             ));
-            if let Some(q) = &info.quantifier {
-                if q.kind == QuantKind::Custom {
-                    inputs.push((EditSlot::QuantMin(id), q.min.to_string()));
-                    inputs.push((
-                        EditSlot::QuantMax(id),
-                        if q.infinite() {
-                            String::new()
-                        } else {
-                            q.max.to_string()
-                        },
-                    ));
-                }
+            if let Some(q) = &info.quantifier
+                && q.kind == QuantKind::Custom
+            {
+                inputs.push((EditSlot::QuantMin(id), q.min.to_string()));
+                inputs.push((
+                    EditSlot::QuantMax(id),
+                    if q.infinite() {
+                        String::new()
+                    } else {
+                        q.max.to_string()
+                    },
+                ));
             }
         }
 
@@ -4261,10 +4269,10 @@ impl RegexVisualizer {
                     row = row.child(div().w(px(208.0)).child(Select::new(state)));
                 }
 
-                if class_kind_key(value) != *value {
-                    if let Some((state, _)) = self.edit_inputs.get(&EditSlot::Value(id)) {
-                        row = row.child(div().w(px(208.0)).child(Input::new(state)));
-                    }
+                if class_kind_key(value) != *value
+                    && let Some((state, _)) = self.edit_inputs.get(&EditSlot::Value(id))
+                {
+                    row = row.child(div().w(px(208.0)).child(Input::new(state)));
                 }
                 body = body.child(panel_item(lang.of("类", "Class"), row));
             }
@@ -4614,14 +4622,14 @@ impl RegexVisualizer {
     }
 
     fn paste_text(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                self.test_text = text.to_string();
-                self.text_state.update(cx, |state, cx| {
-                    state.set_value(self.test_text.clone(), window, cx);
-                });
-                self.re_match();
-            }
+        if let Some(item) = cx.read_from_clipboard()
+            && let Some(text) = item.text()
+        {
+            self.test_text = text.to_string();
+            self.text_state.update(cx, |state, cx| {
+                state.set_value(self.test_text.clone(), window, cx);
+            });
+            self.re_match();
         }
     }
 
@@ -4652,11 +4660,8 @@ impl RegexVisualizer {
     }
 }
 
-const LEGEND_TEXT: [(
-    &'static str,
-    &'static str,
-    &'static [(&'static str, &'static str)],
-); 8] = [
+#[allow(clippy::type_complexity)]
+const LEGEND_TEXT: [(&str, &str, &[(&str, &str)]); 8] = [
     (
         "字符",
         "Characters",
@@ -5945,11 +5950,11 @@ fn highlight_preview_panel(
     ranges.sort_by_key(|r| r.start);
     let mut merged: Vec<Range<usize>> = Vec::new();
     for r in ranges {
-        if let Some(last) = merged.last_mut() {
-            if r.start <= last.end {
-                last.end = last.end.max(r.end);
-                continue;
-            }
+        if let Some(last) = merged.last_mut()
+            && r.start <= last.end
+        {
+            last.end = last.end.max(r.end);
+            continue;
         }
         merged.push(r);
     }

@@ -7,7 +7,7 @@ use gpui_kit::{
     prelude::FluentBuilder as _,
     *,
 };
-use rand::Rng;
+use rand::RngExt as _;
 
 const MAX_COUNT: usize = 10000;
 const MAX_TEXT_LEN: usize = 4096;
@@ -19,15 +19,15 @@ fn is_prime(n: u64) -> bool {
     if n < 2 {
         return false;
     }
-    if n % 2 == 0 {
+    if n.is_multiple_of(2) {
         return n == 2;
     }
-    if n % 3 == 0 {
+    if n.is_multiple_of(3) {
         return n == 3;
     }
     let mut i: u64 = 5;
     while (i as u128) * (i as u128) <= n as u128 {
-        if n % i == 0 || n % (i + 2) == 0 {
+        if n.is_multiple_of(i) || n.is_multiple_of(i + 2) {
             return false;
         }
         i += 6;
@@ -394,7 +394,7 @@ impl RandomNumberGenerator {
 
         let status = self.status.clone();
 
-        let body = match self.mode {
+        match self.mode {
             0 => div()
                 .flex_col()
                 .gap_3()
@@ -627,9 +627,7 @@ impl RandomNumberGenerator {
                         ),
                 )
                 .child(self.output_editor("copy-byte", "clear-byte", &self.byte_out_state, cx)),
-        };
-
-        body
+        }
     }
 }
 

@@ -86,10 +86,10 @@ impl ImageConvert {
                     this.files = paths;
                     this.outputs.clear();
                     this.error.clear();
-                    if this.output_dir.is_empty() {
-                        if let Some(dir) = default_dir {
-                            this.output_dir = dir;
-                        }
+                    if this.output_dir.is_empty()
+                        && let Some(dir) = default_dir
+                    {
+                        this.output_dir = dir;
                     }
                     cx.notify();
                 });

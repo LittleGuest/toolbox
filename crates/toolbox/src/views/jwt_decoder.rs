@@ -83,14 +83,14 @@ impl JwtDecoder {
     }
 
     fn paste(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                self.token = text.to_string();
-                self.token_state.update(cx, |state, cx| {
-                    state.set_value(self.token.clone(), window, cx);
-                });
-                self.decode(cx);
-            }
+        if let Some(item) = cx.read_from_clipboard()
+            && let Some(text) = item.text()
+        {
+            self.token = text.to_string();
+            self.token_state.update(cx, |state, cx| {
+                state.set_value(self.token.clone(), window, cx);
+            });
+            self.decode(cx);
         }
     }
 

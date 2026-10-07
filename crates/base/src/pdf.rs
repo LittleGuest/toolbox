@@ -94,11 +94,11 @@ pub fn pdf_edit(
     for (page_num, deg) in rotate {
         if let Some(page_id) = page_map.get(page_num) {
             let degrees = ((*deg as i64 % 360) + 360) % 360;
-            if degrees != 0 {
-                if let Ok(dict) = doc.get_object_mut(*page_id).and_then(Object::as_dict_mut) {
-                    let cur = dict.get(b"Rotate").and_then(Object::as_i64).unwrap_or(0);
-                    dict.set("Rotate", (cur + degrees) % 360);
-                }
+            if degrees != 0
+                && let Ok(dict) = doc.get_object_mut(*page_id).and_then(Object::as_dict_mut)
+            {
+                let cur = dict.get(b"Rotate").and_then(Object::as_i64).unwrap_or(0);
+                dict.set("Rotate", (cur + degrees) % 360);
             }
         }
     }
@@ -137,12 +137,12 @@ pub fn pdf_split(input: &str, output_dir: &str, ranges: &str) -> Result<Vec<Stri
         if pages.is_empty() {
             continue;
         }
-        if let Some(&max_p) = pages.iter().max() {
-            if max_p > page_count {
-                return Err(Error::msg(format!(
-                    "页码 {max_p} 超出文档总页数 {page_count}"
-                )));
-            }
+        if let Some(&max_p) = pages.iter().max()
+            && max_p > page_count
+        {
+            return Err(Error::msg(format!(
+                "页码 {max_p} 超出文档总页数 {page_count}"
+            )));
         }
         let mut merged = build_combined(vec![(doc.clone(), pages.clone())])?;
         let out_path = dir.join(format!("{stem}_part{}.pdf", i + 1));
@@ -306,18 +306,18 @@ fn new_catalog(out: &mut Document, pages_id: Id) -> Id {
 
 fn page_size(doc: &Document, page_id: Id) -> Result<(f32, f32)> {
     let page = doc.get_dictionary(page_id)?;
-    if let Ok(media_box) = page.get(b"MediaBox").and_then(Object::as_array) {
-        if media_box.len() >= 4 {
-            let nums: Vec<f32> = media_box
-                .iter()
-                .take(4)
-                .map(|o| o.as_float().unwrap_or(0.0))
-                .collect();
-            let w = nums[2] - nums[0];
-            let h = nums[3] - nums[1];
-            if w > 0.0 && h > 0.0 {
-                return Ok((w, h));
-            }
+    if let Ok(media_box) = page.get(b"MediaBox").and_then(Object::as_array)
+        && media_box.len() >= 4
+    {
+        let nums: Vec<f32> = media_box
+            .iter()
+            .take(4)
+            .map(|o| o.as_float().unwrap_or(0.0))
+            .collect();
+        let w = nums[2] - nums[0];
+        let h = nums[3] - nums[1];
+        if w > 0.0 && h > 0.0 {
+            return Ok((w, h));
         }
     }
     Ok((595.0, 842.0))

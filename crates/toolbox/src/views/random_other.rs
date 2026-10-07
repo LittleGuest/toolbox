@@ -11,7 +11,7 @@ use gpui_kit::{
     prelude::FluentBuilder as _,
     *,
 };
-use rand::Rng;
+use rand::RngExt as _;
 use time::{Date, Month};
 
 const TABS: [&str; 4] = ["IP 地址", "MAC 地址", "时间", "日期"];

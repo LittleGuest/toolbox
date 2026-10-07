@@ -89,20 +89,20 @@ fn diff_value(a: &Value, b: &Value, path: &str, out: &mut Vec<JsonDiffItem>) {
             for i in 0..len {
                 diff_value(&aa[i], &bb[i], &format!("{path}[{i}]"), out);
             }
-            for i in len..aa.len() {
+            for (i, item) in aa.iter().enumerate().skip(len) {
                 out.push(JsonDiffItem {
                     path: format!("{path}[{i}]"),
                     kind: JsonKind::Del,
-                    old_text: truncate80(&fmt_value(&aa[i])),
+                    old_text: truncate80(&fmt_value(item)),
                     new_text: String::new(),
                 });
             }
-            for i in len..bb.len() {
+            for (i, item) in bb.iter().enumerate().skip(len) {
                 out.push(JsonDiffItem {
                     path: format!("{path}[{i}]"),
                     kind: JsonKind::Add,
                     old_text: String::new(),
-                    new_text: truncate80(&fmt_value(&bb[i])),
+                    new_text: truncate80(&fmt_value(item)),
                 });
             }
         } else if a.is_array() != b.is_array() {
@@ -148,7 +148,6 @@ fn diff_value(a: &Value, b: &Value, path: &str, out: &mut Vec<JsonDiffItem>) {
             }
         }
     } else if a == b {
-        return;
     } else {
         out.push(JsonDiffItem {
             path: label.to_string(),
@@ -249,10 +248,7 @@ impl TextDiffTool {
         let mut same = 0usize;
 
         for change in diff.iter_all_changes() {
-            let text = change
-                .value()
-                .trim_end_matches(|c| c == '\n' || c == '\r')
-                .to_string();
+            let text = change.value().trim_end_matches(['\n', '\r']).to_string();
             match change.tag() {
                 similar::ChangeTag::Equal => {
                     oi += 1;

@@ -254,14 +254,13 @@ impl App {
                             move |index, window, cx| {
                                 if index.section == 0 {
                                     let row = index.row;
-                                    if let Some(this) = weak.upgrade() {
-                                        if let Some(view) =
+                                    if let Some(this) = weak.upgrade()
+                                        && let Some(view) =
                                             TOOL_INDEX.get(row).map(|tool| tool.view)
-                                        {
-                                            this.update(cx, |this, cx| {
-                                                this.set_view(view, cx);
-                                            });
-                                        }
+                                    {
+                                        this.update(cx, |this, cx| {
+                                            this.set_view(view, cx);
+                                        });
                                     }
                                     window.close_sheet(cx);
                                 }
@@ -312,559 +311,528 @@ impl App {
 impl Render for App {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let current_view = self.current_view;
-        let sheet_layer = Root::render_sheet_layer(window, cx);
-        let dialog_layer = Root::render_dialog_layer(window, cx);
-        let notification_layer = Root::render_notification_layer(window, cx);
 
-        div()
-            .size_full()
-            .relative()
-            .child(
-                div()
-                    .size_full()
-                    .flex()
-                    .overflow_hidden()
-                    .child(
-                        Sidebar::new("main-sidebar")
-                            .side(Side::Left)
-                            .collapsed(self.sidebar_collapsed)
-                            .header(
-                                SidebarHeader::new()
-                                    .child(
-                                        div()
-                                            .flex()
-                                            .items_center()
-                                            .gap_2()
-                                            .child(
-                                                SidebarToggleButton::new()
-                                                    .side(Side::Left)
-                                                    .collapsed(self.sidebar_collapsed)
-                                                    .on_click(cx.listener(|this, _, _, cx| {
-                                                        this.toggle_sidebar(cx);
-                                                    })),
+        div().size_full().relative().child(
+            div()
+                .size_full()
+                .flex()
+                .overflow_hidden()
+                .child(
+                    Sidebar::new("main-sidebar")
+                        .side(Side::Left)
+                        .collapsed(self.sidebar_collapsed)
+                        .header(
+                            SidebarHeader::new()
+                                .child(
+                                    div()
+                                        .flex()
+                                        .items_center()
+                                        .gap_2()
+                                        .child(
+                                            SidebarToggleButton::new()
+                                                .side(Side::Left)
+                                                .collapsed(self.sidebar_collapsed)
+                                                .on_click(cx.listener(|this, _, _, cx| {
+                                                    this.toggle_sidebar(cx);
+                                                })),
+                                        )
+                                        .when(!self.sidebar_collapsed, |this| {
+                                            this.child(
+                                                div()
+                                                    .text_size(px(16.0))
+                                                    .font_weight(FontWeight::SEMIBOLD)
+                                                    .child("ToolBox"),
                                             )
-                                            .when(!self.sidebar_collapsed, |this| {
-                                                this.child(
-                                                    div()
-                                                        .text_size(px(16.0))
-                                                        .font_weight(FontWeight::SEMIBOLD)
-                                                        .child("ToolBox"),
-                                                )
-                                            }),
-                                    )
-                                    .child(
-                                        Button::new("theme-toggle")
-                                            .ghost()
-                                            .small()
-                                            .icon(Icon::new(if cx.theme().mode.is_dark() {
-                                                IconName::Sun
-                                            } else {
-                                                IconName::Moon
-                                            }))
-                                            .tooltip(if cx.theme().mode.is_dark() {
-                                                "切换浅色模式"
-                                            } else {
-                                                "切换深色模式"
-                                            })
-                                            .on_click(cx.listener(|this, _, window, cx| {
-                                                this.toggle_theme(window, cx);
-                                            })),
-                                    ),
-                            )
-                            .children([SidebarMenu::new().children([
-                                SidebarMenuItem::new("首页")
-                                    .icon(Icon::new(IconName::LayoutDashboard))
-                                    .active(current_view == ViewType::Home)
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.set_view(ViewType::Home, cx);
-                                    })),
-                                SidebarMenuItem::new("系统监控")
-                                    .icon(Icon::new(IconName::ChartPie))
-                                    .active(current_view == ViewType::SystemMonitor)
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.set_view(ViewType::SystemMonitor, cx);
-                                    })),
-                                SidebarMenuItem::new("代码片段")
-                                    .icon(Icon::new(IconName::FileText))
-                                    .active(current_view == ViewType::CodeSnippet)
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.set_view(ViewType::CodeSnippet, cx);
-                                    })),
-                                SidebarMenuItem::new("待办事项")
-                                    .icon(Icon::new(IconName::Check))
-                                    .active(current_view == ViewType::Todo)
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.set_view(ViewType::Todo, cx);
-                                    })),
-                                SidebarMenuItem::new("转换")
-                                    .icon(Icon::new(IconName::Replace))
-                                    .click_to_open(true)
-                                    .children([
-                                        SidebarMenuItem::new("文件格式转换")
-                                            .icon(Icon::new(IconName::File))
-                                            .active(current_view == ViewType::TransformFiletype)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::TransformFiletype, cx);
-                                            })),
-                                        SidebarMenuItem::new("时间戳")
-                                            .icon(Icon::new(IconName::Calendar))
-                                            .active(current_view == ViewType::TransformTime)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::TransformTime, cx);
-                                            })),
-                                        SidebarMenuItem::new("进制转换")
-                                            .icon(Icon::new(IconName::ALargeSmall))
-                                            .active(
-                                                current_view == ViewType::TransformBaseConversion,
-                                            )
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(
-                                                    ViewType::TransformBaseConversion,
-                                                    cx,
-                                                );
-                                            })),
-                                        SidebarMenuItem::new("Cron 表达式")
-                                            .icon(Icon::new(IconName::Calendar))
-                                            .active(current_view == ViewType::TransformCron)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::TransformCron, cx);
-                                            })),
-                                        SidebarMenuItem::new("人民币大小写")
-                                            .icon(Icon::new(IconName::ALargeSmall))
-                                            .active(current_view == ViewType::TransformRmb)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::TransformRmb, cx);
-                                            })),
-                                    ]),
-                                SidebarMenuItem::new("编码/解码")
-                                    .icon(Icon::new(IconName::Dash))
-                                    .click_to_open(true)
-                                    .children([
-                                        SidebarMenuItem::new("Base 编码")
-                                            .icon(Icon::new(IconName::CaseSensitive))
-                                            .active(
-                                                current_view == ViewType::EncodeDecodeBaseEncoding,
-                                            )
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(
-                                                    ViewType::EncodeDecodeBaseEncoding,
-                                                    cx,
-                                                );
-                                            })),
-                                        SidebarMenuItem::new("URL")
-                                            .icon(Icon::new(IconName::ExternalLink))
-                                            .active(current_view == ViewType::EncodeDecodeUrl)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::EncodeDecodeUrl, cx);
-                                            })),
-                                        SidebarMenuItem::new("JWT")
-                                            .icon(Icon::new(IconName::File))
-                                            .active(current_view == ViewType::EncodeDecodeJwt)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::EncodeDecodeJwt, cx);
-                                            })),
-                                        SidebarMenuItem::new("文本编码")
-                                            .icon(Icon::new(IconName::CaseSensitive))
-                                            .active(current_view == ViewType::EncodeDecodeCharset)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::EncodeDecodeCharset, cx);
-                                            })),
-                                        SidebarMenuItem::new("编码格式转换")
-                                            .icon(Icon::new(IconName::Replace))
-                                            .active(
-                                                current_view
-                                                    == ViewType::EncodeDecodeEncodingFormat,
-                                            )
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(
-                                                    ViewType::EncodeDecodeEncodingFormat,
-                                                    cx,
-                                                );
-                                            })),
-                                        SidebarMenuItem::new("二维码")
-                                            .icon(Icon::new(IconName::Frame))
-                                            .active(current_view == ViewType::OtherQrCode)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::OtherQrCode, cx);
-                                            })),
-                                        SidebarMenuItem::new("二维码解码")
-                                            .icon(Icon::new(IconName::Search))
-                                            .active(current_view == ViewType::OtherQrCodeDecode)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::OtherQrCodeDecode, cx);
-                                            })),
-                                    ]),
-                                SidebarMenuItem::new("加密")
-                                    .icon(Icon::new(IconName::EyeOff))
-                                    .click_to_open(true)
-                                    .children([
-                                        SidebarMenuItem::new("对称加密")
-                                            .icon(Icon::new(IconName::EyeOff))
-                                            .active(current_view == ViewType::EncodeDecodeSymmetric)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::EncodeDecodeSymmetric, cx);
-                                            })),
-                                        SidebarMenuItem::new("国密算法")
-                                            .icon(Icon::new(IconName::Asterisk))
-                                            .active(current_view == ViewType::EncodeDecodeSmCrypto)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::EncodeDecodeSmCrypto, cx);
-                                            })),
-                                    ]),
-                                SidebarMenuItem::new("格式化")
-                                    .icon(Icon::new(IconName::Replace))
-                                    .click_to_open(true)
-                                    .children([
-                                        SidebarMenuItem::new("JSON Editor")
-                                            .icon(Icon::new(IconName::File))
-                                            .active(current_view == ViewType::FormatterJson)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::FormatterJson, cx);
-                                            })),
-                                        SidebarMenuItem::new("SQL")
-                                            .icon(Icon::new(IconName::SquareTerminal))
-                                            .active(current_view == ViewType::FormatterSql)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::FormatterSql, cx);
-                                            })),
-                                        SidebarMenuItem::new("XML")
-                                            .icon(Icon::new(IconName::File))
-                                            .active(current_view == ViewType::FormatterXml)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::FormatterXml, cx);
-                                            })),
-                                        SidebarMenuItem::new("JSON Schema")
-                                            .icon(Icon::new(IconName::Check))
-                                            .active(current_view == ViewType::FormatterJsonSchema)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::FormatterJsonSchema, cx);
-                                            })),
-                                    ]),
-                                SidebarMenuItem::new("生成器")
-                                    .icon(Icon::new(IconName::Plus))
-                                    .click_to_open(true)
-                                    .children([
-                                        SidebarMenuItem::new("UUID")
-                                            .icon(Icon::new(IconName::ALargeSmall))
-                                            .active(current_view == ViewType::GeneratorUuid)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::GeneratorUuid, cx);
-                                            })),
-                                        SidebarMenuItem::new("Hash 计算")
-                                            .icon(Icon::new(IconName::Asterisk))
-                                            .active(current_view == ViewType::GeneratorHash)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::GeneratorHash, cx);
-                                            })),
-                                    ]),
-                                SidebarMenuItem::new("数据库")
-                                    .icon(Icon::new(IconName::Building2))
-                                    .click_to_open(true)
-                                    .children([
-                                        SidebarMenuItem::new("假数据生成")
-                                            .icon(Icon::new(IconName::Folder))
-                                            .active(current_view == ViewType::DatabaseDatafaker)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::DatabaseDatafaker, cx);
-                                            })),
-                                        SidebarMenuItem::new("数据库差异")
-                                            .icon(Icon::new(IconName::Folder))
-                                            .active(current_view == ViewType::DatabaseDiff)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::DatabaseDiff, cx);
-                                            })),
-                                    ]),
-                                SidebarMenuItem::new("文本")
-                                    .icon(Icon::new(IconName::BookOpen))
-                                    .click_to_open(true)
-                                    .children([
-                                        SidebarMenuItem::new("Markdown")
-                                            .icon(Icon::new(IconName::BookOpen))
-                                            .active(current_view == ViewType::TextMarkdown)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::TextMarkdown, cx);
-                                            })),
-                                        SidebarMenuItem::new("文本工具")
-                                            .icon(Icon::new(IconName::BookOpen))
-                                            .active(current_view == ViewType::TextTextTools)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::TextTextTools, cx);
-                                            })),
-                                        SidebarMenuItem::new("文本 / JSON 差异")
-                                            .icon(Icon::new(IconName::Replace))
-                                            .active(current_view == ViewType::TextDiff)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::TextDiff, cx);
-                                            })),
-                                    ]),
-                                SidebarMenuItem::new("随机")
-                                    .icon(Icon::new(IconName::Asterisk))
-                                    .click_to_open(true)
-                                    .children([
-                                        SidebarMenuItem::new("随机字符串")
-                                            .icon(Icon::new(IconName::CaseSensitive))
-                                            .active(current_view == ViewType::RandomString)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::RandomString, cx);
-                                            })),
-                                        SidebarMenuItem::new("随机数字")
-                                            .icon(Icon::new(IconName::Asterisk))
-                                            .active(current_view == ViewType::RandomNumber)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::RandomNumber, cx);
-                                            })),
-                                        SidebarMenuItem::new("随机数据")
-                                            .icon(Icon::new(IconName::Folder))
-                                            .active(current_view == ViewType::RandomData)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::RandomData, cx);
-                                            })),
-                                    ]),
-                                SidebarMenuItem::new("网络")
-                                    .icon(Icon::new(IconName::Network))
-                                    .click_to_open(true)
-                                    .children([
-                                        SidebarMenuItem::new("IP 地址转换")
-                                            .icon(Icon::new(IconName::Network))
-                                            .active(current_view == ViewType::NetworkIp)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::NetworkIp, cx);
-                                            })),
-                                        SidebarMenuItem::new("随机 IP / MAC / 时间")
-                                            .icon(Icon::new(IconName::Calendar))
-                                            .active(current_view == ViewType::RandomOther)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::RandomOther, cx);
-                                            })),
-                                    ]),
-                                SidebarMenuItem::new("按位计算器")
-                                    .icon(Icon::new(IconName::SquareTerminal))
-                                    .active(current_view == ViewType::NumberBitwise)
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.set_view(ViewType::NumberBitwise, cx);
-                                    })),
-                                SidebarMenuItem::new("颜色转换")
-                                    .icon(Icon::new(IconName::Palette))
-                                    .active(current_view == ViewType::ColorConverter)
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.set_view(ViewType::ColorConverter, cx);
-                                    })),
-                                SidebarMenuItem::new("正则")
-                                    .icon(Icon::new(IconName::Dash))
-                                    .active(current_view == ViewType::RegexVisualizer)
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.set_view(ViewType::RegexVisualizer, cx);
-                                    })),
-                                SidebarMenuItem::new("图像")
-                                    .icon(Icon::new(IconName::Frame))
-                                    .click_to_open(true)
-                                    .children([
-                                        SidebarMenuItem::new("图片格式转换")
-                                            .icon(Icon::new(IconName::Frame))
-                                            .active(current_view == ViewType::ImageConvert)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::ImageConvert, cx);
-                                            })),
-                                        SidebarMenuItem::new("Excalidraw")
-                                            .icon(Icon::new(IconName::Frame))
-                                            .active(current_view == ViewType::ImageExcalidraw)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::ImageExcalidraw, cx);
-                                            })),
-                                    ]),
-                                SidebarMenuItem::new("PDF")
-                                    .icon(Icon::new(IconName::File))
-                                    .click_to_open(true)
-                                    .children([
-                                        SidebarMenuItem::new("图片转 PDF")
-                                            .icon(Icon::new(IconName::File))
-                                            .active(current_view == ViewType::PdfImagesToPdf)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::PdfImagesToPdf, cx);
-                                            })),
-                                        SidebarMenuItem::new("PDF 合并")
-                                            .icon(Icon::new(IconName::File))
-                                            .active(current_view == ViewType::PdfMerge)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::PdfMerge, cx);
-                                            })),
-                                        SidebarMenuItem::new("PDF 编辑")
-                                            .icon(Icon::new(IconName::File))
-                                            .active(current_view == ViewType::PdfEdit)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::PdfEdit, cx);
-                                            })),
-                                        SidebarMenuItem::new("PDF 添加页码")
-                                            .icon(Icon::new(IconName::File))
-                                            .active(current_view == ViewType::PdfPageNumber)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::PdfPageNumber, cx);
-                                            })),
-                                        SidebarMenuItem::new("PDF 拆分")
-                                            .icon(Icon::new(IconName::File))
-                                            .active(current_view == ViewType::PdfSplit)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.set_view(ViewType::PdfSplit, cx);
-                                            })),
-                                    ]),
-                                SidebarMenuItem::new("其它")
-                                    .icon(Icon::new(IconName::Settings2))
-                                    .click_to_open(true)
-                                    .children([SidebarMenuItem::new("剪贴板管理")
-                                        .icon(Icon::new(IconName::Settings2))
-                                        .active(current_view == ViewType::OtherClipboard)
+                                        }),
+                                )
+                                .child(
+                                    Button::new("theme-toggle")
+                                        .ghost()
+                                        .small()
+                                        .icon(Icon::new(if cx.theme().mode.is_dark() {
+                                            IconName::Sun
+                                        } else {
+                                            IconName::Moon
+                                        }))
+                                        .tooltip(if cx.theme().mode.is_dark() {
+                                            "切换浅色模式"
+                                        } else {
+                                            "切换深色模式"
+                                        })
+                                        .on_click(cx.listener(|this, _, window, cx| {
+                                            this.toggle_theme(window, cx);
+                                        })),
+                                ),
+                        )
+                        .children([SidebarMenu::new().children([
+                            SidebarMenuItem::new("首页")
+                                .icon(Icon::new(IconName::LayoutDashboard))
+                                .active(current_view == ViewType::Home)
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.set_view(ViewType::Home, cx);
+                                })),
+                            SidebarMenuItem::new("系统监控")
+                                .icon(Icon::new(IconName::ChartPie))
+                                .active(current_view == ViewType::SystemMonitor)
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.set_view(ViewType::SystemMonitor, cx);
+                                })),
+                            SidebarMenuItem::new("代码片段")
+                                .icon(Icon::new(IconName::FileText))
+                                .active(current_view == ViewType::CodeSnippet)
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.set_view(ViewType::CodeSnippet, cx);
+                                })),
+                            SidebarMenuItem::new("待办事项")
+                                .icon(Icon::new(IconName::Check))
+                                .active(current_view == ViewType::Todo)
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.set_view(ViewType::Todo, cx);
+                                })),
+                            SidebarMenuItem::new("转换")
+                                .icon(Icon::new(IconName::Replace))
+                                .click_to_open(true)
+                                .children([
+                                    SidebarMenuItem::new("文件格式转换")
+                                        .icon(Icon::new(IconName::File))
+                                        .active(current_view == ViewType::TransformFiletype)
                                         .on_click(cx.listener(|this, _, _, cx| {
-                                            this.set_view(ViewType::OtherClipboard, cx);
-                                        }))]),
-                            ])]),
-                    )
-                    .child(
-                        div()
-                            .flex_1()
-                            .min_w(px(640.0))
-                            .flex()
-                            .flex_col()
-                            .overflow_hidden()
-                            .child(self.render_topbar(cx))
-                            .child(
-                                div()
-                                    .flex_1()
-                                    .overflow_y_scrollbar()
-                                    .bg(cx.theme().background)
-                                    .text_color(cx.theme().foreground)
-                                    .child(match current_view {
-                                        ViewType::Home => render_home_view(cx),
-                                        ViewType::SystemMonitor => {
-                                            render_system_monitor_view(self, window, cx)
-                                        }
-                                        ViewType::CodeSnippet => render_code_snippet_view(self, cx),
-                                        ViewType::Todo => render_todo_view(self, cx),
-                                        ViewType::TransformFiletype => {
-                                            render_transform_filetype_view(self, window, cx)
-                                        }
-                                        ViewType::TransformTime => {
-                                            render_timestamp_converter_view(self, window, cx)
-                                        }
-                                        ViewType::TransformBaseConversion => {
-                                            render_base_converter_view(self, window, cx)
-                                        }
-                                        ViewType::TransformCron => {
-                                            render_cron_view(self, window, cx)
-                                        }
-                                        ViewType::TransformRmb => {
-                                            render_rmb_case_view(self, window, cx)
-                                        }
-                                        ViewType::EncodeDecodeUrl => {
-                                            render_url_encoder_view(self, window, cx)
-                                        }
-                                        ViewType::EncodeDecodeJwt => {
-                                            render_jwt_decoder_view(self, window, cx)
-                                        }
-                                        ViewType::EncodeDecodeCharset => {
-                                            render_text_encoding_page(self, window, cx)
-                                        }
-                                        ViewType::EncodeDecodeBaseEncoding => {
-                                            render_base_encoding_view(self, window, cx)
-                                        }
-                                        ViewType::EncodeDecodeSymmetric => {
-                                            render_symmetric_encrypt_view(self, window, cx)
-                                        }
-                                        ViewType::EncodeDecodeSmCrypto => {
-                                            render_sm_crypto_view(self, window, cx)
-                                        }
-                                        ViewType::EncodeDecodeEncodingFormat => {
-                                            render_encoding_format_view(self, window, cx)
-                                        }
-                                        ViewType::FormatterJson => {
-                                            render_json_editor_view(self, window, cx)
-                                        }
-                                        ViewType::FormatterJsonSchema => {
-                                            render_json_schema_view(self, window, cx)
-                                        }
-                                        ViewType::FormatterSql => {
-                                            render_formatter_sql_view(self, window, cx)
-                                        }
-                                        ViewType::FormatterXml => {
-                                            render_formatter_xml_view(self, window, cx)
-                                        }
-                                        ViewType::GeneratorUuid => {
-                                            render_uuid_generator_view(self, window, cx)
-                                        }
-                                        ViewType::GeneratorHash => {
-                                            render_hash_page(self, window, cx)
-                                        }
-                                        ViewType::DatabaseDatafaker => {
-                                            render_database_datafaker_view(self, window, cx)
-                                        }
-                                        ViewType::DatabaseDiff => {
-                                            render_database_diff_view(self, window, cx)
-                                        }
-                                        ViewType::TextMarkdown => {
-                                            render_markdown_editor_view(self, window, cx)
-                                        }
-                                        ViewType::TextTextTools => {
-                                            render_text_tools_view(self, window, cx)
-                                        }
-                                        ViewType::TextDiff => {
-                                            render_text_diff_view(self, window, cx)
-                                        }
-                                        ViewType::RandomString => {
-                                            render_random_string_view(self, window, cx)
-                                        }
-                                        ViewType::RandomNumber => {
-                                            render_random_number_view(self, window, cx)
-                                        }
-                                        ViewType::RandomOther => {
-                                            render_random_other_view(self, window, cx)
-                                        }
-                                        ViewType::RandomData => {
-                                            render_random_data_view(self, window, cx)
-                                        }
-                                        ViewType::NumberBitwise => {
-                                            render_bitwise_calculator_view(self, window, cx)
-                                        }
-                                        ViewType::ColorConverter => {
-                                            render_color_converter_view(self, window, cx)
-                                        }
-                                        ViewType::NetworkIp => {
-                                            render_ip_converter_view(self, window, cx)
-                                        }
-                                        ViewType::ImageExcalidraw => {
-                                            render_excalidraw_view(self, window, cx)
-                                        }
-                                        ViewType::ImageConvert => {
-                                            render_image_convert_view(self, window, cx)
-                                        }
-                                        ViewType::PdfImagesToPdf => {
-                                            render_pdf_images_to_pdf_view(self, cx)
-                                        }
-                                        ViewType::PdfMerge => render_pdf_merge_view(self, cx),
-                                        ViewType::PdfEdit => render_pdf_edit_view(self, window, cx),
-                                        ViewType::PdfPageNumber => {
-                                            render_pdf_page_number_view(self, window, cx)
-                                        }
-                                        ViewType::PdfSplit => {
-                                            render_pdf_split_view(self, window, cx)
-                                        }
-                                        ViewType::OtherQrCode => {
-                                            render_qrcode_generator_view(self, window, cx)
-                                        }
-                                        ViewType::OtherQrCodeDecode => {
-                                            render_qrcode_decoder_view(self, window, cx)
-                                        }
-                                        ViewType::OtherClipboard => {
-                                            render_clipboard_manager_view(self, window, cx)
-                                        }
-                                        ViewType::RegexVisualizer => {
-                                            render_regex_visualizer_view(self, window, cx)
-                                        }
-                                    }),
-                            ),
-                    ),
-            )
-            .children(sheet_layer)
-            .children(dialog_layer)
-            .children(notification_layer)
+                                            this.set_view(ViewType::TransformFiletype, cx);
+                                        })),
+                                    SidebarMenuItem::new("时间戳")
+                                        .icon(Icon::new(IconName::Calendar))
+                                        .active(current_view == ViewType::TransformTime)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::TransformTime, cx);
+                                        })),
+                                    SidebarMenuItem::new("进制转换")
+                                        .icon(Icon::new(IconName::ALargeSmall))
+                                        .active(current_view == ViewType::TransformBaseConversion)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::TransformBaseConversion, cx);
+                                        })),
+                                    SidebarMenuItem::new("Cron 表达式")
+                                        .icon(Icon::new(IconName::Calendar))
+                                        .active(current_view == ViewType::TransformCron)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::TransformCron, cx);
+                                        })),
+                                    SidebarMenuItem::new("人民币大小写")
+                                        .icon(Icon::new(IconName::ALargeSmall))
+                                        .active(current_view == ViewType::TransformRmb)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::TransformRmb, cx);
+                                        })),
+                                ]),
+                            SidebarMenuItem::new("编码/解码")
+                                .icon(Icon::new(IconName::Dash))
+                                .click_to_open(true)
+                                .children([
+                                    SidebarMenuItem::new("Base 编码")
+                                        .icon(Icon::new(IconName::CaseSensitive))
+                                        .active(current_view == ViewType::EncodeDecodeBaseEncoding)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::EncodeDecodeBaseEncoding, cx);
+                                        })),
+                                    SidebarMenuItem::new("URL")
+                                        .icon(Icon::new(IconName::ExternalLink))
+                                        .active(current_view == ViewType::EncodeDecodeUrl)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::EncodeDecodeUrl, cx);
+                                        })),
+                                    SidebarMenuItem::new("JWT")
+                                        .icon(Icon::new(IconName::File))
+                                        .active(current_view == ViewType::EncodeDecodeJwt)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::EncodeDecodeJwt, cx);
+                                        })),
+                                    SidebarMenuItem::new("文本编码")
+                                        .icon(Icon::new(IconName::CaseSensitive))
+                                        .active(current_view == ViewType::EncodeDecodeCharset)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::EncodeDecodeCharset, cx);
+                                        })),
+                                    SidebarMenuItem::new("编码格式转换")
+                                        .icon(Icon::new(IconName::Replace))
+                                        .active(
+                                            current_view == ViewType::EncodeDecodeEncodingFormat,
+                                        )
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::EncodeDecodeEncodingFormat, cx);
+                                        })),
+                                    SidebarMenuItem::new("二维码")
+                                        .icon(Icon::new(IconName::Frame))
+                                        .active(current_view == ViewType::OtherQrCode)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::OtherQrCode, cx);
+                                        })),
+                                    SidebarMenuItem::new("二维码解码")
+                                        .icon(Icon::new(IconName::Search))
+                                        .active(current_view == ViewType::OtherQrCodeDecode)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::OtherQrCodeDecode, cx);
+                                        })),
+                                ]),
+                            SidebarMenuItem::new("加密")
+                                .icon(Icon::new(IconName::EyeOff))
+                                .click_to_open(true)
+                                .children([
+                                    SidebarMenuItem::new("对称加密")
+                                        .icon(Icon::new(IconName::EyeOff))
+                                        .active(current_view == ViewType::EncodeDecodeSymmetric)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::EncodeDecodeSymmetric, cx);
+                                        })),
+                                    SidebarMenuItem::new("国密算法")
+                                        .icon(Icon::new(IconName::Asterisk))
+                                        .active(current_view == ViewType::EncodeDecodeSmCrypto)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::EncodeDecodeSmCrypto, cx);
+                                        })),
+                                ]),
+                            SidebarMenuItem::new("格式化")
+                                .icon(Icon::new(IconName::Replace))
+                                .click_to_open(true)
+                                .children([
+                                    SidebarMenuItem::new("JSON Editor")
+                                        .icon(Icon::new(IconName::File))
+                                        .active(current_view == ViewType::FormatterJson)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::FormatterJson, cx);
+                                        })),
+                                    SidebarMenuItem::new("SQL")
+                                        .icon(Icon::new(IconName::SquareTerminal))
+                                        .active(current_view == ViewType::FormatterSql)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::FormatterSql, cx);
+                                        })),
+                                    SidebarMenuItem::new("XML")
+                                        .icon(Icon::new(IconName::File))
+                                        .active(current_view == ViewType::FormatterXml)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::FormatterXml, cx);
+                                        })),
+                                    SidebarMenuItem::new("JSON Schema")
+                                        .icon(Icon::new(IconName::Check))
+                                        .active(current_view == ViewType::FormatterJsonSchema)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::FormatterJsonSchema, cx);
+                                        })),
+                                ]),
+                            SidebarMenuItem::new("生成器")
+                                .icon(Icon::new(IconName::Plus))
+                                .click_to_open(true)
+                                .children([
+                                    SidebarMenuItem::new("UUID")
+                                        .icon(Icon::new(IconName::ALargeSmall))
+                                        .active(current_view == ViewType::GeneratorUuid)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::GeneratorUuid, cx);
+                                        })),
+                                    SidebarMenuItem::new("Hash 计算")
+                                        .icon(Icon::new(IconName::Asterisk))
+                                        .active(current_view == ViewType::GeneratorHash)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::GeneratorHash, cx);
+                                        })),
+                                ]),
+                            SidebarMenuItem::new("数据库")
+                                .icon(Icon::new(IconName::Building2))
+                                .click_to_open(true)
+                                .children([
+                                    SidebarMenuItem::new("假数据生成")
+                                        .icon(Icon::new(IconName::Folder))
+                                        .active(current_view == ViewType::DatabaseDatafaker)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::DatabaseDatafaker, cx);
+                                        })),
+                                    SidebarMenuItem::new("数据库差异")
+                                        .icon(Icon::new(IconName::Folder))
+                                        .active(current_view == ViewType::DatabaseDiff)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::DatabaseDiff, cx);
+                                        })),
+                                ]),
+                            SidebarMenuItem::new("文本")
+                                .icon(Icon::new(IconName::BookOpen))
+                                .click_to_open(true)
+                                .children([
+                                    SidebarMenuItem::new("Markdown")
+                                        .icon(Icon::new(IconName::BookOpen))
+                                        .active(current_view == ViewType::TextMarkdown)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::TextMarkdown, cx);
+                                        })),
+                                    SidebarMenuItem::new("文本工具")
+                                        .icon(Icon::new(IconName::BookOpen))
+                                        .active(current_view == ViewType::TextTextTools)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::TextTextTools, cx);
+                                        })),
+                                    SidebarMenuItem::new("文本 / JSON 差异")
+                                        .icon(Icon::new(IconName::Replace))
+                                        .active(current_view == ViewType::TextDiff)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::TextDiff, cx);
+                                        })),
+                                ]),
+                            SidebarMenuItem::new("随机")
+                                .icon(Icon::new(IconName::Asterisk))
+                                .click_to_open(true)
+                                .children([
+                                    SidebarMenuItem::new("随机字符串")
+                                        .icon(Icon::new(IconName::CaseSensitive))
+                                        .active(current_view == ViewType::RandomString)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::RandomString, cx);
+                                        })),
+                                    SidebarMenuItem::new("随机数字")
+                                        .icon(Icon::new(IconName::Asterisk))
+                                        .active(current_view == ViewType::RandomNumber)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::RandomNumber, cx);
+                                        })),
+                                    SidebarMenuItem::new("随机数据")
+                                        .icon(Icon::new(IconName::Folder))
+                                        .active(current_view == ViewType::RandomData)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::RandomData, cx);
+                                        })),
+                                ]),
+                            SidebarMenuItem::new("网络")
+                                .icon(Icon::new(IconName::Network))
+                                .click_to_open(true)
+                                .children([
+                                    SidebarMenuItem::new("IP 地址转换")
+                                        .icon(Icon::new(IconName::Network))
+                                        .active(current_view == ViewType::NetworkIp)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::NetworkIp, cx);
+                                        })),
+                                    SidebarMenuItem::new("随机 IP / MAC / 时间")
+                                        .icon(Icon::new(IconName::Calendar))
+                                        .active(current_view == ViewType::RandomOther)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::RandomOther, cx);
+                                        })),
+                                ]),
+                            SidebarMenuItem::new("按位计算器")
+                                .icon(Icon::new(IconName::SquareTerminal))
+                                .active(current_view == ViewType::NumberBitwise)
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.set_view(ViewType::NumberBitwise, cx);
+                                })),
+                            SidebarMenuItem::new("颜色转换")
+                                .icon(Icon::new(IconName::Palette))
+                                .active(current_view == ViewType::ColorConverter)
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.set_view(ViewType::ColorConverter, cx);
+                                })),
+                            SidebarMenuItem::new("正则")
+                                .icon(Icon::new(IconName::Dash))
+                                .active(current_view == ViewType::RegexVisualizer)
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.set_view(ViewType::RegexVisualizer, cx);
+                                })),
+                            SidebarMenuItem::new("图像")
+                                .icon(Icon::new(IconName::Frame))
+                                .click_to_open(true)
+                                .children([
+                                    SidebarMenuItem::new("图片格式转换")
+                                        .icon(Icon::new(IconName::Frame))
+                                        .active(current_view == ViewType::ImageConvert)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::ImageConvert, cx);
+                                        })),
+                                    SidebarMenuItem::new("Excalidraw")
+                                        .icon(Icon::new(IconName::Frame))
+                                        .active(current_view == ViewType::ImageExcalidraw)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::ImageExcalidraw, cx);
+                                        })),
+                                ]),
+                            SidebarMenuItem::new("PDF")
+                                .icon(Icon::new(IconName::File))
+                                .click_to_open(true)
+                                .children([
+                                    SidebarMenuItem::new("图片转 PDF")
+                                        .icon(Icon::new(IconName::File))
+                                        .active(current_view == ViewType::PdfImagesToPdf)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::PdfImagesToPdf, cx);
+                                        })),
+                                    SidebarMenuItem::new("PDF 合并")
+                                        .icon(Icon::new(IconName::File))
+                                        .active(current_view == ViewType::PdfMerge)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::PdfMerge, cx);
+                                        })),
+                                    SidebarMenuItem::new("PDF 编辑")
+                                        .icon(Icon::new(IconName::File))
+                                        .active(current_view == ViewType::PdfEdit)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::PdfEdit, cx);
+                                        })),
+                                    SidebarMenuItem::new("PDF 添加页码")
+                                        .icon(Icon::new(IconName::File))
+                                        .active(current_view == ViewType::PdfPageNumber)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::PdfPageNumber, cx);
+                                        })),
+                                    SidebarMenuItem::new("PDF 拆分")
+                                        .icon(Icon::new(IconName::File))
+                                        .active(current_view == ViewType::PdfSplit)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::PdfSplit, cx);
+                                        })),
+                                ]),
+                            SidebarMenuItem::new("其它")
+                                .icon(Icon::new(IconName::Settings2))
+                                .click_to_open(true)
+                                .children([SidebarMenuItem::new("剪贴板管理")
+                                    .icon(Icon::new(IconName::Settings2))
+                                    .active(current_view == ViewType::OtherClipboard)
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.set_view(ViewType::OtherClipboard, cx);
+                                    }))]),
+                        ])]),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w(px(640.0))
+                        .flex()
+                        .flex_col()
+                        .overflow_hidden()
+                        .child(self.render_topbar(cx))
+                        .child(
+                            div()
+                                .flex_1()
+                                .overflow_y_scrollbar()
+                                .bg(cx.theme().background)
+                                .text_color(cx.theme().foreground)
+                                .child(match current_view {
+                                    ViewType::Home => render_home_view(cx),
+                                    ViewType::SystemMonitor => {
+                                        render_system_monitor_view(self, window, cx)
+                                    }
+                                    ViewType::CodeSnippet => render_code_snippet_view(self, cx),
+                                    ViewType::Todo => render_todo_view(self, cx),
+                                    ViewType::TransformFiletype => {
+                                        render_transform_filetype_view(self, window, cx)
+                                    }
+                                    ViewType::TransformTime => {
+                                        render_timestamp_converter_view(self, window, cx)
+                                    }
+                                    ViewType::TransformBaseConversion => {
+                                        render_base_converter_view(self, window, cx)
+                                    }
+                                    ViewType::TransformCron => render_cron_view(self, window, cx),
+                                    ViewType::TransformRmb => {
+                                        render_rmb_case_view(self, window, cx)
+                                    }
+                                    ViewType::EncodeDecodeUrl => {
+                                        render_url_encoder_view(self, window, cx)
+                                    }
+                                    ViewType::EncodeDecodeJwt => {
+                                        render_jwt_decoder_view(self, window, cx)
+                                    }
+                                    ViewType::EncodeDecodeCharset => {
+                                        render_text_encoding_page(self, window, cx)
+                                    }
+                                    ViewType::EncodeDecodeBaseEncoding => {
+                                        render_base_encoding_view(self, window, cx)
+                                    }
+                                    ViewType::EncodeDecodeSymmetric => {
+                                        render_symmetric_encrypt_view(self, window, cx)
+                                    }
+                                    ViewType::EncodeDecodeSmCrypto => {
+                                        render_sm_crypto_view(self, window, cx)
+                                    }
+                                    ViewType::EncodeDecodeEncodingFormat => {
+                                        render_encoding_format_view(self, window, cx)
+                                    }
+                                    ViewType::FormatterJson => {
+                                        render_json_editor_view(self, window, cx)
+                                    }
+                                    ViewType::FormatterJsonSchema => {
+                                        render_json_schema_view(self, window, cx)
+                                    }
+                                    ViewType::FormatterSql => {
+                                        render_formatter_sql_view(self, window, cx)
+                                    }
+                                    ViewType::FormatterXml => {
+                                        render_formatter_xml_view(self, window, cx)
+                                    }
+                                    ViewType::GeneratorUuid => {
+                                        render_uuid_generator_view(self, window, cx)
+                                    }
+                                    ViewType::GeneratorHash => render_hash_page(self, window, cx),
+                                    ViewType::DatabaseDatafaker => {
+                                        render_database_datafaker_view(self, window, cx)
+                                    }
+                                    ViewType::DatabaseDiff => {
+                                        render_database_diff_view(self, window, cx)
+                                    }
+                                    ViewType::TextMarkdown => {
+                                        render_markdown_editor_view(self, window, cx)
+                                    }
+                                    ViewType::TextTextTools => {
+                                        render_text_tools_view(self, window, cx)
+                                    }
+                                    ViewType::TextDiff => render_text_diff_view(self, window, cx),
+                                    ViewType::RandomString => {
+                                        render_random_string_view(self, window, cx)
+                                    }
+                                    ViewType::RandomNumber => {
+                                        render_random_number_view(self, window, cx)
+                                    }
+                                    ViewType::RandomOther => {
+                                        render_random_other_view(self, window, cx)
+                                    }
+                                    ViewType::RandomData => {
+                                        render_random_data_view(self, window, cx)
+                                    }
+                                    ViewType::NumberBitwise => {
+                                        render_bitwise_calculator_view(self, window, cx)
+                                    }
+                                    ViewType::ColorConverter => {
+                                        render_color_converter_view(self, window, cx)
+                                    }
+                                    ViewType::NetworkIp => {
+                                        render_ip_converter_view(self, window, cx)
+                                    }
+                                    ViewType::ImageExcalidraw => {
+                                        render_excalidraw_view(self, window, cx)
+                                    }
+                                    ViewType::ImageConvert => {
+                                        render_image_convert_view(self, window, cx)
+                                    }
+                                    ViewType::PdfImagesToPdf => {
+                                        render_pdf_images_to_pdf_view(self, cx)
+                                    }
+                                    ViewType::PdfMerge => render_pdf_merge_view(self, cx),
+                                    ViewType::PdfEdit => render_pdf_edit_view(self, window, cx),
+                                    ViewType::PdfPageNumber => {
+                                        render_pdf_page_number_view(self, window, cx)
+                                    }
+                                    ViewType::PdfSplit => render_pdf_split_view(self, window, cx),
+                                    ViewType::OtherQrCode => {
+                                        render_qrcode_generator_view(self, window, cx)
+                                    }
+                                    ViewType::OtherQrCodeDecode => {
+                                        render_qrcode_decoder_view(self, window, cx)
+                                    }
+                                    ViewType::OtherClipboard => {
+                                        render_clipboard_manager_view(self, window, cx)
+                                    }
+                                    ViewType::RegexVisualizer => {
+                                        render_regex_visualizer_view(self, window, cx)
+                                    }
+                                }),
+                        ),
+                ),
+        )
     }
 }
 
@@ -1648,7 +1616,7 @@ fn main() {
                 } else {
                     ThemeMode::Light
                 };
-                let _ = cx.update(|cx| Theme::change(mode, None, cx));
+                cx.update(|cx| Theme::change(mode, None, cx));
             }
 
             cx.open_window(

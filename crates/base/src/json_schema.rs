@@ -90,24 +90,24 @@ fn collect_all(validator: &jsonschema::Validator, instance: &Value) -> Vec<Schem
 }
 
 fn flatten(err: &jsonschema::ValidationError, out: &mut Vec<SchemaIssue>) {
-    let branches = branch_groups(&err.kind);
-    if let Some(groups) = branches {
-        if let Some(first) = groups.iter().find(|g| !g.is_empty()) {
-            for child in first.iter() {
-                flatten(child, out);
-            }
-            return;
+    let branches = branch_groups(err.kind());
+    if let Some(groups) = branches
+        && let Some(first) = groups.iter().find(|g| !g.is_empty())
+    {
+        for child in first.iter() {
+            flatten(child, out);
         }
+        return;
     }
     out.push(SchemaIssue {
-        path: display_path(err.instance_path.as_str()),
+        path: display_path(err.instance_path().as_str()),
         message: translate(&err.masked().to_string()),
     });
 }
 
-fn branch_groups<'a>(
-    kind: &'a ValidationErrorKind,
-) -> Option<Vec<Vec<&'a jsonschema::ValidationError<'static>>>> {
+fn branch_groups(
+    kind: &ValidationErrorKind,
+) -> Option<Vec<Vec<&jsonschema::ValidationError<'static>>>> {
     match kind {
         ValidationErrorKind::AnyOf { context } | ValidationErrorKind::OneOfNotValid { context } => {
             Some(context.iter().map(|g| g.iter().collect()).collect())
@@ -178,11 +178,11 @@ pub fn translate(message: &str) -> String {
     if m.starts_with("Unevaluated properties are not allowed") {
         return format!("存在未求值的属性：{}", strip_tail(m));
     }
-    if m.contains("is not a \"") {
-        if let Some(start) = m.find("is not a \"") {
-            let fmt = m[start + 10..].trim_end_matches('"').trim();
-            return format!("不满足格式要求：{fmt}");
-        }
+    if m.contains("is not a \"")
+        && let Some(start) = m.find("is not a \"")
+    {
+        let fmt = m[start + 10..].trim_end_matches('"').trim();
+        return format!("不满足格式要求：{fmt}");
     }
     if let Some(idx) = m.find(" does not match \"") {
         let tail = &m[idx + " does not match ".len()..];

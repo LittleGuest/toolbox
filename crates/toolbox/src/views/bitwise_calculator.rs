@@ -181,7 +181,7 @@ impl BitwiseCalculator {
         };
 
         let a_text = self.a_state.read(cx).value().to_string();
-        let Some(a) = parse_operand(&a_text, &self.a_base.as_str(), width) else {
+        let Some(a) = parse_operand(&a_text, self.a_base.as_str(), width) else {
             self.status = "操作数无效".to_string();
             self.res_expr.clear();
             cx.notify();
@@ -236,7 +236,7 @@ impl BitwiseCalculator {
             _ => String::new(),
         };
 
-        let hex_digits = (width as usize + 3) / 4;
+        let hex_digits = (width as usize).div_ceil(4);
         self.res_expr = expr;
         self.res_dec = value.to_string();
         self.res_hex = format!("0x{:0w$X}", value, w = hex_digits);

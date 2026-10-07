@@ -32,6 +32,7 @@ pub struct TodoRecord {
     pub created_at: i64,
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct DatafakerConfigRecord {
     pub id: Option<i64>,
@@ -387,6 +388,7 @@ pub async fn load_datafaker_configs() -> Result<Vec<DatafakerConfigRecord>> {
         .collect()
 }
 
+#[allow(dead_code)]
 pub async fn delete_datafaker_config(name: String) -> Result<bool> {
     let pool = open_pool().await?;
     init_schema(&pool).await?;

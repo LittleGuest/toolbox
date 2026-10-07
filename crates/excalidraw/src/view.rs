@@ -446,13 +446,12 @@ impl ExcalidrawView {
 
     fn update_selected_text(&mut self, cx: &mut Context<Self>) {
         let text = self.text_edit_state.read(cx).value().to_string();
-        if let Some(index) = self.selection {
-            if let Some(elem) = self.elements.get_mut(index) {
-                if elem.kind == ShapeKind::Text {
-                    elem.text = text;
-                    cx.notify();
-                }
-            }
+        if let Some(index) = self.selection
+            && let Some(elem) = self.elements.get_mut(index)
+            && elem.kind == ShapeKind::Text
+        {
+            elem.text = text;
+            cx.notify();
         }
     }
 
@@ -1355,22 +1354,21 @@ fn style_panel(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> Div {
             ),
     );
 
-    if let Some(index) = this.selection {
-        if let Some(elem) = this.elements.get(index) {
-            if elem.kind == ShapeKind::Text {
-                panel = panel.child(div().text_xs().font_semibold().child("文本"));
-                panel = panel.child(Input::new(&this.text_edit_state));
-                panel = panel.child(
-                    Button::new("update-text")
-                        .small()
-                        .primary()
-                        .label("更新文本")
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            this.update_selected_text(cx);
-                        })),
-                );
-            }
-        }
+    if let Some(index) = this.selection
+        && let Some(elem) = this.elements.get(index)
+        && elem.kind == ShapeKind::Text
+    {
+        panel = panel.child(div().text_xs().font_semibold().child("文本"));
+        panel = panel.child(Input::new(&this.text_edit_state));
+        panel = panel.child(
+            Button::new("update-text")
+                .small()
+                .primary()
+                .label("更新文本")
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.update_selected_text(cx);
+                })),
+        );
     }
 
     panel
@@ -1467,8 +1465,7 @@ fn canvas_container(this: &ExcalidrawView, cx: &mut Context<ExcalidrawView>) -> 
         .children(
             text_overlays
                 .into_iter()
-                .enumerate()
-                .map(|(_i, (x, y, _w, _h, text, color))| {
+                .map(|(x, y, _w, _h, text, color)| {
                     let hsla_color = hsla(color[0], color[1], color[2], color[3]);
                     div()
                         .absolute()
@@ -1703,7 +1700,7 @@ fn element_to_svg(elem: &ExcalidrawElement) -> String {
         "none".to_string()
     };
     let dash_attr = match elem.stroke_style {
-        StrokeStyleKind::Dashed => format!(" stroke-dasharray=\"6,4\""),
+        StrokeStyleKind::Dashed => " stroke-dasharray=\"6,4\"".to_string(),
         StrokeStyleKind::Solid => String::new(),
     };
     match elem.kind {
@@ -1943,10 +1940,10 @@ fn draw_element_into(
             if let Some(path) = line_path(e.x, e.y, x2, y2) {
                 pm.stroke_path(&path, &stroke_paint, &stroke, transform, None);
             }
-            if e.kind == ShapeKind::Arrow {
-                if let Some(arrow) = arrow_head_path(e.x, e.y, x2, y2) {
-                    pm.stroke_path(&arrow, &stroke_paint, &stroke, transform, None);
-                }
+            if e.kind == ShapeKind::Arrow
+                && let Some(arrow) = arrow_head_path(e.x, e.y, x2, y2)
+            {
+                pm.stroke_path(&arrow, &stroke_paint, &stroke, transform, None);
             }
         }
         ShapeKind::Freedraw => {
@@ -2102,7 +2099,7 @@ fn doc_load_dialog_content(
                                     let window_handle = window.window_handle();
                                     let _ = window_handle.update(cx, move |_, window, cx| {
                                         if let Some(target) = target.upgrade() {
-                                            let _ = target.update(cx, |this, cx| {
+                                            target.update(cx, |this, cx| {
                                                 this.apply_doc(
                                                     elements_json.clone(),
                                                     name.clone(),
@@ -2125,7 +2122,7 @@ fn doc_load_dialog_content(
                                     let window_handle = window.window_handle();
                                     let _ = window_handle.update(cx, move |_, _window, cx| {
                                         if let Some(target) = target.upgrade() {
-                                            let _ = target.update(cx, |this, cx| {
+                                            target.update(cx, |this, cx| {
                                                 this.delete_doc(name.clone(), cx);
                                             });
                                         }

@@ -191,9 +191,7 @@ pub fn process_lineage(pid: u32) -> ProcessLineage {
             .processes()
             .values()
             .filter(|p| {
-                p.pid() != target_pid
-                    && p.thread_kind().is_none()
-                    && p.parent() == Some(target_pid)
+                p.pid() != target_pid && p.thread_kind().is_none() && p.parent() == Some(target_pid)
             })
             .map(|p| node_of(p, &users, false))
             .collect();
@@ -319,14 +317,10 @@ fn detect_source(
     let cgroup = read_cgroup(pid);
     let units = cgroup.as_deref().map(unit_chain).unwrap_or_default();
 
-    if let Some(container) = units
-        .iter()
-        .rev()
-        .find(|u| {
-            let lower = u.to_lowercase();
-            CONTAINER_TOKENS.iter().any(|t| lower.contains(t))
-        })
-    {
+    if let Some(container) = units.iter().rev().find(|u| {
+        let lower = u.to_lowercase();
+        CONTAINER_TOKENS.iter().any(|t| lower.contains(t))
+    }) {
         return LineageSource {
             kind: "container".to_string(),
             title: "容器".to_string(),
@@ -368,16 +362,12 @@ fn detect_source(
         };
     }
 
-    if let Some(terminal) = units
-        .iter()
-        .rev()
-        .find(|u| {
-            u.ends_with(".scope") && {
-                let lower = u.to_lowercase();
-                TERMINALS.iter().any(|t| lower.contains(t))
-            }
-        })
-    {
+    if let Some(terminal) = units.iter().rev().find(|u| {
+        u.ends_with(".scope") && {
+            let lower = u.to_lowercase();
+            TERMINALS.iter().any(|t| lower.contains(t))
+        }
+    }) {
         return LineageSource {
             kind: "terminal".to_string(),
             title: "终端会话".to_string(),
@@ -422,7 +412,10 @@ fn detect_source(
             title: "定时任务".to_string(),
             summary: format!("由 {} 的调度触发", cron.name),
             supervisor: "由 cron 触发启动，任务结束后进程自行退出".to_string(),
-            details: vec![field("调度进程", format!("{} (PID {})", cron.name, cron.pid))],
+            details: vec![field(
+                "调度进程",
+                format!("{} (PID {})", cron.name, cron.pid),
+            )],
         };
     }
 
@@ -479,7 +472,10 @@ fn detect_source(
             summary: format!("由图形会话 {} (PID {}) 启动", desktop.name, desktop.pid),
             supervisor: "随图形会话退出而结束".to_string(),
             details: vec![
-                field("桌面进程", format!("{} (PID {})", desktop.name, desktop.pid)),
+                field(
+                    "桌面进程",
+                    format!("{} (PID {})", desktop.name, desktop.pid),
+                ),
                 field(
                     "控制组",
                     cgroup.clone().unwrap_or_else(|| "不可读".to_string()),
@@ -501,7 +497,10 @@ fn detect_source(
                 field("断链 PID", broken_at.unwrap_or_default().to_string()),
                 field(
                     "现有父进程",
-                    target.ppid.map(|p| p.to_string()).unwrap_or_else(|| "无".to_string()),
+                    target
+                        .ppid
+                        .map(|p| p.to_string())
+                        .unwrap_or_else(|| "无".to_string()),
                 ),
             ],
         };
@@ -519,7 +518,10 @@ fn detect_source(
                 supervisor: "无人监管，原始父进程退出后由 init 收养".to_string(),
                 details: vec![
                     field("收养者", format!("{} (PID 1)", parent.name)),
-                    field("含义", "进程已 daemon 化，或启动它的会话已经结束".to_string()),
+                    field(
+                        "含义",
+                        "进程已 daemon 化，或启动它的会话已经结束".to_string(),
+                    ),
                 ],
             };
         }
@@ -528,7 +530,10 @@ fn detect_source(
             title: "父进程".to_string(),
             summary: format!("由 {} (PID {}) 直接启动", parent.name, parent.pid),
             supervisor: "父进程退出后本进程会成为孤儿并被 init 收养".to_string(),
-            details: vec![field("父进程", format!("{} (PID {})", parent.name, parent.pid))],
+            details: vec![field(
+                "父进程",
+                format!("{} (PID {})", parent.name, parent.pid),
+            )],
         };
     }
 
@@ -576,10 +581,7 @@ fn collect_details(pid: u32, target: &LineageNode) -> Vec<LineageField> {
         field("状态", target.status.clone()),
     ]
     .into_iter()
-    .chain(
-        read_link(&format!("/proc/{pid}/root"))
-            .map(|root| field("根目录", root)),
-    )
+    .chain(read_link(&format!("/proc/{pid}/root")).map(|root| field("根目录", root)))
     .collect()
 }
 
@@ -728,7 +730,10 @@ fn collect_warnings(lineage: &ProcessLineage) -> Vec<LineageWarning> {
     }
 
     if lineage.broken_at.is_some() && lineage.source.kind != "unknown" {
-        out.push(warn("warning", "父进程链在追溯过程中断裂，完整启动来源不可得"));
+        out.push(warn(
+            "warning",
+            "父进程链在追溯过程中断裂，完整启动来源不可得",
+        ));
     }
 
     let resident = lineage
@@ -1070,6 +1075,7 @@ fn status_label(status: ProcessStatus) -> String {
         ProcessStatus::Parked => "已挂起",
         ProcessStatus::LockBlocked => "等待内核锁",
         ProcessStatus::UninterruptibleDiskSleep => "不可中断等待",
+        ProcessStatus::Suspended => "已暂停",
         ProcessStatus::Unknown(_) => "未知",
     }
     .to_string()

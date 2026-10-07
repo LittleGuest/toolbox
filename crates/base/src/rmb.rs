@@ -122,18 +122,18 @@ pub fn amount_to_upper(
     } else if jiao == 0 {
         out.push_str(zero);
         out.push_str(UPPER_DIGITS[fen]);
-        out.push_str("分");
+        out.push('分');
     } else if fen == 0 {
         out.push_str(UPPER_DIGITS[jiao]);
-        out.push_str("角");
+        out.push('角');
         if jiao_zheng {
             out.push_str(zheng);
         }
     } else {
         out.push_str(UPPER_DIGITS[jiao]);
-        out.push_str("角");
+        out.push('角');
         out.push_str(UPPER_DIGITS[fen]);
-        out.push_str("分");
+        out.push('分');
     }
 
     Ok(out)
@@ -399,7 +399,7 @@ fn group_thousands(amount: &str) -> String {
     let chars: Vec<char> = int_part.chars().collect();
     let mut grouped = String::new();
     for (index, ch) in chars.iter().enumerate() {
-        if index > 0 && (chars.len() - index) % 3 == 0 {
+        if index > 0 && (chars.len() - index).is_multiple_of(3) {
             grouped.push(',');
         }
         grouped.push(*ch);

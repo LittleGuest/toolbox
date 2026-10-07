@@ -19,7 +19,7 @@ fn file_name(path: &str) -> String {
         .to_string()
 }
 
-fn status_line(success: &str, error: &str, cx: &App) -> Div {
+fn status_line(success: &str, error: &str, _cx: &App) -> Div {
     if !error.is_empty() {
         div()
             .text_size(px(12.5))
@@ -1074,7 +1074,7 @@ impl Render for PdfEditTool {
 impl PdfEditTool {
     fn pick_input_handler()
     -> impl Fn(&mut Self, &ClickEvent, &mut Window, &mut Context<Self>) + 'static {
-        |this, _e, _w, cx| {
+        |_this, _e, _w, cx| {
             let task = cx.background_executor().spawn(pick_pdf_file());
             cx.spawn(async move |this: WeakEntity<Self>, cx| {
                 if let Some(path) = task.await {
@@ -1150,11 +1150,11 @@ impl PdfPageNumberTool {
             &position_state,
             window,
             move |this, _, ev: &SelectEvent<Vec<String>>, _, cx| {
-                if let SelectEvent::Confirm(Some(label)) = ev {
-                    if let Some((_, value)) = POSITIONS.iter().find(|(l, _)| l == label) {
-                        this.position = value;
-                        cx.notify();
-                    }
+                if let SelectEvent::Confirm(Some(label)) = ev
+                    && let Some((_, value)) = POSITIONS.iter().find(|(l, _)| l == label)
+                {
+                    this.position = value;
+                    cx.notify();
                 }
             },
         )];
@@ -1556,7 +1556,7 @@ fn pn_label(text: &'static str) -> Div {
 impl PdfPageNumberTool {
     fn pick_input_handler()
     -> impl Fn(&mut Self, &ClickEvent, &mut Window, &mut Context<Self>) + 'static {
-        |this, _e, _w, cx| {
+        |_this, _e, _w, cx| {
             let task = cx.background_executor().spawn(pick_pdf_file());
             cx.spawn(async move |this: WeakEntity<Self>, cx| {
                 if let Some(path) = task.await {
@@ -1844,7 +1844,7 @@ impl Render for PdfSplitTool {
 impl PdfSplitTool {
     fn pick_input_handler()
     -> impl Fn(&mut Self, &ClickEvent, &mut Window, &mut Context<Self>) + 'static {
-        |this, _e, _w, cx| {
+        |_this, _e, _w, cx| {
             let task = cx.background_executor().spawn(pick_pdf_file());
             cx.spawn(async move |this: WeakEntity<Self>, cx| {
                 if let Some(path) = task.await {

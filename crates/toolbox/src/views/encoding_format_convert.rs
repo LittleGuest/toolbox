@@ -245,22 +245,22 @@ impl EncodingFormatConvert {
     }
 
     fn paste_input(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                self.input = text.clone();
-                Self::set_textarea(&self.input_state, text, window, cx);
-                cx.notify();
-            }
+        if let Some(item) = cx.read_from_clipboard()
+            && let Some(text) = item.text()
+        {
+            self.input = text.clone();
+            Self::set_textarea(&self.input_state, text, window, cx);
+            cx.notify();
         }
     }
 
     fn paste_output(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                self.output = text.clone();
-                Self::set_textarea(&self.output_state, text, window, cx);
-                cx.notify();
-            }
+        if let Some(item) = cx.read_from_clipboard()
+            && let Some(text) = item.text()
+        {
+            self.output = text.clone();
+            Self::set_textarea(&self.output_state, text, window, cx);
+            cx.notify();
         }
     }
 }

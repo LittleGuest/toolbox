@@ -8,7 +8,7 @@ use gpui_kit::{
     prelude::FluentBuilder as _,
     *,
 };
-use rand::Rng;
+use rand::RngExt as _;
 
 type Rgb = (u8, u8, u8);
 

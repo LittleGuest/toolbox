@@ -1,7 +1,4 @@
-use aes::cipher::{
-    BlockDecryptMut, BlockEncryptMut, KeyInit, KeyIvInit, block_padding::Pkcs7,
-    generic_array::GenericArray,
-};
+use aes::cipher::{BlockModeDecrypt, BlockModeEncrypt, KeyInit, KeyIvInit, block_padding::Pkcs7};
 use data_encoding::{BASE64, HEXLOWER, HEXLOWER_PERMISSIVE};
 use gpui_kit::{
     component::{
@@ -15,6 +12,9 @@ use gpui_kit::{
 };
 
 const FORMAT_OPTIONS: [&str; 2] = ["Base64", "Hex"];
+
+const KEY_LEN_ERR: &str = "密钥或 IV 长度无效";
+const UNPAD_ERR: &str = "解密失败，请检查密钥、IV 或密文格式";
 
 pub struct SymmetricEncryptor {
     algorithm: String,
@@ -109,7 +109,7 @@ fn rabbit_setup(key16: &[u8; 16]) -> ([u32; 8], [u32; 8], u32) {
         let lo = key16[15 - 2 * j] as u16;
         (hi << 8) | lo
     };
-    let ksub: Vec<u16> = (0..8).map(|j| k(j)).collect();
+    let ksub: Vec<u16> = (0..8).map(k).collect();
     let hi = |i: usize| (ksub[i] as u32) << 16;
     let lo = |i: usize| ksub[i] as u32;
 
@@ -313,78 +313,63 @@ impl SymmetricEncryptor {
         let plain = self.plain.as_bytes();
         match self.algorithm.as_str() {
             "AES" => {
-                let n = self.key.as_bytes().len();
+                let n = self.key.len();
                 let key16 = fit_bytes(&self.key, 16);
                 let key24 = fit_bytes(&self.key, 24);
                 let key32 = fit_bytes(&self.key, 32);
                 if self.mode == "CBC" {
-                    let iv_buf = fit_bytes(&self.iv, 16);
-                    let iv = GenericArray::from_slice(&iv_buf);
+                    let iv = fit_bytes(&self.iv, 16);
                     if n <= 16 {
-                        Ok(
-                            cbc::Encryptor::<aes::Aes128>::new(
-                                GenericArray::from_slice(&key16),
-                                iv,
-                            )
-                            .encrypt_padded_vec_mut::<Pkcs7>(plain),
-                        )
+                        Ok(cbc::Encryptor::<aes::Aes128>::new_from_slices(&key16, &iv)
+                            .map_err(|_| KEY_LEN_ERR.to_string())?
+                            .encrypt_padded_vec::<Pkcs7>(plain))
                     } else if n <= 24 {
-                        Ok(
-                            cbc::Encryptor::<aes::Aes192>::new(
-                                GenericArray::from_slice(&key24),
-                                iv,
-                            )
-                            .encrypt_padded_vec_mut::<Pkcs7>(plain),
-                        )
+                        Ok(cbc::Encryptor::<aes::Aes192>::new_from_slices(&key24, &iv)
+                            .map_err(|_| KEY_LEN_ERR.to_string())?
+                            .encrypt_padded_vec::<Pkcs7>(plain))
                     } else {
-                        Ok(
-                            cbc::Encryptor::<aes::Aes256>::new(
-                                GenericArray::from_slice(&key32),
-                                iv,
-                            )
-                            .encrypt_padded_vec_mut::<Pkcs7>(plain),
-                        )
+                        Ok(cbc::Encryptor::<aes::Aes256>::new_from_slices(&key32, &iv)
+                            .map_err(|_| KEY_LEN_ERR.to_string())?
+                            .encrypt_padded_vec::<Pkcs7>(plain))
                     }
                 } else if n <= 16 {
-                    Ok(
-                        ecb::Encryptor::<aes::Aes128>::new(GenericArray::from_slice(&key16))
-                            .encrypt_padded_vec_mut::<Pkcs7>(plain),
-                    )
+                    Ok(ecb::Encryptor::<aes::Aes128>::new_from_slice(&key16)
+                        .map_err(|_| KEY_LEN_ERR.to_string())?
+                        .encrypt_padded_vec::<Pkcs7>(plain))
                 } else if n <= 24 {
-                    Ok(
-                        ecb::Encryptor::<aes::Aes192>::new(GenericArray::from_slice(&key24))
-                            .encrypt_padded_vec_mut::<Pkcs7>(plain),
-                    )
+                    Ok(ecb::Encryptor::<aes::Aes192>::new_from_slice(&key24)
+                        .map_err(|_| KEY_LEN_ERR.to_string())?
+                        .encrypt_padded_vec::<Pkcs7>(plain))
                 } else {
-                    Ok(
-                        ecb::Encryptor::<aes::Aes256>::new(GenericArray::from_slice(&key32))
-                            .encrypt_padded_vec_mut::<Pkcs7>(plain),
-                    )
+                    Ok(ecb::Encryptor::<aes::Aes256>::new_from_slice(&key32)
+                        .map_err(|_| KEY_LEN_ERR.to_string())?
+                        .encrypt_padded_vec::<Pkcs7>(plain))
                 }
             }
             "DES" => {
-                let key_buf = fit_bytes(&self.key, 8);
-                let key = GenericArray::from_slice(&key_buf);
+                let key = fit_bytes(&self.key, 8);
                 if self.mode == "CBC" {
-                    let iv_buf = fit_bytes(&self.iv, 8);
-                    let iv = GenericArray::from_slice(&iv_buf);
-                    Ok(cbc::Encryptor::<des::Des>::new(key, iv)
-                        .encrypt_padded_vec_mut::<Pkcs7>(plain))
+                    let iv = fit_bytes(&self.iv, 8);
+                    Ok(cbc::Encryptor::<des::Des>::new_from_slices(&key, &iv)
+                        .map_err(|_| KEY_LEN_ERR.to_string())?
+                        .encrypt_padded_vec::<Pkcs7>(plain))
                 } else {
-                    Ok(ecb::Encryptor::<des::Des>::new(key).encrypt_padded_vec_mut::<Pkcs7>(plain))
+                    Ok(ecb::Encryptor::<des::Des>::new_from_slice(&key)
+                        .map_err(|_| KEY_LEN_ERR.to_string())?
+                        .encrypt_padded_vec::<Pkcs7>(plain))
                 }
             }
             "TripleDES" => {
-                let key_buf = fit_bytes(&self.key, 24);
-                let key = GenericArray::from_slice(&key_buf);
+                let key = fit_bytes(&self.key, 24);
                 if self.mode == "CBC" {
-                    let iv_buf = fit_bytes(&self.iv, 8);
-                    let iv = GenericArray::from_slice(&iv_buf);
-                    Ok(cbc::Encryptor::<des::TdesEde3>::new(key, iv)
-                        .encrypt_padded_vec_mut::<Pkcs7>(plain))
+                    let iv = fit_bytes(&self.iv, 8);
+                    Ok(cbc::Encryptor::<des::TdesEde3>::new_from_slices(&key, &iv)
+                        .map_err(|_| KEY_LEN_ERR.to_string())?
+                        .encrypt_padded_vec::<Pkcs7>(plain))
                 } else {
-                    Ok(ecb::Encryptor::<des::TdesEde3>::new(key)
-                        .encrypt_padded_vec_mut::<Pkcs7>(plain))
+                    Ok(ecb::Encryptor::<des::TdesEde3>::new_from_slice(&key)
+                        .map_err(|_| KEY_LEN_ERR.to_string())?
+                        .encrypt_padded_vec::<Pkcs7>(plain))
                 }
             }
             "RC4" => Ok(rc4_apply(self.key.as_bytes(), plain)),
@@ -396,59 +381,67 @@ impl SymmetricEncryptor {
     fn decrypt_data(&self, ct: &[u8]) -> Result<Vec<u8>, String> {
         match self.algorithm.as_str() {
             "AES" => {
-                let n = self.key.as_bytes().len();
+                let n = self.key.len();
                 let key16 = fit_bytes(&self.key, 16);
                 let key24 = fit_bytes(&self.key, 24);
                 let key32 = fit_bytes(&self.key, 32);
-                if self.mode == "CBC" {
-                    let iv_buf = fit_bytes(&self.iv, 16);
-                    let iv = GenericArray::from_slice(&iv_buf);
+                let plain = if self.mode == "CBC" {
+                    let iv = fit_bytes(&self.iv, 16);
                     if n <= 16 {
-                        cbc::Decryptor::<aes::Aes128>::new(GenericArray::from_slice(&key16), iv)
-                            .decrypt_padded_vec_mut::<Pkcs7>(ct)
+                        cbc::Decryptor::<aes::Aes128>::new_from_slices(&key16, &iv)
+                            .map_err(|_| KEY_LEN_ERR.to_string())?
+                            .decrypt_padded_vec::<Pkcs7>(ct)
                     } else if n <= 24 {
-                        cbc::Decryptor::<aes::Aes192>::new(GenericArray::from_slice(&key24), iv)
-                            .decrypt_padded_vec_mut::<Pkcs7>(ct)
+                        cbc::Decryptor::<aes::Aes192>::new_from_slices(&key24, &iv)
+                            .map_err(|_| KEY_LEN_ERR.to_string())?
+                            .decrypt_padded_vec::<Pkcs7>(ct)
                     } else {
-                        cbc::Decryptor::<aes::Aes256>::new(GenericArray::from_slice(&key32), iv)
-                            .decrypt_padded_vec_mut::<Pkcs7>(ct)
+                        cbc::Decryptor::<aes::Aes256>::new_from_slices(&key32, &iv)
+                            .map_err(|_| KEY_LEN_ERR.to_string())?
+                            .decrypt_padded_vec::<Pkcs7>(ct)
                     }
                 } else if n <= 16 {
-                    ecb::Decryptor::<aes::Aes128>::new(GenericArray::from_slice(&key16))
-                        .decrypt_padded_vec_mut::<Pkcs7>(ct)
+                    ecb::Decryptor::<aes::Aes128>::new_from_slice(&key16)
+                        .map_err(|_| KEY_LEN_ERR.to_string())?
+                        .decrypt_padded_vec::<Pkcs7>(ct)
                 } else if n <= 24 {
-                    ecb::Decryptor::<aes::Aes192>::new(GenericArray::from_slice(&key24))
-                        .decrypt_padded_vec_mut::<Pkcs7>(ct)
+                    ecb::Decryptor::<aes::Aes192>::new_from_slice(&key24)
+                        .map_err(|_| KEY_LEN_ERR.to_string())?
+                        .decrypt_padded_vec::<Pkcs7>(ct)
                 } else {
-                    ecb::Decryptor::<aes::Aes256>::new(GenericArray::from_slice(&key32))
-                        .decrypt_padded_vec_mut::<Pkcs7>(ct)
-                }
-                .map_err(|_| "解密失败，请检查密钥、IV 或密文格式".to_string())
+                    ecb::Decryptor::<aes::Aes256>::new_from_slice(&key32)
+                        .map_err(|_| KEY_LEN_ERR.to_string())?
+                        .decrypt_padded_vec::<Pkcs7>(ct)
+                };
+                plain.map_err(|_| UNPAD_ERR.to_string())
             }
             "DES" => {
-                let key_buf = fit_bytes(&self.key, 8);
-                let key = GenericArray::from_slice(&key_buf);
-                if self.mode == "CBC" {
-                    let iv_buf = fit_bytes(&self.iv, 8);
-                    let iv = GenericArray::from_slice(&iv_buf);
-                    cbc::Decryptor::<des::Des>::new(key, iv).decrypt_padded_vec_mut::<Pkcs7>(ct)
+                let key = fit_bytes(&self.key, 8);
+                let plain = if self.mode == "CBC" {
+                    let iv = fit_bytes(&self.iv, 8);
+                    cbc::Decryptor::<des::Des>::new_from_slices(&key, &iv)
+                        .map_err(|_| KEY_LEN_ERR.to_string())?
+                        .decrypt_padded_vec::<Pkcs7>(ct)
                 } else {
-                    ecb::Decryptor::<des::Des>::new(key).decrypt_padded_vec_mut::<Pkcs7>(ct)
-                }
-                .map_err(|_| "解密失败，请检查密钥、IV 或密文格式".to_string())
+                    ecb::Decryptor::<des::Des>::new_from_slice(&key)
+                        .map_err(|_| KEY_LEN_ERR.to_string())?
+                        .decrypt_padded_vec::<Pkcs7>(ct)
+                };
+                plain.map_err(|_| UNPAD_ERR.to_string())
             }
             "TripleDES" => {
-                let key_buf = fit_bytes(&self.key, 24);
-                let key = GenericArray::from_slice(&key_buf);
-                if self.mode == "CBC" {
-                    let iv_buf = fit_bytes(&self.iv, 8);
-                    let iv = GenericArray::from_slice(&iv_buf);
-                    cbc::Decryptor::<des::TdesEde3>::new(key, iv)
-                        .decrypt_padded_vec_mut::<Pkcs7>(ct)
+                let key = fit_bytes(&self.key, 24);
+                let plain = if self.mode == "CBC" {
+                    let iv = fit_bytes(&self.iv, 8);
+                    cbc::Decryptor::<des::TdesEde3>::new_from_slices(&key, &iv)
+                        .map_err(|_| KEY_LEN_ERR.to_string())?
+                        .decrypt_padded_vec::<Pkcs7>(ct)
                 } else {
-                    ecb::Decryptor::<des::TdesEde3>::new(key).decrypt_padded_vec_mut::<Pkcs7>(ct)
-                }
-                .map_err(|_| "解密失败，请检查密钥、IV 或密文格式".to_string())
+                    ecb::Decryptor::<des::TdesEde3>::new_from_slice(&key)
+                        .map_err(|_| KEY_LEN_ERR.to_string())?
+                        .decrypt_padded_vec::<Pkcs7>(ct)
+                };
+                plain.map_err(|_| UNPAD_ERR.to_string())
             }
             "RC4" => Ok(rc4_apply(self.key.as_bytes(), ct)),
             "Rabbit" => Ok(rabbit_apply(self.key.as_bytes(), ct)),
@@ -545,24 +538,24 @@ impl SymmetricEncryptor {
     }
 
     fn paste_plain(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                self.plain = text.to_string();
-                self.plain_state.update(cx, |state, cx| {
-                    state.set_value(self.plain.clone(), window, cx);
-                });
-            }
+        if let Some(item) = cx.read_from_clipboard()
+            && let Some(text) = item.text()
+        {
+            self.plain = text.to_string();
+            self.plain_state.update(cx, |state, cx| {
+                state.set_value(self.plain.clone(), window, cx);
+            });
         }
     }
 
     fn paste_cipher(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                self.cipher = text.to_string();
-                self.cipher_state.update(cx, |state, cx| {
-                    state.set_value(self.cipher.clone(), window, cx);
-                });
-            }
+        if let Some(item) = cx.read_from_clipboard()
+            && let Some(text) = item.text()
+        {
+            self.cipher = text.to_string();
+            self.cipher_state.update(cx, |state, cx| {
+                state.set_value(self.cipher.clone(), window, cx);
+            });
         }
     }
 

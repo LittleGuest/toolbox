@@ -90,7 +90,7 @@ pub fn sm4_encrypt(
                 for i in 0..16 {
                     block[i] = chunk[i] ^ prev[i];
                 }
-                let mut ga = Array::from(*&block);
+                let mut ga = Array::from(block);
                 cipher.encrypt_block(&mut ga);
                 block.copy_from_slice(&ga);
                 out.extend_from_slice(&block);
@@ -115,7 +115,7 @@ pub fn sm4_decrypt(
     iv_hex: &str,
     padding: bool,
 ) -> Result<Vec<u8>> {
-    if cipher_data.is_empty() || cipher_data.len() % 16 != 0 {
+    if cipher_data.is_empty() || !cipher_data.len().is_multiple_of(16) {
         return Err(anyhow!("密文长度必须是 16 字节的整数倍"));
     }
     let key = sm4_key(key_hex)?;
@@ -156,7 +156,7 @@ fn pad_if(data: &[u8], padding: bool) -> Vec<u8> {
     if padding {
         let pad = 16 - (v.len() % 16);
         v.resize(v.len() + pad, pad as u8);
-    } else if v.len() % 16 != 0 {
+    } else if !v.len().is_multiple_of(16) {
         v.resize(v.len() + (16 - v.len() % 16), 0);
     }
     v

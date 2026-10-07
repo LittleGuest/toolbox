@@ -6,13 +6,13 @@ use gpui_kit::{
         checkbox::Checkbox,
         input::{Input, InputEvent, InputState, NumberInput},
         scroll::ScrollableElement,
-        select::{SearchableVec, Select, SelectEvent, SelectGroup, SelectItem, SelectState},
+        select::{SearchableVec, Select, SelectEvent, SelectGroup, SelectState},
         *,
     },
     prelude::FluentBuilder as _,
     *,
 };
-use rand::Rng;
+use rand::RngExt as _;
 use sqlx::AnyPool;
 
 use crate::config_store;
@@ -31,6 +31,7 @@ enum FakerView {
     Generator,
 }
 
+#[allow(dead_code)]
 pub struct FakeDataGenerator {
     active_view: FakerView,
 
@@ -157,6 +158,7 @@ struct DatafakerDbForm {
     password: Entity<InputState>,
 }
 
+#[allow(dead_code)]
 impl FakeDataGenerator {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let driver_items = vec![
@@ -448,7 +450,7 @@ impl FakeDataGenerator {
         let form_username = self.conn_form.username.clone();
         let form_password = self.conn_form.password.clone();
 
-        window.open_sheet_at(Placement::Bottom, cx, move |sheet, _, cx| {
+        window.open_sheet_at(Placement::Bottom, cx, move |sheet, _, _cx| {
             sheet
                 .overlay(true)
                 .overlay_closable(true)
@@ -2226,7 +2228,7 @@ impl FakeDataGenerator {
             .cloned()
             .collect();
 
-        let ds_name = self
+        let _ds_name = self
             .current_datasource
             .as_ref()
             .map(|ds| ds.name.clone())
@@ -2359,7 +2361,7 @@ impl FakeDataGenerator {
                                     .warning()
                                     .icon(Icon::new(IconName::Delete))
                                     .tooltip("清空画布")
-                                    .on_click(cx.listener(|this, _, window, cx| {
+                                    .on_click(cx.listener(|_this, _, window, cx| {
                                         let weak = cx.entity().downgrade();
                                         window.open_dialog(cx, move |dialog, _, _| {
                                             dialog
@@ -2412,7 +2414,7 @@ impl FakeDataGenerator {
                                         this.run_canvas_config(cx);
                                     })),
                             )
-                            .when(self.run_logs.len() > 0 && !self.show_run_log, |el| {
+                            .when(!self.run_logs.is_empty() && !self.show_run_log, |el| {
                                 el.child(
                                     Button::new("show-run-log")
                                         .label(format!("查看日志（{}）", self.run_logs.len()))
@@ -3045,6 +3047,7 @@ async fn load_table_previews(info: DatasourceInfo) -> Result<Vec<TablePreview>, 
     Ok(tables)
 }
 
+#[allow(dead_code)]
 async fn run_fake_data_insert(
     info: DatasourceInfo,
     tables: Vec<TablePreview>,
@@ -3427,6 +3430,7 @@ fn generate_preview_value(generator: &str) -> String {
     }
 }
 
+#[allow(dead_code)]
 fn csv_escape(value: &str) -> String {
     if value.contains([',', '"', '\n']) {
         format!("\"{}\"", value.replace('"', "\"\""))
@@ -3435,6 +3439,7 @@ fn csv_escape(value: &str) -> String {
     }
 }
 
+#[allow(dead_code)]
 fn canvas_load_dialog_content(
     configs: Vec<config_store::DatafakerConfigRecord>,
     target: WeakEntity<FakeDataGenerator>,
@@ -3490,7 +3495,7 @@ fn canvas_load_dialog_content(
                                     let window_handle = window.window_handle();
                                     let _ = window_handle.update(cx, move |_, window, cx| {
                                         if let Some(target) = target.upgrade() {
-                                            let _ = target.update(cx, |this, cx| {
+                                            target.update(cx, |this, cx| {
                                                 this.apply_canvas_config(
                                                     nodes_json.clone(),
                                                     name.clone(),
@@ -3513,7 +3518,7 @@ fn canvas_load_dialog_content(
                                     let window_handle = window.window_handle();
                                     let _ = window_handle.update(cx, move |_, _window, cx| {
                                         if let Some(target) = target.upgrade() {
-                                            let _ = target.update(cx, |this, cx| {
+                                            target.update(cx, |this, cx| {
                                                 this.delete_canvas_config(name.clone(), cx);
                                             });
                                         }
@@ -3528,6 +3533,7 @@ fn canvas_load_dialog_content(
     content
 }
 
+#[allow(dead_code)]
 fn datasource_dialog_content(
     datasources: Vec<DatasourceInfo>,
     target: WeakEntity<FakeDataGenerator>,
@@ -3580,7 +3586,7 @@ fn datasource_dialog_content(
                             let window_handle = window.window_handle();
                             let _ = window_handle.update(cx, move |_, window, cx| {
                                 if let Some(target) = target.upgrade() {
-                                    let _ = target.update(cx, |this, cx| {
+                                    target.update(cx, |this, cx| {
                                         let name = info.name.clone();
                                         this.apply_datasource(info, window, cx);
                                         this.status = format!("已应用连接 {name}。");

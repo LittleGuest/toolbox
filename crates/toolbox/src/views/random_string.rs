@@ -8,7 +8,7 @@ use gpui_kit::{
     prelude::FluentBuilder as _,
     *,
 };
-use rand::Rng;
+use rand::RngExt as _;
 
 const CHARSET_LOWER: &str = "abcdefghijklmnopqrstuvwxyz";
 const CHARSET_UPPER: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";

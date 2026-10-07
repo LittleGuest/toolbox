@@ -466,6 +466,7 @@ async fn check_report(map: DashMap<String, Vec<Suggest>>) -> Result<Vec<CheckRep
 
 static REG_UPPER_CASE: LazyLock<Regex> = LazyLock::new(|| Regex::new(".*[A-Z]+.*").unwrap());
 static REG_START_WITH_NUMBER: LazyLock<Regex> = LazyLock::new(|| Regex::new("^[0-9].*").unwrap());
+#[allow(dead_code)]
 static REG_NUMBER: LazyLock<Regex> = LazyLock::new(|| Regex::new("[\\d]").unwrap());
 
 async fn check_word(
@@ -517,7 +518,9 @@ async fn collect_word(
 }
 
 static SINGULARIZE_MAP: LazyLock<DashMap<String, String>> = LazyLock::new(DashMap::new);
+#[allow(dead_code)]
 static IGNORE_SPELLING_WORD: LazyLock<Vec<String>> = LazyLock::new(Vec::new);
+#[allow(dead_code)]
 static SPELLING_MAP: LazyLock<DashMap<String, Vec<String>>> = LazyLock::new(DashMap::new);
 
 async fn check_plural_word(

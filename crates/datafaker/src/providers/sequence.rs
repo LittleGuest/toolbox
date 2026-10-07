@@ -87,16 +87,8 @@ impl Iterator for SequenceGenerator {
         }
         let mut current = self.current;
         current += self.step;
-        let max = if let Some(max) = self.max {
-            max
-        } else {
-            i64::MAX
-        };
-        let min = if let Some(min) = self.min {
-            min
-        } else {
-            i64::MIN
-        };
+        let max = self.max.unwrap_or(i64::MAX);
+        let min = self.min.unwrap_or(i64::MIN);
         if current > max && !self.cycle {
             return None;
         }

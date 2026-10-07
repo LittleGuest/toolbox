@@ -59,20 +59,20 @@ pub fn parse_bytes_from_string(input: &str, input_type: &str) -> Result<Vec<u8>>
         }
         "decimal" => {
             let parts: Vec<&str> = input
-                .split(|c| c == ' ' || c == ',' || c == ';' || c == '\n')
+                .split([' ', ',', ';', '\n'])
                 .filter(|s| !s.is_empty())
                 .collect();
             let mut bytes = Vec::new();
 
             for part in parts {
-                let byte = u8::from_str_radix(part, 10).map_err(|e| Error::msg(e.to_string()))?;
+                let byte = part.parse::<u8>().map_err(|e| Error::msg(e.to_string()))?;
                 bytes.push(byte);
             }
             Ok(bytes)
         }
         "octal" => {
             let parts: Vec<&str> = input
-                .split(|c| c == ' ' || c == ',' || c == ';' || c == '\n')
+                .split([' ', ',', ';', '\n'])
                 .filter(|s| !s.is_empty())
                 .collect();
             let mut bytes = Vec::new();
@@ -106,7 +106,7 @@ pub fn parse_bytes_from_string(input: &str, input_type: &str) -> Result<Vec<u8>>
             }
             Ok(bytes)
         }
-        "text" | _ => Ok(input.as_bytes().to_vec()),
+        _ => Ok(input.as_bytes().to_vec()),
     }
 }
 
@@ -177,7 +177,7 @@ pub fn auto_detect_charset(data: &str) -> Result<String> {
         if bytes[0] == 0xFF && bytes[1] == 0xFE {
             return Ok("UTF-16LE".to_string());
         }
-        if bytes.len() % 2 == 0 {
+        if bytes.len().is_multiple_of(2) {
             let mut has_nulls = false;
             let mut has_non_ascii = false;
 
@@ -244,12 +244,12 @@ fn is_valid_utf8(bytes: &[u8]) -> bool {
 
         if b <= 0x7F {
             i += 1;
-        } else if b >= 0xC0 && b <= 0xDF {
+        } else if (0xC0..=0xDF).contains(&b) {
             if i + 1 >= bytes.len() || (bytes[i + 1] & 0xC0) != 0x80 {
                 return false;
             }
             i += 2;
-        } else if b >= 0xE0 && b <= 0xEF {
+        } else if (0xE0..=0xEF).contains(&b) {
             if i + 2 >= bytes.len()
                 || (bytes[i + 1] & 0xC0) != 0x80
                 || (bytes[i + 2] & 0xC0) != 0x80
@@ -257,7 +257,7 @@ fn is_valid_utf8(bytes: &[u8]) -> bool {
                 return false;
             }
             i += 3;
-        } else if b >= 0xF0 && b <= 0xF7 {
+        } else if (0xF0..=0xF7).contains(&b) {
             if i + 3 >= bytes.len()
                 || (bytes[i + 1] & 0xC0) != 0x80
                 || (bytes[i + 2] & 0xC0) != 0x80
@@ -287,8 +287,8 @@ fn is_valid_gbk(bytes: &[u8]) -> bool {
 
             let b2 = bytes[i + 1];
 
-            if (b >= 0x81 && b <= 0xFE)
-                && ((b2 >= 0x40 && b2 <= 0x7E) || (b2 >= 0x80 && b2 <= 0xFE))
+            if (0x81..=0xFE).contains(&b)
+                && ((0x40..=0x7E).contains(&b2) || (0x80..=0xFE).contains(&b2))
             {
                 i += 2;
             } else {
@@ -324,7 +324,7 @@ pub fn format_as_assembly(bytes: &[u8]) -> String {
             .join(", ");
         result.push_str(&hex_part);
 
-        result.push_str(&format!("\t; "));
+        result.push_str("\t; ");
         for b in chunk {
             if b.is_ascii_graphic() || *b == b' ' {
                 result.push(*b as char);
@@ -333,7 +333,7 @@ pub fn format_as_assembly(bytes: &[u8]) -> String {
             }
         }
 
-        result.push_str("\n");
+        result.push('\n');
     }
     result
 }
@@ -377,15 +377,15 @@ pub fn recover_garbled_code(input: &str) -> Vec<RecoverGarbledCode> {
     let garbled_bytes = input.as_bytes().to_vec();
 
     for &charset in &CHARSETS {
-        if let Ok(decoded) = decode_bytes(&garbled_bytes, charset) {
-            if is_readable_text(&decoded) {
-                let exists = results
-                    .iter()
-                    .any(|(s, t, r)| s == "UTF-8" && t == charset && r == &decoded);
+        if let Ok(decoded) = decode_bytes(&garbled_bytes, charset)
+            && is_readable_text(&decoded)
+        {
+            let exists = results
+                .iter()
+                .any(|(s, t, r)| s == "UTF-8" && t == charset && r == &decoded);
 
-                if !exists {
-                    results.push(("UTF-8".to_string(), charset.to_string(), decoded));
-                }
+            if !exists {
+                results.push(("UTF-8".to_string(), charset.to_string(), decoded));
             }
         }
     }
@@ -397,63 +397,63 @@ pub fn recover_garbled_code(input: &str) -> Vec<RecoverGarbledCode> {
             }
 
             if let Ok(recovered_bytes) = encode_string(input, wrong_charset) {
-                if let Ok(decoded) = decode_bytes(&recovered_bytes, correct_charset) {
-                    if is_readable_text(&decoded) {
+                if let Ok(decoded) = decode_bytes(&recovered_bytes, correct_charset)
+                    && is_readable_text(&decoded)
+                {
+                    let exists = results.iter().any(|(s, t, r)| {
+                        s == wrong_charset && t == correct_charset && r == &decoded
+                    });
+
+                    if !exists {
+                        results.push((
+                            wrong_charset.to_string(),
+                            correct_charset.to_string(),
+                            decoded,
+                        ));
+                    }
+                }
+
+                if wrong_charset == "GBK"
+                    && correct_charset == "UTF-8"
+                    && recovered_bytes.len() > 3
+                    && recovered_bytes[0] == 0xEF
+                    && recovered_bytes[1] == 0xBB
+                    && recovered_bytes[2] == 0xBF
+                {
+                    let bytes_without_bom = &recovered_bytes[3..];
+
+                    if let Ok(decoded) = decode_bytes(bytes_without_bom, "UTF-8")
+                        && is_readable_text(&decoded)
+                    {
                         let exists = results.iter().any(|(s, t, r)| {
-                            s == wrong_charset && t == correct_charset && r == &decoded
+                            s == "GBK (without BOM)" && t == "UTF-8" && r == &decoded
                         });
 
                         if !exists {
                             results.push((
-                                wrong_charset.to_string(),
-                                correct_charset.to_string(),
+                                "GBK (without BOM)".to_string(),
+                                "UTF-8".to_string(),
                                 decoded,
                             ));
                         }
                     }
-                }
 
-                if wrong_charset == "GBK" && correct_charset == "UTF-8" {
-                    if recovered_bytes.len() > 3
-                        && recovered_bytes[0] == 0xEF
-                        && recovered_bytes[1] == 0xBB
-                        && recovered_bytes[2] == 0xBF
-                    {
-                        let bytes_without_bom = &recovered_bytes[3..];
+                    if bytes_without_bom.len() >= 3 {
+                        let fixed_bytes = try_fix_duplicate_bytes(bytes_without_bom);
 
-                        if let Ok(decoded) = decode_bytes(bytes_without_bom, "UTF-8") {
-                            if is_readable_text(&decoded) {
-                                let exists = results.iter().any(|(s, t, r)| {
-                                    s == "GBK (without BOM)" && t == "UTF-8" && r == &decoded
-                                });
+                        if let Ok(decoded) = decode_bytes(&fixed_bytes, "UTF-8")
+                            && is_readable_text(&decoded)
+                        {
+                            let exists = results.iter().any(|(s, t, r)| {
+                                s == "GBK (fixed)" && t == "UTF-8" && r == &decoded
+                            });
 
-                                if !exists {
-                                    results.push((
-                                        "GBK (without BOM)".to_string(),
-                                        "UTF-8".to_string(),
-                                        decoded,
-                                    ));
-                                }
-                            }
-                        }
-
-                        if bytes_without_bom.len() >= 3 {
-                            let fixed_bytes = try_fix_duplicate_bytes(bytes_without_bom);
-
-                            if let Ok(decoded) = decode_bytes(&fixed_bytes, "UTF-8") {
-                                if is_readable_text(&decoded) {
-                                    let exists = results.iter().any(|(s, t, r)| {
-                                        s == "GBK (fixed)" && t == "UTF-8" && r == &decoded
-                                    });
-
-                                    if !exists {
-                                        results.push((
-                                            "GBK (fixed)".to_string(),
-                                            "UTF-8".to_string(),
-                                            decoded,
-                                        ));
-                                    }
-                                }
+                            if !exists {
+                                results.push((
+                                    "GBK (fixed)".to_string(),
+                                    "UTF-8".to_string(),
+                                    decoded,
+                                ));
                             }
                         }
                     }
@@ -488,9 +488,9 @@ fn calculate_text_score(text: &str) -> f64 {
     let (readable_count, total_count) = text.chars().fold((0, 0), |(readable, total), c| {
         let is_readable = c.is_ascii_graphic()
             || c == ' '
-            || (c >= '\u{4e00}' && c <= '\u{9fa5}')
-            || (c >= '\u{3040}' && c <= '\u{309f}')
-            || (c >= '\u{30a0}' && c <= '\u{30ff}')
+            || ('\u{4e00}'..='\u{9fa5}').contains(&c)
+            || ('\u{3040}'..='\u{309f}').contains(&c)
+            || ('\u{30a0}'..='\u{30ff}').contains(&c)
             || r#"，。！？、；：''""（）》《》【】「」『』·…—￥$€£%&=+-*/|～<>{}"#.contains(c);
 
         (readable + is_readable as usize, total + 1)
@@ -531,17 +531,16 @@ fn try_fix_duplicate_bytes(bytes: &[u8]) -> Vec<u8> {
         if fixed[i] == fixed[i + 1] {
             let duplicate_byte = fixed[i];
 
-            if duplicate_byte >= 0xE0 && duplicate_byte <= 0xEF {
+            if (0xE0..=0xEF).contains(&duplicate_byte) {
                 let mut test_fixed = fixed.clone();
                 test_fixed.remove(i + 1);
 
-                if is_valid_utf8(&test_fixed) {
-                    if let Ok(decoded) = decode_bytes(&test_fixed, "UTF-8") {
-                        if is_readable_text(&decoded) {
-                            fixed = test_fixed;
-                            continue;
-                        }
-                    }
+                if is_valid_utf8(&test_fixed)
+                    && let Ok(decoded) = decode_bytes(&test_fixed, "UTF-8")
+                    && is_readable_text(&decoded)
+                {
+                    fixed = test_fixed;
+                    continue;
                 }
             }
         }
@@ -580,7 +579,7 @@ mod tests {
     #[test]
     fn test_recover_garbled_code_utf8_to_gbk() {
         let garbled = "璺极婕叾淇繙鍏紝鍚惧皢涓婁笅鑰屾眰绱€€�";
-        let results = recover_garbled_code(&garbled);
+        let results = recover_garbled_code(garbled);
         for item in &results {
             println!(
                 "{} -> {}: {}",
@@ -592,7 +591,7 @@ mod tests {
     #[test]
     fn test_recover_garbled_code_gbk_to_utf8() {
         let garbled = "·��������Զ�⣬�Ὣ���¶�������";
-        let results = recover_garbled_code(&garbled);
+        let results = recover_garbled_code(garbled);
         for item in &results {
             println!(
                 "{} -> {}: {}",

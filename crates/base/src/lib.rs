@@ -218,7 +218,7 @@ pub fn timestamp(time: Option<&str>) -> Result<HashMap<String, String>> {
     Ok(map)
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Base {
     Binary,
@@ -360,24 +360,22 @@ pub fn ip_to_number(t: &str, ip: Option<String>) -> Result<HashMap<String, Strin
                 );
             }
         }
-        "v6" => {
-            if Ipv6Addr::from_str(&ip).is_ok() {
-                let decimal = ip::ipv6_to_num(&ip)?.to_string();
-                let bn = number_base(Some(Base::Decimal), decimal.to_string())?;
-                map.insert(
-                    "binary".to_string(),
-                    bn.get("binary").unwrap_or(&String::new()).to_owned(),
-                );
-                map.insert(
-                    "octal".to_string(),
-                    bn.get("octal").unwrap_or(&String::new()).to_owned(),
-                );
-                map.insert("decimal".to_string(), decimal);
-                map.insert(
-                    "hex".to_string(),
-                    bn.get("hex").unwrap_or(&String::new()).to_owned(),
-                );
-            }
+        "v6" if Ipv6Addr::from_str(&ip).is_ok() => {
+            let decimal = ip::ipv6_to_num(&ip)?.to_string();
+            let bn = number_base(Some(Base::Decimal), decimal.to_string())?;
+            map.insert(
+                "binary".to_string(),
+                bn.get("binary").unwrap_or(&String::new()).to_owned(),
+            );
+            map.insert(
+                "octal".to_string(),
+                bn.get("octal").unwrap_or(&String::new()).to_owned(),
+            );
+            map.insert("decimal".to_string(), decimal);
+            map.insert(
+                "hex".to_string(),
+                bn.get("hex").unwrap_or(&String::new()).to_owned(),
+            );
         }
         _ => {}
     }
@@ -393,6 +391,7 @@ pub struct CharsetEncodeResult {
     pub char_count: usize,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn charset_encode(
     input: &str,
     input_type: &str,
@@ -591,11 +590,11 @@ mod new_tools_smoke {
 
     #[test]
     fn qrcode_roundtrip_through_matrix() {
-        let matrix = qrcode_generator::to_matrix_from_str(
-            "https://workbuddy.cn",
-            qrcode_generator::QrCodeEcc::Medium,
-        )
-        .unwrap();
+        use qrcode_generator::qr::{Encoder, ErrorCorrection};
+        let symbol = Encoder::new(ErrorCorrection::Medium)
+            .encode_text("https://workbuddy.cn")
+            .unwrap();
+        let matrix = symbol.to_matrix();
         let out = crate::decode_matrix(&matrix).unwrap();
         assert_eq!(out[0].content, "https://workbuddy.cn");
     }

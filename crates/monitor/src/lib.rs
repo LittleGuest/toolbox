@@ -1,13 +1,12 @@
 pub mod lineage;
 
-pub use lineage::*;
-
 use std::{
     collections::HashMap,
     sync::{Mutex, OnceLock},
 };
 
 use battery::{Battery, Manager};
+pub use lineage::*;
 use serde::Serialize;
 use sysinfo::{
     Component, Components, Disk, Disks, Process, ProcessRefreshKind, ProcessesToUpdate, System,
@@ -185,12 +184,12 @@ pub(crate) fn get_system() -> &'static Mutex<System> {
 pub fn host_info() -> HostData {
     let mut sys = get_system().lock().unwrap();
     sys.refresh_all();
-    return HostData {
+    HostData {
         hostname: System::host_name().unwrap().to_string(),
         os_version: System::os_version().unwrap().to_string(),
         kernel_version: System::kernel_version().unwrap().to_string(),
         cpu_brand: sys.cpus()[0].brand().to_string(),
-    };
+    }
 }
 
 pub fn system_info() -> SysMonitorData {
@@ -203,18 +202,18 @@ pub fn system_info() -> SysMonitorData {
         );
     }
 
-    return SysMonitorData {
+    SysMonitorData {
         host: HostData::default(),
         disks: vec![],
         sensors,
         load_avg: System::load_average().one,
-    };
+    }
 }
 
 pub fn memory_info() -> MemoryData {
     let mut sys = get_system().lock().unwrap();
     sys.refresh_memory();
-    return MemoryData::new(&sys);
+    MemoryData::new(&sys)
 }
 
 pub fn cpu_info() -> CpuData {
@@ -225,8 +224,7 @@ pub fn cpu_info() -> CpuData {
     for cpu in cpus.iter() {
         cpu_cores.push(CpuCoreData::new(cpu.cpu_usage(), cpu.frequency()));
     }
-    let cpu = CpuData::new(&sys, cpu_cores);
-    return cpu;
+    CpuData::new(&sys, cpu_cores)
 }
 
 pub fn disk_info() -> Vec<DiskData> {
@@ -235,7 +233,7 @@ pub fn disk_info() -> Vec<DiskData> {
     for disk in disks.list() {
         disk_data.push(DiskData::new(disk));
     }
-    return disk_data;
+    disk_data
 }
 
 pub fn process_info() -> Vec<ProcessData> {
@@ -247,24 +245,18 @@ pub fn process_info() -> Vec<ProcessData> {
     );
     std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
     let mut processes = vec![];
-    for (pid, process) in sys.processes() {
-        processes.push(ProcessData::new(&process));
+    for process in sys.processes().values() {
+        processes.push(ProcessData::new(process));
     }
     processes.sort_by(|a, b| b.memory.partial_cmp(&a.memory).unwrap());
-    return processes;
+    processes
 }
 
 pub fn battery_info() -> BatteryData {
     let manager = Manager::new().unwrap();
-    let mut batteries = vec![];
-    for (_, battery) in manager.batteries().unwrap().enumerate() {
-        batteries.push(BatteryData::new(&battery.unwrap()));
-        break;
-    }
-    if batteries.len() == 0 {
-        return BatteryData::default();
-    } else {
-        return batteries.pop().unwrap();
+    match manager.batteries().unwrap().next() {
+        Some(Ok(battery)) => BatteryData::new(&battery),
+        _ => BatteryData::default(),
     }
 }
 

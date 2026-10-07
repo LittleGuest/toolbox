@@ -6,7 +6,7 @@ use std::{
 };
 
 use database_core::{
-    Column, Driver, Table, database_metadata,
+    Column, Table, database_metadata,
     error::{Error, Result},
 };
 use heck::ToUpperCamelCase;
@@ -127,9 +127,8 @@ impl Generator {
 
     async fn render(&self, path: &str, tera: &mut Tera, ctx: &tera::Context) -> Result<String> {
         let template = Templates::get(path).ok_or(Error::E("模板文件不存在"))?;
-        Ok(tera
-            .render_str(str::from_utf8(template.data.as_ref()).unwrap(), ctx)
-            .map_err(|_| Error::E("模板渲染失败"))?)
+        tera.render_str(str::from_utf8(template.data.as_ref()).unwrap(), ctx, false)
+            .map_err(|_| Error::E("模板渲染失败"))
     }
 
     async fn preview(
@@ -331,6 +330,8 @@ impl Generator {
 
 #[cfg(test)]
 mod tests {
+    use database_core::Driver;
+
     use super::*;
     fn datasource_info() -> DatasourceInfo {
         DatasourceInfo {

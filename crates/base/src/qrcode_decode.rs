@@ -82,7 +82,7 @@ fn scan(img: &DynamicImage, scale: u32, invert: bool) -> Vec<QrDecodeOutput> {
     }
     let mut prepared = PreparedImage::prepare(luma);
     let grids = prepared.detect_grids();
-    grids.iter().filter_map(|g| to_output(g)).collect()
+    grids.iter().filter_map(to_output).collect()
 }
 
 fn prepare(img: &DynamicImage, scale: u32) -> image::GrayImage {

@@ -64,7 +64,7 @@ impl RmbCase {
             }),
             cx.subscribe_in(&upper_input_state, window, {
                 let upper_input_state = upper_input_state.clone();
-                move |this, _, ev: &InputEvent, window, cx| {
+                move |this, _, ev: &InputEvent, _window, cx| {
                     if let InputEvent::Change = ev {
                         this.upper_input = upper_input_state.read(cx).value().to_string();
                         this.parse_upper(cx);
@@ -185,26 +185,26 @@ impl RmbCase {
     }
 
     fn paste_amount(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                self.amount = text.to_string();
-                self.amount_state.update(cx, |state, cx| {
-                    state.set_value(text.to_string(), window, cx);
-                });
-                self.convert_to_upper(window, cx);
-            }
+        if let Some(item) = cx.read_from_clipboard()
+            && let Some(text) = item.text()
+        {
+            self.amount = text.to_string();
+            self.amount_state.update(cx, |state, cx| {
+                state.set_value(text.to_string(), window, cx);
+            });
+            self.convert_to_upper(window, cx);
         }
     }
 
     fn paste_upper(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                self.upper_input = text.to_string();
-                self.upper_input_state.update(cx, |state, cx| {
-                    state.set_value(text.to_string(), window, cx);
-                });
-                self.parse_upper(cx);
-            }
+        if let Some(item) = cx.read_from_clipboard()
+            && let Some(text) = item.text()
+        {
+            self.upper_input = text.to_string();
+            self.upper_input_state.update(cx, |state, cx| {
+                state.set_value(text.to_string(), window, cx);
+            });
+            self.parse_upper(cx);
         }
     }
 

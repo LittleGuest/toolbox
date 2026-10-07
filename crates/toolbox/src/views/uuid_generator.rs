@@ -64,11 +64,11 @@ impl UuidGenerator {
                 &version_state,
                 window,
                 move |this, _, ev: &SelectEvent<Vec<String>>, _, cx| {
-                    if let SelectEvent::Confirm(Some(label)) = ev {
-                        if let Some((_, v)) = VERSIONS.iter().find(|(l, _)| l == label) {
-                            this.version = *v;
-                            cx.notify();
-                        }
+                    if let SelectEvent::Confirm(Some(label)) = ev
+                        && let Some((_, v)) = VERSIONS.iter().find(|(l, _)| l == label)
+                    {
+                        this.version = *v;
+                        cx.notify();
                     }
                 },
             ),

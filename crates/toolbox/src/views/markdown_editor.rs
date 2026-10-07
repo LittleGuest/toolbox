@@ -24,11 +24,11 @@ pub struct MarkdownPane {
 }
 
 fn find_closing_bracket(chars: &[char], open_pos: usize) -> Option<usize> {
-    for i in (open_pos + 1)..chars.len() {
-        if chars[i] == ']' {
+    for (i, &c) in chars.iter().enumerate().skip(open_pos + 1) {
+        if c == ']' {
             return Some(i);
         }
-        if chars[i] == '[' {
+        if c == '[' {
             return None;
         }
     }
@@ -36,11 +36,11 @@ fn find_closing_bracket(chars: &[char], open_pos: usize) -> Option<usize> {
 }
 
 fn find_closing_paren(chars: &[char], open_pos: usize) -> Option<usize> {
-    for i in (open_pos + 1)..chars.len() {
-        if chars[i] == ')' {
+    for (i, &c) in chars.iter().enumerate().skip(open_pos + 1) {
+        if c == ')' {
             return Some(i);
         }
-        if chars[i] == '(' {
+        if c == '(' {
             return None;
         }
     }
@@ -69,12 +69,11 @@ fn find_closing_marker(
 }
 
 fn find_closing_backtick(chars: &[char], start: usize) -> Option<usize> {
-    for i in start..chars.len() {
-        if chars[i] == '`' {
-            return Some(i);
-        }
-    }
-    None
+    chars
+        .iter()
+        .skip(start)
+        .position(|&c| c == '`')
+        .map(|offset| start + offset)
 }
 
 impl MarkdownPane {
@@ -221,14 +220,14 @@ impl MarkdownPane {
     }
 
     fn paste(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                self.content = text.to_string();
-                self.input_state.update(cx, |state, cx| {
-                    state.set_value(text.to_string(), window, cx);
-                });
-                cx.notify();
-            }
+        if let Some(item) = cx.read_from_clipboard()
+            && let Some(text) = item.text()
+        {
+            self.content = text.to_string();
+            self.input_state.update(cx, |state, cx| {
+                state.set_value(text.to_string(), window, cx);
+            });
+            cx.notify();
         }
     }
 
@@ -418,117 +417,125 @@ impl MarkdownPane {
         let mut children: Vec<AnyElement> = Vec::new();
 
         while pos < len {
-            if chars[pos] == '!' && pos + 1 < len && chars[pos + 1] == '[' {
-                if let Some(end_bracket) = find_closing_bracket(&chars, pos + 1) {
-                    let alt_start = pos + 2;
-                    let alt: String = chars[alt_start..end_bracket].iter().collect();
-                    if end_bracket + 1 < len && chars[end_bracket + 1] == '(' {
-                        if let Some(end_paren) = find_closing_paren(&chars, end_bracket + 1) {
-                            let url: String = chars[end_bracket + 2..end_paren].iter().collect();
-                            let url_for_tooltip = url.clone();
-                            let idx = span_index;
-                            span_index += 1;
-                            children.push(
-                                div()
-                                    .id(ElementId::Name(format!("img-{idx}").into()))
-                                    .text_sm()
-                                    .text_color(theme.muted_foreground)
-                                    .child(format!("[img: {alt}]"))
-                                    .tooltip(move |_, cx| {
-                                        cx.new(|_| {
-                                            gpui_kit::component::tooltip::Tooltip::new(
-                                                url_for_tooltip.clone(),
-                                            )
-                                        })
-                                        .into()
-                                    })
-                                    .into_any_element(),
-                            );
-                            pos = end_paren + 1;
-                            continue;
-                        }
-                    }
-                }
-            }
-
-            if chars[pos] == '[' {
-                if let Some(end_bracket) = find_closing_bracket(&chars, pos) {
-                    let link_text: String = chars[pos + 1..end_bracket].iter().collect();
-                    if end_bracket + 1 < len && chars[end_bracket + 1] == '(' {
-                        if let Some(end_paren) = find_closing_paren(&chars, end_bracket + 1) {
-                            let url: String = chars[end_bracket + 2..end_paren].iter().collect();
-                            let url_for_tooltip = url.clone();
-                            let idx = span_index;
-                            span_index += 1;
-                            children.push(
-                                div()
-                                    .id(ElementId::Name(format!("link-{idx}").into()))
-                                    .flex()
-                                    .text_color(theme.primary)
-                                    .underline()
-                                    .child(link_text)
-                                    .tooltip(move |_, cx| {
-                                        cx.new(|_| {
-                                            gpui_kit::component::tooltip::Tooltip::new(
-                                                url_for_tooltip.clone(),
-                                            )
-                                        })
-                                        .into()
-                                    })
-                                    .into_any_element(),
-                            );
-                            pos = end_paren + 1;
-                            continue;
-                        }
-                    }
-                }
-            }
-
-            if chars[pos] == '*' && pos + 1 < len && chars[pos + 1] == '*' {
-                if let Some(end) = find_closing_marker(&chars, pos + 2, '*', '*') {
-                    let bold_text: String = chars[pos + 2..end].iter().collect();
-                    children.push(div().font_bold().child(bold_text).into_any_element());
-                    pos = end + 2;
-                    continue;
-                }
-            }
-
-            if chars[pos] == '*' {
-                if let Some(end) = find_closing_marker(&chars, pos + 1, '*', None) {
-                    let italic_text: String = chars[pos + 1..end].iter().collect();
-                    children.push(div().italic().child(italic_text).into_any_element());
-                    pos = end + 1;
-                    continue;
-                }
-            }
-
-            if chars[pos] == '~' && pos + 1 < len && chars[pos + 1] == '~' {
-                if let Some(end) = find_closing_marker(&chars, pos + 2, '~', '~') {
-                    let strike_text: String = chars[pos + 2..end].iter().collect();
-                    children.push(div().line_through().child(strike_text).into_any_element());
-                    pos = end + 2;
-                    continue;
-                }
-            }
-
-            if chars[pos] == '`' {
-                if let Some(end) = find_closing_backtick(&chars, pos + 1) {
-                    let code_text: String = chars[pos + 1..end].iter().collect();
-                    let muted = theme.muted;
+            if chars[pos] == '!'
+                && pos + 1 < len
+                && chars[pos + 1] == '['
+                && let Some(end_bracket) = find_closing_bracket(&chars, pos + 1)
+            {
+                let alt_start = pos + 2;
+                let alt: String = chars[alt_start..end_bracket].iter().collect();
+                if end_bracket + 1 < len
+                    && chars[end_bracket + 1] == '('
+                    && let Some(end_paren) = find_closing_paren(&chars, end_bracket + 1)
+                {
+                    let url: String = chars[end_bracket + 2..end_paren].iter().collect();
+                    let url_for_tooltip = url.clone();
+                    let idx = span_index;
+                    span_index += 1;
                     children.push(
                         div()
-                            .flex()
-                            .font_family("monospace")
+                            .id(ElementId::Name(format!("img-{idx}").into()))
                             .text_sm()
-                            .bg(muted)
-                            .rounded_sm()
-                            .px_1()
-                            .child(code_text)
+                            .text_color(theme.muted_foreground)
+                            .child(format!("[img: {alt}]"))
+                            .tooltip(move |_, cx| {
+                                cx.new(|_| {
+                                    gpui_kit::component::tooltip::Tooltip::new(
+                                        url_for_tooltip.clone(),
+                                    )
+                                })
+                                .into()
+                            })
                             .into_any_element(),
                     );
-                    pos = end + 1;
+                    pos = end_paren + 1;
                     continue;
                 }
+            }
+
+            if chars[pos] == '['
+                && let Some(end_bracket) = find_closing_bracket(&chars, pos)
+            {
+                let link_text: String = chars[pos + 1..end_bracket].iter().collect();
+                if end_bracket + 1 < len
+                    && chars[end_bracket + 1] == '('
+                    && let Some(end_paren) = find_closing_paren(&chars, end_bracket + 1)
+                {
+                    let url: String = chars[end_bracket + 2..end_paren].iter().collect();
+                    let url_for_tooltip = url.clone();
+                    let idx = span_index;
+                    span_index += 1;
+                    children.push(
+                        div()
+                            .id(ElementId::Name(format!("link-{idx}").into()))
+                            .flex()
+                            .text_color(theme.primary)
+                            .underline()
+                            .child(link_text)
+                            .tooltip(move |_, cx| {
+                                cx.new(|_| {
+                                    gpui_kit::component::tooltip::Tooltip::new(
+                                        url_for_tooltip.clone(),
+                                    )
+                                })
+                                .into()
+                            })
+                            .into_any_element(),
+                    );
+                    pos = end_paren + 1;
+                    continue;
+                }
+            }
+
+            if chars[pos] == '*'
+                && pos + 1 < len
+                && chars[pos + 1] == '*'
+                && let Some(end) = find_closing_marker(&chars, pos + 2, '*', '*')
+            {
+                let bold_text: String = chars[pos + 2..end].iter().collect();
+                children.push(div().font_bold().child(bold_text).into_any_element());
+                pos = end + 2;
+                continue;
+            }
+
+            if chars[pos] == '*'
+                && let Some(end) = find_closing_marker(&chars, pos + 1, '*', None)
+            {
+                let italic_text: String = chars[pos + 1..end].iter().collect();
+                children.push(div().italic().child(italic_text).into_any_element());
+                pos = end + 1;
+                continue;
+            }
+
+            if chars[pos] == '~'
+                && pos + 1 < len
+                && chars[pos + 1] == '~'
+                && let Some(end) = find_closing_marker(&chars, pos + 2, '~', '~')
+            {
+                let strike_text: String = chars[pos + 2..end].iter().collect();
+                children.push(div().line_through().child(strike_text).into_any_element());
+                pos = end + 2;
+                continue;
+            }
+
+            if chars[pos] == '`'
+                && let Some(end) = find_closing_backtick(&chars, pos + 1)
+            {
+                let code_text: String = chars[pos + 1..end].iter().collect();
+                let muted = theme.muted;
+                children.push(
+                    div()
+                        .flex()
+                        .font_family("monospace")
+                        .text_sm()
+                        .bg(muted)
+                        .rounded_sm()
+                        .px_1()
+                        .child(code_text)
+                        .into_any_element(),
+                );
+                pos = end + 1;
+                continue;
             }
 
             let start = pos;

@@ -218,7 +218,7 @@ mod tests {
     fn test_random_digit_not_zero() {
         let mut provider = Number::default();
         let digit = provider.random_digit_not_zero();
-        assert!(digit >= 1 && digit <= 9);
+        assert!((1..=9).contains(&digit));
     }
 
     #[test]
@@ -239,10 +239,10 @@ mod tests {
     fn test_number_between_i32() {
         let mut provider = Number::default();
         let num = provider.number_between_i32(5, 10);
-        assert!(num >= 5 && num < 10);
+        assert!((5..10).contains(&num));
 
         let num = provider.number_between_i32(10, 5);
-        assert!(num >= 5 && num < 10);
+        assert!((5..10).contains(&num));
 
         let num = provider.number_between_i32(7, 7);
         assert_eq!(num, 7);
@@ -252,14 +252,14 @@ mod tests {
     fn test_number_between_i64() {
         let mut provider = Number::default();
         let num = provider.number_between_i64(100, 200);
-        assert!(num >= 100 && num < 200);
+        assert!((100..200).contains(&num));
     }
 
     #[test]
     fn test_random_number() {
         let mut provider = Number::default();
         let num = provider.random_number(3);
-        assert!(num >= 100 && num < 1000);
+        assert!((100..1000).contains(&num));
     }
 
     #[test]

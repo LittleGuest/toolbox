@@ -65,11 +65,11 @@ impl FileVerify {
                 &algorithm_state,
                 window,
                 move |this, _, ev: &SelectEvent<Vec<String>>, _, cx| {
-                    if let SelectEvent::Confirm(Some(label)) = ev {
-                        if let Some((_, v)) = ALGORITHMS.iter().find(|(l, _)| l == label) {
-                            this.algorithm = v.to_string();
-                            cx.notify();
-                        }
+                    if let SelectEvent::Confirm(Some(label)) = ev
+                        && let Some((_, v)) = ALGORITHMS.iter().find(|(l, _)| l == label)
+                    {
+                        this.algorithm = v.to_string();
+                        cx.notify();
                     }
                 },
             ),
@@ -151,14 +151,14 @@ impl FileVerify {
     }
 
     fn paste_valid_value(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                self.valid_value = text.trim().to_string();
-                self.valid_value_state.update(cx, |state, cx| {
-                    state.set_value(self.valid_value.clone(), window, cx);
-                });
-                cx.notify();
-            }
+        if let Some(item) = cx.read_from_clipboard()
+            && let Some(text) = item.text()
+        {
+            self.valid_value = text.trim().to_string();
+            self.valid_value_state.update(cx, |state, cx| {
+                state.set_value(self.valid_value.clone(), window, cx);
+            });
+            cx.notify();
         }
     }
 

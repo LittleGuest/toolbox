@@ -106,15 +106,15 @@ impl XmlFormatter {
         while let Some(c) = chars.next() {
             if in_cdata {
                 text_buffer.push(c);
-                if c == ']' {
-                    if let Some(&']') = chars.peek() {
+                if c == ']'
+                    && let Some(&']') = chars.peek()
+                {
+                    chars.next();
+                    text_buffer.push(']');
+                    if let Some(&'>') = chars.peek() {
                         chars.next();
-                        text_buffer.push(']');
-                        if let Some(&'>') = chars.peek() {
-                            chars.next();
-                            text_buffer.push('>');
-                            in_cdata = false;
-                        }
+                        text_buffer.push('>');
+                        in_cdata = false;
                     }
                 }
                 continue;
@@ -122,15 +122,15 @@ impl XmlFormatter {
 
             if in_comment {
                 text_buffer.push(c);
-                if c == '-' {
-                    if let Some(&'-') = chars.peek() {
+                if c == '-'
+                    && let Some(&'-') = chars.peek()
+                {
+                    chars.next();
+                    text_buffer.push('-');
+                    if let Some(&'>') = chars.peek() {
                         chars.next();
-                        text_buffer.push('-');
-                        if let Some(&'>') = chars.peek() {
-                            chars.next();
-                            text_buffer.push('>');
-                            in_comment = false;
-                        }
+                        text_buffer.push('>');
+                        in_comment = false;
                     }
                 }
                 continue;
@@ -215,6 +215,7 @@ impl XmlFormatter {
         result.trim_end().to_string() + "\n"
     }
 
+    #[allow(dead_code)]
     fn clear(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.input.clear();
         self.input_state.update(cx, |state, cx| {
@@ -223,13 +224,13 @@ impl XmlFormatter {
     }
 
     fn paste(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                self.input = text.to_string();
-                self.input_state.update(cx, |state, cx| {
-                    state.set_value(text.to_string(), window, cx);
-                });
-            }
+        if let Some(item) = cx.read_from_clipboard()
+            && let Some(text) = item.text()
+        {
+            self.input = text.to_string();
+            self.input_state.update(cx, |state, cx| {
+                state.set_value(text.to_string(), window, cx);
+            });
         }
     }
 

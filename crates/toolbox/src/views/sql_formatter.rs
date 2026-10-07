@@ -223,9 +223,9 @@ impl SqlFormatter {
         let mut current_token = String::new();
         let mut in_string = false;
         let mut string_char = '\0';
-        let mut chars = sql.chars().peekable();
+        let chars = sql.chars().peekable();
 
-        while let Some(c) = chars.next() {
+        for c in chars {
             if in_string {
                 current_token.push(c);
                 if c == string_char {
@@ -285,6 +285,7 @@ impl SqlFormatter {
         result
     }
 
+    #[allow(dead_code)]
     fn clear(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.input.clear();
         self.input_state.update(cx, |state, cx| {
@@ -293,13 +294,13 @@ impl SqlFormatter {
     }
 
     fn paste(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(item) = cx.read_from_clipboard() {
-            if let Some(text) = item.text() {
-                self.input = text.to_string();
-                self.input_state.update(cx, |state, cx| {
-                    state.set_value(text.to_string(), window, cx);
-                });
-            }
+        if let Some(item) = cx.read_from_clipboard()
+            && let Some(text) = item.text()
+        {
+            self.input = text.to_string();
+            self.input_state.update(cx, |state, cx| {
+                state.set_value(text.to_string(), window, cx);
+            });
         }
     }
 
