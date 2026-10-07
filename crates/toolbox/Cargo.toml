@@ -13,6 +13,7 @@ datafaker = { workspace = true }
 database = { workspace = true }
 design = { workspace = true }
 excalidraw = { workspace = true }
+monitor = { workspace = true }
 async-trait = { workspace = true }
 md-5 = { workspace = true }
 sha1 = { workspace = true }

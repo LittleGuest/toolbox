@@ -1,3 +1,7 @@
+pub mod lineage;
+
+pub use lineage::*;
+
 use std::{
     collections::HashMap,
     sync::{Mutex, OnceLock},
@@ -174,7 +178,7 @@ impl BatteryData {
 
 static SYSTEM: OnceLock<Mutex<System>> = OnceLock::new();
 
-fn get_system() -> &'static Mutex<System> {
+pub(crate) fn get_system() -> &'static Mutex<System> {
     SYSTEM.get_or_init(|| Mutex::new(System::new_all()))
 }
 

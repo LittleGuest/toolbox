@@ -8,3 +8,4 @@ authors.workspace = true
 serde = { workspace = true }
 sysinfo = { workspace = true }
 battery = { workspace = true }
+time = { workspace = true, features = ["local-offset"] }
