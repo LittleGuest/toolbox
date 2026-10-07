@@ -97,7 +97,12 @@ sm4 = { version = "0.6", features = ["zeroize"] }
 jsonschema = "0.33"
 rqrr = "0.11"
 
-# 系统 ulimit -v 限制 4GB 虚拟内存，rust-lld 链接全量 debuginfo 必然 OOM，
-# dev 构建关闭 debuginfo（调试反汇编仍可用 backtrace 行号定位）
-[profile.dev]
+[profile.release]
 debug = false
+strip = true
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+debug-assertions = false
+overflow-checks = false

@@ -1,7 +1,7 @@
 # Toolbox - 离线多功能工具箱
 
 <p align="center">
-  <img src="public/toolbox.svg" alt="toolbox" width="50" height="50">
+  <img src="icons/toolbox.svg" alt="toolbox" width="50" height="50">
 </p>
 
 一个基于 `GPUI` 和 `Rust` 开发的跨平台离线工具箱，提供多种实用工具，满足日常开发和工作需求。
