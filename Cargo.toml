@@ -6,11 +6,11 @@ members = [
   "crates/datafaker",
   "crates/base",
   "crates/design",
-  "crates/excalidraw",
   "crates/monitor",
   "crates/toolbox",
 ]
 default-members = ["crates/toolbox"]
+
 
 [workspace.package]
 edition = "2024"
@@ -23,7 +23,6 @@ base = { path = "crates/base" }
 datafaker = { path = "crates/datafaker" }
 database = { path = "crates/database" }
 design = { path = "crates/design" }
-excalidraw = { path = "crates/excalidraw" }
 monitor = { path = "crates/monitor" }
 database-core = { git = "https://github.com/LittleGuest/database", package = "database", branch = "main" }
 serde = { version = "1", features = ["derive"] }
@@ -92,6 +91,7 @@ sm3 = "0.5"
 sm4 = { version = "0.6", features = ["zeroize"] }
 jsonschema = "0.58.6"
 rqrr = "0.11"
+gpui-excalidraw = "0.1.0"
 
 [profile.release]
 debug = false

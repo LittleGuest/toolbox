@@ -1,36 +1,22 @@
-use std::sync::Arc;
-
-use async_trait::async_trait;
-use excalidraw::{DocRecord, DocStore};
+use gpui_excalidraw::Editor;
 
 use crate::config_store;
 
-pub struct SqliteDocStore;
-
-#[async_trait]
-impl DocStore for SqliteDocStore {
-    async fn save(&self, name: &str, elements_json: &str) -> Result<(), String> {
-        config_store::save_excalidraw_doc(name, elements_json).await
-    }
-
-    async fn load(&self) -> Result<Vec<DocRecord>, String> {
-        let docs = config_store::load_excalidraw_docs().await?;
-        Ok(docs
-            .into_iter()
-            .map(|doc| DocRecord {
-                id: doc.id,
-                name: doc.name,
-                elements_json: doc.elements_json,
-                updated_at: doc.updated_at,
-            })
-            .collect())
-    }
-
-    async fn delete(&self, name: &str) -> Result<bool, String> {
-        config_store::delete_excalidraw_doc(name.to_string()).await
-    }
+fn block_on<F: std::future::Future>(future: F) -> F::Output {
+    crate::TOKIO_RUNTIME.block_on(future)
 }
 
-pub fn store() -> Arc<SqliteDocStore> {
-    Arc::new(SqliteDocStore)
+/// Bridges the DB-backed `config_store` into the editor's synchronous
+/// scene-store hook, which runs on the UI thread inside menu callbacks.
+pub fn install_scene_store(editor: &mut Editor) {
+    editor.set_scene_store(
+        |name, json| block_on(config_store::save_excalidraw_doc(name, json)),
+        || {
+            block_on(config_store::load_excalidraw_docs()).map(|docs| {
+                docs.into_iter()
+                    .map(|doc| (doc.name, doc.elements_json))
+                    .collect()
+            })
+        },
+    );
 }

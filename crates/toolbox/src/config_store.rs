@@ -42,6 +42,7 @@ pub struct DatafakerConfigRecord {
     pub updated_at: i64,
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct ExcalidrawDocRecord {
     pub id: Option<i64>,
@@ -439,6 +440,7 @@ pub async fn load_excalidraw_docs() -> Result<Vec<ExcalidrawDocRecord>> {
         .collect()
 }
 
+#[allow(dead_code)]
 pub async fn delete_excalidraw_doc(name: String) -> Result<bool> {
     let pool = open_pool().await?;
     init_schema(&pool).await?;

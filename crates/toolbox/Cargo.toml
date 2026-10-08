@@ -12,7 +12,7 @@ base = { workspace = true }
 datafaker = { workspace = true }
 database = { workspace = true }
 design = { workspace = true }
-excalidraw = { workspace = true }
+gpui-excalidraw = { workspace = true }
 monitor = { workspace = true }
 async-trait = { workspace = true }
 md-5 = { workspace = true }

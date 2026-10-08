@@ -3,7 +3,7 @@
 use std::sync::LazyLock;
 
 use gpui_kit::{
-    assets::Assets,
+    assets::Assets as ComponentAssets,
     component::{
         Theme, ThemeMode,
         button::*,
@@ -21,6 +21,21 @@ mod search_pinyin;
 mod views;
 use search_pinyin::{TOOL_INDEX, label_pinyin, label_pinyin_initials};
 use views::*;
+
+/// Serves the built-in component icons and the hand-drawn icon set that the
+/// embedded gpui-excalidraw editor ships with. Both live behind the same
+/// `icons/` prefix, so they have to be merged into a single asset source.
+struct Assets;
+
+impl AssetSource for Assets {
+    fn load(&self, path: &str) -> gpui_kit::Result<Option<std::borrow::Cow<'static, [u8]>>> {
+        gpui_excalidraw::ui::icons::IconAssets.load(path, |path| ComponentAssets.load(path))
+    }
+
+    fn list(&self, path: &str) -> gpui_kit::Result<Vec<SharedString>> {
+        gpui_excalidraw::ui::icons::IconAssets.list_with(path, |path| ComponentAssets.list(path))
+    }
+}
 
 static TOKIO_RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
     tokio::runtime::Builder::new_multi_thread()
@@ -1324,10 +1339,13 @@ fn render_regex_visualizer_view(app: &mut App, window: &mut Window, cx: &mut Con
     }
 }
 
-fn render_excalidraw_view(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {
+fn render_excalidraw_view(app: &mut App, _window: &mut Window, cx: &mut Context<App>) -> Div {
     if app.excalidraw.is_none() {
-        app.excalidraw =
-            Some(cx.new(|cx| ExcalidrawView::new(excalidraw_store::store(), window, cx)));
+        app.excalidraw = Some(cx.new(|_| {
+            let mut editor = ExcalidrawView::new();
+            excalidraw_store::install_scene_store(&mut editor);
+            editor
+        }));
     }
 
     if let Some(ref excalidraw) = app.excalidraw {
