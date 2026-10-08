@@ -1,6 +1,6 @@
 # Maintainer: LittleGuest <2190975784@qq.com>
 pkgname=toolbox
-pkgver=1.0.0
+pkgver=1.1.0
 pkgrel=1
 pkgdesc="离线多功能工具箱，基于 GPUI 和 Rust 开发"
 arch=('x86_64')
