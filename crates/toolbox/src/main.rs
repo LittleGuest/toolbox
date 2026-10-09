@@ -22,9 +22,6 @@ mod views;
 use search_pinyin::{TOOL_INDEX, label_pinyin, label_pinyin_initials};
 use views::*;
 
-/// Serves the built-in component icons and the hand-drawn icon set that the
-/// embedded gpui-excalidraw editor ships with. Both live behind the same
-/// `icons/` prefix, so they have to be merged into a single asset source.
 struct Assets;
 
 impl AssetSource for Assets {

@@ -14,7 +14,7 @@ default-members = ["crates/toolbox"]
 
 [workspace.package]
 edition = "2024"
-version = "1.1.0"
+version = "1.2.0"
 authors = ["LittleGuest <2190975784@qq.com>"]
 
 
@@ -92,6 +92,11 @@ sm4 = { version = "0.6", features = ["zeroize"] }
 jsonschema = "0.58.6"
 rqrr = "0.11"
 gpui-excalidraw = "0.1.0"
+gpui-regex-visualizer = "0.1.0"
+unicode-normalization = "0.1.25"
+tiny-skia = "0.11.4"
+png = "0.17.16"
+pinyin = { version = "0.11", default-features = false, features = ["plain"] }
 
 [profile.release]
 debug = false
