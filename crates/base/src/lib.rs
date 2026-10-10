@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::checksum::Checksum;
 
 mod base64;
+pub mod blank_line;
 mod cffc;
 mod charset;
 mod checksum;

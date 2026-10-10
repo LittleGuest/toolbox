@@ -4,6 +4,7 @@ pub mod base64_image;
 pub mod base_converter;
 pub mod base_encoding;
 pub mod bitwise_calculator;
+pub mod blank_line_tool;
 #[allow(dead_code)]
 pub mod case_converter;
 pub mod charset_encoder;
@@ -57,6 +58,7 @@ pub use base_converter::BaseConverter;
 pub use base_encoding::BaseEncodingConverter;
 pub use base64_image::Base64ImageConverter;
 pub use bitwise_calculator::BitwiseCalculator;
+pub use blank_line_tool::BlankLineTool;
 pub use charset_encoder::CharsetEncoder;
 pub use clipboard_manager::ClipboardManager;
 pub use code_snippet::CodeSnippet;

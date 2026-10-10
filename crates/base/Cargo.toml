@@ -31,6 +31,7 @@ thiserror = { workspace = true }
 base-converter = { workspace = true }
 chrono = { workspace = true }
 anyhow = { workspace = true }
+ignore = { workspace = true }
 lopdf = "0.38"
 sm2 = { workspace = true }
 sm3 = { workspace = true }

@@ -181,6 +181,13 @@ pub const TOOL_INDEX: &[ToolEntry] = &[
         icon: IconName::BookOpen,
     },
     ToolEntry {
+        label: "去空行",
+        group: "文本",
+        key: "/text/blankline",
+        view: ViewType::TextBlankLine,
+        icon: IconName::FileText,
+    },
+    ToolEntry {
         label: "文本 / JSON 差异",
         group: "文本",
         key: "/text/diff",

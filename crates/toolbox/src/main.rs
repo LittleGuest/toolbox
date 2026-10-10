@@ -69,6 +69,7 @@ pub enum ViewType {
     DatabaseDiff,
     TextMarkdown,
     TextTextTools,
+    TextBlankLine,
     TextDiff,
     RandomString,
     RandomNumber,
@@ -121,6 +122,7 @@ pub struct App {
     json_schema: Option<Entity<JsonSchemaValidator>>,
     qrcode_decoder: Option<Entity<QrCodeDecoder>>,
     text_tools: Option<Entity<TextTools>>,
+    blank_line_tool: Option<Entity<BlankLineTool>>,
     text_diff: Option<Entity<TextDiffTool>>,
     random_string: Option<Entity<RandomStringGenerator>>,
     random_number: Option<Entity<RandomNumberGenerator>>,
@@ -173,6 +175,7 @@ impl App {
             json_schema: None,
             qrcode_decoder: None,
             text_tools: None,
+            blank_line_tool: None,
             text_diff: None,
             random_string: None,
             random_number: None,
@@ -581,6 +584,12 @@ impl Render for App {
                                         .on_click(cx.listener(|this, _, _, cx| {
                                             this.set_view(ViewType::TextTextTools, cx);
                                         })),
+                                    SidebarMenuItem::new("去空行")
+                                        .icon(Icon::new(IconName::FileText))
+                                        .active(current_view == ViewType::TextBlankLine)
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.set_view(ViewType::TextBlankLine, cx);
+                                        })),
                                     SidebarMenuItem::new("文本 / JSON 差异")
                                         .icon(Icon::new(IconName::Replace))
                                         .active(current_view == ViewType::TextDiff)
@@ -792,6 +801,9 @@ impl Render for App {
                                     ViewType::TextTextTools => {
                                         render_text_tools_view(self, window, cx)
                                     }
+                                    ViewType::TextBlankLine => {
+                                        render_blank_line_tool_view(self, window, cx)
+                                    }
                                     ViewType::TextDiff => render_text_diff_view(self, window, cx),
                                     ViewType::RandomString => {
                                         render_random_string_view(self, window, cx)
@@ -900,6 +912,7 @@ fn render_home_view(cx: &mut Context<App>) -> Div {
             "大小写 / 清理 / 统计等文本处理",
             IconName::BookOpen,
         ),
+        ("去空行", "批量删除文本文件中的空行", IconName::FileText),
         (
             "文本 / JSON 差异",
             "文本 / JSON 差异对比",
@@ -1519,6 +1532,18 @@ fn render_text_tools_view(app: &mut App, window: &mut Window, cx: &mut Context<A
     }
 
     if let Some(ref view) = app.text_tools {
+        div().child(view.clone())
+    } else {
+        div().child("Loading...")
+    }
+}
+
+fn render_blank_line_tool_view(app: &mut App, window: &mut Window, cx: &mut Context<App>) -> Div {
+    if app.blank_line_tool.is_none() {
+        app.blank_line_tool = Some(cx.new(|cx| BlankLineTool::new(window, cx)));
+    }
+
+    if let Some(ref view) = app.blank_line_tool {
         div().child(view.clone())
     } else {
         div().child("Loading...")
