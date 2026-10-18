@@ -42,15 +42,6 @@ pub struct DatafakerConfigRecord {
     pub updated_at: i64,
 }
 
-#[allow(dead_code)]
-#[derive(Clone, Debug)]
-pub struct ExcalidrawDocRecord {
-    pub id: Option<i64>,
-    pub name: String,
-    pub elements_json: String,
-    pub updated_at: i64,
-}
-
 pub async fn save_datasource(info: DatasourceInfo) -> Result<()> {
     let pool = open_pool().await?;
     init_schema(&pool).await?;
@@ -401,57 +392,6 @@ pub async fn delete_datafaker_config(name: String) -> Result<bool> {
     Ok(result.rows_affected() > 0)
 }
 
-pub async fn save_excalidraw_doc(name: &str, elements_json: &str) -> Result<()> {
-    let pool = open_pool().await?;
-    init_schema(&pool).await?;
-    sqlx::query(
-        "INSERT INTO excalidraw_docs (name, elements_json, updated_at) \
-         VALUES (?1, ?2, strftime('%s','now')) \
-         ON CONFLICT(name) DO UPDATE SET elements_json = excluded.elements_json, updated_at = excluded.updated_at",
-    )
-    .bind(name)
-    .bind(elements_json)
-    .execute(&pool)
-    .await
-    .map_err(|err| err.to_string())?;
-    Ok(())
-}
-
-pub async fn load_excalidraw_docs() -> Result<Vec<ExcalidrawDocRecord>> {
-    let pool = open_pool().await?;
-    init_schema(&pool).await?;
-    let rows = sqlx::query(
-        "SELECT id, name, elements_json, updated_at FROM excalidraw_docs ORDER BY updated_at DESC, id DESC",
-    )
-    .fetch_all(&pool)
-    .await
-    .map_err(|err| err.to_string())?;
-    rows.into_iter()
-        .map(|row| {
-            Ok(ExcalidrawDocRecord {
-                id: Some(row.try_get("id").map_err(|err| err.to_string())?),
-                name: row.try_get("name").map_err(|err| err.to_string())?,
-                elements_json: row
-                    .try_get("elements_json")
-                    .map_err(|err| err.to_string())?,
-                updated_at: row.try_get("updated_at").map_err(|err| err.to_string())?,
-            })
-        })
-        .collect()
-}
-
-#[allow(dead_code)]
-pub async fn delete_excalidraw_doc(name: String) -> Result<bool> {
-    let pool = open_pool().await?;
-    init_schema(&pool).await?;
-    let result = sqlx::query("DELETE FROM excalidraw_docs WHERE name = ?1")
-        .bind(name)
-        .execute(&pool)
-        .await
-        .map_err(|err| err.to_string())?;
-    Ok(result.rows_affected() > 0)
-}
-
 pub fn driver_label(driver: &Driver) -> String {
     match driver {
         Driver::Mysql => "MySQL",
@@ -536,17 +476,6 @@ async fn init_schema(pool: &SqlitePool) -> Result<()> {
             name TEXT NOT NULL UNIQUE,\
             nodes_json TEXT NOT NULL,\
             edges_json TEXT NOT NULL,\
-            updated_at INTEGER NOT NULL\
-        )",
-    )
-    .execute(pool)
-    .await
-    .map_err(|err| err.to_string())?;
-    sqlx::query(
-        "CREATE TABLE IF NOT EXISTS excalidraw_docs (\
-            id INTEGER PRIMARY KEY AUTOINCREMENT,\
-            name TEXT NOT NULL UNIQUE,\
-            elements_json TEXT NOT NULL,\
             updated_at INTEGER NOT NULL\
         )",
     )

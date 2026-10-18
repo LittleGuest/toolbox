@@ -16,7 +16,6 @@ use gpui_kit::{
     *,
 };
 mod config_store;
-mod excalidraw_store;
 mod search_pinyin;
 mod views;
 use search_pinyin::{TOOL_INDEX, label_pinyin, label_pinyin_initials};
@@ -26,7 +25,7 @@ struct Assets;
 
 impl AssetSource for Assets {
     fn load(&self, path: &str) -> gpui_kit::Result<Option<std::borrow::Cow<'static, [u8]>>> {
-        gpui_excalidraw::ui::icons::IconAssets.load(path, |path| ComponentAssets.load(path))
+        gpui_excalidraw::ui::icons::IconAssets.load(path)
     }
 
     fn list(&self, path: &str) -> gpui_kit::Result<Vec<SharedString>> {
@@ -1351,11 +1350,7 @@ fn render_regex_visualizer_view(app: &mut App, window: &mut Window, cx: &mut Con
 
 fn render_excalidraw_view(app: &mut App, _window: &mut Window, cx: &mut Context<App>) -> Div {
     if app.excalidraw.is_none() {
-        app.excalidraw = Some(cx.new(|_| {
-            let mut editor = ExcalidrawView::new();
-            excalidraw_store::install_scene_store(&mut editor);
-            editor
-        }));
+        app.excalidraw = Some(cx.new(|_| ExcalidrawView::new()));
     }
 
     if let Some(ref excalidraw) = app.excalidraw {
