@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fs};
+use std::{collections::HashSet, fmt::Write as _, fs};
 
 use serde::Serialize;
 use sysinfo::{
@@ -235,11 +235,10 @@ fn node_of(process: &Process, users: &Users, is_target: bool) -> LineageNode {
     let user = process
         .user_id()
         .map(|uid| {
-            let raw: u32 = **uid;
             users
                 .get_user_by_id(uid)
                 .map(|u| u.name().to_string())
-                .unwrap_or_else(|| raw.to_string())
+                .unwrap_or_else(|| uid_to_string(uid))
         })
         .unwrap_or_else(|| "unknown".to_string());
     let (role, role_label) = classify(&name, process.pid().as_u32());
@@ -265,6 +264,14 @@ fn node_of(process: &Process, users: &Users, is_target: bool) -> LineageNode {
         status: status_label(process.status()),
         is_target,
     }
+}
+
+fn uid_to_string(uid: &sysinfo::Uid) -> String {
+    let mut out = String::new();
+    if write!(out, "{}", **uid).is_err() {
+        return format!("{:?}", **uid);
+    }
+    out
 }
 
 fn classify(name: &str, pid: u32) -> (String, String) {
