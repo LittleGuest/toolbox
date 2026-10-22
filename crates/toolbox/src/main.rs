@@ -1,4 +1,6 @@
 #![recursion_limit = "1024"]
+// 发布版使用 Windows GUI 子系统，避免启动时弹出控制台窗口
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::sync::LazyLock;
 
