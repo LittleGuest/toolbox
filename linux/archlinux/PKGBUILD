@@ -7,14 +7,14 @@ arch=('x86_64')
 url="https://github.com/LittleGuest/toolbox"
 license=('MIT')
 options=('!strip' '!debug')
-_source_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-_bin="${_source_dir}/target/release/toolbox"
+_repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+_bin="${_repo_dir}/target/release/toolbox"
 source=(
   "toolbox::file://${_bin}"
-  "toolbox.desktop::file://${_source_dir}/toolbox.desktop"
-  "toolbox.svg::file://${_source_dir}/icons/toolbox.svg"
-  "LICENSE::file://${_source_dir}/LICENSE"
-  "README.md::file://${_source_dir}/README.md"
+  "toolbox.desktop::file://${_repo_dir}/linux/toolbox.desktop"
+  "toolbox.svg::file://${_repo_dir}/icons/toolbox.svg"
+  "LICENSE::file://${_repo_dir}/LICENSE"
+  "README.md::file://${_repo_dir}/README.md"
 )
 sha256sums=(
   'SKIP'
