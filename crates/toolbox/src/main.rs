@@ -722,18 +722,17 @@ impl Render for App {
                 .child(
                     div()
                         .flex_1()
+                        .h_full()
+                        .min_h(px(0.0))
                         .min_w(px(640.0))
                         .flex()
                         .flex_col()
                         .overflow_hidden()
                         .child(self.render_topbar(cx))
                         .child(
-                            div()
-                                .flex_1()
-                                .overflow_y_scrollbar()
-                                .bg(cx.theme().background)
-                                .text_color(cx.theme().foreground)
-                                .child(match current_view {
+                            {
+                                let is_todo = current_view == ViewType::Todo;
+                                let content = match current_view {
                                     ViewType::Home => render_home_view(cx),
                                     ViewType::SystemMonitor => {
                                         render_system_monitor_view(self, window, cx)
@@ -854,7 +853,25 @@ impl Render for App {
                                     ViewType::RegexVisualizer => {
                                         render_regex_visualizer_view(self, window, cx)
                                     }
-                                }),
+                                };
+                                if is_todo {
+                                    div()
+                                        .w_full()
+                                        .overflow_hidden()
+                                        .bg(cx.theme().background)
+                                        .text_color(cx.theme().foreground)
+                                        .child(content)
+                                        .into_any_element()
+                                } else {
+                                    div()
+                                        .flex_1()
+                                        .overflow_y_scrollbar()
+                                        .bg(cx.theme().background)
+                                        .text_color(cx.theme().foreground)
+                                        .child(content)
+                                        .into_any_element()
+                                }
+                            },
                         ),
                 ),
         )
@@ -1127,7 +1144,13 @@ fn render_todo_view(app: &mut App, cx: &mut Context<App>) -> Div {
     }
 
     if let Some(ref todo) = app.todo_list {
-        div().child(todo.clone())
+        div()
+            .flex_1()
+            .min_h(px(0.0))
+            .w_full()
+            .flex()
+            .flex_col()
+            .child(todo.clone())
     } else {
         div().child("Loading...")
     }

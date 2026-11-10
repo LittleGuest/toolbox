@@ -4,7 +4,7 @@ use gpui_kit::{
     component::{
         button::*,
         checkbox::Checkbox,
-        input::{Input, InputEvent, InputState},
+        input::{Input, InputEvent, InputState, Textarea, TextareaState},
         notification::Notification,
         scroll::ScrollableElement,
         spinner::Spinner,
@@ -72,10 +72,11 @@ pub struct TodoList {
     editing_text: SharedString,
     expanded_ids: Vec<i64>,
     adding_sub_for: Option<i64>,
-    input_state: Option<Entity<InputState>>,
+    input_state: Option<Entity<TextareaState>>,
     search_input_state: Option<Entity<InputState>>,
-    sub_input_states: HashMap<i64, Entity<InputState>>,
-    editing_input_states: HashMap<i64, Entity<InputState>>,
+    sub_input_states: HashMap<i64, Entity<TextareaState>>,
+    editing_input_states: HashMap<i64, Entity<TextareaState>>,
+    composer_focused: bool,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -95,13 +96,18 @@ impl TodoList {
             search_input_state: None,
             sub_input_states: HashMap::new(),
             editing_input_states: HashMap::new(),
+            composer_focused: false,
             _subscriptions: Vec::new(),
         }
     }
 
     pub fn initialize(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let input_state =
-            cx.new(|cx| InputState::new(window, cx).placeholder("写下一件要做的事，回车添加…"));
+        let input_state = cx.new(|cx| {
+            TextareaState::new(window, cx)
+                .placeholder("写下一件要做的事；Enter 添加，Shift+Enter 换行")
+                .auto_grow(1, 8)
+                .submit_on_enter(true)
+        });
         let search_state = cx.new(|cx| InputState::new(window, cx).placeholder("搜索待办事项…"));
 
         let mut subscriptions = Vec::with_capacity(2);
@@ -114,11 +120,20 @@ impl TodoList {
                     this.new_todo_text = value;
                     cx.notify()
                 }
-                InputEvent::PressEnter { .. } => {
-                    this.add_todo(window, cx);
+                InputEvent::PressEnter { shift, .. } => {
+                    if !*shift {
+                        this.add_todo(window, cx);
+                        cx.notify()
+                    }
+                }
+                InputEvent::Focus => {
+                    this.composer_focused = true;
                     cx.notify()
                 }
-                _ => {}
+                InputEvent::Blur => {
+                    this.composer_focused = false;
+                    cx.notify()
+                }
             }
         }));
 
@@ -168,11 +183,6 @@ impl TodoList {
                 .cmp(&a.created_at)
                 .then(b.id.unwrap_or(0).cmp(&a.id.unwrap_or(0))),
         });
-    }
-
-    fn progress(&self) -> (usize, usize) {
-        let done = self.todos.iter().filter(|t| t.completed).count();
-        (done, self.todos.len())
     }
 
     fn top_level_counts(&self) -> [usize; 3] {
@@ -390,16 +400,22 @@ impl TodoList {
 
         let state =
             if let std::collections::hash_map::Entry::Vacant(e) = self.sub_input_states.entry(id) {
-                let state =
-                    cx.new(|cx| InputState::new(window, cx).placeholder("输入子任务，回车添加…"));
+                let state = cx.new(|cx| {
+                    TextareaState::new(window, cx)
+                        .placeholder("输入子任务；Enter 添加，Shift+Enter 换行")
+                        .auto_grow(1, 3)
+                        .submit_on_enter(true)
+                });
                 let _ = cx.subscribe_in(
                     &state,
                     window,
                     move |this, _, ev: &InputEvent, window, cx| match ev {
                         InputEvent::Change => cx.notify(),
-                        InputEvent::PressEnter { .. } => {
-                            this.add_sub_todo(id, window, cx);
-                            cx.notify()
+                        InputEvent::PressEnter { shift, .. } => {
+                            if !*shift {
+                                this.add_sub_todo(id, window, cx);
+                                cx.notify()
+                            }
                         }
                         _ => {}
                     },
@@ -837,8 +853,12 @@ impl TodoList {
             self.editing_text = todo.text.clone();
 
             self.editing_input_states.entry(id).or_insert_with(|| {
-                let editing_input_state =
-                    cx.new(|cx| InputState::new(window, cx).placeholder("编辑待办事项，回车保存…"));
+                let editing_input_state = cx.new(|cx| {
+                    TextareaState::new(window, cx)
+                        .placeholder("编辑待办事项；Enter 保存，Shift+Enter 换行")
+                        .auto_grow(1, 8)
+                        .submit_on_enter(true)
+                });
                 let editing_input_state_clone = editing_input_state.clone();
 
                 let _ = cx.subscribe_in(&editing_input_state, window, {
@@ -848,9 +868,11 @@ impl TodoList {
                             this.editing_text = value;
                             cx.notify()
                         }
-                        InputEvent::PressEnter { .. } => {
-                            this.save_edit(window, cx);
-                            cx.notify()
+                        InputEvent::PressEnter { shift, .. } => {
+                            if !*shift {
+                                this.save_edit(window, cx);
+                                cx.notify()
+                            }
                         }
                         _ => {}
                     }
@@ -904,18 +926,15 @@ impl TodoList {
 
     fn render_filter_tabs(&self, counts: [usize; 3], cx: &mut Context<Self>) -> Div {
         let muted = cx.theme().muted;
-        let primary = cx.theme().primary;
-        let primary_foreground = cx.theme().primary_foreground;
-        let muted_foreground = cx.theme().muted_foreground;
         let popover = cx.theme().popover;
-        let transparent = cx.theme().transparent;
+        let muted_foreground = cx.theme().muted_foreground;
 
         div()
             .flex()
             .items_center()
             .flex_shrink_0()
             .gap(px(2.0))
-            .p(px(2.0))
+            .p(px(3.0))
             .rounded_full()
             .bg(muted)
             .children(
@@ -924,28 +943,27 @@ impl TodoList {
                     .enumerate()
                     .map(|(i, (value, label))| {
                         let selected = self.filter.as_str() == *value;
-                        Button::new(("filter", i))
+                        let button = Button::new(("filter", i))
                             .compact()
-                            .custom(
-                                ButtonCustomVariant::new(cx)
-                                    .color(if selected { primary } else { transparent })
-                                    .foreground(if selected {
-                                        primary_foreground
-                                    } else {
-                                        muted_foreground
-                                    })
-                                    .hover(if selected { primary } else { popover })
-                                    .active(primary),
-                            )
                             .rounded_full()
-                            .px(px(9.0))
+                            .px(px(11.0))
                             .toggled(selected)
                             .label(format!("{label} {}", counts[i]))
                             .tooltip(format!("筛选：{label}待办"))
                             .on_click(cx.listener(move |this, _, _, cx| {
                                 this.filter = SharedString::from(*value);
                                 cx.notify();
-                            }))
+                            }));
+
+                        if selected {
+                            button.primary()
+                        } else {
+                            button.custom(
+                                ButtonCustomVariant::new(cx)
+                                    .foreground(muted_foreground)
+                                    .hover(popover),
+                            )
+                        }
                     }),
             )
     }
@@ -956,7 +974,7 @@ impl TodoList {
         let hover_bg = cx.theme().list_hover;
         let danger = cx.theme().danger;
 
-        let mut actions = div().flex().items_center().gap(px(0.0)).flex_shrink_0();
+        let mut actions = div().flex().items_center().gap(px(2.0)).flex_shrink_0();
 
         if depth == 0 {
             let adding = self.adding_sub_for == Some(id);
@@ -974,7 +992,7 @@ impl TodoList {
                         } else {
                             IconName::Plus
                         })
-                        .size(px(14.0)),
+                        .size(px(15.0)),
                     )
                     .tooltip(if adding {
                         "结束添加子任务"
@@ -1000,7 +1018,7 @@ impl TodoList {
                             .foreground(icon_fg)
                             .hover(hover_bg),
                     )
-                    .icon(Icon::new(IconName::FileText).size(px(14.0)))
+                    .icon(Icon::new(IconName::FileText).size(px(15.0)))
                     .tooltip("编辑任务（也可双击标题）")
                     .on_click(cx.listener(move |this, _, window, cx| {
                         this.start_edit(id, window, cx);
@@ -1014,7 +1032,7 @@ impl TodoList {
                             .foreground(icon_fg)
                             .hover(danger.opacity(0.10)),
                     )
-                    .icon(Icon::new(IconName::CircleX).size(px(14.0)))
+                    .icon(Icon::new(IconName::Delete).size(px(15.0)))
                     .tooltip("删除任务")
                     .on_click(cx.listener(move |this, _, window, cx| {
                         this.delete_todo(id, window, cx);
@@ -1159,6 +1177,7 @@ impl TodoList {
         let id = todo.id.unwrap_or(0);
         let id_usize = id as usize;
         let text = todo.text.clone();
+        let multiline = text.contains('\n');
         let short_text = summarize(&text, 30);
         let completed = todo.completed;
         let has_sub = depth == 0 && self.has_sub_todos(id);
@@ -1183,9 +1202,10 @@ impl TodoList {
             .id(("todo-row", id_usize))
             .flex()
             .items_center()
+            .when(multiline, |row| row.items_start())
             .gap(px(10.0))
             .px(px(10.0))
-            .py(px(8.0))
+            .py(px(if depth == 0 { 9.0 } else { 6.0 }))
             .rounded(px(10.0))
             .hover(|s: StyleRefinement| s.bg(cx.theme().list_hover));
 
@@ -1241,7 +1261,7 @@ impl TodoList {
                     div()
                         .flex_1()
                         .min_w_0()
-                        .child(Input::new(state).aria_label("编辑待办事项")),
+                        .child(Textarea::new(state).small().aria_label("编辑待办事项")),
                 );
             }
 
@@ -1281,7 +1301,7 @@ impl TodoList {
                         .id(("todo-title", id_usize))
                         .text_size(px(if depth == 0 { 14.0 } else { 12.5 }))
                         .when(depth == 0, |title| title.font_medium())
-                        .truncate()
+                        .whitespace_normal()
                         .text_color(if completed {
                             cx.theme().muted_foreground
                         } else {
@@ -1303,18 +1323,18 @@ impl TodoList {
                         .gap_2()
                         .child(
                             div()
-                                .w(px(48.0))
+                                .w(px(40.0))
                                 .h(px(3.0))
                                 .rounded_full()
                                 .bg(cx.theme().muted)
                                 .overflow_hidden()
-                                .child(
-                                    div()
-                                        .h_full()
-                                        .w(relative(sub_ratio))
-                                        .rounded_full()
-                                        .bg(cx.theme().primary.opacity(0.7)),
-                                ),
+                                .child(div().h_full().w(relative(sub_ratio)).rounded_full().bg(
+                                    if sub_done == sub_total {
+                                        cx.theme().success
+                                    } else {
+                                        cx.theme().primary.opacity(0.65)
+                                    },
+                                )),
                         )
                         .child(
                             div()
@@ -1341,17 +1361,14 @@ impl TodoList {
             let show_section = is_adding_sub || !sub_todos.is_empty();
 
             if show_section {
-                let mut section = div()
+                let mut content = div()
                     .flex_col()
-                    .ml(px(28.0))
                     .pl(px(14.0))
-                    .pr(px(4.0))
-                    .pb(px(8.0))
                     .border_l_1()
-                    .border_color(cx.theme().primary.opacity(0.25));
+                    .border_color(cx.theme().primary.opacity(0.16));
 
                 if !sub_todos.is_empty() {
-                    section = section.child(
+                    content = content.child(
                         div().flex_col().gap(px(1.0)).children(
                             sub_todos
                                 .iter()
@@ -1384,9 +1401,28 @@ impl TodoList {
                                 .flex_1()
                                 .min_w_0()
                                 .ml(px(10.0))
-                                .child(Input::new(state).small().aria_label("新的子任务")),
+                                .child(Textarea::new(state).small().aria_label("新的子任务")),
                         );
                     }
+
+                    let add_sub_button = Button::new(("todo-confirm-sub", id_usize))
+                        .compact()
+                        .label("添加")
+                        .disabled(!can_add_sub)
+                        .tooltip("添加子任务（回车继续添加）")
+                        .on_click(cx.listener(move |this, _, window, cx| {
+                            this.add_sub_todo(id, window, cx);
+                        }));
+
+                    let add_sub_button = if can_add_sub {
+                        add_sub_button.primary()
+                    } else {
+                        add_sub_button.custom(
+                            ButtonCustomVariant::new(cx)
+                                .foreground(cx.theme().muted_foreground)
+                                .hover(cx.theme().popover),
+                        )
+                    };
 
                     composer = composer.child(
                         div()
@@ -1395,17 +1431,7 @@ impl TodoList {
                             .flex_shrink_0()
                             .gap(px(4.0))
                             .ml(px(8.0))
-                            .child(
-                                Button::new(("todo-confirm-sub", id_usize))
-                                    .primary()
-                                    .compact()
-                                    .label("添加")
-                                    .disabled(!can_add_sub)
-                                    .tooltip("添加子任务（回车继续添加）")
-                                    .on_click(cx.listener(move |this, _, window, cx| {
-                                        this.add_sub_todo(id, window, cx);
-                                    })),
-                            )
+                            .child(add_sub_button)
                             .child(
                                 Button::new(("todo-cancel-sub", id_usize))
                                     .compact()
@@ -1422,14 +1448,27 @@ impl TodoList {
                             ),
                     );
 
-                    section = section.child(composer);
-                } else if self.search_query.trim().is_empty() {
+                    content = content.child(composer);
+                }
+
+                let mut section = div()
+                    .flex_col()
+                    .ml(px(28.0))
+                    .pr(px(4.0))
+                    .pb(px(8.0))
+                    .child(content);
+
+                if !is_adding_sub && self.search_query.trim().is_empty() {
                     section = section.child(
-                        div().pl(px(10.0)).py(px(2.0)).child(
+                        div().flex().pl(px(24.0)).py(px(2.0)).child(
                             Button::new(("todo-inline-add-sub", id_usize))
-                                .ghost()
                                 .compact()
-                                .text_size(px(12.0))
+                                .text_size(px(12.5))
+                                .custom(
+                                    ButtonCustomVariant::new(cx)
+                                        .foreground(cx.theme().muted_foreground)
+                                        .hover(cx.theme().popover),
+                                )
                                 .icon(Icon::new(IconName::Plus).size(px(12.0)))
                                 .label("添加子任务")
                                 .tooltip("在本任务下添加子任务")
@@ -1455,14 +1494,11 @@ impl Render for TodoList {
         }
 
         let top_todos = self.top_todos();
-        let (done, total) = self.progress();
-        let pending = total.saturating_sub(done);
-        let ratio = if total == 0 {
-            0.0
-        } else {
-            done as f32 / total as f32
-        };
         let counts = self.top_level_counts();
+        let total = counts[0];
+        let pending = counts[1];
+        let done = counts[2];
+        let done_all = self.todos.iter().filter(|t| t.completed).count();
         let can_add = !self.new_todo_text.trim().is_empty();
         let has_query = !self.search_query.trim().is_empty();
 
@@ -1482,16 +1518,16 @@ impl Render for TodoList {
             .gap_3()
             .child(
                 div()
-                    .w(px(42.0))
-                    .h(px(42.0))
+                    .w(px(40.0))
+                    .h(px(40.0))
                     .flex()
                     .items_center()
                     .justify_center()
                     .flex_shrink_0()
-                    .rounded(px(12.0))
-                    .bg(cx.theme().primary.opacity(0.1))
-                    .text_color(cx.theme().primary)
-                    .child(Icon::new(IconName::Inbox).size(px(22.0))),
+                    .rounded(px(10.0))
+                    .bg(cx.theme().muted)
+                    .text_color(cx.theme().muted_foreground)
+                    .child(Icon::new(IconName::Inbox).size(px(19.0))),
             )
             .child(
                 div()
@@ -1499,85 +1535,99 @@ impl Render for TodoList {
                     .flex_col()
                     .flex_1()
                     .min_w_0()
-                    .gap(px(2.0))
+                    .gap(px(3.0))
                     .child(
                         div()
-                            .text_size(px(16.5))
+                            .text_size(px(16.0))
                             .font_semibold()
                             .text_color(cx.theme().foreground)
                             .child("待办事项"),
                     )
                     .child(
                         div()
-                            .text_size(px(12.5))
-                            .text_color(cx.theme().muted_foreground)
-                            .child(subtitle),
+                            .flex()
+                            .items_center()
+                            .gap(px(5.0))
+                            .when(pending == 0 && total > 0, |row| {
+                                row.child(
+                                    div()
+                                        .text_color(cx.theme().success)
+                                        .child(Icon::new(IconName::CircleCheck).size(px(12.0))),
+                                )
+                            })
+                            .child(
+                                div()
+                                    .text_size(px(12.5))
+                                    .text_color(cx.theme().muted_foreground)
+                                    .child(subtitle),
+                            ),
                     ),
             )
-            .when(done > 0, |header| {
+            .when(done_all > 0, |header| {
                 header.child(
                     Button::new("clear-completed")
-                        .ghost()
                         .compact()
-                        .icon(Icon::new(IconName::CircleX))
+                        .text_size(px(12.5))
+                        .custom(
+                            ButtonCustomVariant::new(cx)
+                                .foreground(cx.theme().muted_foreground)
+                                .hover(cx.theme().danger.opacity(0.08)),
+                        )
+                        .icon(Icon::new(IconName::Delete).size(px(13.0)))
                         .label("清除已完成")
-                        .tooltip(format!("删除 {done} 项已完成的待办（含子任务）"))
+                        .tooltip(format!("删除 {done_all} 项已完成的待办（含子任务）"))
                         .on_click(cx.listener(|this, _, window, cx| {
                             this.clear_completed(window, cx);
                         })),
                 )
             });
 
-        let progress_row =
-            if total > 0 {
-                let bar =
-                    div()
-                        .flex_1()
-                        .h(px(6.0))
-                        .rounded_full()
-                        .bg(cx.theme().muted)
-                        .overflow_hidden()
-                        .child(div().h_full().w(relative(ratio)).rounded_full().bg(
-                            if pending == 0 {
-                                cx.theme().success
-                            } else {
-                                cx.theme().primary
-                            },
-                        ));
+        let composer_border = if self.composer_focused {
+            cx.theme().primary
+        } else {
+            cx.theme().border
+        };
 
-                div().flex().items_center().gap_3().child(bar).child(
-                    div()
-                        .text_size(px(11.5))
-                        .font_medium()
-                        .text_color(cx.theme().muted_foreground)
-                        .child(format!("{done}/{total} · {:.0}%", ratio * 100.0)),
-                )
-            } else {
-                div()
-            };
+        let add_button = Button::new("add-todo")
+            .label("添加")
+            .tooltip("添加待办（回车）")
+            .disabled(!can_add)
+            .on_click(cx.listener(|this, _, window, cx| {
+                this.add_todo(window, cx);
+                cx.notify();
+            }));
+
+        let add_button = if can_add {
+            add_button.primary()
+        } else {
+            add_button.custom(
+                ButtonCustomVariant::new(cx)
+                    .foreground(cx.theme().muted_foreground)
+                    .hover(cx.theme().popover),
+            )
+        };
 
         let composer_row = div()
             .flex()
-            .items_center()
-            .gap_2()
+            .items_end()
+            .gap(px(6.0))
+            .min_h(px(44.0))
+            .py(px(5.0))
+            .pl(px(12.0))
+            .pr(px(5.0))
+            .rounded(px(10.0))
+            .border_1()
+            .border_color(composer_border)
+            .bg(cx.theme().muted)
             .child(
-                div()
-                    .flex_1()
-                    .min_w_0()
-                    .child(Input::new(input_state).aria_label("新的待办事项")),
+                div().flex_1().min_w_0().child(
+                    Textarea::new(input_state)
+                        .aria_label("新的待办事项")
+                        .bordered(false)
+                        .bg(cx.theme().transparent),
+                ),
             )
-            .child(
-                Button::new("add-todo")
-                    .primary()
-                    .icon(Icon::new(IconName::Plus))
-                    .label("添加")
-                    .tooltip("添加待办（回车）")
-                    .disabled(!can_add)
-                    .on_click(cx.listener(|this, _, window, cx| {
-                        this.add_todo(window, cx);
-                        cx.notify();
-                    })),
-            );
+            .child(add_button);
 
         let mut search_input = Input::new(self.search_input_state.as_ref().unwrap())
             .small()
@@ -1617,11 +1667,17 @@ impl Render for TodoList {
             .when(has_query, |row| row.child(count_label))
             .child(div().w(px(210.0)).flex_shrink_0().child(search_input));
 
+        let composer_block = div().flex_col().gap(px(5.0)).child(composer_row).child(
+            div()
+                .pl(px(2.0))
+                .text_size(px(11.0))
+                .text_color(cx.theme().muted_foreground),
+        );
+
         let header_card = design::card(cx)
-            .gap(px(14.0))
+            .gap(px(12.0))
             .child(header_row)
-            .when(total > 0, |card| card.child(progress_row))
-            .child(composer_row)
+            .child(composer_block)
             .child(toolbar_row);
 
         let list_body = if !self.loaded {
@@ -1629,20 +1685,37 @@ impl Render for TodoList {
         } else if top_todos.is_empty() {
             self.render_empty_state(window, cx)
         } else {
-            div().flex().flex_col().gap(px(2.0)).children(
-                top_todos
-                    .iter()
-                    .map(|todo| self.render_todo_item(todo, 0, window, cx)),
-            )
+            let total = top_todos.len();
+            div()
+                .flex()
+                .flex_col()
+                .children(top_todos.iter().enumerate().map(|(index, todo)| {
+                    let item = self.render_todo_item(todo, 0, window, cx);
+                    let mut block = div().flex().flex_col().child(item);
+                    if index + 1 < total {
+                        block = block.child(div().h(px(1.0)).mx(px(10.0)).bg(cx.theme().border));
+                    }
+                    block
+                }))
         };
 
         let list_card = design::card(cx)
+            .flex()
+            .flex_1()
+            .min_h(px(0.0))
             .p(px(8.0))
-            .min_h(px(320.0))
-            .max_h(px(560.0))
-            .overflow_y_scrollbar()
-            .child(list_body);
+            .child(
+                div()
+                    .flex_1()
+                    .min_h(px(0.0))
+                    .overflow_y_scrollbar()
+                    .child(list_body),
+            );
 
-        design::page().child(header_card).child(list_card)
+        design::page()
+            .flex()
+            .h(window.viewport_size().height - px(56.0))
+            .child(header_card)
+            .child(list_card)
     }
 }
