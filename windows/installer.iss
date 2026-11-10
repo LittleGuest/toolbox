@@ -9,7 +9,7 @@
 ;  安装包输出到 dist\Toolbox-<版本>-windows-x64-setup.exe
 ;
 ;  可用 /D 覆盖的宏（均可省略）：
-;      AppVersion  应用版本号，缺省 1.4.1
+;      AppVersion  应用版本号
 ;      SourceExe   待打包的 exe 路径，缺省 ..\target\release\toolbox.exe
 ;      OutputDir   输出目录，缺省 ..\dist
 ;      ChineseIsl  简体中文语言文件路径；传入后向导切换为中文
@@ -26,7 +26,7 @@
 #define AppUrl "https://github.com/LittleGuest/toolbox"
 
 #ifndef AppVersion
-  #define AppVersion "1.4.1"
+  #define AppVersion "1.5.0"
 #endif
 
 #ifndef SourceExe
