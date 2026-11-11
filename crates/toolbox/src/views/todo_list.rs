@@ -76,6 +76,8 @@ pub struct TodoList {
     search_input_state: Option<Entity<InputState>>,
     sub_input_states: HashMap<i64, Entity<TextareaState>>,
     editing_input_states: HashMap<i64, Entity<TextareaState>>,
+    sub_input_subscriptions: HashMap<i64, Subscription>,
+    editing_input_subscriptions: HashMap<i64, Subscription>,
     composer_focused: bool,
     _subscriptions: Vec<Subscription>,
 }
@@ -96,6 +98,8 @@ impl TodoList {
             search_input_state: None,
             sub_input_states: HashMap::new(),
             editing_input_states: HashMap::new(),
+            sub_input_subscriptions: HashMap::new(),
+            editing_input_subscriptions: HashMap::new(),
             composer_focused: false,
             _subscriptions: Vec::new(),
         }
@@ -304,6 +308,8 @@ impl TodoList {
         for id in ids {
             self.editing_input_states.remove(id);
             self.sub_input_states.remove(id);
+            self.editing_input_subscriptions.remove(id);
+            self.sub_input_subscriptions.remove(id);
         }
     }
 
@@ -398,33 +404,33 @@ impl TodoList {
             self.expanded_ids.push(id);
         }
 
-        let state =
-            if let std::collections::hash_map::Entry::Vacant(e) = self.sub_input_states.entry(id) {
-                let state = cx.new(|cx| {
-                    TextareaState::new(window, cx)
-                        .placeholder("输入子任务；Enter 添加，Shift+Enter 换行")
-                        .auto_grow(1, 3)
-                        .submit_on_enter(true)
-                });
-                let _ = cx.subscribe_in(
-                    &state,
-                    window,
-                    move |this, _, ev: &InputEvent, window, cx| match ev {
-                        InputEvent::Change => cx.notify(),
-                        InputEvent::PressEnter { shift, .. } => {
-                            if !*shift {
-                                this.add_sub_todo(id, window, cx);
-                                cx.notify()
-                            }
+        let state = if let Some(state) = self.sub_input_states.get(&id).cloned() {
+            state
+        } else {
+            let state = cx.new(|cx| {
+                TextareaState::new(window, cx)
+                    .placeholder("输入子任务；Enter 添加，Shift+Enter 换行")
+                    .auto_grow(1, 3)
+                    .submit_on_enter(true)
+            });
+            let subscription = cx.subscribe_in(
+                &state,
+                window,
+                move |this, _, ev: &InputEvent, window, cx| match ev {
+                    InputEvent::Change => cx.notify(),
+                    InputEvent::PressEnter { shift, .. } => {
+                        if !*shift {
+                            this.add_sub_todo(id, window, cx);
+                            cx.notify()
                         }
-                        _ => {}
-                    },
-                );
-                e.insert(state.clone());
-                state
-            } else {
-                self.sub_input_states.get(&id).unwrap().clone()
-            };
+                    }
+                    _ => {}
+                },
+            );
+            self.sub_input_states.insert(id, state.clone());
+            self.sub_input_subscriptions.insert(id, subscription);
+            state
+        };
 
         state.update(cx, |state, cx| {
             state.set_value(String::new(), window, cx);
@@ -848,74 +854,104 @@ impl TodoList {
 
     fn start_edit(&mut self, id: i64, window: &mut Window, cx: &mut Context<Self>) {
         self.adding_sub_for = None;
-        if let Some(todo) = self.todos.iter().find(|t| t.id == Some(id)) {
-            self.editing_id = Some(id);
-            self.editing_text = todo.text.clone();
+        let Some(initial_text) = self
+            .todos
+            .iter()
+            .find(|t| t.id == Some(id))
+            .map(|t| t.text.clone())
+        else {
+            return;
+        };
+        self.editing_id = Some(id);
+        self.editing_text = initial_text.clone();
 
-            self.editing_input_states.entry(id).or_insert_with(|| {
-                let editing_input_state = cx.new(|cx| {
+        let editing_input_state = match self.editing_input_states.get(&id).cloned() {
+            Some(state) => state,
+            None => {
+                let state = cx.new(|cx| {
                     TextareaState::new(window, cx)
                         .placeholder("编辑待办事项；Enter 保存，Shift+Enter 换行")
                         .auto_grow(1, 8)
                         .submit_on_enter(true)
                 });
-                let editing_input_state_clone = editing_input_state.clone();
-
-                let _ = cx.subscribe_in(&editing_input_state, window, {
-                    move |this, _, ev: &InputEvent, window, cx| match ev {
-                        InputEvent::Change => {
-                            let value = editing_input_state_clone.read(cx).value();
-                            this.editing_text = value;
-                            cx.notify()
-                        }
-                        InputEvent::PressEnter { shift, .. } => {
-                            if !*shift {
-                                this.save_edit(window, cx);
+                let subscription = cx.subscribe_in(&state, window, {
+                    move |this, emitter: &Entity<TextareaState>, ev: &InputEvent, window, cx| {
+                        match ev {
+                            InputEvent::Change => {
+                                this.editing_text = emitter.read(cx).value();
                                 cx.notify()
                             }
+                            InputEvent::PressEnter { shift, .. } => {
+                                if !*shift {
+                                    this.save_edit(window, cx);
+                                    cx.notify()
+                                }
+                            }
+                            _ => {}
                         }
-                        _ => {}
                     }
                 });
-
-                editing_input_state
-            });
-
-            if let Some(editing_input_state) = self.editing_input_states.get(&id) {
-                editing_input_state.update(cx, |input_state, cx| {
-                    input_state.replace(todo.text.clone(), window, cx);
-                    input_state.focus(window, cx);
-                });
+                self.editing_input_states.insert(id, state.clone());
+                self.editing_input_subscriptions.insert(id, subscription);
+                state
             }
-        }
+        };
+
+        editing_input_state.update(cx, |input_state, cx| {
+            let end = initial_text.len();
+            input_state.set_value(initial_text, window, cx);
+            input_state.set_selected_range(end..end, cx);
+            input_state.focus(window, cx);
+        });
+
         cx.notify();
     }
 
     fn save_edit(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(id) = self.editing_id
-            && let Some(editing_input_state) = self.editing_input_states.get(&id)
-        {
-            let value = editing_input_state.read(cx).value().to_string();
-            if value.trim().is_empty() {
-                window.push_notification(Notification::warning("待办事项内容不能为空"), cx);
-                return;
-            }
-            if let Some(todo) = self.todos.iter_mut().find(|t| t.id == Some(id)) {
-                todo.text = SharedString::from(value.clone());
-                let record = todo.to_record();
-
-                cx.spawn_in(window, async move |this: WeakEntity<Self>, cx| {
-                    let _ = config_store::update_todo(id, record).await;
-                    let _ = this.update_in(cx, |_this, window, cx| {
-                        window.push_notification(Notification::success("待办事项已更新"), cx);
-                        cx.notify();
-                    });
-                })
-                .detach();
-            }
+        let Some(id) = self.editing_id else {
+            return;
+        };
+        let Some(editing_input_state) = self.editing_input_states.get(&id).cloned() else {
+            return;
+        };
+        let value = editing_input_state.read(cx).value().to_string();
+        if value.trim().is_empty() {
+            window.push_notification(Notification::warning("待办事项内容不能为空"), cx);
+            return;
         }
+        let Some(todo) = self.todos.iter_mut().find(|t| t.id == Some(id)) else {
+            self.editing_id = None;
+            self.editing_text = SharedString::default();
+            return;
+        };
+        let previous = todo.text.clone();
+        todo.text = SharedString::from(value.clone());
+        let record = todo.to_record();
+
         self.editing_id = None;
         self.editing_text = SharedString::default();
+
+        cx.spawn_in(window, async move |this: WeakEntity<Self>, cx| {
+            let result = config_store::update_todo(id, record).await;
+            let _ = this.update_in(cx, |this, window, cx| {
+                match result {
+                    Ok(_) => {
+                        window.push_notification(Notification::success("待办事项已更新"), cx);
+                    }
+                    Err(err) => {
+                        if let Some(todo) = this.todos.iter_mut().find(|t| t.id == Some(id)) {
+                            todo.text = previous;
+                        }
+                        window.push_notification(
+                            Notification::error(format!("保存待办失败：{err}")),
+                            cx,
+                        );
+                    }
+                }
+                cx.notify();
+            });
+        })
+        .detach();
     }
 
     fn cancel_edit(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
